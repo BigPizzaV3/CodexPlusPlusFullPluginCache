@@ -1,0 +1,797 @@
+# ChatGPT Meetings third-party licenses
+
+This directory accompanies the ChatGPT Meetings native application. Keep it with the application when redistributing it.
+
+The original license, copyright, attribution, and patent notices are preserved in `licenses/`. The manifest records component versions, upstream provenance, target architectures, and SHA-256 checksums. Rust build dependencies and embedded source notices are included conservatively; inclusion does not imply every component is linked into every target.
+
+## Components
+
+- **ahash 0.8.12** — MIT OR Apache-2.0
+  - Source: https://github.com/tkaitchuck/ahash
+  - [LICENSE-APACHE](licenses/ahash-0.8.12-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/ahash-0.8.12-c19b7c6f92/LICENSE-MIT)
+- **aho-corasick 1.1.5** — Unlicense OR MIT
+  - Source: https://github.com/BurntSushi/aho-corasick
+  - [COPYING](licenses/aho-corasick-1.1.5-c19b7c6f92/COPYING)
+  - [LICENSE-MIT](licenses/aho-corasick-1.1.5-c19b7c6f92/LICENSE-MIT)
+- **atomic-waker 1.1.2** — Apache-2.0 OR MIT
+  - Source: https://github.com/smol-rs/atomic-waker
+  - [LICENSE-APACHE](licenses/atomic-waker-1.1.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/atomic-waker-1.1.2-c19b7c6f92/LICENSE-MIT)
+  - [LICENSE-THIRD-PARTY](licenses/atomic-waker-1.1.2-c19b7c6f92/LICENSE-THIRD-PARTY)
+- **audiopus_sys 0.2.2** — ISC
+  - Source: https://github.com/lakelezz/audiopus_sys.git
+  - [LICENSE.md](licenses/audiopus_sys-0.2.2-c19b7c6f92/LICENSE.md)
+  - [AUTHORS](licenses/audiopus_sys-0.2.2-c19b7c6f92/opus/AUTHORS)
+  - [COPYING](licenses/audiopus_sys-0.2.2-c19b7c6f92/opus/COPYING)
+  - [LICENSE_PLEASE_READ.txt](licenses/audiopus_sys-0.2.2-c19b7c6f92/opus/LICENSE_PLEASE_READ.txt)
+  - [SOURCE_NOTICES.txt](licenses/audiopus_sys-0.2.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **autocfg 1.5.1** — Apache-2.0 OR MIT
+  - Source: https://github.com/cuviper/autocfg
+  - [LICENSE-APACHE](licenses/autocfg-1.5.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/autocfg-1.5.1-c19b7c6f92/LICENSE-MIT)
+- **backtrace 0.3.76** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/backtrace-rs
+  - [LICENSE-APACHE](licenses/backtrace-0.3.76-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/backtrace-0.3.76-c19b7c6f92/LICENSE-MIT)
+- **base64 0.22.1** — MIT OR Apache-2.0
+  - Source: https://github.com/marshallpierce/rust-base64
+  - [LICENSE-APACHE](licenses/base64-0.22.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/base64-0.22.1-c19b7c6f92/LICENSE-MIT)
+- **base64 0.23.1** — MIT OR Apache-2.0
+  - Source: https://github.com/marshallpierce/rust-base64
+  - [LICENSE-APACHE](licenses/base64-0.23.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/base64-0.23.1-c19b7c6f92/LICENSE-MIT)
+- **bitflags 1.3.2** — MIT/Apache-2.0
+  - Source: https://github.com/bitflags/bitflags
+  - [LICENSE-APACHE](licenses/bitflags-1.3.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/bitflags-1.3.2-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/bitflags-1.3.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **bitflags 2.13.0** — MIT OR Apache-2.0
+  - Source: https://github.com/bitflags/bitflags
+  - [LICENSE-APACHE](licenses/bitflags-2.13.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/bitflags-2.13.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/bitflags-2.13.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **block-buffer 0.10.4** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/utils
+  - [LICENSE-APACHE](licenses/block-buffer-0.10.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/block-buffer-0.10.4-c19b7c6f92/LICENSE-MIT)
+- **block-buffer 0.12.1** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/utils
+  - [LICENSE-APACHE](licenses/block-buffer-0.12.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/block-buffer-0.12.1-c19b7c6f92/LICENSE-MIT)
+- **bytes 1.12.1** — MIT
+  - Source: https://github.com/tokio-rs/bytes
+  - [LICENSE](licenses/bytes-1.12.1-c19b7c6f92/LICENSE)
+- **cc 1.2.67** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/cc-rs
+  - [LICENSE-APACHE](licenses/cc-1.2.67-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/cc-1.2.67-c19b7c6f92/LICENSE-MIT)
+- **cfg-if 1.0.4** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/cfg-if
+  - [LICENSE-APACHE](licenses/cfg-if-1.0.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/cfg-if-1.0.4-c19b7c6f92/LICENSE-MIT)
+- **cfg_aliases 0.2.2** — MIT
+  - Source: https://github.com/katharostech/cfg_aliases
+  - [LICENSE](licenses/cfg_aliases-0.2.2-c19b7c6f92/LICENSE)
+- **chacha20 0.10.1** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/stream-ciphers
+  - [LICENSE-APACHE](licenses/chacha20-0.10.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/chacha20-0.10.1-c19b7c6f92/LICENSE-MIT)
+- **cmake 0.1.58** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/cmake-rs
+  - [LICENSE-APACHE](licenses/cmake-0.1.58-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/cmake-0.1.58-c19b7c6f92/LICENSE-MIT)
+- **const-oid 0.10.2** — Apache-2.0 OR MIT
+  - Source: https://github.com/RustCrypto/formats
+  - [LICENSE-APACHE](licenses/const-oid-0.10.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/const-oid-0.10.2-c19b7c6f92/LICENSE-MIT)
+- **cpufeatures 0.2.17** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/utils
+  - [LICENSE-APACHE](licenses/cpufeatures-0.2.17-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/cpufeatures-0.2.17-c19b7c6f92/LICENSE-MIT)
+- **cpufeatures 0.3.0** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/utils
+  - [LICENSE-APACHE](licenses/cpufeatures-0.3.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/cpufeatures-0.3.0-c19b7c6f92/LICENSE-MIT)
+- **crypto-common 0.1.7** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/traits
+  - [LICENSE-APACHE](licenses/crypto-common-0.1.7-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/crypto-common-0.1.7-c19b7c6f92/LICENSE-MIT)
+- **crypto-common 0.2.2** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/traits
+  - [LICENSE-APACHE](licenses/crypto-common-0.2.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/crypto-common-0.2.2-c19b7c6f92/LICENSE-MIT)
+- **data-encoding 2.11.1** — MIT
+  - Source: https://github.com/ia0/data-encoding
+  - [LICENSE](licenses/data-encoding-2.11.1-c19b7c6f92/LICENSE)
+- **debugid 0.8.0** — Apache-2.0
+  - Source: https://github.com/getsentry/rust-debugid
+  - [LICENSE](licenses/debugid-0.8.0-c19b7c6f92/LICENSE)
+- **decibri-aec 0.2.0** — Apache-2.0
+  - Source: https://github.com/decibri/decibri-aec
+  - [LICENSE](licenses/decibri-aec-0.2.0-1f7e7cb898/LICENSE)
+- **decibri-aec local modifications 0.2.0** — Apache-2.0
+  - Source: https://github.com/decibri/decibri-aec/tree/68f4be0e714a870d10bd7fa8222173064e3bd7f9
+  - [MODIFICATIONS.md](licenses/decibri-aec_local_modifications-0.2.0-fe2a27b10c/decibri-aec-0.2.0/MODIFICATIONS.md)
+- **deranged 0.5.8** — MIT OR Apache-2.0
+  - Source: https://github.com/jhpratt/deranged
+  - [LICENSE-Apache](licenses/deranged-0.5.8-c19b7c6f92/LICENSE-Apache)
+  - [LICENSE-MIT](licenses/deranged-0.5.8-c19b7c6f92/LICENSE-MIT)
+- **digest 0.10.7** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/traits
+  - [LICENSE-APACHE](licenses/digest-0.10.7-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/digest-0.10.7-c19b7c6f92/LICENSE-MIT)
+- **digest 0.11.3** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/traits
+  - [LICENSE-APACHE](licenses/digest-0.11.3-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/digest-0.11.3-c19b7c6f92/LICENSE-MIT)
+- **earshot 1.1.0** — MIT OR Apache-2.0
+  - Source: https://github.com/pykeio/earshot
+  - [LICENSE-APACHE](licenses/earshot-1.1.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/earshot-1.1.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/earshot-1.1.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **equivalent 1.0.2** — Apache-2.0 OR MIT
+  - Source: https://github.com/indexmap-rs/equivalent
+  - [LICENSE-APACHE](licenses/equivalent-1.0.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/equivalent-1.0.2-c19b7c6f92/LICENSE-MIT)
+- **fallible-iterator 0.3.0** — MIT/Apache-2.0
+  - Source: https://github.com/sfackler/rust-fallible-iterator
+  - [LICENSE-APACHE](licenses/fallible-iterator-0.3.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/fallible-iterator-0.3.0-c19b7c6f92/LICENSE-MIT)
+- **fallible-streaming-iterator 0.1.9** — MIT/Apache-2.0
+  - Source: https://github.com/sfackler/fallible-streaming-iterator
+  - [LICENSE-APACHE](licenses/fallible-streaming-iterator-0.1.9-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/fallible-streaming-iterator-0.1.9-c19b7c6f92/LICENSE-MIT)
+- **fastrand 2.4.1** — Apache-2.0 OR MIT
+  - Source: https://github.com/smol-rs/fastrand
+  - [LICENSE-APACHE](licenses/fastrand-2.4.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/fastrand-2.4.1-c19b7c6f92/LICENSE-MIT)
+- **find-msvc-tools 0.1.9** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/cc-rs
+  - [LICENSE-APACHE](licenses/find-msvc-tools-0.1.9-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/find-msvc-tools-0.1.9-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/find-msvc-tools-0.1.9-c19b7c6f92/SOURCE_NOTICES.txt)
+- **findshlibs 0.10.2** — MIT OR Apache-2.0
+  - Source: https://github.com/gimli-rs/findshlibs
+  - [LICENSE-APACHE](licenses/findshlibs-0.10.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/findshlibs-0.10.2-c19b7c6f92/LICENSE-MIT)
+- **form_urlencoded 1.2.2** — MIT OR Apache-2.0
+  - Source: https://github.com/servo/rust-url
+  - [LICENSE-APACHE](licenses/form_urlencoded-1.2.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/form_urlencoded-1.2.2-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/form_urlencoded-1.2.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **fs4 1.1.0** — MIT OR Apache-2.0
+  - Source: https://github.com/al8n/fs4
+  - [LICENSE-APACHE](licenses/fs4-1.1.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/fs4-1.1.0-c19b7c6f92/LICENSE-MIT)
+- **futures-channel 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-channel-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-channel-0.3.32-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/futures-channel-0.3.32-c19b7c6f92/SOURCE_NOTICES.txt)
+- **futures-core 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-core-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-core-0.3.32-c19b7c6f92/LICENSE-MIT)
+- **futures-io 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-io-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-io-0.3.32-c19b7c6f92/LICENSE-MIT)
+- **futures-macro 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-macro-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-macro-0.3.32-c19b7c6f92/LICENSE-MIT)
+- **futures-sink 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-sink-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-sink-0.3.32-c19b7c6f92/LICENSE-MIT)
+- **futures-task 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-task-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-task-0.3.32-c19b7c6f92/LICENSE-MIT)
+- **futures-util 0.3.32** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/futures-rs
+  - [LICENSE-APACHE](licenses/futures-util-0.3.32-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/futures-util-0.3.32-c19b7c6f92/LICENSE-MIT)
+- **generic-array 0.14.7** — MIT
+  - Source: https://github.com/fizyk20/generic-array.git
+  - [LICENSE](licenses/generic-array-0.14.7-c19b7c6f92/LICENSE)
+- **getrandom 0.2.17** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/getrandom
+  - [LICENSE-APACHE](licenses/getrandom-0.2.17-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/getrandom-0.2.17-c19b7c6f92/LICENSE-MIT)
+- **getrandom 0.3.4** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/getrandom
+  - [LICENSE-APACHE](licenses/getrandom-0.3.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/getrandom-0.3.4-c19b7c6f92/LICENSE-MIT)
+- **getrandom 0.4.3** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/getrandom
+  - [LICENSE-APACHE](licenses/getrandom-0.4.3-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/getrandom-0.4.3-c19b7c6f92/LICENSE-MIT)
+- **hashbrown 0.14.5** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/hashbrown
+  - [LICENSE-APACHE](licenses/hashbrown-0.14.5-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/hashbrown-0.14.5-c19b7c6f92/LICENSE-MIT)
+- **hashbrown 0.17.1** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/hashbrown
+  - [LICENSE-APACHE](licenses/hashbrown-0.17.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/hashbrown-0.17.1-c19b7c6f92/LICENSE-MIT)
+- **hashlink 0.9.1** — MIT OR Apache-2.0
+  - Source: https://github.com/kyren/hashlink
+  - [LICENSE-APACHE](licenses/hashlink-0.9.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/hashlink-0.9.1-c19b7c6f92/LICENSE-MIT)
+- **hex 0.4.3** — MIT OR Apache-2.0
+  - Source: https://github.com/KokaKiwi/rust-hex
+  - [LICENSE-APACHE](licenses/hex-0.4.3-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/hex-0.4.3-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/hex-0.4.3-c19b7c6f92/SOURCE_NOTICES.txt)
+- **http 1.4.2** — MIT OR Apache-2.0
+  - Source: https://github.com/hyperium/http
+  - [LICENSE-APACHE](licenses/http-1.4.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/http-1.4.2-c19b7c6f92/LICENSE-MIT)
+- **http-body 1.0.1** — MIT
+  - Source: https://github.com/hyperium/http-body
+  - [LICENSE](licenses/http-body-1.0.1-c19b7c6f92/LICENSE)
+- **http-body-util 0.1.3** — MIT
+  - Source: https://github.com/hyperium/http-body
+  - [LICENSE](licenses/http-body-util-0.1.3-c19b7c6f92/LICENSE)
+- **httparse 1.10.1** — MIT OR Apache-2.0
+  - Source: https://github.com/seanmonstar/httparse
+  - [LICENSE-APACHE](licenses/httparse-1.10.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/httparse-1.10.1-c19b7c6f92/LICENSE-MIT)
+- **httpdate 1.0.3** — MIT OR Apache-2.0
+  - Source: https://github.com/pyfisch/httpdate
+  - [LICENSE-APACHE](licenses/httpdate-1.0.3-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/httpdate-1.0.3-c19b7c6f92/LICENSE-MIT)
+- **hybrid-array 0.4.14** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/hybrid-array
+  - [LICENSE-APACHE](licenses/hybrid-array-0.4.14-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/hybrid-array-0.4.14-c19b7c6f92/LICENSE-MIT)
+- **hyper 1.10.1** — MIT
+  - Source: https://github.com/hyperium/hyper
+  - [LICENSE](licenses/hyper-1.10.1-c19b7c6f92/LICENSE)
+- **hyper-rustls 0.27.9** — Apache-2.0 OR ISC OR MIT
+  - Source: https://github.com/rustls/hyper-rustls
+  - [LICENSE-APACHE](licenses/hyper-rustls-0.27.9-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-ISC](licenses/hyper-rustls-0.27.9-c19b7c6f92/LICENSE-ISC)
+  - [LICENSE-MIT](licenses/hyper-rustls-0.27.9-c19b7c6f92/LICENSE-MIT)
+- **hyper-util 0.1.20** — MIT
+  - Source: https://github.com/hyperium/hyper-util
+  - [LICENSE](licenses/hyper-util-0.1.20-c19b7c6f92/LICENSE)
+- **idna 0.4.0** — MIT OR Apache-2.0
+  - Source: https://github.com/servo/rust-url/
+  - [LICENSE-APACHE](licenses/idna-0.4.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/idna-0.4.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/idna-0.4.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **indexmap 2.14.0** — Apache-2.0 OR MIT
+  - Source: https://github.com/indexmap-rs/indexmap
+  - [LICENSE-APACHE](licenses/indexmap-2.14.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/indexmap-2.14.0-c19b7c6f92/LICENSE-MIT)
+- **ipnet 2.12.0** — MIT OR Apache-2.0
+  - Source: https://github.com/krisprice/ipnet
+  - [LICENSE-APACHE](licenses/ipnet-2.12.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/ipnet-2.12.0-c19b7c6f92/LICENSE-MIT)
+- **iri-string 0.7.12** — MIT OR Apache-2.0
+  - Source: https://github.com/lo48576/iri-string
+  - [LICENSE-APACHE.txt](licenses/iri-string-0.7.12-c19b7c6f92/LICENSE-APACHE.txt)
+  - [LICENSE-MIT.txt](licenses/iri-string-0.7.12-c19b7c6f92/LICENSE-MIT.txt)
+- **itoa 1.0.18** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/itoa
+  - [LICENSE-APACHE](licenses/itoa-1.0.18-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/itoa-1.0.18-c19b7c6f92/LICENSE-MIT)
+- **lazy_static 1.5.0** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang-nursery/lazy-static.rs
+  - [LICENSE-APACHE](licenses/lazy_static-1.5.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/lazy_static-1.5.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/lazy_static-1.5.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **libc 0.2.186** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/libc
+  - [LICENSE-APACHE](licenses/libc-0.2.186-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/libc-0.2.186-c19b7c6f92/LICENSE-MIT)
+- **libsqlite3-sys 0.28.0** — MIT
+  - Source: https://github.com/rusqlite/rusqlite
+  - [LICENSE](licenses/libsqlite3-sys-0.28.0-c19b7c6f92/LICENSE)
+  - [LICENSE](licenses/libsqlite3-sys-0.28.0-c19b7c6f92/sqlcipher/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/libsqlite3-sys-0.28.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **log 0.4.33** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/log
+  - [LICENSE-APACHE](licenses/log-0.4.33-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/log-0.4.33-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/log-0.4.33-c19b7c6f92/SOURCE_NOTICES.txt)
+- **memchr 2.8.3** — Unlicense OR MIT
+  - Source: https://github.com/BurntSushi/memchr
+  - [COPYING](licenses/memchr-2.8.3-c19b7c6f92/COPYING)
+  - [LICENSE-MIT](licenses/memchr-2.8.3-c19b7c6f92/LICENSE-MIT)
+- **microfft code embedded in earshot earshot 1.1.0** — MIT
+  - Source: https://github.com/pykeio/earshot/tree/e4cf75fc18b8e5fea5c64d48d6e12076b0a7a266/src/fft
+  - [microfft-LICENSE.txt](licenses/microfft_code_embedded_in_earshot-earshot_1.1.0-04208ddd0b/earshot-1.1.0/microfft-LICENSE.txt)
+  - [microfft-NOTICE.txt](licenses/microfft_code_embedded_in_earshot-earshot_1.1.0-04208ddd0b/earshot-1.1.0/microfft-NOTICE.txt)
+- **mio 1.2.1** — MIT
+  - Source: https://github.com/tokio-rs/mio
+  - [LICENSE](licenses/mio-1.2.1-c19b7c6f92/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/mio-1.2.1-c19b7c6f92/SOURCE_NOTICES.txt)
+- **native-windows-gui 1.0.13** — MIT
+  - Source: https://github.com/gabdube/native-windows-gui/tree/a6c96e8de5d01fe7bb566d737622dfead3cd1aed
+  - [LICENSE.txt](licenses/native-windows-gui-1.0.13-37d9803321/native-windows-gui-1.0.13/LICENSE.txt)
+- **native-windows-gui 1.0.13** — MIT
+  - Source: https://github.com/gabdube/native-windows-gui
+  - [notice_basic.rs](licenses/native-windows-gui-1.0.13-c19b7c6f92/examples/notice_basic.rs)
+  - [notice.rs](licenses/native-windows-gui-1.0.13-c19b7c6f92/src/controls/notice.rs)
+- **num-conv 0.2.2** — MIT OR Apache-2.0
+  - Source: https://github.com/jhpratt/num-conv
+  - [LICENSE-Apache](licenses/num-conv-0.2.2-c19b7c6f92/LICENSE-Apache)
+  - [LICENSE-MIT](licenses/num-conv-0.2.2-c19b7c6f92/LICENSE-MIT)
+- **num-integer 0.1.46** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-num/num-integer
+  - [LICENSE-APACHE](licenses/num-integer-0.1.46-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/num-integer-0.1.46-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/num-integer-0.1.46-c19b7c6f92/SOURCE_NOTICES.txt)
+- **num-traits 0.2.19** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-num/num-traits
+  - [LICENSE-APACHE](licenses/num-traits-0.2.19-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/num-traits-0.2.19-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/num-traits-0.2.19-c19b7c6f92/SOURCE_NOTICES.txt)
+- **once_cell 1.21.4** — MIT OR Apache-2.0
+  - Source: https://github.com/matklad/once_cell
+  - [LICENSE-APACHE](licenses/once_cell-1.21.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/once_cell-1.21.4-c19b7c6f92/LICENSE-MIT)
+- **openssl-src 300.6.1+3.6.3** — MIT/Apache-2.0
+  - Source: https://github.com/alexcrichton/openssl-src-rs
+  - [LICENSE-APACHE](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/LICENSE-MIT)
+  - [LICENSE.txt](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/openssl/LICENSE.txt)
+  - [LICENSE](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/openssl/external/perl/Text-Template-1.56/LICENSE)
+  - [copyright.pm](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/openssl/util/perl/OpenSSL/copyright.pm)
+  - [SOURCE_NOTICES.txt](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/SOURCE_NOTICES.txt)
+  - [SOURCE_NOTICES_2.txt](licenses/openssl-src-300.6.1_3.6.3-c19b7c6f92/SOURCE_NOTICES_2.txt)
+- **openssl-sys 0.9.117** — MIT
+  - Source: https://github.com/rust-openssl/rust-openssl
+  - [LICENSE-MIT](licenses/openssl-sys-0.9.117-c19b7c6f92/LICENSE-MIT)
+- **opus 0.3.1** — MIT/Apache-2.0
+  - Source: https://github.com/SpaceManiac/opus-rs
+  - [LICENSE-APACHE](licenses/opus-0.3.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/opus-0.3.1-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/opus-0.3.1-c19b7c6f92/SOURCE_NOTICES.txt)
+- **Opus embedded runtime source notices audiopus_sys 0.2.2** — BSD-2-Clause AND BSD-3-Clause
+  - Source: https://github.com/xiph/opus/tree/7b05f44f4baadf34d8d1073f4ff69f1806d5cdb4
+  - [SOURCE-NOTICES.txt](licenses/Opus_embedded_runtime_source_notices-audiopus_sys_0.2.2-6a0982cb70/opus-audiopus-sys-0.2.2/SOURCE-NOTICES.txt)
+- **percent-encoding 2.3.2** — MIT OR Apache-2.0
+  - Source: https://github.com/servo/rust-url/
+  - [LICENSE-APACHE](licenses/percent-encoding-2.3.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/percent-encoding-2.3.2-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/percent-encoding-2.3.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **pin-project-lite 0.2.17** — Apache-2.0 OR MIT
+  - Source: https://github.com/taiki-e/pin-project-lite
+  - [LICENSE-APACHE](licenses/pin-project-lite-0.2.17-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/pin-project-lite-0.2.17-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/pin-project-lite-0.2.17-c19b7c6f92/SOURCE_NOTICES.txt)
+- **pkg-config 0.3.33** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/pkg-config-rs
+  - [LICENSE-APACHE](licenses/pkg-config-0.3.33-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/pkg-config-0.3.33-c19b7c6f92/LICENSE-MIT)
+- **powerfmt 0.2.0** — MIT OR Apache-2.0
+  - Source: https://github.com/jhpratt/powerfmt
+  - [LICENSE-Apache](licenses/powerfmt-0.2.0-c19b7c6f92/LICENSE-Apache)
+  - [LICENSE-MIT](licenses/powerfmt-0.2.0-c19b7c6f92/LICENSE-MIT)
+- **ppv-lite86 0.2.21** — MIT OR Apache-2.0
+  - Source: https://github.com/cryptocorrosion/cryptocorrosion
+  - [LICENSE-APACHE](licenses/ppv-lite86-0.2.21-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/ppv-lite86-0.2.21-c19b7c6f92/LICENSE-MIT)
+- **proc-macro2 1.0.106** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/proc-macro2
+  - [LICENSE-APACHE](licenses/proc-macro2-1.0.106-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/proc-macro2-1.0.106-c19b7c6f92/LICENSE-MIT)
+- **process-wrap 10.0.0** — Apache-2.0 OR MIT
+  - Source: https://github.com/watchexec/process-wrap
+  - [COPYRIGHT](licenses/process-wrap-10.0.0-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/process-wrap-10.0.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/process-wrap-10.0.0-c19b7c6f92/LICENSE-MIT)
+- **quote 1.0.46** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/quote
+  - [LICENSE-APACHE](licenses/quote-1.0.46-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/quote-1.0.46-c19b7c6f92/LICENSE-MIT)
+- **rand 0.10.2** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/rand
+  - [COPYRIGHT](licenses/rand-0.10.2-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/rand-0.10.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rand-0.10.2-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/rand-0.10.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **rand 0.9.5** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/rand
+  - [COPYRIGHT](licenses/rand-0.9.5-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/rand-0.9.5-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rand-0.9.5-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/rand-0.9.5-c19b7c6f92/SOURCE_NOTICES.txt)
+- **rand_chacha 0.9.0** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/rand
+  - [COPYRIGHT](licenses/rand_chacha-0.9.0-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/rand_chacha-0.9.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rand_chacha-0.9.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/rand_chacha-0.9.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **rand_core 0.10.1** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/rand_core
+  - [COPYRIGHT](licenses/rand_core-0.10.1-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/rand_core-0.10.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rand_core-0.10.1-c19b7c6f92/LICENSE-MIT)
+- **rand_core 0.9.5** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-random/rand
+  - [COPYRIGHT](licenses/rand_core-0.9.5-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/rand_core-0.9.5-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rand_core-0.9.5-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/rand_core-0.9.5-c19b7c6f92/SOURCE_NOTICES.txt)
+- **regex 1.13.1** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/regex
+  - [LICENSE-APACHE](licenses/regex-1.13.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/regex-1.13.1-c19b7c6f92/LICENSE-MIT)
+- **regex-automata 0.4.18** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/regex
+  - [LICENSE-APACHE](licenses/regex-automata-0.4.18-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/regex-automata-0.4.18-c19b7c6f92/LICENSE-MIT)
+- **regex-syntax 0.8.11** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/regex
+  - [LICENSE-APACHE](licenses/regex-syntax-0.8.11-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/regex-syntax-0.8.11-c19b7c6f92/LICENSE-MIT)
+  - [LICENSE-UNICODE](licenses/regex-syntax-0.8.11-c19b7c6f92/src/unicode_tables/LICENSE-UNICODE)
+- **reqwest 0.13.4** — MIT OR Apache-2.0
+  - Source: https://github.com/seanmonstar/reqwest
+  - [LICENSE-APACHE](licenses/reqwest-0.13.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/reqwest-0.13.4-c19b7c6f92/LICENSE-MIT)
+- **ring 0.17.14** — Apache-2.0 AND ISC
+  - Source: https://github.com/briansmith/ring
+  - [LICENSE](licenses/ring-0.17.14-c19b7c6f92/LICENSE)
+  - [LICENSE-BoringSSL](licenses/ring-0.17.14-c19b7c6f92/LICENSE-BoringSSL)
+  - [LICENSE-other-bits](licenses/ring-0.17.14-c19b7c6f92/LICENSE-other-bits)
+  - [LICENSE-APACHE](licenses/ring-0.17.14-c19b7c6f92/src/polyfill/once_cell/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/ring-0.17.14-c19b7c6f92/src/polyfill/once_cell/LICENSE-MIT)
+  - [LICENSE](licenses/ring-0.17.14-c19b7c6f92/third_party/fiat/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/ring-0.17.14-c19b7c6f92/SOURCE_NOTICES.txt)
+- **ring embedded source notices 0.17.14** — ISC AND Apache-2.0 AND MIT
+  - Source: https://github.com/briansmith/ring/tree/2723abbca9e83347d82b056d5b239c6604f786df
+  - [SOURCE-NOTICES.txt](licenses/ring_embedded_source_notices-0.17.14-0a2b035288/ring-0.17.14/SOURCE-NOTICES.txt)
+- **rusqlite 0.31.0** — MIT
+  - Source: https://github.com/rusqlite/rusqlite
+  - [LICENSE](licenses/rusqlite-0.31.0-c19b7c6f92/LICENSE)
+- **Rust standard library 1.88.0** — MIT OR Apache-2.0; embedded dependencies described in COPYRIGHT-library.html
+  - Source: https://github.com/rust-lang/rust/tree/6b00bc3880198600130e1cf62b8f8a93494488cc/library
+  - [COPYRIGHT-library.html](licenses/Rust-standard-library-1.88.0-7268c3e435/COPYRIGHT-library.html)
+- **rustc-demangle 0.1.28** — MIT/Apache-2.0
+  - Source: https://github.com/rust-lang/rustc-demangle
+  - [LICENSE-APACHE](licenses/rustc-demangle-0.1.28-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rustc-demangle-0.1.28-c19b7c6f92/LICENSE-MIT)
+- **rustls 0.23.41** — Apache-2.0 OR ISC OR MIT
+  - Source: https://github.com/rustls/rustls
+  - [LICENSE-APACHE](licenses/rustls-0.23.41-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-ISC](licenses/rustls-0.23.41-c19b7c6f92/LICENSE-ISC)
+  - [LICENSE-MIT](licenses/rustls-0.23.41-c19b7c6f92/LICENSE-MIT)
+- **rustls-pki-types 1.15.0** — MIT OR Apache-2.0
+  - Source: https://github.com/rustls/pki-types
+  - [LICENSE-APACHE](licenses/rustls-pki-types-1.15.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rustls-pki-types-1.15.0-c19b7c6f92/LICENSE-MIT)
+- **rustls-platform-verifier 0.7.0** — MIT OR Apache-2.0
+  - Source: https://github.com/rustls/rustls-platform-verifier
+  - [LICENSE-APACHE](licenses/rustls-platform-verifier-0.7.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/rustls-platform-verifier-0.7.0-c19b7c6f92/LICENSE-MIT)
+- **rustls-webpki 0.103.13** — ISC
+  - Source: https://github.com/rustls/webpki
+  - [LICENSE](licenses/rustls-webpki-0.103.13-c19b7c6f92/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/rustls-webpki-0.103.13-c19b7c6f92/SOURCE_NOTICES.txt)
+- **semver 1.0.28** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/semver
+  - [LICENSE-APACHE](licenses/semver-1.0.28-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/semver-1.0.28-c19b7c6f92/LICENSE-MIT)
+- **sentry 0.49.1** — MIT
+  - Source: https://github.com/getsentry/sentry-rust
+  - [LICENSE](licenses/sentry-0.49.1-c19b7c6f92/LICENSE)
+- **sentry-backtrace 0.49.1** — MIT
+  - Source: https://github.com/getsentry/sentry-rust
+  - [LICENSE](licenses/sentry-backtrace-0.49.1-c19b7c6f92/LICENSE)
+- **sentry-core 0.49.1** — MIT
+  - Source: https://github.com/getsentry/sentry-rust
+  - [LICENSE](licenses/sentry-core-0.49.1-c19b7c6f92/LICENSE)
+- **sentry-debug-images 0.49.1** — MIT
+  - Source: https://github.com/getsentry/sentry-rust
+  - [LICENSE](licenses/sentry-debug-images-0.49.1-c19b7c6f92/LICENSE)
+- **sentry-tracing 0.49.1** — MIT
+  - Source: https://github.com/getsentry/sentry-rust
+  - [LICENSE](licenses/sentry-tracing-0.49.1-c19b7c6f92/LICENSE)
+- **sentry-types 0.49.1** — MIT
+  - Source: https://github.com/getsentry/sentry-rust
+  - [LICENSE](licenses/sentry-types-0.49.1-c19b7c6f92/LICENSE)
+- **serde 1.0.228** — MIT OR Apache-2.0
+  - Source: https://github.com/serde-rs/serde
+  - [LICENSE-APACHE](licenses/serde-1.0.228-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/serde-1.0.228-c19b7c6f92/LICENSE-MIT)
+- **serde_core 1.0.228** — MIT OR Apache-2.0
+  - Source: https://github.com/serde-rs/serde
+  - [LICENSE-APACHE](licenses/serde_core-1.0.228-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/serde_core-1.0.228-c19b7c6f92/LICENSE-MIT)
+- **serde_derive 1.0.228** — MIT OR Apache-2.0
+  - Source: https://github.com/serde-rs/serde
+  - [LICENSE-APACHE](licenses/serde_derive-1.0.228-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/serde_derive-1.0.228-c19b7c6f92/LICENSE-MIT)
+- **serde_json 1.0.150** — MIT OR Apache-2.0
+  - Source: https://github.com/serde-rs/json
+  - [LICENSE-APACHE](licenses/serde_json-1.0.150-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/serde_json-1.0.150-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/serde_json-1.0.150-c19b7c6f92/SOURCE_NOTICES.txt)
+- **sha1 0.11.0** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/hashes
+  - [LICENSE-APACHE](licenses/sha1-0.11.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/sha1-0.11.0-c19b7c6f92/LICENSE-MIT)
+- **sha2 0.10.9** — MIT OR Apache-2.0
+  - Source: https://github.com/RustCrypto/hashes
+  - [LICENSE-APACHE](licenses/sha2-0.10.9-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/sha2-0.10.9-c19b7c6f92/LICENSE-MIT)
+- **shlex 2.0.1** — MIT OR Apache-2.0
+  - Source: https://github.com/comex/rust-shlex
+  - [LICENSE-APACHE](licenses/shlex-2.0.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/shlex-2.0.1-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/shlex-2.0.1-c19b7c6f92/SOURCE_NOTICES.txt)
+- **slab 0.4.12** — MIT
+  - Source: https://github.com/tokio-rs/slab
+  - [LICENSE](licenses/slab-0.4.12-c19b7c6f92/LICENSE)
+- **smallvec 1.15.2** — MIT OR Apache-2.0
+  - Source: https://github.com/servo/rust-smallvec
+  - [LICENSE-APACHE](licenses/smallvec-1.15.2-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/smallvec-1.15.2-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/smallvec-1.15.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **socket2 0.6.4** — MIT OR Apache-2.0
+  - Source: https://github.com/rust-lang/socket2
+  - [LICENSE-APACHE](licenses/socket2-0.6.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/socket2-0.6.4-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/socket2-0.6.4-c19b7c6f92/SOURCE_NOTICES.txt)
+- **SQLite amalgamation 3.45.0** — LicenseRef-SQLite-Public-Domain
+  - Source: https://www.sqlite.org/src/info/1066602b2b1976fe58b5150777cced894af1
+  - [PUBLIC-DOMAIN-NOTICE.txt](licenses/SQLite_amalgamation-3.45.0-1726788e9f/sqlite-3.45.0/PUBLIC-DOMAIN-NOTICE.txt)
+- **subtle 2.6.1** — BSD-3-Clause
+  - Source: https://github.com/dalek-cryptography/subtle
+  - [LICENSE](licenses/subtle-2.6.1-c19b7c6f92/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/subtle-2.6.1-c19b7c6f92/SOURCE_NOTICES.txt)
+- **syn 2.0.118** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/syn
+  - [LICENSE-APACHE](licenses/syn-2.0.118-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/syn-2.0.118-c19b7c6f92/LICENSE-MIT)
+- **sync_wrapper 1.0.2** — Apache-2.0
+  - Source: https://github.com/Actyx/sync_wrapper
+  - [LICENSE](licenses/sync_wrapper-1.0.2-c19b7c6f92/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/sync_wrapper-1.0.2-c19b7c6f92/SOURCE_NOTICES.txt)
+- **tempfile 3.27.0** — MIT OR Apache-2.0
+  - Source: https://github.com/Stebalien/tempfile
+  - [LICENSE-APACHE](licenses/tempfile-3.27.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/tempfile-3.27.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/tempfile-3.27.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **thiserror 2.0.18** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/thiserror
+  - [LICENSE-APACHE](licenses/thiserror-2.0.18-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/thiserror-2.0.18-c19b7c6f92/LICENSE-MIT)
+- **thiserror-impl 2.0.18** — MIT OR Apache-2.0
+  - Source: https://github.com/dtolnay/thiserror
+  - [LICENSE-APACHE](licenses/thiserror-impl-2.0.18-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/thiserror-impl-2.0.18-c19b7c6f92/LICENSE-MIT)
+- **time 0.3.55** — MIT OR Apache-2.0
+  - Source: https://github.com/time-rs/time
+  - [LICENSE-Apache](licenses/time-0.3.55-c19b7c6f92/LICENSE-Apache)
+  - [LICENSE-MIT](licenses/time-0.3.55-c19b7c6f92/LICENSE-MIT)
+- **time-core 0.1.9** — MIT OR Apache-2.0
+  - Source: https://github.com/time-rs/time
+  - [LICENSE-Apache](licenses/time-core-0.1.9-c19b7c6f92/LICENSE-Apache)
+  - [LICENSE-MIT](licenses/time-core-0.1.9-c19b7c6f92/LICENSE-MIT)
+- **time-macros 0.2.32** — MIT OR Apache-2.0
+  - Source: https://github.com/time-rs/time
+  - [LICENSE-Apache](licenses/time-macros-0.2.32-c19b7c6f92/LICENSE-Apache)
+  - [LICENSE-MIT](licenses/time-macros-0.2.32-c19b7c6f92/LICENSE-MIT)
+- **tinyvec 1.12.0** — Zlib OR Apache-2.0 OR MIT
+  - Source: https://github.com/Lokathor/tinyvec
+  - [LICENSE-APACHE.md](licenses/tinyvec-1.12.0-c19b7c6f92/LICENSE-APACHE.md)
+  - [LICENSE-MIT.md](licenses/tinyvec-1.12.0-c19b7c6f92/LICENSE-MIT.md)
+  - [LICENSE-ZLIB.md](licenses/tinyvec-1.12.0-c19b7c6f92/LICENSE-ZLIB.md)
+- **tinyvec_macros 0.1.1** — MIT OR Apache-2.0 OR Zlib
+  - Source: https://github.com/Soveu/tinyvec_macros
+  - [LICENSE-APACHE.md](licenses/tinyvec_macros-0.1.1-c19b7c6f92/LICENSE-APACHE.md)
+  - [LICENSE-MIT.md](licenses/tinyvec_macros-0.1.1-c19b7c6f92/LICENSE-MIT.md)
+  - [LICENSE-ZLIB.md](licenses/tinyvec_macros-0.1.1-c19b7c6f92/LICENSE-ZLIB.md)
+- **tokio 1.52.3** — MIT
+  - Source: https://github.com/tokio-rs/tokio
+  - [LICENSE](licenses/tokio-1.52.3-c19b7c6f92/LICENSE)
+- **tokio-macros 2.7.0** — MIT
+  - Source: https://github.com/tokio-rs/tokio
+  - [LICENSE](licenses/tokio-macros-2.7.0-c19b7c6f92/LICENSE)
+- **tokio-rustls 0.26.4** — MIT OR Apache-2.0
+  - Source: https://github.com/rustls/tokio-rustls
+  - [LICENSE-APACHE](licenses/tokio-rustls-0.26.4-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/tokio-rustls-0.26.4-c19b7c6f92/LICENSE-MIT)
+- **tokio-tungstenite 0.30.0** — MIT
+  - Source: https://github.com/snapview/tokio-tungstenite
+  - [LICENSE](licenses/tokio-tungstenite-0.30.0-c19b7c6f92/LICENSE)
+- **tokio-util 0.7.18** — MIT
+  - Source: https://github.com/tokio-rs/tokio
+  - [LICENSE](licenses/tokio-util-0.7.18-c19b7c6f92/LICENSE)
+- **tower 0.5.3** — MIT
+  - Source: https://github.com/tower-rs/tower
+  - [LICENSE](licenses/tower-0.5.3-c19b7c6f92/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/tower-0.5.3-c19b7c6f92/SOURCE_NOTICES.txt)
+- **tower-http 0.6.8** — MIT
+  - Source: https://github.com/tower-rs/tower-http
+  - [LICENSE](licenses/tower-http-0.6.8-c19b7c6f92/LICENSE)
+- **tower-layer 0.3.3** — MIT
+  - Source: https://github.com/tower-rs/tower
+  - [LICENSE](licenses/tower-layer-0.3.3-c19b7c6f92/LICENSE)
+- **tower-service 0.3.3** — MIT
+  - Source: https://github.com/tower-rs/tower
+  - [LICENSE](licenses/tower-service-0.3.3-c19b7c6f92/LICENSE)
+- **tracing 0.1.44** — MIT
+  - Source: https://github.com/tokio-rs/tracing
+  - [LICENSE](licenses/tracing-0.1.44-c19b7c6f92/LICENSE)
+- **tracing-core 0.1.36** — MIT
+  - Source: https://github.com/tokio-rs/tracing
+  - [LICENSE](licenses/tracing-core-0.1.36-c19b7c6f92/LICENSE)
+  - [LICENSE](licenses/tracing-core-0.1.36-c19b7c6f92/src/spin/LICENSE)
+- **tracing-subscriber 0.3.23** — MIT
+  - Source: https://github.com/tokio-rs/tracing
+  - [LICENSE](licenses/tracing-subscriber-0.3.23-c19b7c6f92/LICENSE)
+  - [SOURCE_NOTICES.txt](licenses/tracing-subscriber-0.3.23-c19b7c6f92/SOURCE_NOTICES.txt)
+- **try-lock 0.2.5** — MIT
+  - Source: https://github.com/seanmonstar/try-lock
+  - [LICENSE](licenses/try-lock-0.2.5-c19b7c6f92/LICENSE)
+- **tungstenite 0.30.0** — MIT OR Apache-2.0
+  - Source: https://github.com/snapview/tungstenite-rs
+  - [LICENSE-APACHE](licenses/tungstenite-0.30.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/tungstenite-0.30.0-c19b7c6f92/LICENSE-MIT)
+- **typenum 1.20.1** — MIT OR Apache-2.0
+  - Source: https://github.com/paholg/typenum
+  - [LICENSE](licenses/typenum-1.20.1-c19b7c6f92/LICENSE)
+  - [LICENSE-APACHE](licenses/typenum-1.20.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/typenum-1.20.1-c19b7c6f92/LICENSE-MIT)
+- **unicode-bidi 0.3.18** — MIT OR Apache-2.0
+  - Source: https://github.com/servo/unicode-bidi
+  - [AUTHORS](licenses/unicode-bidi-0.3.18-c19b7c6f92/AUTHORS)
+  - [COPYRIGHT](licenses/unicode-bidi-0.3.18-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/unicode-bidi-0.3.18-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/unicode-bidi-0.3.18-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/unicode-bidi-0.3.18-c19b7c6f92/SOURCE_NOTICES.txt)
+- **unicode-ident 1.0.24** — (MIT OR Apache-2.0) AND Unicode-3.0
+  - Source: https://github.com/dtolnay/unicode-ident
+  - [LICENSE-APACHE](licenses/unicode-ident-1.0.24-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/unicode-ident-1.0.24-c19b7c6f92/LICENSE-MIT)
+  - [LICENSE-UNICODE](licenses/unicode-ident-1.0.24-c19b7c6f92/LICENSE-UNICODE)
+- **unicode-normalization 0.1.25** — MIT OR Apache-2.0
+  - Source: https://github.com/unicode-rs/unicode-normalization
+  - [COPYRIGHT](licenses/unicode-normalization-0.1.25-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/unicode-normalization-0.1.25-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/unicode-normalization-0.1.25-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/unicode-normalization-0.1.25-c19b7c6f92/SOURCE_NOTICES.txt)
+- **unicode-segmentation 1.12.0** — MIT OR Apache-2.0
+  - Source: https://github.com/unicode-rs/unicode-segmentation
+  - [COPYRIGHT](licenses/unicode-segmentation-1.12.0-c19b7c6f92/COPYRIGHT)
+  - [LICENSE-APACHE](licenses/unicode-segmentation-1.12.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/unicode-segmentation-1.12.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/unicode-segmentation-1.12.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **untrusted 0.9.0** — ISC
+  - Source: https://github.com/briansmith/untrusted
+  - [LICENSE.txt](licenses/untrusted-0.9.0-c19b7c6f92/LICENSE.txt)
+  - [SOURCE_NOTICES.txt](licenses/untrusted-0.9.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **ureq 3.4.0** — MIT OR Apache-2.0
+  - Source: https://github.com/algesten/ureq
+  - [LICENSE-APACHE](licenses/ureq-3.4.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/ureq-3.4.0-c19b7c6f92/LICENSE-MIT)
+- **ureq-proto 0.6.1** — MIT OR Apache-2.0
+  - Source: https://github.com/algesten/ureq-proto
+  - [LICENSE-APACHE.txt](licenses/ureq-proto-0.6.1-c19b7c6f92/LICENSE-APACHE.txt)
+  - [LICENSE-MIT.txt](licenses/ureq-proto-0.6.1-c19b7c6f92/LICENSE-MIT.txt)
+- **url 2.4.1** — MIT OR Apache-2.0
+  - Source: https://github.com/servo/rust-url
+  - [LICENSE-APACHE](licenses/url-2.4.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/url-2.4.1-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/url-2.4.1-c19b7c6f92/SOURCE_NOTICES.txt)
+- **utf8-zero 0.8.1** — MIT OR Apache-2.0
+  - Source: https://github.com/algesten/utf8-zero
+  - [LICENSE-APACHE](licenses/utf8-zero-0.8.1-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/utf8-zero-0.8.1-c19b7c6f92/LICENSE-MIT)
+- **uuid 1.25.0** — Apache-2.0 OR MIT
+  - Source: https://github.com/uuid-rs/uuid
+  - [LICENSE-APACHE](licenses/uuid-1.25.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/uuid-1.25.0-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/uuid-1.25.0-c19b7c6f92/SOURCE_NOTICES.txt)
+- **vcpkg 0.2.15** — MIT/Apache-2.0
+  - Source: https://github.com/mcgoo/vcpkg-rs
+  - [LICENSE-APACHE](licenses/vcpkg-0.2.15-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/vcpkg-0.2.15-c19b7c6f92/LICENSE-MIT)
+- **version_check 0.9.5** — MIT/Apache-2.0
+  - Source: https://github.com/SergioBenitez/version_check
+  - [LICENSE-APACHE](licenses/version_check-0.9.5-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/version_check-0.9.5-c19b7c6f92/LICENSE-MIT)
+- **want 0.3.1** — MIT
+  - Source: https://github.com/seanmonstar/want
+  - [LICENSE](licenses/want-0.3.1-c19b7c6f92/LICENSE)
+- **wasapi 0.23.0** — MIT
+  - Source: https://github.com/HEnquist/wasapi-rs
+  - [LICENSE.txt](licenses/wasapi-0.23.0-c19b7c6f92/LICENSE.txt)
+- **webpki-roots 0.26.11** — CDLA-Permissive-2.0
+  - Source: https://github.com/rustls/webpki-roots
+  - [LICENSE](licenses/webpki-roots-0.26.11-c19b7c6f92/LICENSE)
+- **webpki-roots 1.0.9** — CDLA-Permissive-2.0
+  - Source: https://github.com/rustls/webpki-roots
+  - [LICENSE](licenses/webpki-roots-1.0.9-c19b7c6f92/LICENSE)
+- **winapi 0.3.9** — MIT/Apache-2.0
+  - Source: https://github.com/retep998/winapi-rs
+  - [LICENSE-APACHE](licenses/winapi-0.3.9-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/winapi-0.3.9-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/winapi-0.3.9-c19b7c6f92/SOURCE_NOTICES.txt)
+- **winapi-build 0.1.1** — MIT
+  - Source: https://github.com/retep998/winapi-rs/tree/77588710a683e1a4ec085b0f3d6c8939ecc7f030
+  - [LICENSE.txt](licenses/winapi-build-0.1.1-225fc15db0/winapi-build-0.1.1/LICENSE.txt)
+- **winapi-build 0.1.1** — MIT
+  - Source: https://github.com/retep998/winapi-rs
+  - [SOURCE_NOTICES.txt](licenses/winapi-build-0.1.1-c19b7c6f92/SOURCE_NOTICES.txt)
+- **winapi-util 0.1.11** — Unlicense OR MIT
+  - Source: https://github.com/BurntSushi/winapi-util
+  - [COPYING](licenses/winapi-util-0.1.11-c19b7c6f92/COPYING)
+  - [LICENSE-MIT](licenses/winapi-util-0.1.11-c19b7c6f92/LICENSE-MIT)
+- **windows 0.62.2** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-0.62.2-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-0.62.2-c19b7c6f92/license-mit)
+- **windows-collections 0.3.2** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-collections-0.3.2-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-collections-0.3.2-c19b7c6f92/license-mit)
+- **windows-core 0.62.2** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-core-0.62.2-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-core-0.62.2-c19b7c6f92/license-mit)
+- **windows-future 0.3.2** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-future-0.3.2-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-future-0.3.2-c19b7c6f92/license-mit)
+- **windows-implement 0.60.2** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-implement-0.60.2-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-implement-0.60.2-c19b7c6f92/license-mit)
+- **windows-interface 0.59.3** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-interface-0.59.3-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-interface-0.59.3-c19b7c6f92/license-mit)
+- **windows-link 0.2.1** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-link-0.2.1-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-link-0.2.1-c19b7c6f92/license-mit)
+- **windows-numerics 0.3.1** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-numerics-0.3.1-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-numerics-0.3.1-c19b7c6f92/license-mit)
+- **windows-result 0.4.1** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-result-0.4.1-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-result-0.4.1-c19b7c6f92/license-mit)
+- **windows-strings 0.5.1** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-strings-0.5.1-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-strings-0.5.1-c19b7c6f92/license-mit)
+- **windows-sys 0.61.2** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-sys-0.61.2-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-sys-0.61.2-c19b7c6f92/license-mit)
+- **windows-threading 0.2.1** — MIT OR Apache-2.0
+  - Source: https://github.com/microsoft/windows-rs
+  - [license-apache-2.0](licenses/windows-threading-0.2.1-c19b7c6f92/license-apache-2.0)
+  - [license-mit](licenses/windows-threading-0.2.1-c19b7c6f92/license-mit)
+- **zerocopy 0.8.54** — BSD-2-Clause OR Apache-2.0 OR MIT
+  - Source: https://github.com/google/zerocopy
+  - [LICENSE-APACHE](licenses/zerocopy-0.8.54-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-BSD](licenses/zerocopy-0.8.54-c19b7c6f92/LICENSE-BSD)
+  - [LICENSE-MIT](licenses/zerocopy-0.8.54-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/zerocopy-0.8.54-c19b7c6f92/SOURCE_NOTICES.txt)
+- **zerocopy-derive 0.8.54** — BSD-2-Clause OR Apache-2.0 OR MIT
+  - Source: https://github.com/google/zerocopy
+  - [LICENSE-APACHE](licenses/zerocopy-derive-0.8.54-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-BSD](licenses/zerocopy-derive-0.8.54-c19b7c6f92/LICENSE-BSD)
+  - [LICENSE-MIT](licenses/zerocopy-derive-0.8.54-c19b7c6f92/LICENSE-MIT)
+  - [SOURCE_NOTICES.txt](licenses/zerocopy-derive-0.8.54-c19b7c6f92/SOURCE_NOTICES.txt)
+- **zeroize 1.9.0** — Apache-2.0 OR MIT
+  - Source: https://github.com/RustCrypto/utils
+  - [LICENSE-APACHE](licenses/zeroize-1.9.0-c19b7c6f92/LICENSE-APACHE)
+  - [LICENSE-MIT](licenses/zeroize-1.9.0-c19b7c6f92/LICENSE-MIT)
+- **zmij 1.0.21** — MIT
+  - Source: https://github.com/dtolnay/zmij
+  - [LICENSE-MIT](licenses/zmij-1.0.21-c19b7c6f92/LICENSE-MIT)

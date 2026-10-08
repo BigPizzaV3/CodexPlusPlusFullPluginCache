@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "crewnest-job-pricing",
+  "version": "1.0.0",
+  "description": "Cited low, typical and high prices for lawn mowing, snow plowing, pressure washing, roof cleaning, gutter cleaning, driveway sealing and landscaping jobs, from the formulas behind CrewNest's public calculators.",
+  "author": {
+    "name": "Kinetic Labs",
+    "email": "support@crewnest.app",
+    "url": "https://www.crewnest.app"
+  },
+  "homepage": "https://www.crewnest.app",
+  "keywords": [
+    "pricing",
+    "estimates",
+    "lawn care",
+    "snow removal",
+    "pressure washing",
+    "field service"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "CrewNest Job Pricing",
+        "shortDescription": "Cited prices for outdoor jobs",
+        "longDescription": "Ask what to charge, or what a job should cost, for lawn mowing, snow plowing, pressure washing, roof cleaning, gutter cleaning, driveway sealing and landscaping (sod, mulch, topsoil, gravel, paver sealing). The tools return a low, typical and high price from the same formulas as CrewNest's public calculators, along with the assumptions used and the CrewNest page each figure comes from, with the date it was checked. Each estimate includes a link to the full calculator breakdown and a link to open it as a quote in CrewNest.\n\nIt is built for people who run or are starting a lawn care, snow removal or exterior cleaning business, and for homeowners checking a quote. No account is needed. CrewNest logs which tool was called, the service and the response time to monitor the service; it does not log the job details you enter.\n\nPrices are general estimates from published CrewNest rates, not a quote from a business. Services outside the list above, a business's own costs, and tax or regional adjustments are not covered. It does not find, book or contact contractors.",
+        "developerName": "Kinetic Labs",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Estimate a job price with a low, typical and high range",
+          "Look up cited benchmark rates for materials and services",
+          "List the services it covers and what is out of scope"
+        ],
+        "websiteURL": "https://www.crewnest.app",
+        "supportURL": "https://www.crewnest.app/contact",
+        "privacyPolicyURL": "https://www.crewnest.app/privacy",
+        "termsOfServiceURL": "https://www.crewnest.app/terms",
+        "defaultPrompt": [
+          "How much should I charge to plow a 2-car driveway?",
+          "What should I charge to mow a 7,000 sq ft lawn every week?",
+          "How much does it cost to pressure wash a 600 square foot driveway?"
+        ],
+        "brandColor": "#00A8CC",
+        "brandColorDark": "#00D4FF",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Snow plowing price per push for a residential driveway. The answer should use the published range and not invent a Toronto adjustment.",
+              "prompt": "How much should I charge to plow a 2-car driveway in Toronto?",
+              "tools_triggered": "estimate_service_price",
+              "expected_behavior": "Calls estimate_service_price with service snow_plowing and property_type residential_driveway. Answers $35 to $75 per push, typical $55, the per-push range published on /snow-removal-pricing. Cites the snow plowing calculator (checked 2026-10-01) and /snow-removal-pricing (checked 2026-07-06). Says no regional adjustment is made. Gives the calculator breakdown link and the link to open the estimate as a quote in CrewNest (price 55.00)."
+            },
+            {
+              "description": "Weekly lawn mowing price for a 7,000 sq ft lawn, with the band explained.",
+              "prompt": "What should I charge to mow a 7,000 sq ft lawn every week?",
+              "tools_triggered": "estimate_service_price",
+              "expected_behavior": "Calls estimate_service_price with service lawn_mowing, sqft 7000 and frequency weekly. Answers typical $89.25 per visit with a band of $73.50 to $189 (0.7x to 1.8x of the base rate), about $357 a month and $4,284 a year. Cites the lawn mowing calculator and /cost/lawn-mowing."
+            },
+            {
+              "description": "Gutter cleaning, where CrewNest publishes a single figure and no range.",
+              "prompt": "How much should I charge to clean 180 feet of gutters on a 2-story home with 4 downspouts?",
+              "tools_triggered": "estimate_service_price",
+              "expected_behavior": "Calls estimate_service_price with service gutter_cleaning, linear_feet 180, stories 2 and downspouts 4. Answers $445 per job and says CrewNest publishes no low or high band for gutter cleaning, so none is invented. Cites the gutter cleaning calculator."
+            },
+            {
+              "description": "Pressure washing a driveway by area.",
+              "prompt": "How much does it cost to pressure wash a 600 square foot driveway?",
+              "tools_triggered": "estimate_service_price",
+              "expected_behavior": "Calls estimate_service_price with service pressure_washing, surface driveway and sqft 600. Answers typical $120 with a band of $84 to $240 (0.7x to 2x of the $0.20 per sq ft driveway rate), and notes that many operators set a $100 to $150 minimum job price. Cites the pressure washing calculator."
+            },
+            {
+              "description": "Benchmark lookup for a material rate rather than a job estimate.",
+              "prompt": "What's the going rate per bag for calcium chloride ice melt?",
+              "tools_triggered": "lookup_price_benchmark",
+              "expected_behavior": "Calls lookup_price_benchmark with service deicer_material (optionally query calcium). Answers calcium chloride at $15 to $25 per 50 lb bag, sourced from /tools/snow-salt-calculator (checked 2026-07-06)."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported trade. HVAC is not a covered service, so the plugin should not price it.",
+              "prompt": "How much does a new furnace cost to install?",
+              "expected_behavior": "No pricing tool is called. If the model calls list_supported_services, it sees HVAC is not covered and declines to price the job rather than inventing a rate."
+            },
+            {
+              "description": "Material quantity only, with no job price asked for.",
+              "prompt": "How many bags of mulch do I need for a 10 by 12 bed?",
+              "expected_behavior": "No tool is called. This is a quantity question; material-only lists are out of scope for the plugin."
+            },
+            {
+              "description": "Finding a contractor. The plugin does not find, book or contact businesses.",
+              "prompt": "Find me a snow removal company near me in Mississauga.",
+              "expected_behavior": "No tool is called. The plugin does not search for, recommend, book or contact contractors."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.crewnest.app/plugin/crewnest-job-pricing-demo.gif",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. It returns price estimates for field-service jobs."
+      },
+      "publication": {
+        "release_notes": "Initial release. Three read-only tools: estimate_service_price for seven outdoor services, lookup_price_benchmark for cited material and service rates, and list_supported_services."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

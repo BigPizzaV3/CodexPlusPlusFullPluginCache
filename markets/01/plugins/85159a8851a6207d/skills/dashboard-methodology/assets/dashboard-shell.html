@@ -1,0 +1,197 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__ — MSCI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  MSCI IndexAI DASHBOARD SHELL — dashboard-agnostic base. EVERY dashboard is assembled from this file
+  via assets/assemble.py so the header/logo, Refresh, disclaimers, brand, responsive layout and date
+  resolution are identical and current across ALL dashboards. Do NOT hand-author this chrome per
+  dashboard. Slots the assembler fills:
+    __TITLE__ __SUBTITLE__ __ASOF__ __MSCI_LOGO__ __DASHBOARD_BODY__ __FULL_NOTICE__
+    __EXTRA_DISCLAIMERS__ __APPROX_DISCLAIMER__ __QUERIES_JSON__ __RENDER_BODY__ __SNAPSHOT_DATE__
+-->
+<style>
+:root{
+  --msci-smokey-blue:#0626A9;--msci-primary-blue:#1A3FD6;--msci-daintree:#011B2B;--msci-turquoise:#00C4B3;
+  --msci-sky-blue:#7188EF;--msci-powder-blue:#AEBAF0;--msci-ice-blue:#F4F5FD;
+  --msci-black:#000;--msci-charcoal:#4D4D4D;--msci-lead:#707070;--msci-flint:#999;--msci-smoke:#CCC;
+  --msci-silver:#E6E6E6;--msci-dove:#F5F5F5;--msci-white:#FFF;
+  --msci-positive:#00A798;--msci-positive-strong:#118A5E;--msci-negative:#E02C1C;--msci-negative-mild:#FFC6B5;
+  --msci-font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+  --msci-mono:'SFMono-Regular',Consolas,monospace;
+  --msci-radius-sm:8px;--msci-radius-md:12px;--msci-radius-lg:16px;--msci-radius-xl:24px;
+  /* convenience aliases used by dashboard bodies */
+  --accent:var(--msci-primary-blue);--accent-deep:var(--msci-daintree);--smokey:var(--msci-smokey-blue);
+  --pos:var(--msci-positive);--neg:var(--msci-negative);--ink:var(--msci-daintree);--muted:var(--msci-charcoal);
+  --surface:#fff;--panel:var(--msci-ice-blue);--panel2:var(--msci-dove);--border:var(--msci-silver);--mono:var(--msci-mono);
+}
+*{box-sizing:border-box}
+html,body{max-width:100%}
+body{margin:0;font-family:var(--msci-font);color:var(--ink);background:#EEF1F6;font-size:14px;line-height:1.45;overflow-x:hidden}
+.wrap{max-width:1180px;margin:0 auto;padding:20px}
+/* Header */
+.hdr{background:linear-gradient(135deg,var(--accent-deep),var(--smokey));color:#fff;border-radius:14px;padding:22px 26px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.hdr h1{margin:0 0 4px;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.hdr .sub{font-size:12.5px;opacity:.85;font-weight:400}
+.hdr .asof{font-size:11.5px;opacity:.8;margin-top:8px;font-family:var(--mono);word-break:break-word}
+.hdr .logo{height:30px;width:auto;display:block;margin-bottom:10px}
+.btn{background:var(--msci-turquoise);color:#fff;border:none;border-radius:24px;padding:9px 18px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.btn:disabled{opacity:.65;cursor:progress}
+.btn .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes rot{to{transform:rotate(360deg)}}
+.flag{display:none;background:#FFF4E5;border:1px solid #FFD9A0;color:#8A5300;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:14px}
+/* As-of date + range control (replaces the old one-click refresh) */
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.ctl{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#fff;opacity:.92}
+.ctl-in{font:500 12px var(--msci-font);color:var(--ink);background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px 8px}
+.ctl-in:disabled{opacity:.55}
+/* Generic building blocks dashboards can use */
+.tabs{display:flex;gap:4px;margin:18px 0 0;flex-wrap:wrap}
+.tab{background:transparent;border:none;padding:10px 16px;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;border-radius:9px 9px 0 0}
+.tab.on{color:var(--accent);background:var(--surface);font-weight:600;box-shadow:0 -2px 0 var(--accent) inset}
+.panelwrap{background:var(--surface);border:1px solid var(--border);border-radius:0 12px 12px 12px;padding:22px}
+.view{display:none}.view.on{display:block}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:1fr 1fr}
+@media(max-width:760px){.g2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:16px;overflow-x:auto}
+.card h3{margin:0 0 12px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+/* Responsive KPI row — wraps by available space, shrinks instead of clipping (see brand.md §Responsive) */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px;margin-bottom:6px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:0}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:500}
+.kpi .v{font-size:clamp(16px,3.4vw,21px);font-weight:700;margin-top:3px;letter-spacing:-.02em;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:11px;color:var(--muted);font-weight:500}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 11px;border-bottom:1px solid var(--border);text-align:left}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600}
+.pos{color:var(--pos);font-weight:600}.neg{color:var(--neg);font-weight:600}.mut{color:var(--muted)}
+/* Right-align numeric columns so metrics line up (use class="num" on th/td) */
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+/* Disclaimer footer */
+.msci-disc{font:400 11px var(--msci-font);color:var(--msci-charcoal);border-top:1px solid var(--msci-silver);margin-top:20px;padding-top:14px;line-height:1.55}
+.msci-disc .sample{font-weight:600;color:var(--msci-daintree);margin-bottom:8px}
+.msci-disc .ai-note{color:var(--msci-charcoal);margin-bottom:8px;font-style:italic}
+.msci-disc .compact{margin-bottom:6px}
+.msci-disc summary{cursor:pointer;color:var(--msci-primary-blue);font-weight:600}
+.msci-disc .full{margin-top:10px;max-height:280px;overflow:auto;padding:12px 14px;background:var(--msci-dove);border:1px solid var(--msci-silver);border-radius:8px;font-size:10.5px}
+.msci-disc .full p{margin:0 0 9px}
+.msci-disc .approx{margin-top:10px;padding:8px 12px;background:#FFF4E5;border:1px solid #FFD9A0;border-radius:8px;color:#8A5300;font-style:italic}
+.msci-disc .extra{margin-top:10px;padding:8px 12px;background:var(--msci-dove);border:1px solid var(--msci-silver);border-radius:8px;color:var(--msci-charcoal);white-space:pre-wrap}
+</style></head>
+<body><div class="wrap">
+
+<div class="hdr">
+  <div>
+    __MSCI_LOGO__
+    <h1>__TITLE__</h1>
+    <div class="sub">__SUBTITLE__</div>
+    <div class="asof" id="asof">__ASOF__</div>
+  </div>
+  <div class="controls">
+    <label class="ctl"><input type="checkbox" id="asofLatest" checked> Latest</label>
+    <label class="ctl">As-of <input type="date" id="asofPick" class="ctl-in" disabled></label>
+    <label class="ctl">Range
+      <select id="rangePick" class="ctl-in">
+        <option value="1M">1M</option><option value="3M">3M</option><option value="6M">6M</option>
+        <option value="YTD">YTD</option><option value="1Y" selected>1Y</option>
+        <option value="3Y">3Y</option><option value="5Y">5Y</option><option value="MAX">Max</option>
+      </select>
+    </label>
+    <button class="btn" id="refreshBtn" type="button" onclick="refresh()">&#8635; Update</button>
+  </div>
+</div>
+<div class="flag" id="flag"></div>
+
+__DASHBOARD_BODY__
+
+<div class="msci-disc">
+  <div class="sample">Sample / provided as-is. This dashboard is a sample recipe showing what is possible with the IndexAI Insights MCP. It is not an MSCI product and is not maintained as a deliverable.</div>
+  <div class="ai-note">AI-generated. This dashboard was assembled by an AI assistant from MSCI data via the MSCI connector. It may contain errors; verify figures against an official MSCI source before relying on them.</div>
+  <div class="compact">For informational purposes only. The Information is the proprietary property of MSCI and must not be relied upon as investment advice or a recommendation. It is not a prediction or guarantee of future performance; past performance is not indicative of future results. It is not possible to invest in an index, and index returns do not represent the results of actual trading. GICS is the exclusive property of MSCI and S&amp;P Dow Jones Indices.</div>
+  <details><summary>Notice and Disclaimer</summary><div class="full">__FULL_NOTICE__</div></details>
+  __EXTRA_DISCLAIMERS__
+  __APPROX_DISCLAIMER__
+</div>
+
+</div>
+<script>
+// ---- Dashboard-agnostic refresh: resolves the latest business date, re-pulls CALLS, re-renders ----
+const MCP_URLS = ["https://mcp.msci.com/mcp/v1.0/mcp", "https://mcp.msci.com/index/index-mcp/v1.0/mcp"];
+const SNAPSHOT_DATE = "__SNAPSHOT_DATE__";       // build-time fallback only
+const QUERIES = __QUERIES_JSON__;                // [{ key, tool, args }]; args JSON may contain "<DATE>"; alias kept below
+const CALLS = QUERIES;                            // tool = "fetch_index_data" | "fetch_index_timeseries"
+function render(payload){ __RENDER_BODY__ }      // dashboard-specific re-render (keyed by call key)
+
+async function bridge(prompt, url){
+  const res = await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:4000,
+      messages:[{role:"user",content:prompt}], mcp_servers:[{type:"url",url:url,name:"index-mcp"}] })
+  });
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const data = await res.json();
+  const tr = (data.content||[]).filter(b=>b.type==="mcp_tool_result").map(b=>(b.content&&b.content[0]&&b.content[0].text)||"").filter(Boolean);
+  const tx = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text);
+  return (tr[0]||tx.join("\n")||"").replace(/```json|```/g,"").trim();
+}
+async function resolveLatestDate(url){
+  try{
+    // Resolve the latest served business date: fetch a cheap point-in-time datapoint and read fetched_date.
+    const probe = CALLS.find(e=>e.tool==="fetch_index_data" && e.args && e.args.codes && e.args.codes.length);
+    const code = probe ? probe.args.codes[0] : "990100";
+    const raw = await bridge(
+      "Call the fetch_index_data tool on the MSCI MCP with arguments "+
+      JSON.stringify({codes:[code], datapoints:["equity_index.performance.period_returns.period"], date:SNAPSHOT_DATE})+
+      ". Reply with ONLY the value of the response's fetched_date field as 8 digits YYYYMMDD. Nothing else.", url);
+    const m = raw.match(/(\d{4})\D?(\d{2})\D?(\d{2})/); if(m) return m[1]+m[2]+m[3];
+  }catch(e){}
+  return SNAPSHOT_DATE; // honest fallback so refresh still returns data
+}
+// Compute the range start (YYYYMMDD) from an as-of end date and a range token
+function computeStart(end, range){
+  if(range==='MAX') return '19700101';
+  if(range==='YTD') return end.slice(0,4)+'0101';
+  const dt=new Date(Date.UTC(+end.slice(0,4), +end.slice(4,6)-1, +end.slice(6,8)));
+  const mMap={'1M':-1,'3M':-3,'6M':-6}, yMap={'1Y':-1,'3Y':-3,'5Y':-5};
+  if(mMap[range]!==undefined) dt.setUTCMonth(dt.getUTCMonth()+mMap[range]);
+  else if(yMap[range]!==undefined) dt.setUTCFullYear(dt.getUTCFullYear()+yMap[range]);
+  const pad=n=>String(n).padStart(2,'0');
+  return ''+dt.getUTCFullYear()+pad(dt.getUTCMonth()+1)+pad(dt.getUTCDate());
+}
+// The as-of date + range control: resolve/pick the as-of date, apply the range, re-pull, re-render.
+async function refresh(){
+  const btn=document.getElementById('refreshBtn'), spin='<span class="spin"></span>', flag=document.getElementById('flag');
+  const latest=document.getElementById('asofLatest'), pick=document.getElementById('asofPick');
+  const range=(document.getElementById('rangePick')||{}).value||'MAX';
+  btn.disabled=true; btn.innerHTML=spin+'Updating…'; if(flag){flag.style.display='none';}
+  let lastErr;
+  for(const url of MCP_URLS){
+    try{
+      // as-of date: the picked date, or (when "Latest" is ticked) the live-resolved business date
+      let date=(latest&&!latest.checked&&pick&&pick.value)? pick.value.replace(/-/g,'') : await resolveLatestDate(url);
+      const start=computeStart(date, range);
+      const out={};
+      for(const e of CALLS){
+        const tool=e.tool||"fetch_index_data";
+        const args=JSON.parse(JSON.stringify(e.args||{})
+          .replace(/<DATE>/g,date).replace(/<END>/g,date).replace(/<START>/g,start)); // fill date + range placeholders
+        const prompt="Call the "+tool+" tool on the MSCI MCP with exactly these arguments, then reply with ONLY the raw JSON object the tool returns, no prose, no fences:\n\narguments:\n"+JSON.stringify(args);
+        out[e.key]=JSON.parse(await bridge(prompt, url)); // { scalars, list_tables } or { table, list_tables }
+      }
+      try{ render(out); }catch(e){ /* keep snapshot if a view fails */ }
+      const asof=document.getElementById('asof'), d=date.slice(0,4)+"-"+date.slice(4,6)+"-"+date.slice(6,8);
+      if(asof) asof.textContent = asof.textContent.replace(/as-of .*/i, "as-of "+d+" · "+range+" (live)");
+      btn.disabled=false; btn.innerHTML='\u21bb Update'; return;
+    }catch(e){ lastErr=e; }
+  }
+  if(flag){ flag.style.display='block'; flag.textContent='Update runs inside Claude Desktop / claude.ai; it could not reach the MCP just now — showing the last loaded snapshot. ('+(lastErr&&lastErr.message?lastErr.message:lastErr)+')'; }
+  btn.disabled=false; btn.innerHTML='\u21bb Update';
+}
+// Init: prefill the date picker to the snapshot date; enable it only when "Latest" is unticked.
+document.addEventListener('DOMContentLoaded', function(){
+  const latest=document.getElementById('asofLatest'), pick=document.getElementById('asofPick');
+  if(pick && /^\d{8}$/.test(SNAPSHOT_DATE)) pick.value=SNAPSHOT_DATE.slice(0,4)+'-'+SNAPSHOT_DATE.slice(4,6)+'-'+SNAPSHOT_DATE.slice(6,8);
+  if(latest && pick){ pick.disabled=latest.checked; latest.addEventListener('change', ()=>{ pick.disabled=latest.checked; }); }
+});
+</script>
+</body></html>

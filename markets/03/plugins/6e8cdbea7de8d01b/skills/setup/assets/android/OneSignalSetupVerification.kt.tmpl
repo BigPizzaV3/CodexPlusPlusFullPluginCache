@@ -1,0 +1,83 @@
+// onesignal:managed v1
+// Debug-only verification helper. The BuildConfig.DEBUG guard below means it
+// never runs in a release build, so the file is safe to keep. Delete it and
+// its call site in MainActivity.onCreate() only if you want to.
+//
+// What it does in a debug build:
+//   1. Requests push permission — the only place the integration prompts.
+//   2. Watches the push subscription and logs the subscription ID (tag
+//      "OneSignalVerify") once the device registers. The verify skill
+//      confirms the registration server-side and sends the test push from
+//      chat — this file makes no network call.
+//
+// Every OneSignal API below is verified against the SDK source. In particular:
+//   OneSignal.Notifications.requestPermission is a `suspend fun ... : Boolean`.
+//   It has NO callback overload. Calling it as `requestPermission(true) { ... }`
+//   is a fabrication that does not compile — call it from a coroutine as below.
+//
+// Placeholder: __PACKAGE__ (this file's package / module namespace).
+//
+// The `BuildConfig.DEBUG` guard requires the app module's buildConfig feature.
+// On AGP 8+ it is OFF by default — ensure the app's build.gradle.kts has:
+//     android { buildFeatures { buildConfig = true } }
+// (add it if missing; without it `BuildConfig` will not resolve).
+//
+// This file imports kotlinx.coroutines (to call the suspend `requestPermission`).
+// The OneSignal SDK exposes kotlinx-coroutines only as a RUNTIME (implementation)
+// dependency, not `api` — verified against com.onesignal:core Gradle module
+// metadata: coroutines is in the java-runtime variant, absent from java-api. So it
+// is NOT on the app's compile classpath transitively. If the app doesn't already
+// use coroutines, add to the app module's build.gradle(.kts):
+//     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+// (1.7.3 is the version the SDK resolves at runtime; newer is fine).
+package __PACKAGE__
+
+import android.util.Log
+import com.onesignal.OneSignal
+import com.onesignal.user.subscriptions.IPushSubscriptionObserver
+import com.onesignal.user.subscriptions.PushSubscriptionChangedState
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+object OneSignalSetupVerification {
+    // installed: MainActivity.onCreate runs again on every rotation — wire up
+    // the observer and the permission request exactly once per process.
+    private val installed = AtomicBoolean(false)
+    private val logged = AtomicBoolean(false)
+
+    fun installIfDebug() {
+        if (!BuildConfig.DEBUG) return // never runs in release
+        if (!installed.compareAndSet(false, true)) return
+
+        // The observer stays registered for the process lifetime. This object
+        // holds no Activity reference, so there is nothing to leak, and a
+        // removeObserver call from inside the observer callback could race the
+        // SDK's own iteration over its observer list.
+        OneSignal.User.pushSubscription.addObserver(object : IPushSubscriptionObserver {
+            override fun onPushSubscriptionChange(state: PushSubscriptionChangedState) {
+                report(state.current.id)
+            }
+        })
+
+        // Race guard: the ID may already be assigned before the observer attaches.
+        report(OneSignal.User.pushSubscription.id)
+
+        // requestPermission is a suspend fun — call it from a coroutine.
+        // fallbackToSettings must be false here: this call runs at launch with
+        // no user gesture, and `true` would bounce a previously-denied user
+        // into the OS Settings screen on every debug start.
+        CoroutineScope(Dispatchers.Main).launch {
+            OneSignal.Notifications.requestPermission(false)
+        }
+    }
+
+    // A real subscription ID is server-assigned: non-empty and not the SDK's
+    // `local-` pre-registration placeholder.
+    private fun report(subscriptionId: String) {
+        if (subscriptionId.isEmpty() || subscriptionId.startsWith("local-")) return
+        if (!logged.compareAndSet(false, true)) return
+        Log.i("OneSignalVerify", "Push subscription registered: $subscriptionId")
+    }
+}

@@ -1,0 +1,132 @@
+{
+  "schema_version": 2,
+  "service_id": "plugin-feedback",
+  "display_name": "Plugin improvement feedback",
+  "governed_paths": [
+    "hooks/hooks.json",
+    "scripts/check_for_update.py",
+    "scripts/change_requests.py",
+    "skills/vera/SKILL.md"
+  ],
+  "governed_repository_paths": [
+    "modules/change_requests/api.py",
+    "modules/change_requests/store.py",
+    "scripts/manage_change_requests.py",
+    "plugins/browser-automation/scripts/process_lifecycle.py",
+    "plugins/browser-automation/scripts/development_request.py",
+    "plugins/browser-automation/references/process-lifecycle.md"
+  ],
+  "runtime_profiles": [
+    "openai-codex"
+  ],
+  "external_boundaries": [
+    {
+      "id": "automatic-feedback-status-poll",
+      "kind": "hosted_service",
+      "destination": "Mparanza's fixed HTTPS change-request status endpoint",
+      "purpose": "Notify the user when a previously submitted problem or suggestion has been fixed or needs specific additional evidence",
+      "content": "Locally stored change-request IDs and their bearer status tokens, in batches of at most 100, plus ordinary connection metadata. The response may return an explicit disposition and bounded needs-information question. The submitted feedback text and client or case material are not resent.",
+      "retention": "The IDs and status tokens remain in local plugin state until that state is removed. State files are forced to mode 0600, while only the temporary fallback directories are forced to mode 0700. The corresponding change request remains in Mparanza's service record; the plugin does not enforce its deletion period.",
+      "activation": "automatic_after_prior_submission",
+      "optional": false,
+      "requires_confirmation": false,
+      "runtime_profiles": [
+        "openai-codex"
+      ],
+      "controls": [
+        "Polling occurs only when local state contains a receipt from an earlier user-approved submission.",
+        "The initial request URL is restricted to Mparanza HTTPS, each batch is capped at 100 receipts, the response size is bounded, and the submitted request text is not included."
+      ]
+    },
+    {
+      "id": "approved-text-feedback-submission",
+      "kind": "send_or_publish",
+      "destination": "Mparanza's fixed HTTPS change-request intake",
+      "purpose": "Submit a concrete Vera problem report or improvement suggestion to the developer",
+      "content": "The exact reviewed JSON request, request kind, Vera name/version, idempotent submission ID and bounded client context. Problem evidence may be partial: unavailable occurrence time, original runtime, operation or reproduction has an explicit missing-data reason; at least one useful attributed evidence string remains required. Browser process feedback includes opaque process/attempt IDs, capability version and execution hash, previous CR IDs, checkpoint fingerprints, counts/hashes, local elapsed time, available host telemetry and explicit missing-measurement reasons. Development requests also carry the sanitized professional process descriptor. It sends structured text, not the exported ZIP or private business outputs. The client validates mechanical shape, not semantic usefulness or automatic anonymization.",
+      "retention": "Mparanza stores the submitted change request and status receipt as a service record. The plugin does not promise an automatic deletion period.",
+      "activation": "explicit_user_choice",
+      "optional": true,
+      "requires_confirmation": true,
+      "runtime_profiles": [
+        "openai-codex"
+      ],
+      "controls": [
+        "Vera shows the exact prepared content and uses explicit transmission authorization for that content and Mparanza destination; it reuses existing applicable consent, without bypassing host action-time approval.",
+        "Vera's workflow instructs Codex to exclude client or customer material, source documents, run or case details, credentials, secrets, personal data, and identifying details; the client does not verify that semantic condition.",
+        "The initial request URL is restricted to Mparanza HTTPS, local request and wire sizes are capped, and the receipt is stored in a mode-0600 local state file."
+      ]
+    },
+    {
+      "id": "approved-follow-up-evidence",
+      "kind": "send_or_publish",
+      "destination": "Mparanza's fixed HTTPS change-request evidence endpoint",
+      "purpose": "Answer one specific developer needs-information question and return the request to active investigation",
+      "content": "Change-request identifier, locally stored bearer status token, idempotent evidence-update identifier, bounded summary, and one or more exact sanitized evidence strings. The original request and client or case material are not resent.",
+      "retention": "Mparanza appends the evidence update to the existing change-request service record. The plugin stores only the update identifier and payload hash for retry deduplication; it does not promise an automatic service-record deletion period.",
+      "activation": "explicit_user_choice",
+      "optional": true,
+      "requires_confirmation": true,
+      "runtime_profiles": [
+        "openai-codex"
+      ],
+      "controls": [
+        "Vera must show the exact proposed follow-up evidence and obtain explicit transmission consent before invoking the add-evidence command.",
+        "The client requires a locally stored receipt and bearer status token, bounds the evidence file and strings, and uses a durable update identifier so retry does not append a duplicate.",
+        "The service accepts evidence only while the request is in needs-information state and returns it to unresolved active triage without marking it fixed."
+      ]
+    },
+    {
+      "id": "approved-improvement-interview",
+      "kind": "hosted_service",
+      "destination": "Mparanza's hosted interview service and its OpenAI voice and transcription services",
+      "purpose": "Capture one optional one-minute explanation of a Vera improvement suggestion",
+      "content": "The opportunity text supplied to the client, Vera name and version, language, submission ID, and—after the user opens the interview—the user's audio, transcript, and hosted interview responses. Vera's workflow supplies a generic client-free opportunity string, but the client accepts any 1–4,000-character value and does not detect personal data or anonymize it automatically.",
+      "retention": "Mparanza retains the resulting change-request and interview record until service-level deletion; link expiry is not a deletion guarantee. OpenAI-side handling follows the hosted service's configured account and terms, which the Vera plugin cannot inspect or enforce.",
+      "activation": "explicit_user_choice",
+      "optional": true,
+      "requires_confirmation": true,
+      "runtime_profiles": [
+        "openai-codex"
+      ],
+      "controls": [
+        "The route starts only after the user chooses the voice option; Vera's skill supplies a generic opportunity string rather than case context, although the client cannot semantically verify arbitrary direct CLI input.",
+        "The interview is limited to one minute and instructs the participant not to share client, case, source, credential, secret, or identifying material.",
+        "The client accepts only an HTTPS interview URL whose hostname is Mparanza; it does not claim to enforce the full hosted-service path or retention policy."
+      ]
+    }
+  ],
+  "security_controls": [
+    {
+      "id": "bounded-change-request-messages",
+      "control": "The change-request client caps request files, wire payloads, responses, and status batches before using them.",
+      "implemented_by": [
+        "scripts/change_requests.py"
+      ],
+      "on_violation": "The client rejects the oversized file, payload, response, or batch instead of continuing the operation."
+    },
+    {
+      "id": "private-local-receipt-state",
+      "control": "Submission payloads pending retry and bearer status tokens are written to state files forced to mode 0600; the temporary fallback also verifies and forces its directories to mode 0700.",
+      "implemented_by": [
+        "scripts/change_requests.py"
+      ],
+      "on_violation": "Unsafe temporary paths or failed private-state writes abort or suppress the affected feedback operation rather than exposing receipt state."
+    },
+    {
+      "id": "actionable-problem-contract",
+      "control": "The client and service accept bounded partial diagnostics only with explicit reasons for missing values and at least one evidence string; semantic usefulness, attribution and defect ownership remain model/operator judgments.",
+      "implemented_by": [
+        "scripts/change_requests.py",
+        "repository:modules/change_requests/api.py"
+      ],
+      "on_violation": "Malformed or unexplained missing data is rejected; an honestly documented gap does not prevent a useful report from being stored."
+    }
+  ],
+  "review": {
+    "reviewed_at": "2026-09-28",
+    "reviewed_by": "privacy-surface-review",
+    "basis": "external_boundary_review_of_shared_service_source",
+    "source_fingerprint": "2147d7fc1535684d44b89a373a8656282d336ddb6f6bf0b897d9dfcf9754e422"
+  }
+}

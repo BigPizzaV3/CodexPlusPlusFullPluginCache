@@ -1,0 +1,1680 @@
+/**
+ * Execute a reviewed browser capability through the connected Chrome tab API.
+ *
+ * The runner is deterministic because action dispatch, origin enforcement,
+ * postcondition checks, extraction shape, hashing, and receipts are mechanical
+ * contract work. Page meaning, workflow authoring, and repair remain model-led.
+ */
+
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+
+import { DEFAULT_DOWNLOAD_DIRECTORY, observeDownloadDirectory } from "./download_directory.mjs";
+import { browserFailureCode } from "./browser_session.mjs";
+
+export const RUNTIME_VERSION = "browser-capability-runtime/17";
+export const RECEIPT_SCHEMA = "browser-run-receipt/v3";
+export const RECOVERY_PROPOSAL_SCHEMA = "browser-recovery-proposals/v2";
+
+const EXECUTABLE_STATES = new Set(["discovered", "validated_local"]);
+const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const DEFAULT_TIMEOUT_MS = 10_000;
+const MAX_TIMEOUT_MS = 30_000;
+const MAX_TRANSITIONS = 100;
+const SHA256 = /^[a-f0-9]{64}$/;
+const ACTION_OPERATIONS = new Set([
+  "goto",
+  "wait_for",
+  "click",
+  "fill",
+  "press",
+  "select",
+  "set_checked",
+  "extract",
+  "download",
+]);
+const ACTION_EFFECTS = new Set(["read_only", "reversible", "consequential"]);
+const RECOVERY_LOCATOR_KINDS = new Set(["role", "label", "placeholder", "test_id", "text"]);
+const EMAIL_ADDRESS = /(^|[^A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}($|[^A-Za-z0-9.-])/;
+
+class LocatorResolutionError extends Error {
+  constructor(message, {
+    targetKind = "action_locator",
+    fieldName = null,
+    locatorCandidates = [],
+  } = {}) {
+    super(message);
+    this.name = "LocatorResolutionError";
+    this.targetKind = targetKind;
+    this.fieldName = fieldName;
+    this.locatorCandidates = structuredClone(locatorCandidates);
+  }
+}
+
+class DownloadObservationError extends Error {
+  constructor(message, {
+    evidenceCode,
+    mechanismHint = null,
+    observedPage = null,
+  }) {
+    super(message);
+    this.name = "DownloadObservationError";
+    this.evidenceCode = evidenceCode;
+    this.mechanismHint = mechanismHint;
+    this.observedPage = observedPage;
+  }
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+  if (isObject(value)) {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+export function canonicalJson(value) {
+  return `${JSON.stringify(canonicalize(value), null, 2)}\n`;
+}
+
+export function sha256Text(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+export function executionContract(capability) {
+  const projected = structuredClone(capability);
+  delete projected.status;
+  delete projected.validation;
+  return projected;
+}
+
+export function executionContractSha256(capability) {
+  return sha256Text(canonicalJson(executionContract(capability)));
+}
+
+export async function loadCapability(path) {
+  return JSON.parse(await readFile(resolve(path), "utf8"));
+}
+
+function boundedTimeout(value) {
+  if (value == null) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+  if (!Number.isInteger(value) || value < 1 || value > MAX_TIMEOUT_MS) {
+    throw new Error(`timeout_ms must be between 1 and ${MAX_TIMEOUT_MS}`);
+  }
+  return value;
+}
+
+function exactKeys(value, expected) {
+  return isObject(value) &&
+    Object.keys(value).length === expected.size &&
+    Object.keys(value).every((key) => expected.has(key));
+}
+
+function validateRecoveryLocatorCandidate(candidate, { allowStructuredCss = false } = {}) {
+  const expectedKeys = new Set(["kind", "role", "value", "exact"]);
+  if (!exactKeys(candidate, expectedKeys)) {
+    throw new Error("recovery locator candidate has an unsupported shape");
+  }
+  if (!RECOVERY_LOCATOR_KINDS.has(candidate.kind) && !(allowStructuredCss && candidate.kind === "css")) {
+    throw new Error("recovery requires a semantic locator candidate");
+  }
+  if (typeof candidate.exact !== "boolean") {
+    throw new Error("recovery locator exact must be boolean");
+  }
+  if (candidate.kind === "css") {
+    if (
+      candidate.role !== null ||
+      candidate.exact !== false ||
+      typeof candidate.value !== "string" ||
+      candidate.value.trim() === ""
+    ) {
+      throw new Error("structured field CSS recovery requires text, null role, and exact false");
+    }
+  } else if (candidate.kind === "role") {
+    if (typeof candidate.role !== "string" || candidate.role.trim() === "") {
+      throw new Error("role recovery locator requires a role");
+    }
+    if (candidate.value !== null && typeof candidate.value !== "string") {
+      throw new Error("role recovery locator value must be text or null");
+    }
+  } else if (
+    candidate.role !== null ||
+    typeof candidate.value !== "string" ||
+    candidate.value.trim() === ""
+  ) {
+    throw new Error(`${candidate.kind} recovery locator requires a text value and null role`);
+  }
+  if (typeof candidate.value === "string") {
+    if (candidate.value.length > 160 || EMAIL_ADDRESS.test(candidate.value)) {
+      throw new Error("recovery locator value is unsafe for retained proposal evidence");
+    }
+    if (candidate.value.includes("{{")) {
+      throw new Error("recovery locator must not introduce runtime templates");
+    }
+  }
+  return structuredClone(candidate);
+}
+
+function validateRuntimeShape(capability) {
+  if (!isObject(capability)) {
+    throw new Error("capability must be an object");
+  }
+  if (capability.schema_version !== "browser-capability/v2") {
+    throw new Error("runtime requires browser-capability/v2");
+  }
+  if (!EXECUTABLE_STATES.has(capability.status)) {
+    throw new Error(`capability status ${JSON.stringify(capability.status)} is not executable`);
+  }
+  if (!SAFE_ID.test(capability.capability_id ?? "")) {
+    throw new Error("capability_id must be a lower-case slug");
+  }
+  if (!Array.isArray(capability.site?.allowed_origins) || capability.site.allowed_origins.length === 0) {
+    throw new Error("capability requires allowed origins");
+  }
+  if (!Array.isArray(capability.milestones) || capability.milestones.length === 0) {
+    throw new Error("capability requires milestones");
+  }
+  if (!Array.isArray(capability.outputs) || capability.outputs.length === 0) {
+    throw new Error("capability requires outputs");
+  }
+  const outputNames = new Set();
+  for (const output of capability.outputs) {
+    if (!SAFE_ID.test(output?.name ?? "") || outputNames.has(output.name)) {
+      throw new Error("capability output names must be unique lower-case slugs");
+    }
+    outputNames.add(output.name);
+    if (output.type === "download_set" && output.delivery !== "artifact_only") {
+      throw new Error("download_set outputs must use artifact_only delivery");
+    }
+  }
+  if (!SAFE_ID.test(capability.entry_milestone ?? "")) {
+    throw new Error("capability requires an entry milestone");
+  }
+  const milestoneIds = new Set();
+  const actionIds = new Set();
+  for (const milestone of capability.milestones) {
+    if (!SAFE_ID.test(milestone?.id ?? "") || milestoneIds.has(milestone.id)) {
+      throw new Error("milestone ids must be unique lower-case slugs");
+    }
+    milestoneIds.add(milestone.id);
+    if (!Array.isArray(milestone.actions) || !Array.isArray(milestone.transitions)) {
+      throw new Error(`milestone ${milestone.id} requires actions and transitions`);
+    }
+    for (const action of milestone.actions) {
+      if (!SAFE_ID.test(action?.id ?? "") || actionIds.has(action.id)) {
+        throw new Error("action ids must be unique lower-case slugs");
+      }
+      actionIds.add(action.id);
+      if (!ACTION_OPERATIONS.has(action.operation)) {
+        throw new Error(`action ${action.id} has an unsupported operation`);
+      }
+      if (!ACTION_EFFECTS.has(action.effect)) {
+        throw new Error(`action ${action.id} has an unsupported effect`);
+      }
+      const expectedConfirmation =
+        action.effect === "consequential" ? "action_time" : "none";
+      if (action.confirmation !== expectedConfirmation) {
+        throw new Error(
+          `action ${action.id} confirmation must be ${expectedConfirmation}`,
+        );
+      }
+    }
+  }
+  if (!milestoneIds.has(capability.entry_milestone)) {
+    throw new Error("entry milestone is not declared");
+  }
+  const frames = Object.hasOwn(capability.runtime ?? {}, "frame_selectors") ? capability.runtime.frame_selectors : [];
+  if (!Array.isArray(frames) || frames.length > 5 || frames.some((selector) =>
+    typeof selector !== "string" || !selector.trim() || selector.length > 300 || selector.includes("{{"))) {
+    throw new Error("frame_selectors must contain at most five fixed selectors");
+  }
+  if (
+    capability.runtime?.browser !== "existing_chrome" ||
+    capability.runtime?.controller !== "chrome_extension" ||
+    capability.runtime?.semantic_driver !== "model" ||
+    capability.runtime?.mechanical_driver !== "playwright" ||
+    capability.runtime?.os_fallback !== "operator_handoff_on_native_gap"
+  ) {
+    throw new Error("capability runtime contract is unsupported");
+  }
+  if (
+    capability.authority?.operator_authorized !== true ||
+    capability.authority?.authentication !== "operator_only" ||
+    capability.authority?.secret_policy !== "never_request_read_store" ||
+    capability.authority?.consequential_actions !== "confirm_at_action_time"
+  ) {
+    throw new Error("capability authority contract is unsupported");
+  }
+  if (
+    capability.provenance?.source !== "authorized_live_discovery" ||
+    !SHA256.test(capability.provenance?.discovery_record_sha256 ?? "") ||
+    !SAFE_ID.test(capability.provenance?.discovery_approval_id ?? "") ||
+    typeof capability.provenance?.discovery_approved_at !== "string" ||
+    capability.provenance?.portable_bundle_contains_private_evidence !== false
+  ) {
+    throw new Error("capability lacks reviewed discovery provenance");
+  }
+}
+
+function resolveInputs(capability, supplied) {
+  const resolvedInputs = {};
+  const declarations = new Map((capability.inputs ?? []).map((item) => [item.name, item]));
+  for (const key of Object.keys(supplied ?? {})) {
+    if (!declarations.has(key)) {
+      throw new Error(`undeclared runtime input: ${key}`);
+    }
+  }
+  for (const declaration of declarations.values()) {
+    const value = supplied?.[declaration.name];
+    if (value == null) {
+      if (declaration.required) {
+        throw new Error(`missing required runtime input: ${declaration.name}`);
+      }
+      continue;
+    }
+    const valid =
+      (declaration.type === "text" && typeof value === "string") ||
+      (declaration.type === "number" && typeof value === "number" && Number.isFinite(value)) ||
+      (declaration.type === "boolean" && typeof value === "boolean") ||
+      (declaration.type === "date" && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) ||
+      (declaration.type === "enum" && typeof value === "string" && declaration.enum_values.includes(value));
+    if (!valid) {
+      throw new Error(`runtime input ${declaration.name} does not match type ${declaration.type}`);
+    }
+    resolvedInputs[declaration.name] = value;
+  }
+  return resolvedInputs;
+}
+
+function initialOutputs(capability) {
+  return Object.fromEntries(
+    (capability.outputs ?? []).map((output) => {
+      if (output.type === "record_set" || output.type === "download_set") {
+        return [output.name, []];
+      }
+      return [output.name, null];
+    }),
+  );
+}
+
+function renderTemplate(value, inputs) {
+  if (typeof value !== "string") {
+    return value;
+  }
+  return value.replace(/\{\{([a-z0-9]+(?:-[a-z0-9]+)*)\}\}/g, (_match, name) => {
+    if (!(name in inputs)) {
+      throw new Error(`template references missing input: ${name}`);
+    }
+    return String(inputs[name]);
+  });
+}
+
+function normalizeOrigin(value) {
+  return new URL(value).origin;
+}
+
+function queryFreePath(value) {
+  const url = new URL(value);
+  return url.pathname;
+}
+
+function urlIncludesRenderedValue(url, renderedValue) {
+  if (url.includes(renderedValue)) {
+    return true;
+  }
+  try {
+    return decodeURIComponent(url.replaceAll("+", " ")).includes(renderedValue);
+  } catch {
+    return false;
+  }
+}
+
+async function waitForUrlCondition(tab, predicate, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    if (predicate(await tab.url())) {
+      return true;
+    }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      return false;
+    }
+    await tab.playwright.waitForTimeout(Math.min(100, remainingMs));
+  }
+}
+
+function assertAllowedUrl(url, allowedOrigins) {
+  const origin = normalizeOrigin(url);
+  if (!allowedOrigins.has(origin)) {
+    throw new Error(`browser left allowed origins: ${origin}`);
+  }
+  return { origin, path: queryFreePath(url) };
+}
+
+async function executionScope(context) {
+  // Frame identity and origins are mechanical boundaries, not page interpretation.
+  // Resolve again before each read/action: SPA frames can be replaced or navigate.
+  assertAllowedUrl(await context.tab.url(), context.allowedOrigins);
+  let scope = context.tab.playwright;
+  for (const selector of context.capability.runtime.frame_selectors ?? []) {
+    const unique = await scope.locator(selector).evaluateAll((elements) =>
+      elements.length === 1 && elements[0].tagName.toLowerCase() === "iframe");
+    if (!unique) throw new Error("execution frame_not_unique");
+    scope = scope.frameLocator(selector);
+    const origin = await scope.locator("html").evaluate((element) =>
+      new URL(element.ownerDocument.URL).origin);
+    if (!context.allowedOrigins.has(origin)) throw new Error("execution frame_origin_not_allowed");
+  }
+  return scope;
+}
+
+function locatorFromCandidate(base, candidate, inputs) {
+  const value = renderTemplate(candidate.value, inputs);
+  const options = { exact: candidate.exact };
+  switch (candidate.kind) {
+    case "role":
+      return base.getByRole(candidate.role, value == null ? {} : { name: value, ...options });
+    case "label":
+      return base.getByLabel(value, options);
+    case "placeholder":
+      return base.getByPlaceholder(value, options);
+    case "test_id":
+      return base.getByTestId(value);
+    case "text":
+      return base.getByText(value, options);
+    case "css":
+      return base.locator(value);
+    default:
+      throw new Error(`unsupported locator kind: ${candidate.kind}`);
+  }
+}
+
+async function resolveLocator(base, candidates, inputs, { wait = false, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const failures = [];
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    const locator = locatorFromCandidate(base, candidate, inputs);
+    try {
+      if (!(await locator.isVisible())) {
+        failures.push(`${candidate.kind}[${index}] not visible`);
+        continue;
+      }
+      return { locator, candidateIndex: index, candidateKind: candidate.kind };
+    } catch (error) {
+      failures.push(`${candidate.kind}[${index}]: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (wait && candidates.length > 0) {
+    // Waiting for alternatives is mechanical presence detection. Run the
+    // candidate waits concurrently so one absent DOM variant cannot consume
+    // the whole bounded state-detection budget before another variant is tried.
+    const attempts = candidates.map(async (candidate, index) => {
+      const locator = locatorFromCandidate(base, candidate, inputs);
+      await locator.waitFor({ state: "visible", timeoutMs });
+      return { locator, candidateIndex: index, candidateKind: candidate.kind };
+    });
+    try {
+      await Promise.any(attempts);
+      for (let index = 0; index < candidates.length; index += 1) {
+        const candidate = candidates[index];
+        const locator = locatorFromCandidate(base, candidate, inputs);
+        if (await locator.isVisible()) {
+          return { locator, candidateIndex: index, candidateKind: candidate.kind };
+        }
+      }
+    } catch (error) {
+      const details = error instanceof AggregateError ? error.errors : [error];
+      failures.push(
+        ...details.map((detail, index) =>
+          `wait[${index}]: ${detail instanceof Error ? detail.message : String(detail)}`
+        ),
+      );
+    }
+  }
+  throw new LocatorResolutionError(`no locator candidate matched (${failures.join("; ")})`, {
+    locatorCandidates: candidates,
+  });
+}
+
+async function readLocator(locator, read, timeoutMs) {
+  if (read.kind === "inner_text") {
+    return (await locator.innerText({ timeoutMs })).trim();
+  }
+  if (read.kind === "text_content") {
+    return ((await locator.textContent({ timeoutMs })) ?? "").trim();
+  }
+  if (read.kind === "attribute") {
+    return await locator.getAttribute(read.attribute, { timeoutMs });
+  }
+  throw new Error(`unsupported read kind: ${read.kind}`);
+}
+
+async function readField(container, field, inputs, timeoutMs) {
+  try {
+    if (field.locator_candidates.length === 0) {
+      return await readLocator(container, field.read, timeoutMs);
+    }
+    const failures = [];
+    for (const candidate of field.locator_candidates) {
+      try {
+        const resolved = await resolveLocator(container, [candidate], inputs, { timeoutMs });
+        return await readLocator(resolved.locator, field.read, timeoutMs);
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    throw new LocatorResolutionError(
+      `no extraction field locator could be read (${failures.join("; ")})`,
+      {
+        targetKind: "extraction_field_locator",
+        fieldName: field.name,
+        locatorCandidates: field.locator_candidates,
+      },
+    );
+  } catch (error) {
+    if (!field.required) {
+      return null;
+    }
+    if (
+      error instanceof LocatorResolutionError &&
+      error.targetKind === "extraction_field_locator"
+    ) {
+      throw error;
+    }
+    if (field.locator_candidates.length > 0) {
+      throw new LocatorResolutionError(error.message, {
+        targetKind: "extraction_field_locator",
+        fieldName: field.name,
+        locatorCandidates: field.locator_candidates,
+      });
+    }
+    throw error;
+  }
+}
+
+function coerceFieldValue(value, declaration, itemIndex = null) {
+  const suffix = itemIndex == null ? "" : ` at item ${itemIndex}`;
+  if (value == null || String(value).trim() === "") {
+    if (declaration.required) {
+      throw new Error(`required extracted field is empty: ${declaration.name}${suffix}`);
+    }
+    return null;
+  }
+  const text = String(value).trim();
+  if (declaration.type === "text") return text;
+  if (declaration.type === "date") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      throw new Error(`extracted field is not an ISO date: ${declaration.name}${suffix}`);
+    }
+    return text;
+  }
+  if (declaration.type === "number") {
+    const number = Number(text);
+    if (!Number.isFinite(number)) {
+      throw new Error(`extracted field is not a number: ${declaration.name}${suffix}`);
+    }
+    return number;
+  }
+  if (declaration.type === "boolean") {
+    if (text.toLowerCase() === "true") return true;
+    if (text.toLowerCase() === "false") return false;
+    throw new Error(`extracted field is not a boolean: ${declaration.name}${suffix}`);
+  }
+  throw new Error(`unsupported extracted field type: ${declaration.type}`);
+}
+
+async function extractRecords(action, rootLocator, declaration, inputs, timeoutMs) {
+  const extraction = action.extract;
+  let maxItems = extraction.max_items;
+  if (extraction.limit_input_ref != null) {
+    const suppliedLimit = inputs[extraction.limit_input_ref];
+    if (!Number.isInteger(suppliedLimit) || suppliedLimit < 1) {
+      throw new Error(`extraction limit must be a positive integer: ${extraction.limit_input_ref}`);
+    }
+    maxItems = Math.min(maxItems, suppliedLimit);
+  }
+  const fieldDeclarations = new Map(declaration.fields.map((field) => [field.name, field]));
+  const readRecord = async (container, itemIndex = null) => {
+    const record = {};
+    for (const field of extraction.fields) {
+      const fieldDeclaration = fieldDeclarations.get(field.name);
+      if (fieldDeclaration == null) {
+        throw new Error(`extraction references an undeclared output field: ${field.name}`);
+      }
+      const value = await readField(container, field, inputs, timeoutMs);
+      record[field.name] = coerceFieldValue(value, fieldDeclaration, itemIndex);
+    }
+    return record;
+  };
+  const records = [];
+  if (extraction.mode === "single") {
+    records.push(await readRecord(rootLocator.nth(0)));
+  } else {
+    const count = Math.min(await rootLocator.count(), maxItems);
+    for (let index = 0; index < count; index += 1) {
+      records.push(await readRecord(rootLocator.nth(index), index));
+    }
+  }
+  if (!extraction.empty_allowed && records.length === 0) {
+    throw new Error(`extraction produced no records for ${action.output_ref}`);
+  }
+  if (extraction.dedupe_by.length === 0) {
+    return records;
+  }
+  const seen = new Set();
+  return records.filter((record) => {
+    const key = canonicalJson(extraction.dedupe_by.map((field) => record[field]));
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+async function extractOutput(action, rootLocator, declaration, inputs, timeoutMs) {
+  if (declaration.type === "scalar" || declaration.type === "summary") {
+    if (action.extract.mode !== "text") {
+      throw new Error(`output ${declaration.name} requires text extraction mode`);
+    }
+    const value = (await rootLocator.innerText({ timeoutMs })).trim();
+    if (!action.extract.empty_allowed && value === "") {
+      throw new Error(`text extraction produced an empty value for ${declaration.name}`);
+    }
+    return value;
+  }
+  if (declaration.type === "record" && action.extract.mode !== "single") {
+    throw new Error(`record output ${declaration.name} requires single extraction mode`);
+  }
+  if (declaration.type === "record_set" && action.extract.mode !== "list") {
+    throw new Error(`record_set output ${declaration.name} requires list extraction mode`);
+  }
+  const records = await extractRecords(action, rootLocator, declaration, inputs, timeoutMs);
+  return declaration.type === "record" ? records[0] ?? null : records;
+}
+
+function isTransientExtractionFailure(error) {
+  if (error instanceof LocatorResolutionError) {
+    return true;
+  }
+  const detail = error instanceof Error ? error.message : String(error);
+  return detail.startsWith("required extracted field is empty:") ||
+    detail.startsWith("extraction produced no records for ");
+}
+
+async function extractWithCandidateFallback(action, context, declaration, timeoutMs) {
+  const failures = [];
+  let fieldFailure = null;
+  const firstResolved = await resolveLocator(
+    await executionScope(context),
+    action.locator_candidates,
+    context.inputs,
+    { wait: true, timeoutMs },
+  );
+  const candidateIndexes = [
+    firstResolved.candidateIndex,
+    ...action.locator_candidates
+      .map((_candidate, index) => index)
+      .filter((index) => index !== firstResolved.candidateIndex),
+  ];
+  for (const index of candidateIndexes) {
+    const candidate = action.locator_candidates[index];
+    let resolved;
+    if (index === firstResolved.candidateIndex) {
+      resolved = firstResolved;
+    } else {
+      try {
+        resolved = await resolveLocator(await executionScope(context), [candidate], context.inputs);
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : String(error));
+        continue;
+      }
+    }
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await executionScope(context);
+        const value = await extractOutput(
+          action,
+          resolved.locator,
+          declaration,
+          context.inputs,
+          timeoutMs,
+        );
+        return {
+          value,
+          locatorCandidate: {
+            index,
+            kind: candidate.kind,
+          },
+        };
+      } catch (error) {
+        if (!isTransientExtractionFailure(error)) {
+          throw error;
+        }
+        if (
+          error instanceof LocatorResolutionError &&
+          error.targetKind === "extraction_field_locator"
+        ) {
+          fieldFailure = error;
+        }
+        failures.push(error instanceof Error ? error.message : String(error));
+        if (attempt === 0) {
+          // Gmail can expose the row container before its metadata descendants
+          // settle. One short retry is reproducible, bounded, and does not
+          // interpret page meaning or broaden the declared output fields.
+          await context.tab.playwright.waitForTimeout(Math.min(200, timeoutMs));
+        }
+      }
+    }
+  }
+  if (fieldFailure != null) {
+    throw fieldFailure;
+  }
+  throw new LocatorResolutionError(
+    `no extraction locator candidate produced records (${failures.join("; ")})`,
+    { locatorCandidates: action.locator_candidates },
+  );
+}
+
+async function downloadedFileEvidence(path, { mechanismHint, observedPage }) {
+  let fileStat;
+  try {
+    fileStat = await stat(path);
+  } catch (error) {
+    throw new DownloadObservationError(
+      `download path could not be read: ${error instanceof Error ? error.message : String(error)}`,
+      {
+        evidenceCode: "download-file-unreadable",
+        mechanismHint,
+        observedPage,
+      },
+    );
+  }
+  if (!fileStat.isFile()) {
+    throw new DownloadObservationError("download path is not a regular file", {
+      evidenceCode: "download-path-not-regular-file",
+      mechanismHint,
+      observedPage,
+    });
+  }
+  const hash = createHash("sha256");
+  try {
+    for await (const chunk of createReadStream(path)) {
+      hash.update(chunk);
+    }
+  } catch (error) {
+    throw new DownloadObservationError(
+      `download bytes could not be read: ${error instanceof Error ? error.message : String(error)}`,
+      {
+        evidenceCode: "download-file-unreadable",
+        mechanismHint,
+        observedPage,
+      },
+    );
+  }
+  return {
+    path,
+    byte_length: fileStat.size,
+    sha256: hash.digest("hex"),
+  };
+}
+
+async function downloadMechanismHint(locator, currentUrl, allowedOrigins) {
+  // These categories come from mechanically observable control attributes.
+  // They diagnose transport shape without persisting hrefs, tokens, or page meaning.
+  let downloadAttribute = null;
+  let href = null;
+  let target = null;
+  try {
+    [downloadAttribute, href, target] = await Promise.all([
+      locator.getAttribute("download"),
+      locator.getAttribute("href"),
+      locator.getAttribute("target"),
+    ]);
+  } catch {
+    return "control-attributes-unavailable";
+  }
+  if (downloadAttribute !== null) return "download-attribute";
+  if (typeof href !== "string" || href.trim() === "") {
+    return "control-without-href";
+  }
+  const normalizedHref = href.trim().toLowerCase();
+  if (normalizedHref.startsWith("blob:")) return "blob-url";
+  if (normalizedHref.startsWith("data:")) return "data-url";
+  if (normalizedHref.startsWith("javascript:")) return "javascript-url";
+  let resolved;
+  try {
+    resolved = new URL(href, currentUrl);
+  } catch {
+    return "unclassified-href";
+  }
+  if (!new Set(["http:", "https:"]).has(resolved.protocol)) {
+    return "non-http-url";
+  }
+  if (target?.trim().toLowerCase() === "_blank") return "new-tab-url";
+  const currentOrigin = new URL(currentUrl).origin;
+  if (resolved.origin === currentOrigin) return "same-origin-url";
+  if (allowedOrigins.has(normalizeOrigin(resolved.origin))) return "allowed-cross-origin-url";
+  return "outside-allowed-origin-url";
+}
+
+function downloadObservationPage(error) {
+  return error instanceof DownloadObservationError ? error.observedPage : null;
+}
+
+function downloadEvidenceCode(error) {
+  return error instanceof DownloadObservationError ? error.evidenceCode : null;
+}
+
+function downloadMechanism(error) {
+  return error instanceof DownloadObservationError ? error.mechanismHint : null;
+}
+
+function outputCount(value) {
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  return value == null ? 0 : 1;
+}
+
+function receiptOutputPayload(declaration, value) {
+  if (declaration?.type !== "download_set" || !Array.isArray(value)) {
+    return value;
+  }
+  return value.map(({ byte_length, sha256 }) => ({ byte_length, sha256 }));
+}
+
+function receiptOutputSha256(declaration, value) {
+  return sha256Text(canonicalJson(receiptOutputPayload(declaration, value)));
+}
+
+function sanitizedErrorMetadata(code, detail, reasonCode = null) {
+  return {
+    code,
+    reason_code: reasonCode,
+    detail_sha256: sha256Text(String(detail)),
+  };
+}
+
+function classifyRunFailure(error) {
+  const browserFailure = browserFailureCode(error);
+  if (browserFailure !== null) return browserFailure;
+  const detail = error instanceof Error ? error.message : String(error);
+  if (error instanceof DownloadObservationError) return "native_gap";
+  if (error instanceof LocatorResolutionError) return "locator_resolution_failed";
+  if (detail.startsWith("browser left allowed origins:")) return "origin_boundary_violation";
+  if (detail.startsWith("postcondition failed:")) return "postcondition_failed";
+  if (detail.startsWith("required output is missing or incomplete:")) {
+    return "required_output_incomplete";
+  }
+  if (detail.startsWith("consequential action requires current operator approval:")) {
+    return "operator_confirmation_required";
+  }
+  if (detail.startsWith("no transition matched after milestone:")) {
+    return "branch_resolution_failed";
+  }
+  if (detail.startsWith("capability exceeded ")) return "transition_limit_exceeded";
+  if (detail.startsWith("connected Chrome runtime lacks ")) return "native_gap";
+  return "run_failed";
+}
+
+function safeRecoveryText(value, field) {
+  if (typeof value !== "string" || value.trim() === "" || value.length > 500) {
+    throw new Error(`recovery ${field} must be non-empty text of at most 500 characters`);
+  }
+  if (EMAIL_ADDRESS.test(value)) {
+    throw new Error(`recovery ${field} must not contain an email address`);
+  }
+  return value.trim();
+}
+
+function recoveryTarget(action, error) {
+  if (error.targetKind === "extraction_field_locator") {
+    return {
+      kind: "extraction_field_locator",
+      field_name: error.fieldName,
+      locator_candidates: structuredClone(error.locatorCandidates),
+    };
+  }
+  return {
+    kind: "action_locator",
+    field_name: null,
+    locator_candidates: structuredClone(action.locator_candidates),
+  };
+}
+
+function recoveryRequest({ capability, milestone, action, page, error }) {
+  const target = recoveryTarget(action, error);
+  return {
+    schema_version: "browser-recovery-request/v1",
+    capability: {
+      capability_id: capability.capability_id,
+      version: capability.version,
+      site_name: capability.site.name,
+      allowed_origins: capability.site.allowed_origins,
+      process_objective: capability.process.objective,
+    },
+    milestone: {
+      milestone_id: milestone.id,
+      intent: milestone.intent,
+    },
+    action: {
+      action_id: action.id,
+      intent: action.intent,
+      operation: action.operation,
+      effect: action.effect,
+      locator_candidates: structuredClone(action.locator_candidates),
+      postcondition_kind: action.postcondition.kind,
+    },
+    recovery_target: target,
+    page,
+    failure: sanitizedErrorMetadata("locator_not_found", error.message),
+    constraints: {
+      permitted_change:
+        target.kind === "extraction_field_locator"
+          ? "one_bounded_structured_field_locator_candidate_or_resolved_action_root"
+          : "one_semantic_locator_candidate",
+      same_action_intent_required: true,
+      same_operation_required: true,
+      same_effect_required: true,
+      same_origin_boundary_required: true,
+      no_capability_mutation: true,
+      no_consequential_recovery: true,
+    },
+  };
+}
+
+async function attemptModelRecovery({
+  recoveryHandler,
+  capability,
+  milestone,
+  action,
+  context,
+  error,
+  recoveryProposals,
+}) {
+  if (
+    !(error instanceof LocatorResolutionError) ||
+    action.effect === "consequential" ||
+    action.operation === "goto"
+  ) {
+    return null;
+  }
+  const page = assertAllowedUrl(await context.tab.url(), context.allowedOrigins);
+  const request = recoveryRequest({ capability, milestone, action, page, error });
+  const target = request.recovery_target;
+  if (typeof recoveryHandler !== "function") {
+    context.pendingRecoveryRequest = request;
+    return null;
+  }
+  const response = await recoveryHandler(request);
+  if (response == null) {
+    context.pendingRecoveryRequest = request;
+    return null;
+  }
+  const locatorResponse = exactKeys(
+    response,
+    new Set(["locator_candidate", "rationale", "uncertainty"]),
+  );
+  const rootResponse = exactKeys(
+    response,
+    new Set(["use_resolved_action_root", "rationale", "uncertainty"]),
+  );
+  if (!locatorResponse && !rootResponse) {
+    throw new Error("recovery handler returned an unsupported response shape");
+  }
+  if (
+    rootResponse &&
+    (response.use_resolved_action_root !== true || target.kind !== "extraction_field_locator")
+  ) {
+    throw new Error("resolved action root recovery requires an extraction field target");
+  }
+  const resolution = rootResponse ? "resolved_action_root" : "locator_candidate";
+  const candidate = locatorResponse
+    ? validateRecoveryLocatorCandidate(response.locator_candidate, {
+        allowStructuredCss: target.kind === "extraction_field_locator",
+      })
+    : null;
+  if (
+    candidate != null &&
+    target.locator_candidates.some(
+      (declared) => canonicalJson(declared) === canonicalJson(candidate),
+    )
+  ) {
+    throw new Error("recovery locator must differ from declared candidates");
+  }
+  const proposal = {
+    sequence: recoveryProposals.length + 1,
+    milestone_id: milestone.id,
+    action_id: action.id,
+    action_intent: action.intent,
+    operation: action.operation,
+    effect: action.effect,
+    target_kind: target.kind,
+    field_name: target.field_name,
+    origin: page.origin,
+    path: page.path,
+    original_locator_candidates_sha256: sha256Text(
+      canonicalJson(target.locator_candidates),
+    ),
+    resolution,
+    candidate_index: candidate == null ? null : target.locator_candidates.length,
+    candidate,
+    candidate_sha256: candidate == null ? null : sha256Text(canonicalJson(candidate)),
+    rationale: safeRecoveryText(response.rationale, "rationale"),
+    uncertainty: safeRecoveryText(response.uncertainty, "uncertainty"),
+    original_failure: sanitizedErrorMetadata("locator_not_found", error.message),
+    outcome: null,
+    outcome_error: null,
+    approved_for_persistence: false,
+  };
+  const patchedAction = structuredClone(action);
+  if (target.kind === "extraction_field_locator") {
+    const field = patchedAction.extract?.fields.find(
+      (candidateField) => candidateField.name === target.field_name,
+    );
+    if (field == null) {
+      throw new Error("recovery target field is not declared by the extraction action");
+    }
+    if (resolution === "resolved_action_root") {
+      field.locator_candidates = [];
+    } else {
+      field.locator_candidates.push(candidate);
+    }
+  } else {
+    patchedAction.locator_candidates.push(candidate);
+  }
+  try {
+    const evidence = await executeAction(patchedAction, context);
+    proposal.outcome = "passed";
+    recoveryProposals.push(proposal);
+    return evidence;
+  } catch (recoveryError) {
+    proposal.outcome = "failed";
+    proposal.outcome_error = sanitizedErrorMetadata(
+      "recovery_failed",
+      recoveryError instanceof Error ? recoveryError.message : String(recoveryError),
+    );
+    recoveryProposals.push(proposal);
+    throw recoveryError;
+  }
+}
+
+async function evaluateCondition(condition, context) {
+  const { tab, capability, inputs, outputs } = context;
+  const timeoutMs = boundedTimeout(condition.timeout_ms);
+  // Boundary failures must never count as a hidden invoice or an absent popup.
+  const scope = await executionScope(context);
+  switch (condition.kind) {
+    case "always":
+      return true;
+    case "url_path_equals": {
+      const renderedValue = renderTemplate(condition.value, inputs);
+      return waitForUrlCondition(
+        tab,
+        (currentUrl) => queryFreePath(currentUrl) === renderedValue,
+        timeoutMs,
+      );
+    }
+    case "url_includes": {
+      const renderedValue = renderTemplate(condition.value, inputs);
+      return waitForUrlCondition(
+        tab,
+        (currentUrl) => urlIncludesRenderedValue(currentUrl, renderedValue),
+        timeoutMs,
+      );
+    }
+    case "locator_visible": {
+      try {
+        await resolveLocator(scope, condition.locator_candidates, inputs, {
+          wait: true,
+          timeoutMs,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    case "locator_hidden": {
+      try {
+        await resolveLocator(scope, condition.locator_candidates, inputs, { timeoutMs });
+        return false;
+      } catch {
+        await executionScope(context);
+        return true;
+      }
+    }
+    case "locator_text_contains": {
+      try {
+        const { locator } = await resolveLocator(scope, condition.locator_candidates, inputs, {
+          wait: true,
+          timeoutMs,
+        });
+        const expected = renderTemplate(condition.value, inputs);
+        const deadline = Date.now() + timeoutMs;
+        do {
+          if ((await locator.innerText({ timeoutMs })).includes(expected)) {
+            return true;
+          }
+          await tab.playwright.waitForTimeout(100);
+        } while (Date.now() < deadline);
+        return false;
+      } catch {
+        return false;
+      }
+    }
+    case "output_empty":
+      return outputCount(outputs[condition.output_ref]) === 0;
+    case "output_nonempty":
+      return outputCount(outputs[condition.output_ref]) > 0;
+    case "output_count": {
+      const count = outputCount(outputs[condition.output_ref]);
+      if (condition.comparator === "eq") return count === condition.expected;
+      if (condition.comparator === "gte") return count >= condition.expected;
+      if (condition.comparator === "lte") return count <= condition.expected;
+      throw new Error(`unsupported output comparator: ${condition.comparator}`);
+    }
+    default:
+      throw new Error(`unsupported condition kind: ${condition.kind}`);
+  }
+}
+
+async function verifyPostcondition(postcondition, context) {
+  if (postcondition.kind === "none") {
+    return true;
+  }
+  const passed = await evaluateCondition(postcondition, context);
+  if (!passed) {
+    throw new Error(`postcondition failed: ${postcondition.kind}`);
+  }
+  return true;
+}
+
+async function gotoWithCommittedTargetCheck(tab, targetUrl, timeoutMs) {
+  try {
+    await tab.goto(targetUrl);
+    return;
+  } catch (navigationError) {
+    let currentUrl;
+    try {
+      currentUrl = await tab.url();
+    } catch {
+      throw navigationError;
+    }
+    if (typeof currentUrl !== "string" || new URL(currentUrl).href !== targetUrl) {
+      throw navigationError;
+    }
+    try {
+      await tab.playwright.waitForLoadState({
+        state: "domcontentloaded",
+        timeoutMs,
+      });
+    } catch {
+      throw navigationError;
+    }
+  }
+}
+
+async function executeAction(action, context) {
+  const {
+    tab,
+    capability,
+    inputs,
+    outputs,
+    outputDeclarations,
+    approvedConsequentialActions,
+  } = context;
+  const timeoutMs = boundedTimeout(action.timeout_ms);
+  let evidenceCode = null;
+  let mechanism = null;
+  if (action.effect === "consequential" && !approvedConsequentialActions.has(action.id)) {
+    throw new Error(`consequential action requires current operator approval: ${action.id}`);
+  }
+  if (action.operation !== "goto") {
+    await executionScope(context);
+  }
+
+  let locatorCandidate = null;
+  let locator = null;
+  if (!["goto", "extract"].includes(action.operation)) {
+    const resolved = await resolveLocator(await executionScope(context), action.locator_candidates, inputs, {
+      wait: action.operation === "wait_for",
+      timeoutMs,
+    });
+    locator = resolved.locator;
+    locatorCandidate = {
+      index: resolved.candidateIndex,
+      kind: resolved.candidateKind,
+    };
+  }
+
+  // Locator resolution is asynchronous: the page can navigate while it runs.
+  // A post-action check alone would disclose inputs before rejecting the run.
+  if (action.operation !== "goto") {
+    await executionScope(context);
+  }
+  if (action.operation === "goto") {
+    const targetOrigin = action.target_origin ?? capability.site.allowed_origins[0];
+    if (!capability.site.allowed_origins.includes(targetOrigin)) {
+      throw new Error(`goto target origin is not allowed: ${targetOrigin}`);
+    }
+    const targetUrl = new URL(renderTemplate(action.path, inputs), targetOrigin).href;
+    await gotoWithCommittedTargetCheck(tab, targetUrl, timeoutMs);
+  } else if (action.operation === "wait_for") {
+    if (!(await locator.isEnabled())) {
+      throw new Error(`waited control is disabled: ${action.id}`);
+    }
+  } else if (action.operation === "click") {
+    await locator.click({ timeoutMs });
+  } else if (action.operation === "fill") {
+    await locator.fill(String(inputs[action.input_ref]), { timeoutMs });
+  } else if (action.operation === "press") {
+    await locator.press(action.key, { timeoutMs });
+  } else if (action.operation === "select") {
+    await locator.selectOption(String(inputs[action.input_ref]), { timeoutMs });
+  } else if (action.operation === "set_checked") {
+    await locator.setChecked(Boolean(inputs[action.input_ref]), { timeoutMs });
+  } else if (action.operation === "extract") {
+    const declaration = outputDeclarations.get(action.output_ref);
+    if (declaration == null || declaration.type === "download_set") {
+      throw new Error(`extract action references an incompatible output: ${action.output_ref}`);
+    }
+    const extraction = await extractWithCandidateFallback(
+      action,
+      context,
+      declaration,
+      timeoutMs,
+    );
+    outputs[action.output_ref] = extraction.value;
+    locatorCandidate = extraction.locatorCandidate;
+  } else if (action.operation === "download") {
+    const declaration = outputDeclarations.get(action.output_ref);
+    if (declaration?.type !== "download_set" || declaration.delivery !== "artifact_only") {
+      throw new Error(`download action requires an artifact-only download_set output`);
+    }
+    const beforeUrl = await tab.url();
+    const beforePage = assertAllowedUrl(beforeUrl, context.allowedOrigins);
+    const mechanismHint = await downloadMechanismHint(
+      locator,
+      beforeUrl,
+      context.allowedOrigins,
+    );
+    if (typeof tab.playwright.waitForEvent !== "function") {
+      throw new DownloadObservationError(
+        "connected Chrome runtime lacks the download event API",
+        {
+          evidenceCode: "download-event-api-unavailable",
+          mechanismHint,
+          observedPage: beforePage,
+        },
+      );
+    }
+    let directoryObservation = null;
+    try {
+      if (context.downloadDirectory !== null) {
+        directoryObservation = await observeDownloadDirectory(context.downloadDirectory);
+      }
+      let downloadPromise;
+      try {
+        downloadPromise = tab.playwright.waitForEvent("download", { timeoutMs });
+      } catch (error) {
+        throw new DownloadObservationError(
+          `download event listener could not start: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            evidenceCode: "download-event-listener-failed",
+            mechanismHint,
+            observedPage: beforePage,
+          },
+        );
+      }
+      const downloadOutcomePromise = Promise.resolve(downloadPromise).then(
+        (download) => ({ download, error: null }),
+        (error) => ({ download: null, error }),
+      );
+      await locator.click({ timeoutMs });
+      const downloadOutcome = await downloadOutcomePromise;
+      const afterUrl = await tab.url();
+      const afterPage = assertAllowedUrl(afterUrl, context.allowedOrigins);
+      if (downloadOutcome.error !== null || downloadOutcome.download == null) {
+        const pageChanged = new URL(beforeUrl).href !== new URL(afterUrl).href;
+        const evidenceCode = pageChanged
+          ? "download-event-not-observed-after-navigation"
+          : "download-event-not-observed-page-unchanged";
+        const detail = downloadOutcome.error instanceof Error
+          ? downloadOutcome.error.message
+          : String(downloadOutcome.error ?? "download event returned no object");
+        throw new DownloadObservationError(`download event was not observed: ${detail}`, {
+          evidenceCode,
+          mechanismHint,
+          observedPage: afterPage,
+        });
+      }
+      if (directoryObservation !== null) {
+        outputs[action.output_ref].push(await directoryObservation.wait({ timeoutMs }));
+        evidenceCode = "download-directory-bytes-verified";
+      } else {
+        const download = downloadOutcome.download;
+        if (typeof download?.path !== "function") {
+          throw new DownloadObservationError(
+            "connected Chrome runtime lacks download path evidence",
+            {
+              evidenceCode: "download-path-api-unavailable",
+              mechanismHint,
+              observedPage: afterPage,
+            },
+          );
+        }
+        let path;
+        try {
+          path = await download.path({ timeoutMs });
+        } catch (error) {
+          throw new DownloadObservationError(
+            `download path resolution failed: ${error instanceof Error ? error.message : String(error)}`,
+            {
+              evidenceCode: "download-path-resolution-failed",
+              mechanismHint,
+              observedPage: afterPage,
+            },
+          );
+        }
+        if (path == null) {
+          throw new DownloadObservationError(
+            `download did not produce a local path: ${action.id}`,
+            {
+              evidenceCode: "download-path-not-returned",
+              mechanismHint,
+              observedPage: afterPage,
+            },
+          );
+        }
+        outputs[action.output_ref].push(
+          await downloadedFileEvidence(path, {
+            mechanismHint,
+            observedPage: afterPage,
+          }),
+        );
+        evidenceCode = "download-bytes-verified";
+      }
+      mechanism = mechanismHint;
+    } catch (error) {
+      if (error instanceof DownloadObservationError) throw error;
+      throw new DownloadObservationError("local download verification failed", {
+        evidenceCode: error.evidenceCode ?? "download-directory-read-failed",
+        mechanismHint,
+        observedPage: beforePage,
+      });
+    } finally {
+      await directoryObservation?.close();
+    }
+  } else {
+    throw new Error(`unsupported operation: ${action.operation}`);
+  }
+
+  const page = assertAllowedUrl(await tab.url(), context.allowedOrigins);
+  await executionScope(context);
+  await verifyPostcondition(action.postcondition, context);
+  const outputValue = action.output_ref == null ? null : outputs[action.output_ref];
+  const outputDeclaration =
+    action.output_ref == null ? null : outputDeclarations.get(action.output_ref);
+  return {
+    locator_candidate: locatorCandidate,
+    origin: page.origin,
+    path: page.path,
+    output_ref: action.output_ref,
+    output_count: outputCount(outputValue),
+    output_sha256:
+      outputValue == null
+        ? null
+        : receiptOutputSha256(outputDeclaration, outputValue),
+    evidence_code: evidenceCode,
+    mechanism_hint: mechanism,
+  };
+}
+
+function requiredOutputSatisfied(declaration, value) {
+  if (declaration.type === "record_set") return Array.isArray(value);
+  if (declaration.type === "download_set") return Array.isArray(value) && value.length > 0;
+  if (declaration.type === "record") return isObject(value);
+  if (declaration.type === "scalar") return value !== null && !isObject(value) && !Array.isArray(value);
+  if (declaration.type === "summary") return typeof value === "string" && value.trim() !== "";
+  return false;
+}
+
+async function writeOwnerOnly(path, text) {
+  await writeFile(path, text, { encoding: "utf8", flag: "wx", mode: 0o600 });
+  await chmod(path, 0o600);
+}
+
+function receiptOutputEntries(capability, outputs) {
+  return capability.outputs.map((declaration) => {
+    const value = outputs[declaration.name];
+    return {
+      name: declaration.name,
+      type: declaration.type,
+      sensitivity: declaration.sensitivity,
+      delivery: declaration.delivery,
+      record_count: outputCount(value),
+      sha256: receiptOutputSha256(declaration, value),
+      artifact: "outputs.json",
+    };
+  });
+}
+
+function publicSummary(
+  receiptPath,
+  outputsPath,
+  lockPath,
+  recoveryProposalsPath,
+  recoveryProposalCount,
+  receipt,
+  capability,
+  outputs,
+  recoveryRequestForModel,
+) {
+  const deliveredOutputs = Object.fromEntries(
+    capability.outputs
+      .filter((declaration) => declaration.delivery !== "artifact_only")
+      .map((declaration) => [declaration.name, outputs[declaration.name]]),
+  );
+  return {
+    run_id: receipt.run_id,
+    result: receipt.result,
+    execution_mode: receipt.environment.execution_mode,
+    validation_eligible: receipt.result === "passed" &&
+      receipt.environment.execution_mode === "live_connected_chrome" &&
+      !receipt.locator_changes_during_run,
+    capability_id: receipt.capability_id,
+    completed_milestones: receipt.completed_milestones,
+    terminal_milestone: receipt.terminal_milestone,
+    outputs: receipt.outputs.map(({ name, type, record_count, sha256 }) => ({
+      name,
+      type,
+      record_count,
+      sha256,
+    })),
+    delivered_outputs: deliveredOutputs,
+    receipt_path: receiptPath,
+    outputs_path: outputsPath,
+    lock_path: lockPath,
+    recovery_proposals_path: recoveryProposalsPath,
+    recovery_proposal_count: recoveryProposalCount,
+    recovery_request: recoveryRequestForModel,
+    error: receipt.error,
+  };
+}
+
+export async function executeCapability({
+  tab,
+  capability,
+  inputs = {},
+  runDirectory,
+  runId,
+  approvedConsequentialActions = [],
+  recoveryHandler = null,
+  clock = () => new Date().toISOString(),
+  environment = {},
+  downloadDirectory = DEFAULT_DOWNLOAD_DIRECTORY,
+}) {
+  validateRuntimeShape(capability);
+  const executionMode = environment.execution_mode ?? "unverified";
+  if (!["unverified", "simulated", "live_connected_chrome"].includes(executionMode)) {
+    throw new Error("unsupported browser execution mode");
+  }
+  if (!SAFE_ID.test(runId ?? "")) {
+    throw new Error("runId must be a lower-case slug");
+  }
+  const consequentialActionIds = new Set(
+    capability.milestones.flatMap((milestone) =>
+      milestone.actions
+        .filter((action) => action.effect === "consequential")
+        .map((action) => action.id),
+    ),
+  );
+  for (const actionId of approvedConsequentialActions) {
+    if (!consequentialActionIds.has(actionId)) {
+      throw new Error(`approval does not name a consequential action: ${actionId}`);
+    }
+  }
+  const resolvedInputs = resolveInputs(capability, inputs);
+  const resolvedRunDirectory = resolve(runDirectory);
+  await mkdir(dirname(resolvedRunDirectory), { recursive: true, mode: 0o700 });
+  await mkdir(resolvedRunDirectory, { mode: 0o700 });
+  await chmod(resolvedRunDirectory, 0o700);
+
+  const startedAt = clock();
+  const allowedOrigins = new Set(capability.site.allowed_origins.map(normalizeOrigin));
+  const inputHashes = Object.fromEntries(
+    Object.entries(resolvedInputs).map(([name, value]) => [name, sha256Text(canonicalJson(value))]),
+  );
+  const outputs = initialOutputs(capability);
+  const outputDeclarations = new Map(capability.outputs.map((output) => [output.name, output]));
+  const milestones = new Map(capability.milestones.map((milestone) => [milestone.id, milestone]));
+  const completedMilestones = [];
+  const actionResults = [];
+  const recoveryProposals = [];
+  const approved = new Set(approvedConsequentialActions);
+  const executionHash = executionContractSha256(capability);
+  let currentMilestoneId = capability.entry_milestone;
+  let terminalMilestone = null;
+  let failure = null;
+
+  const context = {
+    tab,
+    capability,
+    inputs: resolvedInputs,
+    outputs,
+    outputDeclarations,
+    allowedOrigins,
+    approvedConsequentialActions: approved,
+    pendingRecoveryRequest: null,
+    downloadDirectory,
+  };
+
+  try {
+    if (!tab?.playwright || typeof tab.url !== "function" || typeof tab.goto !== "function") {
+      throw new Error("connected Chrome runtime lacks the required tab API");
+    }
+    for (let transitionCount = 0; transitionCount < MAX_TRANSITIONS; transitionCount += 1) {
+      const milestone = milestones.get(currentMilestoneId);
+      if (milestone == null) {
+        throw new Error(`unknown milestone: ${currentMilestoneId}`);
+      }
+      for (const action of milestone.actions) {
+        const actionStartedAt = clock();
+        try {
+          let evidence;
+          try {
+            evidence = await executeAction(action, context);
+          } catch (error) {
+            evidence = await attemptModelRecovery({
+              recoveryHandler,
+              capability,
+              milestone,
+              action,
+              context,
+              error,
+              recoveryProposals,
+            });
+            if (evidence == null) {
+              throw error;
+            }
+          }
+          actionResults.push({
+            milestone_id: milestone.id,
+            action_id: action.id,
+            operation: action.operation,
+            result: "passed",
+            started_at: actionStartedAt,
+            finished_at: clock(),
+            ...evidence,
+            error: null,
+          });
+        } catch (error) {
+          const observedPage = downloadObservationPage(error);
+          actionResults.push({
+            milestone_id: milestone.id,
+            action_id: action.id,
+            operation: action.operation,
+            result: "failed",
+            started_at: actionStartedAt,
+            finished_at: clock(),
+            locator_candidate: null,
+            origin: observedPage?.origin ?? null,
+            path: observedPage?.path ?? null,
+            output_ref: action.output_ref,
+            output_count: 0,
+            output_sha256: null,
+            evidence_code: downloadEvidenceCode(error),
+            mechanism_hint: downloadMechanism(error),
+            error: sanitizedErrorMetadata(
+              "action_failed",
+              error instanceof Error ? error.message : String(error),
+              downloadEvidenceCode(error),
+            ),
+          });
+          throw error;
+        }
+      }
+      completedMilestones.push(milestone.id);
+      let transition = null;
+      for (const candidate of milestone.transitions) {
+        if (await evaluateCondition(candidate.when, context)) {
+          transition = candidate;
+          break;
+        }
+      }
+      if (transition == null) {
+        throw new Error(`no transition matched after milestone: ${milestone.id}`);
+      }
+      if (transition.terminal) {
+        terminalMilestone = milestone.id;
+        break;
+      }
+      currentMilestoneId = transition.next_milestone;
+    }
+    if (terminalMilestone == null) {
+      throw new Error(`capability exceeded ${MAX_TRANSITIONS} milestone transitions`);
+    }
+    if (!capability.completion.terminal_milestones.includes(terminalMilestone)) {
+      throw new Error(`undeclared terminal milestone: ${terminalMilestone}`);
+    }
+    for (const output of capability.completion.required_outputs) {
+      const declaration = outputDeclarations.get(output);
+      if (declaration == null || !requiredOutputSatisfied(declaration, outputs[output])) {
+        throw new Error(`required output is missing or incomplete: ${output}`);
+      }
+    }
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    failure = sanitizedErrorMetadata(
+      classifyRunFailure(error),
+      detail,
+      downloadEvidenceCode(error),
+    );
+  }
+
+  const outputsPath = join(resolvedRunDirectory, "outputs.json");
+  const receiptPath = join(resolvedRunDirectory, "run.receipt.json");
+  const lockPath = join(resolvedRunDirectory, "run.lock.json");
+  const recoveryProposalsPath =
+    recoveryProposals.length === 0
+      ? null
+      : join(resolvedRunDirectory, "recovery.proposals.json");
+  await writeOwnerOnly(outputsPath, canonicalJson(outputs));
+  let recoveryProposalsText = null;
+  if (recoveryProposalsPath != null) {
+    recoveryProposalsText = canonicalJson({
+      schema_version: RECOVERY_PROPOSAL_SCHEMA,
+      runtime_version: RUNTIME_VERSION,
+      run_id: runId,
+      capability_id: capability.capability_id,
+      capability_version: capability.version,
+      execution_contract_sha256: executionHash,
+      discovery_record_sha256: capability.provenance.discovery_record_sha256,
+      proposals: recoveryProposals,
+      portable: false,
+      requires_operator_review_before_persistence: true,
+    });
+    await writeOwnerOnly(recoveryProposalsPath, recoveryProposalsText);
+  }
+  const receipt = {
+    schema_version: RECEIPT_SCHEMA,
+    runtime_version: RUNTIME_VERSION,
+    run_id: runId,
+    capability_id: capability.capability_id,
+    capability_version: capability.version,
+    execution_contract_sha256: executionHash,
+    discovery_record_sha256: capability.provenance.discovery_record_sha256,
+    started_at: startedAt,
+    finished_at: clock(),
+    result: failure == null ? "passed" : "failed",
+    entry_milestone: capability.entry_milestone,
+    completed_milestones: completedMilestones,
+    terminal_milestone: terminalMilestone,
+    action_results: actionResults,
+    outputs: receiptOutputEntries(capability, outputs),
+    input_hashes: inputHashes,
+    locator_changes_during_run: recoveryProposals.length > 0,
+    private_evidence_retained: false,
+    environment: {
+      execution_mode: executionMode,
+      browser: executionMode === "live_connected_chrome" ? "existing_chrome" : executionMode,
+      controller: executionMode === "live_connected_chrome" ? "chrome_extension" : executionMode,
+      origin_ui: capability.site.name,
+      locale: environment.locale ?? "unknown",
+    },
+    error: failure,
+  };
+  const receiptText = canonicalJson(receipt);
+  await writeOwnerOnly(receiptPath, receiptText);
+  const lock = {
+    schema_version:
+      recoveryProposalsText == null ? "browser-run-lock/v1" : "browser-run-lock/v2",
+    run_id: runId,
+    capability_id: capability.capability_id,
+    execution_contract_sha256: executionHash,
+    outputs_sha256: sha256Text(canonicalJson(outputs)),
+    receipt_sha256: sha256Text(receiptText),
+    ...(recoveryProposalsText == null
+      ? {}
+      : { recovery_proposals_sha256: sha256Text(recoveryProposalsText) }),
+  };
+  await writeOwnerOnly(lockPath, canonicalJson(lock));
+
+  const summary = publicSummary(
+    receiptPath,
+    outputsPath,
+    lockPath,
+    recoveryProposalsPath,
+    recoveryProposals.length,
+    receipt,
+    capability,
+    outputs,
+    context.pendingRecoveryRequest,
+  );
+  if (failure != null) {
+    const error = new Error(
+      `browser capability run failed: ${failure.code} (${failure.detail_sha256})`,
+    );
+    error.code = failure.code;
+    error.reasonCode = failure.reason_code;
+    error.detailSha256 = failure.detail_sha256;
+    error.runSummary = summary;
+    throw error;
+  }
+  return summary;
+}

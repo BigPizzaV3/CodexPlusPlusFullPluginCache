@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AAC Card Editor</title>
+  <style>
+    :root {
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      color: #172033;
+      background: #eef1f5;
+      --card-font-size: 32px;
+      --card-font-family: "Noto Sans KR", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, .file-button {
+      border: 1px solid #9aa5b1;
+      border-radius: 8px;
+      background: #fff;
+      color: #172033;
+      cursor: pointer;
+      font: inherit;
+      padding: 8px 12px;
+    }
+    button:hover, .file-button:hover { background: #f4f7fa; }
+    button.active { border-color: #2563eb; background: #dbeafe; }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .toolbar-group { display: flex; align-items: center; gap: 6px; }
+    .toolbar-title { margin-right: auto; font-weight: 700; }
+    .font-size-control { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+    #font-size { width: 140px; }
+    #font-size-value { min-width: 46px; font-variant-numeric: tabular-nums; }
+    .font-family-control { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+    #font-family { max-width: 180px; }
+    .editor-style-controls { display: none; align-items: center; gap: 6px; }
+    body.editing .editor-style-controls { display: flex; }
+    #pages {
+      display: grid;
+      justify-content: center;
+      gap: 18px;
+      padding: 18px;
+    }
+    .page-wrap { display: grid; gap: 6px; }
+    .page-caption { color: #475569; font-size: 12px; text-align: center; }
+    .page {
+      width: 210mm;
+      height: 297mm;
+      padding: 10mm;
+      overflow: hidden;
+      background: #fff;
+      border: 2px dashed #d22;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16);
+    }
+    .cards {
+      display: grid;
+      gap: 5mm;
+      width: 100%;
+      height: 100%;
+      align-content: center;
+    }
+    .cards.layout-1 {
+      grid-template-columns: 190mm;
+      grid-auto-rows: 237.5mm;
+    }
+    .cards.layout-2 {
+      grid-template-columns: 108.8mm;
+      grid-auto-rows: 136mm;
+      justify-content: center;
+    }
+    .cards.layout-4 {
+      grid-template-columns: repeat(2, 92.5mm);
+      grid-auto-rows: 115.625mm;
+    }
+    .cards.layout-8 {
+      grid-template-columns: repeat(2, 52.4mm);
+      grid-auto-rows: 65.5mm;
+      justify-content: center;
+    }
+    .card {
+      position: relative;
+      aspect-ratio: 4 / 5;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 2px solid #111827;
+      border-radius: 5mm;
+      background: #fff;
+    }
+    .card-image {
+      position: relative;
+      height: 80%;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background: #fff;
+    }
+    .card-image img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+      transform: translate(calc(var(--image-x, 0) * 1%), calc(var(--image-y, 0) * 1%)) scale(var(--image-scale, 1));
+      transform-origin: center;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .card-label {
+      height: 20%;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: 2mm;
+      border-top: 2px solid #111827;
+      font-size: var(--card-font-size);
+      font-weight: 700;
+      line-height: 1.15;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+    .card-label[contenteditable="true"] {
+      outline: 3px solid #2563eb;
+      outline-offset: -3px;
+      background: #eff6ff;
+    }
+    .edit-controls {
+      position: absolute;
+      inset: 2mm 2mm auto 2mm;
+      display: none;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+    }
+    body.editing .edit-controls { display: flex; }
+    .edit-controls button, .edit-controls .file-button {
+      padding: 4px 7px;
+      font-size: 12px;
+    }
+    .card-style-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      width: 100%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .card-style-controls select { max-width: 150px; padding: 3px 4px; font-size: 11px; }
+    .card-style-controls input { width: 58px; padding: 3px 4px; font-size: 11px; }
+    .card-style-controls button { padding: 3px 5px; font-size: 11px; }
+    .image-input { display: none; }
+    .selection-outline {
+      position: absolute;
+      inset: 3px;
+      z-index: 3;
+      display: none;
+      border: 3px solid #1677ff;
+      pointer-events: none;
+    }
+    .resize-handle {
+      position: absolute;
+      z-index: 4;
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-radius: 2px;
+      background: #1677ff;
+      touch-action: none;
+    }
+    body.editing .card-image.selected .selection-outline,
+    body.editing .card-image.selected .resize-handle { display: block; }
+    .resize-handle[data-corner="nw"] { top: 0; left: 0; cursor: nwse-resize; }
+    .resize-handle[data-corner="ne"] { top: 0; right: 0; cursor: nesw-resize; }
+    .resize-handle[data-corner="sw"] { bottom: 0; left: 0; cursor: nesw-resize; }
+    .resize-handle[data-corner="se"] { right: 0; bottom: 0; cursor: nwse-resize; }
+    .empty-state {
+      align-self: center;
+      color: #64748b;
+      font-size: 18px;
+      text-align: center;
+    }
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      html, body { background: #fff; }
+      .toolbar, .edit-only, .page-caption, .selection-outline, .resize-handle { display: none !important; }
+      #pages { display: block; padding: 0; }
+      .page-wrap { display: block; }
+      .page {
+        border: 0;
+        box-shadow: none;
+        break-after: page;
+        page-break-after: always;
+      }
+      .page-wrap:last-child .page {
+        break-after: auto;
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-title" id="document-title">AAC Card Editor</div>
+    <div class="toolbar-group">
+      <button type="button" id="edit-toggle" onclick="toggleEditing()">편집 켜기</button>
+      <span>페이지당</span>
+      <button type="button" data-layout="1" onclick="setLayout(1)">1</button>
+      <button type="button" data-layout="2" onclick="setLayout(2)">2</button>
+      <button type="button" data-layout="4" onclick="setLayout(4)">4</button>
+      <button type="button" data-layout="8" onclick="setLayout(8)">8</button>
+    </div>
+    <label class="font-size-control editor-style-controls edit-only" for="font-size">전체 글자 크기
+      <input id="font-size" type="range" min="12" max="72" step="1" oninput="setFontSize(this.value)">
+      <output id="font-size-value" for="font-size">32px</output>
+    </label>
+    <label class="font-family-control editor-style-controls edit-only" for="font-family">전체 글꼴
+      <select id="font-family" onchange="setFontFamily(this.value)">
+        <option value="Noto Sans KR, Arial, sans-serif">고딕 (Noto Sans KR)</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="Malgun Gothic, Noto Sans KR, sans-serif">맑은 고딕</option>
+        <option value="Noto Serif KR, serif">명조 (Noto Serif KR)</option>
+        <option value="serif">명조 (기본)</option>
+        <option value="sans-serif">고딕 (기본)</option>
+      </select>
+    </label>
+    <button type="button" class="editor-style-controls edit-only" onclick="applyStyleToAll()">전체 카드에 적용</button>
+    <button type="button" onclick="addCard()">카드 추가</button>
+    <button type="button" onclick="saveHtml()">HTML 저장</button>
+    <button type="button" onclick="window.print()">인쇄</button>
+  </header>
+  <main id="pages"></main>
+
+  <script>
+    /*__AAC_STATE_START__*/const state = __AAC_DATA__;/*__AAC_STATE_END__*/
+    let editing = false;
+    let selectedCardId = null;
+    let pointerOperation = null;
+    const DEFAULT_FONT_FAMILY = "Noto Sans KR, Arial, sans-serif";
+    const DEFAULT_FONT_SIZE = 32;
+    const FONT_FAMILIES = [
+      DEFAULT_FONT_FAMILY,
+      "Arial, sans-serif",
+      "Malgun Gothic, Noto Sans KR, sans-serif",
+      "Noto Serif KR, serif",
+      "serif",
+      "sans-serif"
+    ];
+
+    function clamp(value, minimum, maximum) {
+      return Math.min(maximum, Math.max(minimum, Number(value)));
+    }
+
+    function normalizeFontSize(value) {
+      const numeric = Number(value);
+      return clamp(Number.isFinite(numeric) ? numeric : DEFAULT_FONT_SIZE, 12, 72);
+    }
+
+    function normalizeFontFamily(value) {
+      return FONT_FAMILIES.indexOf(value) === -1 ? DEFAULT_FONT_FAMILY : value;
+    }
+
+    function normalizeTransform(value) {
+      const source = value && typeof value === "object" ? value : {};
+      return {
+        scale: clamp(Number(source.scale) || 1, 0.25, 4),
+        x: clamp(Number(source.x) || 0, -80, 80),
+        y: clamp(Number(source.y) || 0, -80, 80)
+      };
+    }
+
+    state.fontSize = normalizeFontSize(state.fontSize);
+    state.fontFamily = normalizeFontFamily(state.fontFamily);
+    state.cards.forEach(function (card) {
+      card.imageTransform = normalizeTransform(card.imageTransform);
+      if (card.fontSize !== undefined && card.fontSize !== null && card.fontSize !== "") {
+        card.fontSize = normalizeFontSize(card.fontSize);
+      }
+      if (card.fontFamily !== undefined && card.fontFamily !== null && card.fontFamily !== "") {
+        if (FONT_FAMILIES.indexOf(card.fontFamily) === -1) delete card.fontFamily;
+      }
+    });
+
+    function cardIndex(cardId) {
+      return state.cards.findIndex(function (card) { return card.id === cardId; });
+    }
+
+    function uniqueId(prefix) {
+      let id;
+      do {
+        id = prefix + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+      } while (cardIndex(id) !== -1);
+      return id;
+    }
+
+    function neutralImage() {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="%23f1f5f9"/><circle cx="400" cy="400" r="150" fill="%23cbd5e1"/></svg>';
+      return "data:image/svg+xml," + svg;
+    }
+
+    function makeButton(text, action, className) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = text;
+      button.className = className || "edit-only";
+      button.addEventListener("click", action);
+      return button;
+    }
+
+    function populateFontSelect(select, selectedValue, includeDefault) {
+      if (includeDefault) {
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "전체 설정 사용";
+        select.appendChild(defaultOption);
+      }
+      const labels = ["고딕 (Noto Sans KR)", "Arial", "맑은 고딕", "명조 (Noto Serif KR)", "명조 (기본)", "고딕 (기본)"];
+      FONT_FAMILIES.forEach(function (family, index) {
+        const option = document.createElement("option");
+        option.value = family;
+        option.textContent = labels[index];
+        select.appendChild(option);
+      });
+      select.value = selectedValue || (includeDefault ? "" : state.fontFamily);
+    }
+
+    function applyLabelStyle(label, card) {
+      if (card.fontFamily) label.style.fontFamily = card.fontFamily;
+      else label.style.removeProperty("font-family");
+      if (card.fontSize) label.style.fontSize = card.fontSize + "px";
+      else label.style.removeProperty("font-size");
+    }
+
+    function createCard(card) {
+      const article = document.createElement("article");
+      article.className = "card";
+      article.dataset.cardId = card.id;
+
+      const imageBox = document.createElement("div");
+      imageBox.className = "card-image" + (card.id === selectedCardId ? " selected" : "");
+      imageBox.dataset.cardId = card.id;
+      const image = document.createElement("img");
+      image.src = card.image_data;
+      image.alt = "";
+      image.draggable = false;
+      image.style.setProperty("--image-scale", card.imageTransform.scale);
+      image.style.setProperty("--image-x", card.imageTransform.x);
+      image.style.setProperty("--image-y", card.imageTransform.y);
+      image.addEventListener("dblclick", function (event) {
+        if (!editing) return;
+        event.preventDefault();
+        selectedCardId = card.id;
+        render();
+      });
+      image.addEventListener("pointerdown", function (event) {
+        if (editing && selectedCardId === card.id) startImageDrag(event, card.id, imageBox);
+      });
+      imageBox.appendChild(image);
+      const outline = document.createElement("span");
+      outline.className = "selection-outline edit-only";
+      imageBox.appendChild(outline);
+      ["nw", "ne", "sw", "se"].forEach(function (corner) {
+        const handle = document.createElement("span");
+        handle.className = "resize-handle edit-only";
+        handle.dataset.corner = corner;
+        handle.addEventListener("pointerdown", function (event) {
+          startImageResize(event, card.id, imageBox, corner);
+        });
+        imageBox.appendChild(handle);
+      });
+
+      const label = document.createElement("div");
+      label.className = "card-label";
+      label.setAttribute("contenteditable", editing ? "true" : "false");
+      label.textContent = card.label;
+      applyLabelStyle(label, card);
+      label.addEventListener("input", function () {
+        updateLabel(card.id, label.textContent);
+      });
+
+      const controls = document.createElement("div");
+      controls.className = "edit-controls edit-only";
+      const fileLabel = document.createElement("label");
+      fileLabel.className = "file-button";
+      fileLabel.textContent = "그림 교체";
+      const fileInput = document.createElement("input");
+      fileInput.className = "image-input";
+      fileInput.type = "file";
+      fileInput.accept = "image/png,image/jpeg,image/gif,image/webp,image/svg+xml";
+      fileInput.addEventListener("change", function () {
+        if (fileInput.files && fileInput.files[0]) {
+          replaceImage(card.id, fileInput.files[0]);
+        }
+      });
+      fileLabel.appendChild(fileInput);
+      controls.appendChild(fileLabel);
+      const styleControls = document.createElement("div");
+      styleControls.className = "card-style-controls";
+      const fontLabel = document.createElement("label");
+      fontLabel.textContent = "글꼴";
+      const fontSelect = document.createElement("select");
+      fontSelect.setAttribute("aria-label", "카드 글꼴");
+      populateFontSelect(fontSelect, card.fontFamily || "", true);
+      fontSelect.addEventListener("change", function () {
+        setCardFontFamily(card.id, fontSelect.value);
+      });
+      fontLabel.appendChild(fontSelect);
+      styleControls.appendChild(fontLabel);
+      const sizeLabel = document.createElement("label");
+      sizeLabel.textContent = "크기";
+      const sizeInput = document.createElement("input");
+      sizeInput.className = "card-style-size";
+      sizeInput.type = "number";
+      sizeInput.min = "12";
+      sizeInput.max = "72";
+      sizeInput.step = "1";
+      sizeInput.value = card.fontSize || "";
+      sizeInput.placeholder = "전체: " + state.fontSize + "px";
+      sizeInput.setAttribute("aria-label", "카드 글자 크기");
+      sizeInput.addEventListener("change", function () {
+        setCardFontSize(card.id, sizeInput.value);
+      });
+      sizeLabel.appendChild(sizeInput);
+      styleControls.appendChild(sizeLabel);
+      styleControls.appendChild(makeButton("기본값", function () { resetCardStyle(card.id); }));
+      controls.appendChild(styleControls);
+      controls.appendChild(makeButton("복제", function () { cloneCard(card.id); }));
+      controls.appendChild(makeButton("삭제", function () { deleteCard(card.id); }));
+      controls.appendChild(makeButton("앞으로", function () { moveCard(card.id, -1); }));
+      controls.appendChild(makeButton("뒤로", function () { moveCard(card.id, 1); }));
+
+      article.appendChild(imageBox);
+      article.appendChild(label);
+      article.appendChild(controls);
+      return article;
+    }
+
+    function render() {
+      document.title = state.title;
+      document.getElementById("document-title").textContent = state.title;
+      document.documentElement.style.setProperty("--card-font-size", state.fontSize + "px");
+      document.documentElement.style.setProperty("--card-font-family", state.fontFamily);
+      const fontSizeControl = document.getElementById("font-size");
+      const fontSizeValue = document.getElementById("font-size-value");
+      const fontFamilyControl = document.getElementById("font-family");
+      if (fontSizeControl) fontSizeControl.value = state.fontSize;
+      if (fontSizeValue) fontSizeValue.textContent = state.fontSize + "px";
+      if (fontFamilyControl) fontFamilyControl.value = state.fontFamily;
+      const pages = document.getElementById("pages");
+      pages.replaceChildren();
+
+      document.querySelectorAll("[data-layout]").forEach(function (button) {
+        button.classList.toggle("active", Number(button.dataset.layout) === state.cards_per_page);
+      });
+
+      if (state.cards.length === 0) {
+        const message = document.createElement("p");
+        message.className = "empty-state";
+        message.textContent = "카드가 없습니다. 카드 추가를 눌러 시작하세요.";
+        pages.appendChild(message);
+        return;
+      }
+
+      for (let start = 0; start < state.cards.length; start += state.cards_per_page) {
+        const wrap = document.createElement("section");
+        wrap.className = "page-wrap";
+        const caption = document.createElement("div");
+        caption.className = "page-caption";
+        caption.textContent = "A4 · 210 × 297mm · " + (start / state.cards_per_page + 1) + "쪽";
+        const page = document.createElement("div");
+        page.className = "page";
+        const grid = document.createElement("div");
+        grid.className = "cards layout-" + state.cards_per_page;
+        state.cards.slice(start, start + state.cards_per_page).forEach(function (card) {
+          grid.appendChild(createCard(card));
+        });
+        page.appendChild(grid);
+        wrap.appendChild(caption);
+        wrap.appendChild(page);
+        pages.appendChild(wrap);
+      }
+    }
+
+    function toggleEditing() {
+      editing = !editing;
+      if (!editing) selectedCardId = null;
+      document.body.classList.toggle("editing", editing);
+      document.getElementById("edit-toggle").textContent = editing ? "편집 끄기" : "편집 켜기";
+      render();
+    }
+
+    function setLayout(count) {
+      const value = Number(count);
+      if ([1, 2, 4, 8].indexOf(value) === -1) {
+        throw new Error("Unsupported layout: " + count);
+      }
+      state.cards_per_page = value;
+      render();
+    }
+
+    function setFontSize(value) {
+      state.fontSize = normalizeFontSize(value);
+      document.documentElement.style.setProperty("--card-font-size", state.fontSize + "px");
+      document.getElementById("font-size").value = state.fontSize;
+      document.getElementById("font-size-value").textContent = state.fontSize + "px";
+      document.querySelectorAll(".card-style-size").forEach(function (input) {
+        if (!input.value) input.placeholder = "전체: " + state.fontSize + "px";
+      });
+    }
+
+    function setFontFamily(value) {
+      state.fontFamily = normalizeFontFamily(value);
+      document.documentElement.style.setProperty("--card-font-family", state.fontFamily);
+    }
+
+    function setCardFontSize(cardId, value) {
+      const index = cardIndex(cardId);
+      if (index === -1) return;
+      if (String(value).trim() === "") delete state.cards[index].fontSize;
+      else state.cards[index].fontSize = normalizeFontSize(value);
+      render();
+    }
+
+    function setCardFontFamily(cardId, value) {
+      const index = cardIndex(cardId);
+      if (index === -1) return;
+      if (!value) delete state.cards[index].fontFamily;
+      else state.cards[index].fontFamily = normalizeFontFamily(value);
+      render();
+    }
+
+    function resetCardStyle(cardId) {
+      const index = cardIndex(cardId);
+      if (index === -1) return;
+      delete state.cards[index].fontFamily;
+      delete state.cards[index].fontSize;
+      render();
+    }
+
+    function applyStyleToAll() {
+      state.cards.forEach(function (card) {
+        delete card.fontFamily;
+        delete card.fontSize;
+      });
+      render();
+    }
+
+    function replaceImage(cardId, file) {
+      const index = cardIndex(cardId);
+      if (index === -1 || !file) return;
+      const reader = new FileReader();
+      reader.addEventListener("load", function () {
+        state.cards[index].image_data = reader.result;
+        state.cards[index].imageTransform = normalizeTransform();
+        render();
+      });
+      reader.readAsDataURL(file);
+    }
+
+    function updateLabel(cardId, value) {
+      const index = cardIndex(cardId);
+      if (index !== -1) state.cards[index].label = String(value);
+    }
+
+    function addCard() {
+      state.cards.push({
+        id: uniqueId("card"),
+        label: "새 카드",
+        image_data: neutralImage(),
+        imageTransform: normalizeTransform()
+      });
+      render();
+    }
+
+    function cloneCard(cardId) {
+      const index = cardIndex(cardId);
+      if (index === -1) return;
+      const copy = {
+        id: uniqueId(state.cards[index].id),
+        label: state.cards[index].label,
+        image_data: state.cards[index].image_data,
+        imageTransform: normalizeTransform(state.cards[index].imageTransform)
+      };
+      if (state.cards[index].fontFamily) copy.fontFamily = state.cards[index].fontFamily;
+      if (state.cards[index].fontSize) copy.fontSize = state.cards[index].fontSize;
+      state.cards.splice(index + 1, 0, copy);
+      render();
+    }
+
+    function deleteCard(cardId) {
+      const index = cardIndex(cardId);
+      if (index === -1) return;
+      state.cards.splice(index, 1);
+      if (selectedCardId === cardId) selectedCardId = null;
+      render();
+    }
+
+    function moveCard(cardId, delta) {
+      const index = cardIndex(cardId);
+      const target = index + Number(delta);
+      if (index === -1 || target < 0 || target >= state.cards.length) return;
+      const moved = state.cards.splice(index, 1)[0];
+      state.cards.splice(target, 0, moved);
+      render();
+    }
+
+    function applyImageTransform(frame, transform) {
+      const image = frame.querySelector("img");
+      if (!image) return;
+      image.style.setProperty("--image-scale", transform.scale);
+      image.style.setProperty("--image-x", transform.x);
+      image.style.setProperty("--image-y", transform.y);
+    }
+
+    function beginPointerOperation(event, details) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      pointerOperation = Object.assign({}, details, {
+        pointerId: event.pointerId,
+        target: event.currentTarget,
+        startX: event.clientX,
+        startY: event.clientY
+      });
+      event.currentTarget.addEventListener("pointermove", onPointerMove);
+      event.currentTarget.addEventListener("pointerup", endPointerOperation);
+      event.currentTarget.addEventListener("pointercancel", endPointerOperation);
+    }
+
+    function startImageDrag(event, cardId, frame) {
+      const index = cardIndex(cardId);
+      if (index === -1) return;
+      beginPointerOperation(event, { type: "move", cardId: cardId, frame: frame, startTransform: normalizeTransform(state.cards[index].imageTransform) });
+    }
+
+    function startImageResize(event, cardId, frame, corner) {
+      const index = cardIndex(cardId);
+      if (index === -1 || !editing || selectedCardId !== cardId) return;
+      beginPointerOperation(event, { type: "resize", cardId: cardId, frame: frame, corner: corner, startTransform: normalizeTransform(state.cards[index].imageTransform) });
+    }
+
+    function onPointerMove(event) {
+      const operation = pointerOperation;
+      if (!operation || event.pointerId !== operation.pointerId) return;
+      const index = cardIndex(operation.cardId);
+      if (index === -1) return;
+      const rect = operation.frame.getBoundingClientRect();
+      const dx = event.clientX - operation.startX;
+      const dy = event.clientY - operation.startY;
+      if (operation.type === "move") {
+        state.cards[index].imageTransform.x = clamp(operation.startTransform.x + dx / rect.width * 100, -80, 80);
+        state.cards[index].imageTransform.y = clamp(operation.startTransform.y + dy / rect.height * 100, -80, 80);
+      } else {
+        const horizontal = operation.corner.indexOf("e") !== -1 ? 1 : -1;
+        const vertical = operation.corner.indexOf("s") !== -1 ? 1 : -1;
+        const delta = ((dx * horizontal) + (dy * vertical)) / (2 * Math.max(1, Math.min(rect.width, rect.height)));
+        state.cards[index].imageTransform.scale = clamp(operation.startTransform.scale * (1 + delta * 2), 0.25, 4);
+      }
+      applyImageTransform(operation.frame, state.cards[index].imageTransform);
+    }
+
+    function endPointerOperation(event) {
+      const operation = pointerOperation;
+      if (!operation || event.pointerId !== operation.pointerId) return;
+      if (operation.target.hasPointerCapture(event.pointerId)) operation.target.releasePointerCapture(event.pointerId);
+      operation.target.removeEventListener("pointermove", onPointerMove);
+      operation.target.removeEventListener("pointerup", endPointerOperation);
+      operation.target.removeEventListener("pointercancel", endPointerOperation);
+      pointerOperation = null;
+    }
+
+    function safeStateJson() {
+      return JSON.stringify(state)
+        .replace(/&/g, "\\u0026")
+        .replace(/</g, "\\u003c")
+        .replace(/>/g, "\\u003e");
+    }
+
+    function saveHtml() {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelectorAll(".selected").forEach(function (node) { node.classList.remove("selected"); });
+      clone.querySelectorAll("[contenteditable]").forEach(function (node) {
+        node.setAttribute("contenteditable", "false");
+      });
+      let html = "<!doctype html>\n" + clone.outerHTML;
+      const replacement = "/*__AAC_STATE_START__*/const state = " + safeStateJson() + ";/*__AAC_STATE_END__*/";
+      html = html.replace(/\/\*__AAC_STATE_START__\*\/[\s\S]*?\/\*__AAC_STATE_END__\*\//, replacement);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const filename = (state.title || "aac-cards").replace(/[\\/:*?"<>|]+/g, "-") + ".html";
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    }
+
+    document.addEventListener("pointerdown", function (event) {
+      if (event.target.closest(".card-image") || event.target.closest(".toolbar")) return;
+      selectedCardId = null;
+      document.querySelectorAll(".card-image.selected").forEach(function (node) { node.classList.remove("selected"); });
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        selectedCardId = null;
+        render();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

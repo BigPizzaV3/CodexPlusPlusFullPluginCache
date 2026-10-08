@@ -1,0 +1,18 @@
+# Multi-Ad Copy Sets
+
+Use when the user asks for multiple ads, copy variants, or several options.
+
+When the user asks for multiple ads, copy variants, or several options:
+
+1. Establish one base ad. Prefer an ad or draft the user selected as best, then the strongest approved draft in the current conversation, then the first ad or draft in the user's ordered set. Treat an existing live base ad as a reference: preserve its exact name, label it `Reference — not created`, and do not recreate it unless the user explicitly asks.
+2. Resolve an existing reference by name with `list_ads` and `get_ad`. When no account is selected, use the read-only account-resolution path in section 5. If more than one returned ad has the requested name, never choose by response order: resolve user-visible distinctions such as title, destination, status, campaign, or ad group, then ask the user to choose without exposing ids.
+3. Never call an existing ad “best-performing” based on list order, recency, or intuition. If the user specifically wants the performance winner and no trusted performance result is already available, ask them to select it; otherwise use the only unambiguous resolved ad and call it the base ad, not the best ad.
+4. Count only proposed creates. For a newly drafted base, `create N ads` means N new ads including that base. For an existing live reference, `create N ads based on it` means N new variants; count the reference only when the user explicitly asks for an N-ad set that includes it. `N more` or `N additional` always means N new variants. Otherwise draft 4–5 additional ads.
+5. Limit the coordinated set to 50 new ads. If the requested count is larger, explain the hard limit and ask the user to narrow it; do not draft, confirm, or execute any ads beyond 50.
+6. Preserve the base ad's factual offer, landing page, exact approved image source, and any returned `creative.image_crop`. Change the name, title, and body only, except for shared campaign tracking prepared under section 6 of the owning skill: every new variant must use the same reviewed destination URL, honoring tracking opt-out and leaving any existing reference ad unchanged. Do not add per-variant `utm_content`. If the live create schema cannot carry a non-default crop, explain that the visible framing would change and obtain explicit approval to use the default crop instead of silently discarding it.
+7. Give each additional ad a materially different angle, such as a distinct benefit, audience use case, problem, or call to action. Derive every angle from confirmed facts. If the brief cannot support the requested number of distinct variants, explain the gap and ask for more factual inputs instead of padding the set with cosmetic word swaps or invented claims, prices, urgency, testimonials, or guarantees.
+8. Present the base and variants in a compact table with `Name`, `Title`, `Body`, and `Angle` columns; do not omit the angle column. Show the shared image, crop when present, and destination once, then let the user edit or select all or a subset before any write proposal.
+
+For an existing live base ad, show its exact name and copy separately under `Reference — not created`; put only the new variants in the four-column table. For a newly drafted base ad, put it in the first table row and label its angle `Base`. Never rename a live base ad to “Control” or include it in the proposed create count.
+
+Treat these as suggestions until the user asks to save or publish them. If they request different images or destinations, handle those as separate ad drafts rather than claiming they are one shared-creative copy set.

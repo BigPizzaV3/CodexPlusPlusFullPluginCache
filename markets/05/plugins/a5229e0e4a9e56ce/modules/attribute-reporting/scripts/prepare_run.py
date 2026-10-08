@@ -1,0 +1,113 @@
+"""Prepare an attribute-reporting run from an existing evidence package."""
+
+from __future__ import annotations
+
+# Direct CLI calls must select dependencies before importing workflow modules.
+if __name__ == "__main__":
+    import runpy as _runpy
+    from pathlib import Path as _Path
+
+    for _parent in _Path(__file__).resolve().parents:
+        _launcher = _parent / "scripts" / "self_relaunch.py"
+        if not _launcher.is_file():
+            _launcher = _parent / "clara" / "scripts" / "self_relaunch.py"
+        if _launcher.is_file():
+            _runpy.run_path(str(_launcher))["ensure_running_in_managed_venv"](__file__)
+            break
+    else:
+        # Standalone components retain their host's dependency setup.
+        if any(
+            (_p / "components.json").is_file()
+            for _p in _Path(__file__).resolve().parents
+        ):
+            raise SystemExit(
+                "Managed Python launcher is missing; rebuild the plugin package."
+            )
+
+import argparse
+import logging
+from pathlib import Path
+
+from attribute_reporting import ContractError, prepare_run
+
+__all__ = ["main"]
+
+LOGGER = logging.getLogger(__name__)
+
+
+def main() -> int:
+    """Run the deterministic preparation stage."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("package_dir", type=Path)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--author-agent-id", required=True)
+    parser.add_argument(
+        "--language",
+        choices=("en", "it", "fr", "de", "es"),
+        default="en",
+        help="Language for the report template, tables and fixed display labels.",
+    )
+    parser.add_argument("--preview-rows", type=int, default=12)
+    parser.add_argument(
+        "--mapping-provenance-dir",
+        type=Path,
+        help=(
+            "Directory containing the four reviewed mapping artifacts. "
+            "If omitted, provenance at the evidence-package root is copied automatically."
+        ),
+    )
+    parser.add_argument(
+        "--download-receipt",
+        type=Path,
+        help=(
+            "Checksum download receipt written by server_bridge_client.py. "
+            "Required with server mapping provenance."
+        ),
+    )
+    parser.add_argument(
+        "--extraction-receipt",
+        type=Path,
+        help=(
+            "Safe-extraction receipt written by server_bridge_client.py. "
+            "Required with server mapping provenance."
+        ),
+    )
+    parser.add_argument(
+        "--no-work-workset",
+        type=Path,
+        help=(
+            "Public server workset with status no_work and zero unresolved tasks. "
+            "Requires the preliminary download and extraction receipts; mapping "
+            "authoring, review, submission, and rebuild are then not applicable."
+        ),
+    )
+    parser.add_argument(
+        "--require-browser-qa",
+        action="store_true",
+        help="Require a current desktop/mobile browser_qa.json before a final verdict.",
+    )
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    try:
+        result = prepare_run(
+            args.package_dir,
+            args.output_dir,
+            author_agent_id=args.author_agent_id,
+            language=args.language,
+            preview_rows=args.preview_rows,
+            require_browser_qa=args.require_browser_qa,
+            mapping_provenance_dir=args.mapping_provenance_dir,
+            download_receipt_path=args.download_receipt,
+            extraction_receipt_path=args.extraction_receipt,
+            no_work_workset_path=args.no_work_workset,
+        )
+    except ContractError as exc:
+        LOGGER.error("Preparation failed: %s", exc)
+        return 1
+    LOGGER.info("Prepared attribute-reporting run at %s", result["output_dir"])
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

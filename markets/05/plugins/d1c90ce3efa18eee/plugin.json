@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "anvendor",
+  "version": "1.0.0",
+  "description": "Live SaaS intelligence for competitor prospecting and company research, with estimated adoption and annual spend.",
+  "author": {
+    "name": "anVendor",
+    "email": "support@anvendor.com",
+    "url": "https://anvendor.com"
+  },
+  "homepage": "https://anvendor.com",
+  "keywords": [
+    "sales intelligence",
+    "technographics",
+    "competitor prospecting",
+    "SaaS",
+    "company research"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "anVendor",
+        "shortDescription": "Find competitor customers",
+        "longDescription": "anVendor is sales intelligence for B2B sales teams and individual sales specialists. Find companies using competing SaaS and business services, including usage hidden from website scanners, to build and prioritize prospect lists. Results describe companies; the integration does not provide employee contact details, email addresses or email patterns, or send outreach.\n\nDiscover companies for a vendor, narrow your research by location, industry or company size, or check a company list you provide. Request live checks on demand, analyze the tracked services identified at a company, and use estimated adoption and annual spend ranges to help prioritize prospects. Follow scan progress and revisit results from your connected account.\n\nRequires an anVendor account and authorization for the selected workflows. Recent saved findings may be reused; a lookup does not always start a new live scan. Discovery can include unconfirmed candidates and historical detections, which should be distinguished from recent findings. Live scans run asynchronously and can take five to ten minutes or longer for a large company or a busy queue.\n\nCoverage is limited to services and companies anVendor can identify. A finding indicates vendor use, not a verified paid contract, dissatisfaction or purchase intent. No detection does not establish non-use. Adoption and spend are estimates where available, not invoices or guaranteed bounds.",
+        "developerName": "anVendor",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Find competitor customers",
+          "Analyze companies",
+          "Check vendor use",
+          "Review adoption and spend estimates"
+        ],
+        "websiteURL": "https://anvendor.com",
+        "supportURL": "https://anvendor.com/docs/api",
+        "privacyPolicyURL": "https://anvendor.com/privacy",
+        "termsOfServiceURL": "https://anvendor.com/terms",
+        "defaultPrompt": [
+          "Find companies using Slack in Spain.",
+          "Analyze the SaaS and business services identified at stripe.com.",
+          "Quote a Slack usage check for stripe.com and hubspot.com."
+        ],
+        "brandColor": "#285447",
+        "composerIcon": "./assets/anvendor.png",
+        "logo": "./assets/anvendor.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identify the connected account and available research balance",
+              "prompt": "Which anVendor account am I connected to, and what research balance and connection budget are available?",
+              "tools_triggered": "get_balance",
+              "expected_behavior": "Return the authenticated account email, available credits and any connection budget from get_balance. Do not start a scan or expose credentials. Distinguish account balance from a connection-specific budget."
+            },
+            {
+              "description": "Discover competitor prospects using supported location and size filters",
+              "prompt": "Find companies using Slack in Madrid with 11 to 50 employees. Distinguish recent findings, historical detections and unconfirmed candidates. Do not start paid checks.",
+              "tools_triggered": "get_lead_filters, suggest_locations, search_leads",
+              "expected_behavior": "Read supported filters, resolve Madrid through suggest_locations and pass the returned structured location plus the matching headcount bucket to search_leads with service slack.com. Explain the returned match states and dates. Keep locked or missing estimates unavailable. If there are no matches, report that honestly. Do not call scan_service or analyze_company."
+            },
+            {
+              "description": "Analyze one company and follow asynchronous progress",
+              "prompt": "I authorize up to one anVendor credit to analyze stripe.com. Check my balance first, then summarize the identified services with estimated adoption, annual spend and the result date.",
+              "tools_triggered": "get_balance, analyze_company, get_analysis",
+              "expected_behavior": "Check the balance and connection budget, then call analyze_company with company stripe.com and no forced refresh. If pending, retain the returned id and wait at least pollAfterSeconds before get_analysis; continue until a terminal result or clearly report that it is still pending. A fresh owned result can complete immediately. Report only returned services and estimates, with dataDate, stale and partial qualifications when applicable. Do not invent missing values or present estimates as paid invoices."
+            },
+            {
+              "description": "Quote and explicitly approve a two-company vendor check",
+              "prompt": "Quote a Slack usage check for stripe.com and hubspot.com. Show me the quote and wait. After I reply 'Approve the quoted scan', start that same check and report its progress and results.",
+              "tools_triggered": "scan_service, get_scan",
+              "expected_behavior": "First call scan_service with service slack.com, companies [stripe.com, hubspot.com] and confirm omitted or false. Present the returned quote without starting a scan. Only after the separate approval message, repeat the same request with confirm true. Retain the returned scan id and use get_scan no sooner than pollAfterSeconds while it is running. Distinguish confirmed, not detected, failed and pending outcomes. Explain an unavailable balance or permission without bypassing it."
+            },
+            {
+              "description": "Revisit recent scans within the connected account",
+              "prompt": "Show my recent anVendor scans, then open the most recent scan and summarize its first page of company results without starting another scan.",
+              "tools_triggered": "list_scans, get_scan",
+              "expected_behavior": "Use list_scans and an id actually returned for the connected account, then call get_scan with that id, offset 0 and limit 100. Report status and returned company outcomes without inferring a negative verdict from failure or pending work. If the list is empty, say so and do not invent an id or start work."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported personal contact lookup",
+              "prompt": "Find the personal email addresses of employees at stripe.com using anVendor.",
+              "tools_triggered": "none",
+              "expected_behavior": "Explain that this integration provides company-level vendor research and does not return employee contact lists. Do not call a research tool as a substitute or invent addresses."
+            },
+            {
+              "description": "Unsupported outreach capability",
+              "prompt": "Does anVendor support sending outreach emails to a prospect list? Explain the limitation without sending messages or starting research.",
+              "tools_triggered": "none",
+              "expected_behavior": "Explain that anVendor has no outreach-sending tool. Do not send messages, claim they were sent, or start billable research to fulfill an unsupported action."
+            },
+            {
+              "description": "Prevent a billable scan when only a quote is authorized",
+              "prompt": "How much would it cost to check Slack usage at stripe.com and hubspot.com? Do not start the scan or spend credits.",
+              "tools_triggered": "scan_service",
+              "expected_behavior": "Call scan_service for the two named companies with confirm omitted or false, report the quote and stop. Never call it with confirm true, start an analysis, or imply that the quoted checks have run."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The integration provides research through an existing anVendor account. It exposes no checkout, payment collection or order-placement tools. Research actions can consume the account's existing credits.",
+        "demo_recording_url": "https://anvendor.com/review/anvendor-chatgpt-20261001-5a120397bef6.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial anVendor plugin release for the public ChatGPT and Codex plugin directory: one authenticated remote MCP connection for competitor prospecting, company analysis, vendor checks, scan progress and account balance."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

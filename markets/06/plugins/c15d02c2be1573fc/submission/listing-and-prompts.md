@@ -1,0 +1,30 @@
+# Public Listing
+
+## Name
+Production RAG & GenAI Copilot
+
+## Subtitle
+Build and debug production RAG
+
+## Category
+Developer Tools
+
+## Description
+Production RAG & GenAI Copilot helps you design, debug, evaluate, secure, and operate retrieval-augmented generation systems. It can trace failures across ingestion, parsing, chunking, indexing, retrieval, reranking, context construction, generation, citations, authorization, and evaluation; design practical RAG architectures; build retrieval and groundedness evals; review prompt-injection and data-leakage risks; and improve observability, latency, and cost. It favors measurable evidence, reversible fixes, source-level authorization, and simple architectures over prompt-only fixes or unnecessary agents.
+
+## Capabilities
+- Design practical RAG architectures for quality, freshness, security, latency, and cost
+- Debug retrieval and grounded-generation failures from traces, logs, prompts, and evals
+- Diagnose parsing, chunking, indexing, metadata, filtering, reranking, and context issues
+- Evaluate retrieval quality, groundedness, citation correctness, abstention, and regressions
+- Review prompt injection, RAG poisoning, cross-tenant leakage, and authorization risks
+- Plan low-blast-radius incident containment, verification, rollback, and permanent fixes
+- Improve hybrid retrieval, query rewriting, reranking, context packing, and source precedence
+- Design observability for retrieval traces, model calls, citations, latency, tokens, and cost
+- Compare retrievers, rerankers, models, vector stores, and architecture trade-offs
+- Use current official documentation for model, vector-store, SDK, security, and platform changes
+
+## Starter prompts
+1. Debug why this RAG system is returning the wrong evidence.
+2. Design a production RAG architecture for this use case.
+3. Build an eval plan for retrieval, grounding, citations, and abstention.

@@ -1,0 +1,145 @@
+# Canonical Manual Index
+
+The bundled DOCX is the authoritative source. Markdown files are retrieval-oriented mirrors.
+
+## Modules
+
+- M001: Mission, Ethics, and the Analyst Charter (I - ANALYST OPERATING SYSTEM)
+- M002: The Research Audit Trail (I - ANALYST OPERATING SYSTEM)
+- M003: Daily, Weekly, Monthly, and Quarterly Cadence (I - ANALYST OPERATING SYSTEM)
+- M004: Hypothesis-Driven Research (I - ANALYST OPERATING SYSTEM)
+- M005: Time Allocation and Research ROI (I - ANALYST OPERATING SYSTEM)
+- M006: EDGAR Mastery and Filing Retrieval (II - SOURCE INTELLIGENCE AND FILINGS)
+- M007: 10-K Deep Read Procedure (II - SOURCE INTELLIGENCE AND FILINGS)
+- M008: 10-Q and Interim Update Procedure (II - SOURCE INTELLIGENCE AND FILINGS)
+- M009: 8-K and Event Filing Triage (II - SOURCE INTELLIGENCE AND FILINGS)
+- M010: Proxy Statement and Governance Mining (II - SOURCE INTELLIGENCE AND FILINGS)
+- M011: Three-Statement Mastery (III - ACCOUNTING FOUNDATION)
+- M012: Revenue Recognition Analysis (III - ACCOUNTING FOUNDATION)
+- M013: Cost Structure and Margin Architecture (III - ACCOUNTING FOUNDATION)
+- M014: Working Capital Mechanics (III - ACCOUNTING FOUNDATION)
+- M015: Capital Expenditures, Depreciation, and Asset Intensity (III - ACCOUNTING FOUNDATION)
+- M016: Stock-Based Compensation (IV - ADVANCED ACCOUNTING)
+- M017: Leases and Off-Balance-Sheet Commitments (IV - ADVANCED ACCOUNTING)
+- M018: Goodwill, Intangibles, and Impairment (IV - ADVANCED ACCOUNTING)
+- M019: Taxes and Deferred Taxes (IV - ADVANCED ACCOUNTING)
+- M020: Pensions and Postretirement Obligations (IV - ADVANCED ACCOUNTING)
+- M021: Earnings Quality Framework (V - FORENSIC ACCOUNTING)
+- M022: Accrual and Cash Conversion Tests (V - FORENSIC ACCOUNTING)
+- M023: Non-GAAP Reconstruction (V - FORENSIC ACCOUNTING)
+- M024: Fraud and Manipulation Red Flags (V - FORENSIC ACCOUNTING)
+- M025: Accounting Estimates and Management Bias (V - FORENSIC ACCOUNTING)
+- M026: Business Model Deconstruction (VI - BUSINESS QUALITY)
+- M027: Unit Economics and Cohort Thinking (VI - BUSINESS QUALITY)
+- M028: Pricing Power and Price-Volume-Mix (VI - BUSINESS QUALITY)
+- M029: Recurring Revenue and Retention Quality (VI - BUSINESS QUALITY)
+- M030: Capital Intensity and Reinvestment Runway (VI - BUSINESS QUALITY)
+- M031: Industry Structure Mapping (VII - INDUSTRY AND COMPETITIVE ANALYSIS)
+- M032: Market Sizing and TAM Discipline (VII - INDUSTRY AND COMPETITIVE ANALYSIS)
+- M033: Competitive Advantage and Moat Testing (VII - INDUSTRY AND COMPETITIVE ANALYSIS)
+- M034: Competitor Benchmarking (VII - INDUSTRY AND COMPETITIVE ANALYSIS)
+- M035: Disruption and Technology S-Curves (VII - INDUSTRY AND COMPETITIVE ANALYSIS)
+- M036: Management Quality Assessment (VIII - MANAGEMENT AND GOVERNANCE)
+- M037: Capital Allocation Scorecard (VIII - MANAGEMENT AND GOVERNANCE)
+- M038: Compensation and Incentive Analysis (VIII - MANAGEMENT AND GOVERNANCE)
+- M039: Insider Ownership and Transactions (VIII - MANAGEMENT AND GOVERNANCE)
+- M040: Board and Governance Risk (VIII - MANAGEMENT AND GOVERNANCE)
+- M041: Model Architecture and Standards (IX - MODEL BUILDING)
+- M042: Historical Data Normalization (IX - MODEL BUILDING)
+- M043: Revenue Forecasting by Driver (IX - MODEL BUILDING)
+- M044: Margin and Cost Forecasting (IX - MODEL BUILDING)
+- M045: Balance Sheet and Cash Flow Forecasting (IX - MODEL BUILDING)
+- M046: DCF from First Principles (X - VALUATION)
+- M047: Multiples and Relative Valuation (X - VALUATION)
+- M048: Reverse DCF and Expectations Investing (X - VALUATION)
+- M049: Sum-of-the-Parts and Conglomerate Analysis (X - VALUATION)
+- M050: Scenario, Sensitivity, and Probability Weighting (X - VALUATION)
+- M051: Earnings Preview and Post-Earnings Procedure (XI - CATALYSTS AND EVENTS)
+- M052: Guidance Analysis and Estimate Revisions (XI - CATALYSTS AND EVENTS)
+- M053: M&A and Strategic Transactions (XI - CATALYSTS AND EVENTS)
+- M054: Activism, Spin-Offs, and Restructurings (XI - CATALYSTS AND EVENTS)
+- M055: Bankruptcy, Distress, and Liquidity Events (XI - CATALYSTS AND EVENTS)
+- M056: Expert Calls and Channel Checks (XII - ALTERNATIVE DATA AND CHANNEL WORK)
+- M057: Customer and Supplier Diligence (XII - ALTERNATIVE DATA AND CHANNEL WORK)
+- M058: Web, App, Hiring, and Product Data (XII - ALTERNATIVE DATA AND CHANNEL WORK)
+- M059: Pricing and Inventory Scraping (XII - ALTERNATIVE DATA AND CHANNEL WORK)
+- M060: Alternative Data Validation (XII - ALTERNATIVE DATA AND CHANNEL WORK)
+- M061: Risk Register and Thesis-Break Conditions (XIII - RISK, PORTFOLIO CONTEXT, AND DECISION MAKING)
+- M062: Balance Sheet and Liquidity Stress Testing (XIII - RISK, PORTFOLIO CONTEXT, AND DECISION MAKING)
+- M063: Position Sizing Inputs for Research Teams (XIII - RISK, PORTFOLIO CONTEXT, AND DECISION MAKING)
+- M064: Decision Journaling and Pre-Mortems (XIII - RISK, PORTFOLIO CONTEXT, AND DECISION MAKING)
+- M065: Post-Mortems and Error Taxonomy (XIII - RISK, PORTFOLIO CONTEXT, AND DECISION MAKING)
+- M066: Investment Memo Writing (XIV - RESEARCH COMMUNICATION AND MASTERY)
+- M067: Charts, Tables, and Evidence Design (XIV - RESEARCH COMMUNICATION AND MASTERY)
+- M068: Investment Committee Defense (XIV - RESEARCH COMMUNICATION AND MASTERY)
+- M069: Analyst Training and Deliberate Practice (XIV - RESEARCH COMMUNICATION AND MASTERY)
+- M070: Research System Automation and AI Assistance (XIV - RESEARCH COMMUNICATION AND MASTERY)
+- M071: Software and SaaS Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M072: Semiconductors Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M073: AI Accelerators and Compute Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M074: Cloud and Data Centers Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M075: Industrial Machinery Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M076: Aerospace and Defense Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M077: Airlines Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M078: Automotive OEMs Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M079: EV and Battery Manufacturers Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M080: BESS Electrical Balance-of-System Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M081: Grid Equipment and Electrification Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M082: Electric Utilities Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M083: Renewable Developers Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M084: Oil and Gas E&P Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M085: Midstream Energy Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M086: Refiners Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M087: Chemicals Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M088: Mining and Metals Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M089: Banks Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M090: Property and Casualty Insurance Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M091: Life Insurance Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M092: Asset Managers and Brokers Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M093: Payments and Fintech Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M094: REITs Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M095: Homebuilders Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M096: Restaurants Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M097: Retail Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M098: Consumer Packaged Goods Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M099: Pharmaceuticals Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M100: Biotechnology Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M101: Medical Devices Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M102: Managed Care Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M103: Telecom Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M104: Internet Platforms and Marketplaces Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M105: Cybersecurity Analyst Playbook (XV - SECTOR PLAYBOOKS)
+- M106: Railroads and Logistics Analyst Playbook (XV - SECTOR PLAYBOOKS)
+
+## Appendices
+
+- Appendix A: ZERO-TO-EXPERT FOUNDATION BOOT CAMP
+- Appendix B: INSTITUTIONAL MODEL BUILD STANDARD
+- Appendix C: FORMULA AND CONCEPT ENCYCLOPEDIA
+- Appendix D: FORENSIC ACCOUNTING RED-FLAG ENCYCLOPEDIA
+- Appendix E: PRIMARY-SOURCE AND REGULATORY VERIFICATION SYSTEM
+- Appendix F: AI AND AUTOMATION CONTROL FRAMEWORK
+- Appendix G: FULL INITIATION WORKFLOW AND DELIVERABLE PACK
+- Appendix H: INVESTMENT MEMO TEMPLATE
+- Appendix I: EARNINGS PREVIEW / POST-EARNINGS TEMPLATE
+- Appendix J: 12-MONTH ANALYST TRAINING PROGRAM
+- Appendix K: SENIOR REVIEW AND INVESTMENT COMMITTEE QUESTION BANK
+- Appendix L: INTEGRATED WORKED COMPANY CASE
+- Appendix M: FINAL 99-POINT SELF-AUDIT
+
+## Master Labs
+
+- Master Lab 01: ACCOUNTING MECHANICS, JOURNAL ENTRIES, AND FOOTNOTE RECONSTRUCTION
+- Master Lab 02: INTEGRATED THREE-STATEMENT MODEL BUILD FROM RAW FILINGS
+- Master Lab 03: VALUATION FROM FIRST PRINCIPLES, REVERSE EXPECTATIONS, AND SPECIAL CASES
+- Master Lab 04: FORENSIC ACCOUNTING, EARNINGS QUALITY, AND MANIPULATION DETECTION
+- Master Lab 05: INDUSTRY STRUCTURE, COMPETITIVE ADVANTAGE, MARKET SIZING, AND TECHNOLOGY TRANSITIONS
+- Master Lab 06: MANAGEMENT, GOVERNANCE, INCENTIVES, AND CAPITAL ALLOCATION
+- Master Lab 07: ALTERNATIVE DATA, EXPERT CALLS, CHANNEL CHECKS, AND SIGNAL VALIDATION
+- Master Lab 08: AI RESEARCH ENGINEERING, AUTOMATION, EVALUATION, AND MODEL RISK
+- Master Lab 09: RISK, LIQUIDITY, DISTRESS, DECISION JOURNALING, AND RESEARCH SIZING INPUTS
+- Master Lab 10: INVESTMENT MEMOS, INVESTMENT COMMITTEE DEFENSE, CHARTS, AND CONTINUOUS REVIEW
+- Master Lab 11: SECTOR-SPECIFIC DRIVER, LEADING-INDICATOR, AND FAILURE-MODE ENCYCLOPEDIA
+- Master Lab 12: ZERO-TO-EXPERT TRAINING, CERTIFICATION, DELIBERATE PRACTICE, AND ANSWER RUBRICS
+- Master Lab 13: MULTI-SECTOR WORKED CASEBOOK WITH ANSWER KEYS
+- Master Lab 14: FORMULA, MODELING, AND ANALYTICAL REFERENCE ENCYCLOPEDIA

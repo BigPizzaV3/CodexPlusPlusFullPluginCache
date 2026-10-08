@@ -1,0 +1,665 @@
+# Symptoms
+
+The reverse index from a defect to the cards that repair it.
+
+No equivalent file exists in the Visual Creativity Database, which routes by format and genre. This one routes by **complaint**, because that is the form most writing requests actually arrive in. Nobody asks for a technique by name. They say *the scene is flat*, *the dialogue is on the nose*, *the episode doesn't hold*, *I don't care about him*.
+
+**How to use it:** find the complaint, read the diagnosis, then open only the cards it names. The first card in each route is the one to try first.
+
+Every route here points at a card that exists in this database. Routes are added as categories are built.
+
+---
+
+## Find the complaint, then open one file
+
+Every complaint family is its own file. Match the sentence below, open that one file, and read the cards it names. Do not read the families you did not match: this router exists so that finding a card costs less than reading it, which is not true of a single large index.
+
+### Scene-level complaints — [`symptoms-scene-level.md`](../phase-02-screenplay-dialogue/symptoms-scene-level.md)
+
+- "The scene feels flat"
+- "The scene is too long"
+- "The scene sags in the middle"
+- "It's just two people talking"
+- "I've rewritten this scene four times and it's worse"
+- "The scene ends on a look"
+- "The scene dribbles out at the end"
+- "I've written a montage"
+- "Every scene feels the same"
+- "The scene ends weakly"
+- "This scene resolves something I need left open"
+
+### Dialogue complaints — [`symptoms-dialogue.md`](../phase-02-screenplay-dialogue/symptoms-dialogue.md)
+
+- "The dialogue is on the nose"
+- "The dialogue is just exposition"
+- "The argument doesn't escalate"
+- "There's no tension in the conversation"
+- "Every character sounds like me"
+- "The group scene reads as a queue"
+- "The accent is doing the characterisation"
+- "The comedy scene loses the plot"
+- "I need a specific kind of speech"
+- "The dialogue sounds written"
+- "I need the piece to feel whole, not like a sequence"
+- "The plot turns on a misunderstanding and it feels contrived"
+
+### Character complaints — [`symptoms-character.md`](symptoms-character.md)
+
+- "The protagonist is passive"
+- "I don't care about this character"
+- "The change at the end feels unearned"
+- "The character explains their own psychology"
+- "The antagonist is flat"
+- "The introduction doesn't land"
+- "The character is flat / one-note"
+- "I can't tell the characters apart"
+- "He hardly speaks and it reads as me having nothing for him"
+- "Everybody in this swears the same way"
+- "The want is vague"
+- "There's too much backstory"
+- "The relationships feel generic"
+- "They want each other and the story wants something else"
+- "They fancy each other and the scene is two people saying so"
+- "She's there at the end as his reward"
+- "The protagonist is likeable but dull"
+- "I don't know whose story this is" (character side)
+- "The character has no interior life"
+- "The character's job is just a label"
+- "The rich character is rich in the way a poor writer imagines it"
+- "She's had money for twenty years and I can't find what's left of where she started"
+- "The rank is doing all the characterisation"
+- "He's forty and his family still treats him as the one who fixes things"
+- "He left the army ten years ago and it doesn't show"
+- "The character has cancer and the script is about cancer"
+- "He's in a wheelchair and I've written him as brave"
+- "The condition is in the character description and nowhere else"
+- "She's pregnant and it changed nothing about the plot"
+- "The addiction is all remorse and no day"
+- "The character under pressure isn't convincing"
+- "The change doesn't convince"
+- "I can't decide whether he changes at the end"
+- "He doesn't change and I don't know whether that's a problem"
+- "He changes and I can't point at the scene where it happened"
+- "I don't know whether my character has an arc at all"
+- "The lie never really gets tested"
+- "The audience just thinks he's being stupid"
+- "He could back out at any moment and the second half knows it"
+- "Someone tells him the truth and that's the revelation"
+- "The plot fixes his problem for him"
+- "Everything peaks in the middle and the last act is admin"
+- "He keeps relapsing and it's starting to feel like filler"
+- "Two of them need the same scene to change in"
+- "The supporting character's arc is eating the film"
+- "Two characters are going opposite ways and it reads as a diagram"
+- "The change belongs to the crew and nobody in it moves"
+- "The thing that changes is the company, not a person"
+- "The narrator is the one who changes and I only tracked the character"
+- "The lead changes every few episodes and the show still has to move"
+- "He is only ever described by other people"
+- "The arc stops one scene before the change"
+- "He does everything a changed man does and I want it to be a lie"
+- "The cast is too big"
+- "They were in episode two and nobody remembers them"
+- "Nobody can pronounce my characters' names and I won't change them"
+- "A reader from that world says the names are wrong"
+- "Everybody in this addresses everybody else the same way"
+- "He has two names and the script only ever uses one"
+- "Writing across a culture I am not from"
+- "The community in my story is there to teach the protagonist something"
+- "He can't decide this on his own and the script treats it as his decision"
+- "She's fluent and funny in her own language and flat in mine"
+- "The character's faith is a costume"
+- "The character has to work in a very short or very long form"
+- "The character is a device"
+- "The gods in this are just powerful people"
+- "Why can the rabbit drive a car and the bear hibernate?"
+- "The house is described beautifully and does nothing"
+- "I can't tell the twins apart on the page"
+- "He's undercover and the cover costs him nothing"
+- "The antagonist turns out to be his double and it explains everything"
+- "The child / elderly character sounds wrong"
+- "I'm writing about real people"
+- "I can hear the writer casting the part"
+- "The actor isn't an actor"
+- "The woman I cast for her face is saying the film's argument"
+- "The part keeps being turned down and nobody says why"
+- "We've recast and the audience has to accept it"
+- "I know everything about her and none of it is in the script"
+
+### Structural complaints — [`symptoms-structural.md`](symptoms-structural.md)
+
+- "The second act sags"
+- "Things happen but I'm not gripped"
+- "The story is predictable"
+- "I don't know what this story is about"
+- "The ending doesn't land"
+- "The ending feels unearned"
+- "The ending feels rushed"
+- "The ending goes on too long"
+- "The ending is too neat" / "too bleak"
+- "The open ending reads as indecision"
+- "A late mercy changed what the ending proves"
+- "I want a twist but it feels like a cheat"
+- "Something was set up and never paid"
+- "The character ends where they started"
+- "What does this genre owe the audience at the end?"
+- "It's sad but it isn't tragic"
+- "I want them to leave unsettled rather than satisfied"
+- "The ending in interactive work"
+- "The series finale has to carry a decade"
+- "Ending something for children"
+- "Ending a non-narrative piece"
+- "Ending a short-form piece"
+- "Credits and post-credits"
+- "How do I test an ending?"
+- "The ending arrives before I'm ready"
+- "The ending recites the theme"
+- "The ending sets up a sequel instead of ending"
+- "The ending gives back what the story took"
+- "The season finale doesn't earn a renewal"
+- "The chapter ends and I can't tell if it's an ending or just a stop"
+- "The act climax feels the same size as the scenes"
+- "I'm getting contradictory notes"
+- "Five hundred words and it's just an anecdote"
+- "I have twelve stories and it isn't a book"
+
+### Time and chronology complaints — [`symptoms-time-and-chronology.md`](symptoms-time-and-chronology.md)
+
+- "The flashback stops the story"
+- "The dual timeline isn't working"
+- "The reader loses track of when we are"
+- "The pacing is wrong but the scenes are fine"
+- "The memory may not be true"
+- "I don't know what tense to write this in"
+- "The same stretch of time keeps coming round"
+- "I don't know what shape to give a whole life"
+- "It's told in letters and I've lost the order"
+- "The flashback has a flashback inside it"
+- "Pages go by and no time passes"
+- "Two things happen at the same moment and I can only write one"
+- "Someone has worked out that my dates don't add up"
+- "The reader needs a family tree to follow this"
+- "He's the same person at seventy as he was at thirty"
+- "The time jump is a caption and nothing else"
+- "The glimpse of the future never actually happens"
+
+### Antagonist and opposition complaints — [`symptoms-antagonist-and-opposition.md`](symptoms-antagonist-and-opposition.md)
+
+- "The villain is cartoonish"
+- "The opposition is too weak"
+- "The conflict feels arbitrary"
+- "I don't want a villain"
+- "The world doesn't resist enough"
+- "The real antagonist shows up too late"
+- "The villain's backstory made him less frightening"
+- "He was frightening in season one"
+- "The antagonist is strong and hasn't moved since episode one"
+- "The weekly opponent and the season's opponent are doing the same job"
+- "Season two has nothing left to threaten anyone with"
+- "The monster stops being frightening once we see it"
+- "The comedy needs an obstacle and a villain would kill it"
+- "The villain is right and I don't know what to do about it"
+- "The villain's change of heart doesn't convince"
+- "The audience likes the villain more than the hero"
+- "The children's story needs a threat and I don't want to frighten them"
+- "The child watched it and couldn't sleep"
+- "The documentary has no story yet"
+- "The brand film needs an enemy and the client has competitors"
+
+### Subtext complaints — [`symptoms-subtext.md`](../phase-02-screenplay-dialogue/symptoms-subtext.md)
+
+- "There's no subtext"
+- "Nobody can find the subtext"
+- "The subtext is too obvious"
+- "The silence isn't landing"
+- "Subtext in a culture, a language, or for children"
+- "There are three of them in the room and it plays as a two-hander with a witness"
+- "The toast is going well and one person in the room is meant to hear something else"
+- "The monologue has nothing underneath it"
+- "The sitcom room is four people being pleasant"
+- "The messages and letters on the page are flat"
+- "I need class and money in the scene and nobody may name it"
+- "Nothing on the page registers that the relationship just shifted"
+- "The scene is either explicit or nothing"
+- "The interrogation is two people shouting"
+- "A reader missed it — do I plant more, or plant earlier?"
+- "They have been not saying it for three seasons"
+- "The improvised material is alive and unusable"
+
+### Comedy complaints — [`symptoms-comedy.md`](../phase-02-screenplay-dialogue/symptoms-comedy.md)
+
+- "It isn't funny"
+- "The audience gets there before the joke does"
+- "The jokes stop the story"
+- "The comedy has no engine"
+- "The running gag died"
+- "The funny character isn't funny"
+- "The comic scene has no engine"
+- "The improv thing — how does it transfer to the page?"
+- "The wordplay is groaning"
+- "The comic premise ran out"
+- "The tone keeps slipping"
+- "Is this joke going to be a problem?"
+- "The joke is a reference"
+- "It doesn't survive translation"
+- "The physical gag only works if someone funny performs it"
+- "The joke doesn't fit in fifteen seconds"
+
+### Theme complaints — [`symptoms-theme.md`](symptoms-theme.md)
+
+- "It doesn't add up to anything"
+- "The story is doing three things and none of them land"
+- "It's preachy"
+- "The ending satisfies only half the work"
+- "The symbolism is heavy-handed"
+- "I need the theme carried without saying it"
+- "The comedy is funny and it isn't about anything"
+- "The satire is landing and costing nobody anything"
+- "My horror film doesn't mean anything"
+- "The claim would be a lecture if I said it straight"
+- "The allegory is a puzzle with one answer"
+- "My kids' story has a moral bolted on the end"
+- "The client wants a film about their values"
+- "The documentary makes its case and I don't believe it"
+- "The adaptation keeps everything and means nothing"
+- "The claim won't survive subtitling"
+
+### Emotion complaints — [`symptoms-emotion.md`](../phase-02-screenplay-dialogue/symptoms-emotion.md)
+
+- "The emotional scene doesn't land"
+- "It's emotional but nothing moves"
+- "It's relentless and I've stopped feeling it"
+- "Writing grief, love, shame, anger, hope"
+- "The emotion feels like a trick"
+- "The scene works with the music and dies without it"
+- "The happy part is the boring part"
+- "The actor says the scene is unplayable"
+- "The narrator says he is fine and I need the reader to know he is not"
+- "The cringe scene has become unwatchable"
+- "The threat is over and the last act has nothing in it"
+- "The season has a plot and no feeling"
+- "The brand film is true and nobody cares"
+- "Writing feeling for very young children"
+- "The interview subject cried and the film feels cheap"
+- "The grief scene is written for people who do not behave like that"
+- "The brief says reassure and everything I write sounds like a brochure"
+- "I have to say the unbearable thing and stay in the room"
+- "He already knows what I've come to tell him"
+- "I want the reader to feel less alone and it keeps turning into advice"
+- "They want something for the anniversary and it's all adjectives"
+- "The copy works and I don't like what it's doing"
+- "She was wrecked last week and this week she has to be fine"
+
+### Interactive and branching complaints — [`interactive-and-branching.md`](interactive-and-branching.md)
+
+- "It's a documentary and the audience picks the path" → `inter.nonfiction_branch_contract`, `inter.path_that_omits`, `inter.branch_sourcing`, `inter.symmetrical_fabrication`
+- "The user chooses whose account to hear" → `inter.testimony_selector`, `inter.balance_cast_testimony`, `inter.consent_without_a_cut`
+- "I have an archive and no piece" → `inter.archive_way_in`, `inter.data_surface`
+- "It's on a wall and people walk past it" → `inter.walk_up_entry`, `inter.visitor_arc`, `inter.agency_of_passage`, `inter.pacing_without_control`
+- "The choices don't feel like choices" → `inter.false_branch`, `inter.flavour_choice`, `inter.meaningful_choice_test`, `inter.illusion_of_agency`
+- "The branches are impossible to write" → `inter.combinatorial_explosion`, `inter.branch_and_bottleneck`, `inter.ending_budget`, `inter.storylet`
+- "The world doesn't remember what the player did" → `inter.state_flag`, `inter.quality_based_narrative`, `inter.delayed_consequence`
+- "The story and the play contradict each other" → `inter.ludonarrative_dissonance`
+- "Nobody reads the text" → `inter.clicked_therefore_understood`, `inter.boxed_read_aloud`, `inter.environmental_storytelling`
+- "It's an explainer and every reader needs something different from it" → `inter.chosen_path_explainer`, `inter.depth_on_demand`, `inter.skippable_layering`
+- "The dialogue option says one thing and the character says another"
+- "The opposition in the game is a difficulty setting, not a character"
+- "The emotional scene reads as the game taking the controller away"
+- "Writing a persona or an XR piece"
+- "I don't know who 'you' is in this"
+- "The player named their character and half my lines are ungrammatical"
+- "Everyone picks the same option"
+- "The morality system flattened the story"
+- "Players reload until they get the outcome they wanted"
+- "The party members have nothing to say to each other"
+- "They came back after three weeks with no idea what was going on"
+- "The generated lines say things that aren't true"
+- "Players using a screen reader can't follow it"
+- "The story needs to live somewhere that isn't a page of prose"
+- "The tool keeps deciding the shape of the story"
+- "I don't know which parts to rewrite"
+- "I'm turning a finished novel into a game"
+- "All my endings are the same slideshow"
+- "The character never changes and I think the player does"
+- "The puzzle is a wall between two scenes"
+- "Nobody knows the piece exists until they fall into it"
+- "The story is in the battle pass and I didn't write the battle pass"
+- "I want other people to finish it"
+- "The line has to fit the box, and then it has to fit in German"
+- "Half of this brief is about a platform that will have changed by next year"
+
+### Scene shape complaints — [`symptoms-scene-shape.md`](../phase-02-screenplay-dialogue/symptoms-scene-shape.md)
+
+- "I need a specific kind of scene"
+- "The scene doesn't orient the reader"
+- "The scenes don't join"
+- "The montage isn't working"
+- "The crosscut is confusing"
+- "The wordless scene reads as empty"
+- "I've attacked this scene twice and it still fails"
+- "He stopped talking in the middle of the interview"
+- "She's performing her own life at me"
+- "It's built from a transcript and it sounds like a transcript"
+- "Two true things next to each other are implying something untrue"
+- "He has nothing to bargain with"
+- "The duty changes hands and the scene is a blessing speech"
+
+### Prose and rhythm complaints — [`symptoms-prose-and-rhythm.md`](../phase-02-screenplay-dialogue/symptoms-prose-and-rhythm.md)
+
+- "The prose is flat / everything sounds the same"
+- "The writing is overwritten / purple"
+- "The page looks like a wall"
+- "I need rhythm for something that will be heard, not read"
+- "The sentences are all built the same way"
+- "More punctuation than I know what to do with"
+- "I want a figure, not just a rhythm"
+- "The pace is wrong across the whole book"
+- "The register needs its own rhythm"
+- "Writing to be read aloud"
+- "The rhythm doesn't survive translation"
+- "How do I hear my own writing?"
+- "I want emphasis without shouting"
+
+### Voice complaints — [`symptoms-voice.md`](../phase-02-screenplay-dialogue/symptoms-voice.md)
+
+- "The narrator has no personality"
+- "The voice drifts / sounds like two people"
+- "The narrator sounds too certain / not certain enough"
+- "The dialect reads as caricature"
+- "It reads like AI wrote it"
+- "I need an essay or argument voice"
+- "I want to address the reader directly"
+- "I need a specific register"
+- "I'm writing into someone else's voice"
+- "Voice in a format that isn't prose"
+- "Where does my own voice fit?"
+- "I need a voice that is not a person"
+
+### Point of view complaints — [`symptoms-point-of-view.md`](../phase-02-screenplay-dialogue/symptoms-point-of-view.md)
+
+- "I don't know whose story this is"
+- "The POV keeps slipping"
+- "The narration feels distant when it should be close"
+- "The viewpoint character just watches"
+- "I want an unusual viewpoint"
+- "There's a story inside the story and I've lost who's telling it"
+- "The newcomer is explaining her own world to me"
+- "The narrator can't be trusted about himself"
+- "The short story spends its first page setting up the viewpoint"
+- "Book three and my viewpoint character already knows everything"
+- "Viewpoint in something that isn't a book"
+- "I can't tell whether the distance is right"
+- "I'm in the piece and I don't know how much"
+
+### Beat and sequence complaints — [`symptoms-beat-and-sequence.md`](symptoms-beat-and-sequence.md)
+
+- "The scene has good lines and no movement"
+- "The exchange feels mechanical"
+- "The reactions feel thin"
+- "The action sequence is a list of moves"
+- "The middle is a run of scenes going nowhere"
+- "The sequence is too long / too short"
+- "I need a specific kind of sequence"
+- "There are three people in the room and only two of them are in the scene"
+- "Everyone reacts to the news in turn and none of it lands"
+- "Two people are talking on the phone and it's dead on the page"
+- "The message thread has no tension"
+- "The big thing happens off screen and lands as nothing"
+- "The scene ends and the next one just starts"
+- "The line explains the blow while it lands it"
+- "The narration is saying what the scene already showed"
+- "The poem is a run of statements"
+- "I don't know why the character starts singing here"
+- "The comic page has no timing"
+- "The game is holding on the player's line and the writing sags"
+- "In audio the beat needs a look and there isn't one"
+- "The vertical cut feels slow and I can't see why"
+- "The real-time scene drags"
+- "The character is alone and nothing is happening"
+- "The joke lands and then the scene deflates"
+- "The character decides between scenes"
+- "The scene that carries the information has facts and no exchange"
+- "I can't find the beats in my own draft"
+- "Every exchange in the scene is the same size"
+- "Someone reacts hard to something I never showed"
+- "The run of scenes is three things happening and I can't say what it's about"
+- "The sequence only turns at the very end"
+- "I planted things and never paid them"
+- "I don't know how many sequences this should have"
+- "The adaptation came out eighty pages over"
+- "The character has options and the run is just weighing them"
+- "The pre-title sequence is just a taste of the film"
+- "The flashback is long enough to be its own film"
+- "The wedding is a list of things that happen at weddings"
+- "The trial is a row of speeches"
+- "They're under siege and it's just waiting"
+- "The undercover stretch has no pressure"
+- "The horror section isn't frightening"
+- "The comic set piece runs out halfway"
+- "The second half repeats the first"
+- "I cut the whole section and nothing changed"
+- "The run peaks and then keeps going"
+- "After that stretch the story has to start again from a standstill"
+
+### Exposition and world complaints — [`symptoms-exposition-and-world.md`](symptoms-exposition-and-world.md)
+
+- "The world isn't landing"
+- "There's an infodump"
+- "Too many invented names and terms"
+- "The reader needs to know this before the story starts"
+- "Technical or procedural material is killing the pace"
+- "Episode two starts and nobody remembers what happened in episode one"
+- "The reader put it down for a week and came back lost"
+- "The pilot is all setup"
+- "The character who explains things isn't a character"
+- "I've explained the rule four times"
+- "The ending needs a rule I never set up"
+- "The flashback tells me what I already knew"
+- "The rules of the monster arrive as a lecture"
+- "Everyone already knows this story and I'm still setting it up"
+- "The narration is a neutral voice reading facts"
+- "I want an epigraph and I can't tell if it's earning its place"
+- "The tutorial is a layer bolted over the opening"
+
+### Relationship and ensemble complaints — [`symptoms-relationship-and-ensemble.md`](symptoms-relationship-and-ensemble.md)
+
+- "The relationship is just two people talking"
+- "The pair is static"
+- "The group scene is unreadable"
+- "The group has no tension"
+- "The best friend has nothing to do"
+- "The crowd scene is just noise"
+- "They meet, it's charming, and that's all it is"
+- "The breakup is one speech"
+- "They had a terrible fight and the next scene is normal"
+- "The apology lands flat and I need it to work"
+- "There are eight people in this pilot and the reader can't hold them"
+- "The supporting cast exists to be impressed by the hero"
+- "They meet again after years and it plays as an ordinary scene"
+- "One of them is dead and the relationship stopped with them"
+- "The two of them can barely talk to each other"
+- "The difference between them is only ever mentioned"
+- "The care storyline is just sadness"
+- "The dog / the ship / the AI is set dressing"
+- "Three friends, and one of them is spare"
+- "The group has to lose someone and I don't know how to stage it"
+
+### Song and lyric complaints — [`../phase-05-song-generation/cat-lyric.md`](../phase-05-song-generation/cat-lyric.md)
+
+- "The lyric reads well and sings badly"
+- "The chorus doesn't land"
+- "The rhyme is forcing the line"
+- "The song has no shape"
+- "The song is three minutes long and nothing in it changes"
+- "Writing a song for children, or across languages"
+- "The song and the pictures turn in different places"
+- "The second verse says the same thing as the first"
+- "The chorus is the biggest moment and the bridge has nowhere to go"
+- "The song describes and never arrives"
+- "I've lost track of who the song is singing to"
+- "The song has no chorus and I don't think it needs one"
+- "The song starts nowhere and ends by just stopping"
+- "The rhymes land like nails"
+- "The singer can't fit verse two to the melody"
+- "The duet is two solos"
+- "I need a song that does a specific job"
+- "Every rewrite makes it worse"
+- "Someone else set the title and the brief"
+- "The song I built the scene around can't be cleared"
+- "The record's words are fighting my dialogue"
+- "I have twelve songs and it isn't a record"
+- "It has no line breaks and no plot and I don't know what's holding it up"
+
+### Information complaints — [`symptoms-information.md`](symptoms-information.md)
+
+- "I don't know how much the audience should know"
+- "The reveal didn't hit"
+- "The audience guessed it"
+- "The twist feels like a cheat"
+- "The prose explains too fast"
+- "The serial episode doesn't pull to the next one"
+- "The audience knows something I want them to sit with"
+- "I've lost track of what the audience knows"
+- "The secret isn't doing any work"
+- "The audience doesn't believe the claim"
+- "The documentary reveal falls flat"
+- "The audience already knows how it ends"
+- "A fact changed, or was always disputed"
+- "The serial loses people between episodes"
+- "The reveal landed and nobody cared"
+- "There's a fact I'm not allowed to state and the hole shows"
+- "I can't prove it and I'm not leaving it out"
+- "Half the film is reconstruction and the only place that's admitted is the credits"
+
+### Tension complaints — [`symptoms-tension.md`](symptoms-tension.md)
+
+- "There's no tension"
+- "The scene is scary but the story isn't"
+- "He's come home and I want the house itself to feel wrong"
+- "The wedding goes perfectly and it's the worst thing in the film"
+- "I need dread without a monster"
+- "The audience already knows what happens"
+- "Everyone knows how this ended two thousand years ago"
+- "The middle of the sequence goes slack"
+- "He's hiding and it isn't tense"
+- "He's in plain sight and I can't get any pressure out of that"
+- "It's relentless and the audience goes numb"
+- "The child has to be scared and then has to sleep"
+- "The surprise didn't land"
+- "I need the threat felt without showing it"
+- "The chase is exciting and weightless"
+- "The chase stops and so does the tension"
+- "The threat is vague"
+- "The threat never actually does anything"
+- "I want a dream sequence and I'm told it will cost me"
+- "Six people are in danger and I don't care about any of them"
+- "I need paranoia rather than danger"
+- "They can see everything and I can't write around it"
+- "How much should I show?"
+- "I want dread about something real"
+- "The comedy and the tension are fighting"
+- "The tension doesn't hold across the whole thing"
+- "The climax is over and there are twenty minutes left"
+- "Tension in a medium that isn't film"
+- "The subtitle gives away the line before the actor says it"
+- "The reader can flip ahead and I can't stop them"
+- "The short piece has no grip"
+- "There's no deadline in this story and it still has to feel urgent"
+- "The danger lifts and I can't say who lifted it"
+- "Every scene is at ten and the reader gave up"
+
+### Opening complaints — [`symptoms-opening.md`](symptoms-opening.md)
+
+- "Nobody gets past the first page"
+- "I don't know how to start"
+- "The opening is slow"
+- "The opening is exciting and the rest isn't"
+- "How does this genre open?"
+- "The first line isn't working"
+- "The first paragraph is doing the wrong things"
+- "Do I need a prologue?"
+- "The title isn't right"
+- "The packaging is letting the work down"
+- "Opening a pitch, a documentary, an essay or an explainer"
+- "After the opening, I don't know how to say why this matters"
+- "Opening an interactive piece"
+- "The opening promises the wrong piece"
+- "Opening a subtitled or translated piece"
+- "The reader put it down at chapter two"
+- "The pilot doesn't feel like a series"
+- "Each episode wastes time reminding people what happened"
+- "The narration is doing work the scenes should do"
+- "The episode needs to open cold"
+
+### Short-form and serial complaints — [`symptoms-short-form-and-serial.md`](symptoms-short-form-and-serial.md)
+
+- "Nobody watches past three seconds"
+- "The piece gets no rewatches"
+- "The episode doesn't hold to the end"
+- "The cliffhanger doesn't work"
+- "Sixty seconds is not long enough for anything to be left unsaid"
+- "The vertical episode is all antagonist and no story"
+- "Each episode is fine and the season doesn't build"
+- "Book three and he has nothing left to learn"
+- "Thirty seconds isn't long enough for anyone to change"
+- "The series has nowhere left to go"
+
+### Commissioned and applied-work complaints — [`symptoms-commissioned-and-applied-work.md`](symptoms-commissioned-and-applied-work.md)
+
+- "They want it at sixty, thirty, fifteen and six"
+- "Every line has to be exactly as long as the slot"
+- "The dub has to be the same length and mean the same thing"
+- "The cut is locked and I'm writing the words to it"
+- "It plays on a screen in a shop and nobody is there for the start"
+- "Legal has given me a line and it kills the opening"
+- "The end asks for something and it's embarrassing"
+- "The film has become something else and I have to go back to them"
+- "The subject has approval and I'm writing around it"
+- "I have to give them a right of reply and it deflates the piece"
+- "It's all true as far as I know, and that isn't good enough"
+- "The source won't be named and the piece feels weaker for it"
+- "I'm building something interactive and I want it to still exist in ten years"
+- "The demo is a list of features"
+- "Nobody follows the instructions"
+- "The reader is panicking and my instructions assume they aren't"
+- "The warning is right there and people walk straight past it"
+- "They did half of this months ago and have come back to it"
+- "The publisher has given me a word list"
+- "The book has to be sellable to a school"
+- "Three other writers will have this character after me"
+
+### Small families — [`symptoms-misc.md`](symptoms-misc.md)
+
+- "The prose feels reported rather than experienced"
+- "They keep telling me to add conflict and the piece doesn't want any"
+
+---
+
+## Coverage
+
+Counts taken against `LOOKUP.md`, and to be re-checked by `tools\check-links.ps1` against the live card files.
+
+The arc file's expansion is routed in full. The mechanics of change reach the page through "He changes and I can't point at the scene where it happened" and "I don't know whether my character has an arc at all", which hold the three working procedures — `arc.arc_statement`, `arc.arc_audit` and, from "The ending feels unearned", `arc.write_backwards` — and each says in the route that it is a procedure rather than a repair. The four arc shapes outside the five are separated inside one complaint, "He doesn't change and I don't know whether that's a problem", because they arrive looking identical and are not. The five named failures are routed as diagnoses, each paired with the card that repairs it: `arc.told_revelation` with `arc.self_revelation` and `arc.proof_scene`, `arc.plot_solved_arc` with `arc.the_choice`, `arc.unattacked_lie` with `char.tailored_opponent` and `arc.first_challenge`, `arc.midpoint_peak` with `struct.stc_midpoint`, and `arc.padding_relapse` with `char.relapse_beat`.
+
+Part 2 of every built category is routed in full: everything in `cat-anta-2.md`, `cat-beat-2.md`, `cat-emo-2.md`, `cat-expo-2.md`, `cat-lyric-2.md`, `cat-pov-2.md`, `cat-rel-2.md`, `cat-seq-2.md`, `cat-sub-2.md`, `cat-theme-2.md` and `cat-time-2.md` is reachable from at least one complaint here, most of it from a complaint written for it.
+
+So is Part 3 — `cat-emo-3.md`, `cat-expo-3.md`, `cat-info-3.md`, `cat-lyric-3.md`, `cat-rhythm-3.md` and `cat-tens-3.md` — together with `arcs-2.md`. Those eight files exist because the database reported gaps in itself: each of their cards was reached for by a kit or a router and could not be cited. A good half of them are job problems rather than draft problems, which is why **Commissioned and applied-work complaints** was added as a section. A writer whose song will not clear, whose dub has to fit a mouth, whose legal line has killed the opening or whose instructions nobody reads does not look under "scene" or "structure", and before that section there was nowhere on this page for them to land. The rest were placed in the sections that already held their kind: the reassurance, permission, commemorative and procedural-reset complaints in Emotion, the four "whose arc is it" shapes and the two that do not complete in Character, the three clocks that are not a countdown in Tension, the album as a structure in Song, and the puzzle, the trailhead, the progression track and the player's own arc in Interactive.
+
+The named failures in that batch are routed as diagnoses, each paired with the card that repairs it: `emo.false_reassurance` with `emo.adult_reassurance`, `emo.we_that_excludes` with `emo.commemorative_register`, `emo.manufactured_inadequacy` with `anta.problem_as_enemy`, `tens.announced_deadline_dropped` with `tens.countdown`, `tens.warning_fatigue` with `tens.warning_notice`, `rhythm.lip_lock` with `rhythm.lip_sync_adaptation`, `lyric.temp_love` with `lyric.spotting_session`, `info.bolted_on_disclaimer` with `info.disclosure_as_content`, `expo.unread_instruction` with `expo.prerequisite_block` and `expo.numbered_step_list`, `inter.agency_of_passage` inside the choices complaint it belongs to, and `arc.imposed_arc` with `arc.real_person_arc`. The procedures in it say in the route that they are procedures: `rhythm.cutdown_ladder`, `info.deducibility_audit`, `arc.arc_under_many_hands` and `inter.platform_contract`.
+
+The tension batch is held in ten complaints, seven of them new. Hiding, the sound that must not be made and hiding in the open sit together after "The middle of the sequence goes slack"; the reveal clock and `tens.threat_shown_too_early` extend the monster complaint in the Antagonist section, where that note actually arrives; `tens.inferred_threat` extends "I need the threat felt without showing it" with the distinction that matters, which is that it is a whole-work commitment and not one event kept off-frame; and the four remaining-media cards — `tens.page_turn`, `tens.room_tone_silence`, `tens.the_interval` and `tens.reader_owns_the_clock` — extend "Tension in a medium that isn't film", with the prose one also given its own complaint because a novelist arrives at it in those words.
+
+The eleven named failures in this wave are routed as diagnoses, each paired with the card that repairs it: `char.pity_lever` and `char.costless_condition` both with `char.condition_as_constraint` (the first also with `char.disability_expertise`), `char.prize_love_interest` with `char.supporting_character_want` and `char.only_reacts`, `char.evil_twin` with `char.the_double` and `char.tailored_opponent`, `char.decorative_exotic_name` with `char.name_as_design`, `char.character_dossier` with the three development procedures that survive its own audit, `tens.threat_shown_too_early` with `tens.reveal_clock`, `tens.total_surveillance` with `tens.threat_with_rules` and `tens.being_watched`, `tens.diluted_stakes` with `tens.picturable_consequence` and `tens.ensemble_jeopardy`, `tens.unearned_reprieve` with the two-question test and a rescue charged to somebody in the room, and `tens.exhausting_draft` with the hope audit. The procedures say in the route that they are procedures: `char.idiolect_sheet`, `char.character_interview`, `char.want_need_sheet`, `char.wound_questionnaire`, `char.audition_scene`, `char.bible_entry`, `char.behavioural_continuity`, and the trough and hope audits inside "Every scene is at ten and the reader gave up". Three pairs that sound alike are kept apart and say so: that last one against "It's relentless and the audience goes numb", `tens.ritual_that_must_continue` against `scene.interrupted_ritual` and `seq.ritual_sequence`, and `tens.post_climax_hold` against "The ending goes on too long", which is the same twenty minutes read as a cutting problem.
+
+`cat-scene-3.md` and `cat-char-4.md` are routed in full, in twenty new complaints and two extended ones, and they close the page: with this wave every card in the database is reachable except the three groups listed above. Both files were written because the database reported the gaps against itself while being used, and both sit closest to documentary, testimony and heritage work — which is why the routes are spread across five sections rather than gathered into one. The scenes that are *shapes* went to **Scene shape complaints**, in a run of six that all have a real person in the room: the interview that stops or retracts or turns the question back, the contributor performing their own life, the scene assembled from a transcript, the false adjacency, the negotiation with no leverage, and the handover of a duty. The ones that are *job problems* went to **Commissioned and applied-work complaints**, whose preamble already describes them exactly — going back for consent, the subject with a contractual veto, and the right of reply — because a maker meeting those is not looking under "scene". The remaining four went where the complaint actually arrives: the aimed speech into **Subtext**, next to the triangle it is constantly confused with; the confirmation scene into **Emotion**, directly under `emo.bad_news_delivery`, which it inverts; the apology that lands into **Relationship and ensemble**, under the rupture complaints and above `rel.instant_reconciliation`, its failing twin; and the writer inside their own reportage into **Point of view**, because a writer asking how much of themselves to put in is asking a viewpoint question. The character batch went to **Character** throughout, extending "I'm writing about real people" with the single living unmergeable subject and its named failure rather than opening a second complaint about the same page, and adding the non-actor pair beside "I can hear the writer casting the part", the class pair beside "The character's job is just a label", the community-veto and second-language cards beside "Writing across a culture I am not from", and the returning minor character beside "The cast is too big". One thing in this batch is unusual enough to be flagged in the route itself rather than left in the card: `char.written_for_a_non_actor` and `char.speaks_for_others` are **prohibition** cards, whose useful content is what may not be written, and both routes say so in the first line, because a writer needs to know that before opening them.
+
+The five named failures in this wave are routed as diagnoses, each paired with the card that repairs it: `scene.reconstruction_unmarked` with `expo.disclosed_staging_note`, inside the complaint about reconstruction admitted only in the credits; `scene.false_adjacency` with `scene.transcript_built`, and the two cross-reference as the image-side and cut-side versions of one offence; `char.coached_authenticity` with `scene.transcript_built` again, which is its one honest neighbour; `char.wealth_as_objects` with `char.inherited_ease` and the omitted calculation; and `char.softened_for_the_reader` with `char.living_subject_reader`, inside "I'm writing about real people". Three pairs that sound alike are kept apart and each says which one the reader is in: "He already knows what I've come to tell him" against "I have to say the unbearable thing and stay in the room"; "The toast is going well and one person in the room is meant to hear something else" against the triangle complaint above it and against `scene.public_scene`; and "The actor isn't an actor" against "I can hear the writer casting the part", which is the same casting question from the opposite end.
+
+The last eight files — `cat-end-3.md`, `cat-expo-4.md`, `cat-info-4.md`, `cat-lyric-4.md`, `cat-open-3.md`, `cat-struct-2.md` and `cat-tens-5.md` — are routed in sixteen new complaints and three extended ones, and they are what closes the page. They divide cleanly into three registers and the routes were placed by register rather than by category. The **prose and the page** cards went where a novelist or a poet is already looking: the chapter ending and the two whole-form questions into **Structural**, next to the endings and the systems; re-entry after a gap and the page's framing furniture into **Exposition and world**, the first beside the serial re-entry cards it is constantly mistaken for and the second directly under `expo.framing_text_furniture`, which is its screen twin; and the prose poem into **Song and lyric**, at the end of the run that already holds the album. `struct.flash_fiction` carries a warning in its first line rather than in its card, because the obvious search — "short form" — lands a prose writer on `time.shortform_compression`, `char.ten_second_person`, `arc.sub_minute`, `beat.shortform_beat`, `sub.short_form`, `expo.short_form_frontload` and `tens.micro_form_tension`, every one of which is written for vertical video and none of which applies to a reader who controls the pace. The **non-fiction and commissioned** cards went to **Commissioned and applied-work**, whose preamble already describes them — a check the insurer will ask for, a name that cannot be printed, a deposit copy that has to be in the contract in year one — except the nut graf, which is an opening and went to **Opening**. `info.fact_check_pass` is routed as a procedure, and its fourth step is given in full in the route rather than left in the card, because walking a familiar claim back down through popular repetition to a primary source is the step that separates a real check from a naive one, and a claim repeated in ten videos is one unchecked claim with nine echoes. The **tension** cards went to **Tension**, each placed against the complaint it is most likely to be confused with.
+
+Three of that batch needed the boundary written into the route itself. `tens.subtitle_preempt` opens by saying which of the four subtitle cards the reader is in — this one for a reveal, punchline or turn spent early by the cue, `rhythm.subtitle_beat` for legibility, `dial.subtitle_constraint` for line construction and `open.subtitled_open` for the first minute — because a cue can pass all three of the others and fail this one completely, and the central case, an English voiceover with burned Arabic subtitles written by the same hand, is the one where the writer owns both channels and can actually fix it. `tens.kids_bounded_threat` contradicts `tens.trough_placement` and `tens.release_valve` on purpose, and the route says so in its first line, because the adult rule is that the release is shorter than the tension and is cut early, while a children's recovery beat runs to completion — a writer who follows the general cards will cut the exact beat that lets the child sleep. And `struct.unity_of_effect` was placed directly under "It doesn't add up to anything" so the separation from `theme.controlling_idea` is visible at the point of confusion: a controlling idea is what the work argues and is auditable scene by scene, an effect is what the work does to the reader and lives in the reading rather than in the story, and a piece can prove the first perfectly and leave the reader holding nothing.
+
+A note on how the newest routes are worded, so later additions match. A named failure is routed as a **diagnosis**, inline and in prose — *that is `seq.premature_climax`* — and the technique that repairs it is given as the numbered step after it. A technique is routed as an **instruction**: what to do, then the card. Where two complaints sound alike, they are kept apart and each says which one the reader is actually in.
+
+*Build notes from when this file was drafted — targets, running totals and what remained to be written — are kept verbatim in the [coverage history](../tools/history/coverage-history.md). They were true of the draft, not of the file, so they no longer sit here as if they were measurements.*
+

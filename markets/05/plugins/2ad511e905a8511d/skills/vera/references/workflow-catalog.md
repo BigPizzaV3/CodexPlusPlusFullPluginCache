@@ -1,0 +1,286 @@
+# Vera workflow catalog
+
+Read this catalog before routing professional work. The user describes the
+task; Vera selects the workflow. Use semantic judgment, then read the selected
+skill completely. Do not select from keywords or use a cross-cutting assurance
+skill to imitate a missing operational workflow.
+
+<!-- VERA_OPENAI_ONBOARDING_BEGIN -->
+## Learning and discovery
+
+- `learn-with-vera`: teach, show a real example, try together, revisit a practiced request or
+find out what Vera can do use `../learn-with-vera/SKILL.md`. It selects the actual
+operational workflow below and never replaces its execution or review contract.
+This teaching route is not itself an operational lesson. First onboarding keeps
+3–4 workflows; later sessions are repeatable with the same local profile.
+Only Vera's own installed operational skills are eligible. A request for another
+plugin's skill stays outside this teaching route; explain the scope and offer
+relevant Vera workflows without silently substituting or teaching the other plugin.
+<!-- VERA_OPENAI_ONBOARDING_END -->
+
+<!-- VERA_OPENAI_DATEV_BEGIN -->
+## DATEV installation trial
+
+For a real Windows DATEV installation trial, use `datev-invoice-start` with the
+shipped passive-invoice procedure, native host verification, saved partial progress
+and per-client review. Read `../../datev-invoice-start/SKILL.md` before generic
+teaching or browser setup. This installation adaptation is separate from the
+professional course catalog below; it does not provide an unattended executor.
+<!-- VERA_OPENAI_DATEV_END -->
+
+## Development preview
+
+`patent-box-review` prepares selected evidence, reviewed ledger mappings and
+component controls for software, patents and designs, then exports draft A/B
+Word/PDF documents. Real calculation requires reviewed current sources and
+certificate-authenticated authorization under a firm-issued mandate. It verifies
+existing signatures and timestamps; it does not sign or file documents. All
+professional UAT and production acceptance boundaries remain explicit. Read
+`../../patent-box-review/SKILL.md`. This preview has no released teaching kit.
+
+## Merger workpapers
+
+`fusione-guidata` prepares reviewed P1 domestic OIC incorporation workpapers for
+independent or directly wholly owned companies: verified Studio Archive imports,
+valuation bridges, exact shareholder allocations, accounting bridges, event
+calendars and versioned review dossiers. Its two complete synthetic cases are
+available through `demo-p1`. It is not a prepared onboarding lesson. Later
+branches, signatures and filings remain unsupported. Use the specialist skill.
+
+## Professional workflows
+
+- `esg-reporting-assurance`: organize the first ESG evidence and decision
+  foundation inside an existing client engagement; bind CSV cells or text lines,
+  retain versions and decisions, flag stale dependencies and export partial drafts.
+  It does not yet produce complete ESG reports, ESRS/taxonomy assessments or
+  assurance opinions. Use the dedicated skill and state those limits.
+
+
+- `invoice-xml`: prepare ordinary FPR12 invoice XML from supplied PDFs, photos
+  or confirmed structured data; combine source views, retain field evidence,
+  surface missing or uncertain facts, review domestic or foreign TD17/18/19
+  treatment, and export only the exact professionally reviewed draft after
+  schema and local arithmetic checks. No signing, issuance or SdI submission.
+
+- `adeguati-assetti`: assess an Italian company's organizational, administrative
+  and accounting arrangements using proportionate review of responsibilities,
+  processes and actual reporting/operating evidence; prepare findings, improvement
+  actions and subsequent reviews. When construction is requested, use the same
+  engagement for attributed interviews, qualified evidence, reasoned professional
+  overrides, control design, versioned manuals/registers, separate adoption and
+  sampled operating review. The numerical method is experimental; a manual does
+  not prove operation. A management report alone is not an assetti
+  assessment; general legal questions remain in quesito-legale-fiscale.
+
+- `aml-review`: review Italian client AML evidence at onboarding or later review,
+  reconstruct ownership and economic explanations, investigate inconsistencies,
+  compare prior assessments and record professional decisions. New Client owns
+  whole-client onboarding; this workflow owns substantive AML analysis.
+
+- `archive-organization`: screen one registered local or Google Drive client folder, use semantic
+  judgment to propose studio-policy categories and destinations, detect exact
+  duplicates by hash and probable duplicates by reviewed model judgment,
+  collect persistent collaborator decisions, and only then apply explicit
+  no-overwrite local or Drive moves with a journal and rollback; Drive mode
+  preserves file IDs, links, permissions, and history while changing parent
+  and name.
+- `open-item-reconciliation`: start from a population reported as open at a
+  cut-off and test each item against ledgers, statements, payments, factoring,
+  advances, compensation, and other accounting evidence to determine which
+  items are closed, partly closed, or still open; produce reviewable
+  workpapers. Do not use it for a direct statement-to-journal match when no
+  open-item population is being tested.
+- `bandi-agevolazioni`: discover and monitor source-backed Italian grant,
+  subsidy, tax-credit, or subsidized-finance opportunities through a reviewed
+  priority-source registry, a professionally reviewed query-scoped source
+  selection for every territory and category, and explicit temporal scans of
+  institutional sources before complementary semantic web search; match them to
+  opaque client profiles and prepare a traceable application dossier after
+  selection, without contacting clients, authenticating, signing, or filing.
+- `avviso-intake`: prepare first-intake analysis for Italian notices, avvisi,
+  cartelle, HMRC letters, or Swiss cantonal tax letters.
+- `bilancio-oic`: understand accounting evidence and prepare, update,
+  reconcile, review, validate, or export an individual Italian OIC civil-law
+  annual financial statement; XBRL is an output, not the workflow identity.
+- `browser-automation`: teach, develop, test or repair an exact professional browser
+  process, keeping demonstrations, attempts and CRs linked across conversations.
+  Ordinary work uses a separately installed named operation skill, with its own
+  scope, inputs, result checks and adjacent process binding. Do not use the local
+  development catalog as the ordinary-use menu. No matching released skill means
+  the operation is unavailable; do not improvise a substitute.
+- `vouching`: compare a qualified Journal Sampling population with
+  FatturaPA XML or supporting PDFs using exact evidence bindings.
+- `concordato-plan-review`: review an Italian concordato preventivo across the
+  procedure, proposal, plan, attestation, creditors, treatment, liquidity,
+  evidence consistency, and open issues.
+- `composizione-negoziata`: guide an Italian CNC case as company advisor or
+  independent expert, with separate role guidance, evidence gaps, existing Vera
+  analyses, drafts, case revisions and dependency impact. Local review records
+  do not authenticate professional identity or authorize filing.
+- `comunicazione-professionale`: decide whether a current tax, legal,
+  regulatory, accounting, or professional development is worth communicating;
+  learn only from exact prior studio communications selected by the
+  professional, with local mechanical stripping of explicit identifiers, then
+  one isolated model-led pass that creates complete pseudonymized derivatives
+  and a second derivative-only privacy review before generation. Only
+  generation receives the accepted derivatives; claim, editorial, and visual
+  review use smaller packets without prior communications. Transient stripped
+  inputs are deleted while originals and the local identity map remain with the
+  Studio. These mechanics are the same in Codex and Cowork. Then prepare a
+  source-backed, studio-formatted client email, circular, LinkedIn post,
+  newsletter, website article, FAQ, client alert, or graphical explainer for
+  professional review and optional publication. `no_publish` is a successful
+  editorial outcome. This studio-wide workflow embeds the validated-answer
+  journey through its own `answer_contract` and separate `claim_assurance`
+  artifacts; do not duplicate it with client-bound assurance runs.
+- `financial-analysis`: prepare controlled historical accounting analysis and
+  fixed financial due-diligence calculations.
+- `management-control-pack`: turn reviewed connectorless accounting exports
+  into one recurring management pack with every supported monthly P&L, Budget,
+  aging, cash, concentration, and profitability section plus a bounded
+  model-led interpretation layer; missing optional data remains visible and
+  the workflow does not require or simulate an ERP connector.
+- `centrale-rischi-review`: normalize an official native-text Italian Centrale
+  Rischi PDF or analyse a reviewed CSV or Excel export; classify exposures
+  through professional-confirmed maturity and risk-category mappings;
+  calculate guarantees, non-suffering overruns, concentration, available
+  resources and source-supported KPIs; keep guarantors of the holder,
+  guarantees received, ceded debtors, other risk information, summary totals,
+  inframonthly events and information requests separate; quarantine ambiguous
+  merged grids instead of turning them into client facts; and keep missing
+  financial-statement ratios and prejudicial evidence explicitly unavailable.
+  Portal acquisition remains an optional upstream adapter rather than part of
+  the calculation contract.
+- `journal-bank-reconciliation`: start from bank-statement movements and match
+  them directly with journal or ledger entries using reviewed mappings and
+  matching evidence. The presence of a bank statement does not by itself make
+  an open-item request a bank-reconciliation request; route by the population
+  being tested.
+- `purchase-invoice-review`: screen passive FatturaPA XML populations against
+  actual booked ledger movements, apply deterministic arithmetic and matching
+  checks, then use native Codex GPT-5.6 Luna on compact matched-invoice packets
+  to produce an exception-focused professional workpaper.
+- `journal-sampling`: qualify and normalize journal entries and generate
+  reproducible audit samples with diagnostics.
+- `new-client`: prepare a source-bound client setup covering files, identity,
+  engagement, privacy, AML, missing evidence, and monitoring.
+- `previdenza-inps`: review an Italian INPS social-security case from supplied
+  documents, official exports, and permitted read-only evidence.
+- `presenza-digitale-studio`: assess and refresh an existing informational
+  website for a commercialista or professional studio, or create the studio's
+  first website from verified materials and conservative proposed defaults;
+  produce a working responsive implementation, unlisted review preview and
+  approval-bound release package without inventing professional claims or
+  autonomously publishing.
+- `quesito-legale-fiscale`: answer a substantive legal, tax, or compliance
+  question, or prepare source-backed professional drafting, through one
+  question-to-reviewed-answer journey. It orchestrates prompt preparation,
+  a choice of available Deep Research plugin or ordinary research, and answer
+  validation, followed by a routine adversarial opinion and comparison,
+  without asking the user to select those internal stages. It does
+  not substitute for an operational return, declaration, filing, or form.
+- `registro-imprese-sari`: prepare Registro Imprese, REA, Comunicazione Unica,
+  or DIRE work from official guidance without filing or signing.
+- `financial-report-builder`: map financial Excel, CSV, or text-PDF evidence into
+  reviewable Markdown, DOCX, or JSON reports.
+- `sales-plan`: create a forward-looking sales Plan from reviewed Actuals and
+  confirmed commercial or FX assumptions.
+- `business-planning`: prepare one business plan for a startup, new venture or
+  established company. Assess customers, market, operations, economics, cash,
+  options, recommendation and next actions using one case, financial model and
+  report. Vera and Clara expose this exact same function. The business question
+  determines scope; the entry product never changes the angle or required work.
+- `variance-analysis`: compare Actual, Budget, Forecast, or prior-period
+  accounting performance; reconcile source totals; calculate amount-only or
+  price-volume-mix variances when the data contract supports them; and produce
+  reviewable waterfall, bridge, small-multiple, and drilldown plots without
+  assigning semantic causes or materiality automatically.
+- `studio-archive`: create or resume a durable client engagement; use its
+  authorized local-document, Google Drive or Shared Drive, Gmail, or
+  capability-gated WhatsApp evidence routes without mixing clients.
+
+## Synthetic development prototypes
+
+Read `../../trasformazione/SKILL.md` to prepare a synthetic Italian company-transformation case,
+  import evidence, propose findings, check exact arithmetic, record explicit
+  simulated/user review and export a versioned dossier. Changed evidence reopens
+  dependent approvals. This increment does not accept real client mandates,
+  qualify legal/tax effects, compute statutory deadlines or perform external
+  actions. It has no Studio Archive adapter. Select only for an explicitly
+  requested synthetic prototype or demonstration.
+
+## Subordinate intake workflows
+
+These skills support `new-client` and related intake work. Select them directly
+only when the request is specifically limited to their bounded output.
+
+- `dati-fiscali-strutturati`: extract or review structured fiscal fields from
+  readable Italian, Geneva, Zurich, or UK customer documents.
+- `email-cliente`: draft an operational client email requesting missing
+  documents or clarifications identified during intake.
+- `fatture-xml-check`: inspect Italian FatturaPA XML metadata and identify
+  malformed XML, date issues, or duplicate candidates.
+
+## Cross-cutting answer assurance
+
+- `legal-tax-answer-planner`: create the answer contract, current-source posture, and
+  generation instructions for an accepted legal, tax, or compliance question.
+- `legal-tax-answer-review`: validate the generated or supplied answer against
+  that contract, sources, reasoning, and professional-judgment boundary.
+
+- `adversarial-opinion`: in `quesito-legale-fiscale`, apply
+  the shared `adversarial-scope.md` resolved by that workflow. Informational research
+  ends after validation. An opinion on a concrete position or an explicit
+  request includes the opposing examination, subject to user instructions.
+  When required, develop, review and compare the strongest evidence-bound
+  opposing case regardless of the original validation outcome, using the
+  current model.
+
+Use the planner and validator automatically for accepted source-backed question and
+drafting work through `quesito-legale-fiscale` or another registered workflow.
+They are sequential internal stages, not the specialist workflow the user must
+select. They do not establish the completeness or correctness of an
+operational return, declaration, filing, or other unsupported professional
+artifact. The studio-wide `comunicazione-professionale` workflow satisfies this
+requirement with its registered in-workstream equivalent because it cannot be
+stored in a single client's Studio Archive engagement.
+
+## Run-wide model-data evidence
+
+Showing or explaining an existing privacy/model-data report is supported artifact
+retrieval. Follow **Show an existing report** in `model-data-report-contract.md`
+without selecting a new professional workflow or starting another run.
+
+Every substantive professional workflow follows
+`model-data-report-contract.md` after its model-visible phases. The report is a
+cross-pipeline run artifact, not a specialist workflow: it records what was
+processed locally, what reached each model phase, what remained local, the
+evidence basis, and a possible narrower code path only when the run evidence
+supports one. Full-document or full-population model treatment remains a valid
+outcome when required by the professional purpose.
+
+## Developer governance
+
+- `privacy-surface-review`: review and register model-context and external-data
+  boundaries when a Vera workflow or shared service changes. This is not a
+  customer-case workflow.
+
+## Public process explanations
+
+Every public page or named product-page section that explains one registered
+professional workflow includes a localized **“Quali dati arrivano al modello”**
+/ **“What data reaches the model”** block. Follow
+`public-process-page-contract.md`. The entire block is always the final block in
+the process explanation, after all other process content and calls to action.
+Nothing in the process explanation follows it.
+
+Use model-led judgment from the inspected workflow evidence to choose whether
+the model-data distinction is `relevant` or `not-relevant`. When relevant,
+explain the actual local/full-population work, every model-visible phase,
+bounds and Codex-versus-Cowork differences. When not relevant, say so and give
+the concrete reason. A deterministic test enforces only presence, registered
+identity, allowed status, order and localization; it never chooses the status
+or validates the professional reason. Keep `/data-handling` global rather than
+recreating a central function register.
+
+- `treasury-forecast`: prepare and maintain a dated cash forecast from the documented bank, outstanding-item, planned-flow, allocation and adjustment tables. Review expected dates, preserve applicable decisions, compare successive accepted forecasts and produce Excel/HTML workpapers. Required missing data stops this workflow; optional supplied XML is invoice evidence, not payment proof. No business-planning dependency or automatic Agenzia download.

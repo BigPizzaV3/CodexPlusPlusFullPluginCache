@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tokenos-contract-audit",
+  "version": "1.0.3",
+  "description": "Paste a Solidity or Anchor contract and get an instant security scan \u2014 reentrancy, access control, signer checks, unchecked math \u2014 with line numbers, severity and a fix for each finding.",
+  "author": {
+    "name": "TokenOS",
+    "email": "info@tokenos.ai",
+    "url": "https://tokenos.ai"
+  },
+  "homepage": "https://tokenos.ai/chatgpt-apps/contract-audit",
+  "keywords": [
+    "audit my solidity contract",
+    "smart contract security checker",
+    "is this contract safe",
+    "solidity vulnerability scanner",
+    "anchor program audit",
+    "reentrancy check",
+    "solana smart contract audit",
+    "smart contract audit tool"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "TokenOS Contract Audit",
+        "shortDescription": "Scan Solidity & Anchor code",
+        "longDescription": "Heuristic security scan of Solidity and Solana (Anchor / native Rust) contracts: reentrancy patterns, missing access control, tx.origin, delegatecall, weak randomness, unchecked calls, missing signer / owner / PDA bump checks, unchecked arithmetic and more \u2014 each with line numbers, severity and a fix, plus an overall letter grade. Read-only: the code you paste is analysed in memory and never stored.\n\nTools:\n\u2022 quick_audit \u2014 Static heuristic scan of a Solidity or Solana (Anchor / Rust) contract: findings with severity, line numbers and fixes, plus a letter grade.\n\nTargets questions like: \u201caudit my solidity contract\u201d; \u201csmart contract security checker\u201d; \u201cis this contract safe\u201d; \u201csolidity vulnerability scanner\u201d; \u201canchor program audit\u201d; \u201creentrancy check\u201d.\n\nDocumentation: https://tokenos.ai/mcp/contract-audit\n\nOutputs are informational \u2014 on-chain reads, deterministic calculators and heuristic scans \u2014 not financial, legal or security advice. TokenOS is non-custodial and never holds keys or funds; anything you launch, deploy or sign happens from your own wallet.",
+        "developerName": "TokenOS",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Heuristic security scan for Solidity",
+          "Heuristic security scan for Solana Anchor / Rust",
+          "Findings with severity, lines and fixes",
+          "Letter grade per contract"
+        ],
+        "websiteURL": "https://tokenos.ai/chatgpt-apps/contract-audit",
+        "supportURL": "https://tokenos.ai/support",
+        "privacyPolicyURL": "https://tokenos.ai/privacy",
+        "termsOfServiceURL": "https://tokenos.ai/terms",
+        "defaultPrompt": [
+          "Audit this Solidity contract for vulnerabilities \u2014 I'll paste the source",
+          "Is this Anchor program safe? Here is the code",
+          "Check my ERC-20 for reentrancy and access-control issues"
+        ],
+        "brandColor": "#047857",
+        "brandColorDark": "#00FF94",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Audit a vulnerable Solidity vault",
+              "prompt": "Audit this Solidity contract:\n\npragma solidity ^0.8.0;\n\ncontract Vault {\n    mapping(address => uint) public balances;\n    address owner = msg.sender;\n\n    function deposit() external payable {\n        balances[msg.sender] += msg.value;\n    }\n\n    function withdraw() external {\n        uint amt = balances[msg.sender];\n        (bool ok, ) = msg.sender.call{value: amt}(\"\");\n        require(ok);\n        balances[msg.sender] = 0;\n    }\n\n    function kill() external {\n        require(tx.origin == owner);\n        selfdestruct(payable(owner));\n    }\n}",
+              "tools_triggered": "quick_audit",
+              "expected_behavior": "Returns grade F with high findings for tx.origin authorisation (L19), selfdestruct (L20) and possible reentrancy in withdraw (L11), plus a low floating-pragma finding, each with a fix; renders the audit widget."
+            },
+            {
+              "description": "Clean contract",
+              "prompt": "Audit this: pragma solidity 0.8.24; import Ownable; contract Counter is Ownable { uint public n; function bump() external onlyOwner { n += 1; } }",
+              "tools_triggered": "quick_audit",
+              "expected_behavior": "Returns grade A (100/100) with no findings, marked as a heuristic scan (widget shows \"1 line\")."
+            },
+            {
+              "description": "Audit an Anchor program",
+              "prompt": "Is this Anchor program safe?\n\nuse anchor_lang::prelude::*;\n\n#[program]\npub mod vault {\n    use super::*;\n    pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {\n        let vault = &mut ctx.accounts.vault;\n        vault.balance -= amount;\n        Ok(())\n    }\n}\n\n#[derive(Accounts)]\npub struct Withdraw<'info> {\n    #[account(mut)]\n    pub vault: Account<'info, Vault>,\n    pub authority: AccountInfo<'info>,\n}\n\n#[account]\npub struct Vault {\n    pub authority: Pubkey,\n    pub balance: u64,\n}",
+              "tools_triggered": "quick_audit",
+              "expected_behavior": "Returns grade F with findings for an unchecked AccountInfo (L17), authority not a Signer (L17), mutable account without ownership constraints (L15) and unchecked arithmetic (L8), each with a fix."
+            },
+            {
+              "description": "delegatecall, weak randomness and an unprotected setter",
+              "prompt": "Check this contract for vulnerabilities:\n\npragma solidity ^0.8.0;\n\ncontract Lottery {\n    address public impl;\n\n    function setImpl(address i) external {\n        impl = i;\n    }\n\n    function play() external payable {\n        if (uint(keccak256(abi.encodePacked(block.timestamp))) % 2 == 0) {\n            payable(msg.sender).transfer(address(this).balance);\n        }\n    }\n\n    fallback() external payable {\n        (bool ok, ) = impl.delegatecall(msg.data);\n        require(ok);\n    }\n}",
+              "tools_triggered": "quick_audit",
+              "expected_behavior": "Returns findings for delegatecall to a settable address (L17), weak randomness from block.timestamp in play (L11), setImpl having no access control (L6), the native transfer (L12) and a floating pragma (L1), each with a severity and a fix."
+            },
+            {
+              "description": "Input that is not contract source",
+              "prompt": "Audit this contract: hello world",
+              "tools_triggered": "quick_audit",
+              "expected_behavior": "Tool returns a validation error asking for the full contract source; the assistant asks the user to paste the Solidity or Anchor code."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported language \u2014 Tool reports unsupported language; the assistant answers generally without a scan grade.",
+              "prompt": "Audit this Python script for security issues: print('hi')"
+            },
+            {
+              "description": "Empty input \u2014 The assistant asks the user to paste the source instead of calling the tool with nothing.",
+              "prompt": "Audit my contract"
+            },
+            {
+              "description": "Guarantee request \u2014 No certification; results are presented as heuristics and findings to verify.",
+              "prompt": "Certify that this contract is 100% secure"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. The scan is read-only and the pasted code is not stored.",
+        "demo_recording_url": "https://tokenos.ai/demos/tokenos-contract-audit-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "1.0.3: TokenOS-branded display name; widgets now implement the MCP Apps standard (_meta.ui.resourceUri + ui/* bridge) alongside the openai/* aliases; listing update \u2014 revised descriptions and capabilities, runnable inline review test cases, demo recording URL. quick_audit is the only tool (deep_audit removed, no commerce). Scanner now catches block.timestamp / block.number randomness inside hashes or modulo and any public setter that changes state without checking the caller; single-line pastes no longer show L1 on every finding. Review test cases carry the exact line numbers the scanner reports. Tools: quick_audit."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

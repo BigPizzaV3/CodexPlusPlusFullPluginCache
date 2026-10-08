@@ -1,0 +1,1483 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.openai.com/chatgpt-meetings/companion-control.v2.schema.json",
+  "title": "ChatGPT Meetings companion control protocol v2",
+  "description": "Authenticated local companion discovery and transport. Recording, uploads, recovery, background synchronization, and cached-data production remain companion-owned.",
+  "x-companion-protocol-version": 2,
+  "x-frame-prefix-byte-order": "little-endian",
+  "x-frame-prefix-bytes": 4,
+  "x-max-frame-bytes": 1048576,
+  "x-max-request-ttl-millis": 5000,
+  "x-max-client-identities": 64,
+  "x-max-cached-responses": 128,
+  "x-method-contracts": {
+    "companion.initialize": {
+      "requestSchemaRef": "#/$defs/InitializeRequest",
+      "resultSchemaRef": "#/$defs/InitializeResult",
+      "requiredCapabilities": []
+    },
+    "companion.getState": {
+      "requestSchemaRef": "#/$defs/GetStateRequest",
+      "resultSchemaRef": "#/$defs/CompanionState",
+      "requiredCapabilities": ["recording.control.v2"]
+    },
+    "client.setContext": {
+      "requestSchemaRef": "#/$defs/SetClientContextRequest",
+      "resultSchemaRef": "#/$defs/RetryUploadResult",
+      "requiredCapabilities": ["client.context.v1"]
+    },
+    "recording.start": {
+      "requestSchemaRef": "#/$defs/StartRecordingRequest",
+      "resultSchemaRef": "#/$defs/CompanionState",
+      "requiredCapabilities": ["recording.control.v2"],
+      "fieldCapabilities": { "calendarContext": "recording.calendar-context.v1" }
+    },
+    "recording.stop": {
+      "requestSchemaRef": "#/$defs/StopRecordingRequest",
+      "resultSchemaRef": "#/$defs/StopRecordingResult",
+      "requiredCapabilities": ["recording.control.v2"]
+    },
+    "recording.getUploads": {
+      "requestSchemaRef": "#/$defs/GetUploadsRequest",
+      "resultSchemaRef": "#/$defs/UploadsResult",
+      "requiredCapabilities": ["recording.recovery.v1"]
+    },
+    "recording.retry": {
+      "requestSchemaRef": "#/$defs/RetryUploadRequest",
+      "resultSchemaRef": "#/$defs/RetryUploadResult",
+      "requiredCapabilities": ["recording.recovery.v1"]
+    },
+    "permissions.recheck": {
+      "requestSchemaRef": "#/$defs/RecheckPermissionsRequest",
+      "resultSchemaRef": "#/$defs/CompanionState",
+      "requiredCapabilities": ["recording.audio-sources.v1"]
+    },
+    "permissions.request": {
+      "requestSchemaRef": "#/$defs/RequestPermissionRequest",
+      "resultSchemaRef": "#/$defs/CompanionState",
+      "requiredCapabilities": ["permissions.request.v1"]
+    },
+    "permissions.openSystemSettings": {
+      "requestSchemaRef": "#/$defs/OpenSystemSettingsRequest",
+      "resultSchemaRef": "#/$defs/CompanionState",
+      "requiredCapabilities": ["permissions.request.v1"]
+    },
+    "settings.get": {
+      "requestSchemaRef": "#/$defs/GetSettingsRequest",
+      "resultSchemaRef": "#/$defs/SettingsState",
+      "requiredCapabilities": ["settings.v2"],
+      "fieldCapabilities": {
+        "calendarRemindersEnabled": "settings.reminders.v1",
+        "meetingDetectionEnabled": "settings.meeting-detection.v1",
+        "soundEffectsEnabled": "settings.sound-effects.v1"
+      }
+    },
+    "settings.update": {
+      "requestSchemaRef": "#/$defs/UpdateSettingsRequest",
+      "resultSchemaRef": "#/$defs/SettingsState",
+      "requiredCapabilities": ["settings.v2"],
+      "fieldCapabilities": {
+        "calendarRemindersEnabled": "settings.reminders.v1",
+        "meetingDetectionEnabled": "settings.meeting-detection.v1",
+        "soundEffectsEnabled": "settings.sound-effects.v1"
+      }
+    },
+    "home.getSnapshot": {
+      "requestSchemaRef": "#/$defs/GetHomeSnapshotRequest",
+      "resultSchemaRef": "#/$defs/HomeSnapshot",
+      "requiredCapabilities": ["home.snapshot.v1"]
+    },
+    "lifecycle.quitForUpdate": {
+      "requestSchemaRef": "#/$defs/QuitForUpdateRequest",
+      "resultSchemaRef": "#/$defs/QuitForUpdateResult",
+      "requiredCapabilities": ["lifecycle.update.v2"]
+    }
+  },
+  "x-notification-contracts": {
+    "companion.stateChanged": {
+      "notificationSchemaRef": "#/$defs/StateChangedNotification",
+      "requiredCapabilities": ["recording.control.v2"]
+    },
+    "recording.completed": {
+      "notificationSchemaRef": "#/$defs/RecordingCompletedNotification",
+      "requiredCapabilities": ["recording.control.v2"]
+    },
+    "workspace.changed": {
+      "notificationSchemaRef": "#/$defs/WorkspaceChangedNotification",
+      "requiredCapabilities": ["workspace.events.v1"]
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/Descriptor" },
+    { "$ref": "#/$defs/Request" },
+    { "$ref": "#/$defs/Response" },
+    { "$ref": "#/$defs/Notification" }
+  ],
+  "$defs": {
+    "PositiveSafeInteger": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "ExecutableIdentity": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "additionalProperties": false,
+      "dependentRequired": { "device": ["inode"], "inode": ["device"] },
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 4096, "not": { "pattern": "[\\u0000\\r\\n]" } },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "device": { "$ref": "#/$defs/PositiveSafeInteger" },
+        "inode": { "$ref": "#/$defs/PositiveSafeInteger" },
+        "processStartedAtMillis": { "$ref": "#/$defs/PositiveSafeInteger" }
+      }
+    },
+    "Descriptor": {
+      "type": "object",
+      "required": ["protocolVersion", "ownerEpoch", "pid", "platform", "architecture", "transport", "endpoint", "companionVersion", "requestTTLMillis", "maxFrameBytes", "executableIdentity"],
+      "additionalProperties": false,
+      "properties": {
+        "protocolVersion": { "const": 2 },
+        "ownerEpoch": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "pid": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "platform": { "enum": ["macos", "windows"] },
+        "architecture": { "enum": ["arm64", "x64", "universal"] },
+        "transport": { "enum": ["unix-domain-socket", "windows-named-pipe"] },
+        "endpoint": { "type": "string", "minLength": 1, "maxLength": 4096, "not": { "pattern": "[\\u0000\\r\\n]" } },
+        "companionVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "requestTTLMillis": { "type": "integer", "minimum": 1, "maximum": 5000 },
+        "maxFrameBytes": { "const": 1048576 },
+        "executableIdentity": { "$ref": "#/$defs/ExecutableIdentity" }
+      },
+      "allOf": [
+        { "if": { "properties": { "platform": { "const": "macos" } } }, "then": { "properties": { "transport": { "const": "unix-domain-socket" } } } },
+        { "if": { "properties": { "platform": { "const": "windows" } } }, "then": { "properties": { "transport": { "const": "windows-named-pipe" }, "architecture": { "enum": ["arm64", "x64"] } } } }
+      ]
+    },
+    "ReplayMetadata": {
+      "type": "object",
+      "required": ["clientId", "ownerEpoch", "sequence", "issuedAtMillis"],
+      "additionalProperties": false,
+      "properties": {
+        "clientId": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "ownerEpoch": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "sequence": { "$ref": "#/$defs/PositiveSafeInteger" },
+        "issuedAtMillis": { "$ref": "#/$defs/PositiveSafeInteger" }
+      }
+    },
+    "OpaqueIdentifier": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "AccountScopeFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "SafeInteger": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 64
+    },
+    "Capability": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 96,
+      "pattern": "^[a-z][a-z0-9.-]*\\.v[1-9][0-9]*$"
+    },
+    "KnownCapability": {
+      "enum": [
+        "recording.control.v2",
+        "client.context.v1", "meetings.eligibility.v1",
+        "recording.calendar-context.v1",
+        "recording.audio-sources.v1",
+        "recording.recovery.v1",
+        "recording.encryption-errors.v1",
+        "recording.database-version-errors.v1",
+        "permissions.request.v1",
+        "settings.v2",
+        "settings.reminders.v1",
+        "settings.meeting-detection.v1",
+        "settings.sound-effects.v1",
+        "home.snapshot.v1",
+        "home.notes-source.v1",
+        "home.note-page-binding.v1",
+        "workspace.events.v1",
+        "lifecycle.update.v2",
+        "lifecycle.bootstrap-recovery.v1"
+      ]
+    },
+    "CapabilityList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Capability" },
+      "maxItems": 32,
+      "uniqueItems": true
+    },
+    "JsonRpcRequest": {
+      "type": "object",
+      "required": ["jsonrpc", "id", "method", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "id": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "method": { "type": "string", "maxLength": 64 },
+        "params": { "type": "object" },
+        "meta": { "$ref": "#/$defs/ReplayMetadata" }
+      }
+    },
+    "AuthenticatedRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/JsonRpcRequest" },
+        { "required": ["meta"] }
+      ]
+    },
+    "EmptyParams": {
+      "type": "object",
+      "maxProperties": 0
+    },
+    "InitializeRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/JsonRpcRequest" },
+        {
+          "not": { "required": ["meta"] },
+          "properties": {
+            "method": { "const": "companion.initialize" },
+            "params": {
+              "type": "object",
+              "required": ["protocolVersion", "client", "requestedCapabilities"],
+              "additionalProperties": false,
+              "properties": {
+                "protocolVersion": { "const": 2 },
+                "client": {
+                  "type": "object",
+                  "required": ["id", "kind", "version"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": { "$ref": "#/$defs/OpaqueIdentifier" },
+                    "kind": { "const": "meetings-mcp" },
+                    "version": { "type": "string", "minLength": 1, "maxLength": 64 }
+                  }
+                },
+                "requestedCapabilities": { "$ref": "#/$defs/CapabilityList" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SetClientContextRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "client.setContext" },
+            "params": {
+              "type": "object",
+              "required": ["codexAppVersion"],
+              "additionalProperties": false,
+              "properties": {
+                "codexAppVersion": {
+                  "description": "Observed Codex desktop application version, never the CLI or Meetings plugin version. Missing or unknown observations must not be sent or clear a prior observation.",
+                  "type": "string",
+                  "maxLength": 128,
+                  "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$(?![\\s\\S])"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "GetStateRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        { "properties": { "method": { "const": "companion.getState" }, "params": { "$ref": "#/$defs/EmptyParams" } } }
+      ]
+    },
+    "CalendarRecordingContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accountScopeFingerprint", "source", "eventId", "occurrenceStart", "title"],
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+        "source": { "const": "google_calendar" },
+        "eventId": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "occurrenceStart": { "$ref": "#/$defs/Timestamp" },
+        "title": { "type": "string", "maxLength": 512 }
+      }
+    },
+    "StartRecordingRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "recording.start" },
+            "params": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": { "calendarContext": { "$ref": "#/$defs/CalendarRecordingContext" } }
+            }
+          }
+        }
+      ]
+    },
+    "StopRecordingRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "recording.stop" },
+            "params": {
+              "type": "object",
+              "required": ["expectedSessionId"],
+              "additionalProperties": false,
+              "properties": {
+                "expectedSessionId": { "$ref": "#/$defs/OpaqueIdentifier" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RecheckPermissionsRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "permissions.recheck" },
+            "params": { "$ref": "#/$defs/EmptyParams" }
+          }
+        }
+      ]
+    },
+    "RequestPermissionRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "permissions.request" },
+            "params": {
+              "type": "object",
+              "required": ["kind"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": { "enum": ["microphone", "systemAudio"] }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OpenSystemSettingsRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "permissions.openSystemSettings" },
+            "params": {
+              "type": "object",
+              "required": ["kind"],
+              "additionalProperties": false,
+              "properties": { "kind": { "enum": ["microphone", "systemAudio"] } }
+            }
+          }
+        }
+      ]
+    },
+    "AccountScopeParams": {
+      "type": "object",
+      "required": ["accountScopeFingerprint"],
+      "additionalProperties": false,
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" }
+      }
+    },
+    "UploadRecordingId": {
+      "type": "string",
+      "pattern": "^recording-[a-f0-9]{64}$"
+    },
+    "GetUploadsParams": {
+      "type": "object",
+      "required": ["accountScopeFingerprint"],
+      "additionalProperties": false,
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+        "offset": { "$ref": "#/$defs/SafeInteger", "default": 0 }
+      }
+    },
+    "GetUploadsRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        { "properties": { "method": { "const": "recording.getUploads" }, "params": { "$ref": "#/$defs/GetUploadsParams" } } }
+      ]
+    },
+    "RetryUploadParams": {
+      "type": "object",
+      "required": ["accountScopeFingerprint", "recordingId"],
+      "additionalProperties": false,
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+        "recordingId": { "$ref": "#/$defs/UploadRecordingId" }
+      }
+    },
+    "RetryUploadRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        { "properties": { "method": { "const": "recording.retry" }, "params": { "$ref": "#/$defs/RetryUploadParams" } } }
+      ]
+    },
+    "GetSettingsRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        { "properties": { "method": { "const": "settings.get" }, "params": { "$ref": "#/$defs/AccountScopeParams" } } }
+      ]
+    },
+    "SettingsChanges": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "calendarRemindersEnabled": { "type": "boolean" },
+        "meetingDetectionEnabled": { "type": "boolean" },
+        "soundEffectsEnabled": { "type": "boolean" }
+      }
+    },
+    "UpdateSettingsRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "settings.update" },
+            "params": {
+              "type": "object",
+              "required": ["accountScopeFingerprint", "changes"],
+              "additionalProperties": false,
+              "properties": {
+                "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+                "changes": { "$ref": "#/$defs/SettingsChanges" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "GetHomeSnapshotRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "home.getSnapshot" },
+            "params": {
+              "type": "object",
+              "required": ["accountScopeFingerprint"],
+              "additionalProperties": false,
+              "properties": {
+                "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+                "notesSource": { "enum": ["meetings", "private-notes"] },
+                "includePageBindings": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "BootstrapRecoveryStatus": { "type": "string", "enum": ["restartable", "restarting", "exhausted"] },
+    "BootstrapRecovery": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": { "status": { "$ref": "#/$defs/BootstrapRecoveryStatus" } }
+    },
+    "QuitForUpdateReason": { "type": "string", "enum": ["bootstrap-recovery"] },
+    "QuitForUpdateRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/AuthenticatedRequest" },
+        {
+          "properties": {
+            "method": { "const": "lifecycle.quitForUpdate" },
+            "params": {
+              "type": "object",
+              "required": ["expectedOwnerEpoch"],
+              "additionalProperties": false,
+              "properties": {
+                "expectedOwnerEpoch": { "$ref": "#/$defs/OpaqueIdentifier" },
+                "reason": { "$ref": "#/$defs/QuitForUpdateReason" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Request": {
+      "oneOf": [
+        { "$ref": "#/$defs/InitializeRequest" },
+        { "$ref": "#/$defs/SetClientContextRequest" },
+        { "$ref": "#/$defs/GetStateRequest" },
+        { "$ref": "#/$defs/StartRecordingRequest" },
+        { "$ref": "#/$defs/StopRecordingRequest" },
+        { "$ref": "#/$defs/GetUploadsRequest" },
+        { "$ref": "#/$defs/RetryUploadRequest" },
+        { "$ref": "#/$defs/RecheckPermissionsRequest" },
+        { "$ref": "#/$defs/RequestPermissionRequest" },
+        { "$ref": "#/$defs/OpenSystemSettingsRequest" },
+        { "$ref": "#/$defs/GetSettingsRequest" },
+        { "$ref": "#/$defs/UpdateSettingsRequest" },
+        { "$ref": "#/$defs/GetHomeSnapshotRequest" },
+        { "$ref": "#/$defs/QuitForUpdateRequest" }
+      ]
+    },
+    "Permission": {
+      "type": "object",
+      "required": ["status", "canRequest"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["granted", "promptable", "denied", "unsupported", "unknown"] },
+        "canRequest": { "type": "boolean" }
+      },
+      "if": { "properties": { "status": { "const": "promptable" } } },
+      "then": { "properties": { "canRequest": { "const": true } } },
+      "else": { "properties": { "canRequest": { "const": false } } }
+    },
+    "StartControl": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["enabled", "disabledReason"],
+          "additionalProperties": false,
+          "properties": { "enabled": { "const": true }, "disabledReason": { "type": "null" } }
+        },
+        {
+          "type": "object",
+          "required": ["enabled", "disabledReason"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "const": false },
+            "disabledReason": {
+              "enum": ["recording-active", "permission-required", "permission-denied", "companion-unavailable", "recording-unavailable", "update-in-progress"]
+            }
+          }
+        }
+      ]
+    },
+    "StopControl": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": { "enabled": { "type": "boolean" } }
+    },
+    "RecordingSession": {
+      "type": "object",
+      "required": ["id", "startedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "startedAt": { "$ref": "#/$defs/Timestamp" },
+        "meetingId": { "$ref": "#/$defs/OpaqueIdentifier" }
+      }
+    },
+    "RecordingNoticeAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "permission"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "request-permission" },
+            "permission": { "enum": ["microphone", "systemAudio"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "permission"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "open-system-settings" },
+            "permission": { "enum": ["microphone", "systemAudio"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": { "kind": { "const": "retry-stop" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": { "kind": { "const": "recheck-audio" } }
+        }
+      ]
+    },
+    "RecordingNotice": {
+      "type": "object",
+      "required": ["kind", "message", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["permission-required", "permission-denied", "recording-unavailable", "finalization-failed", "companion-unavailable"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "action": { "anyOf": [{ "$ref": "#/$defs/RecordingNoticeAction" }, { "type": "null" }] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "permission-required" } } },
+          "then": {
+            "properties": {
+              "action": { "type": "object", "properties": { "kind": { "const": "request-permission" } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "permission-denied" } } },
+          "then": {
+            "properties": {
+              "action": { "type": "object", "properties": { "kind": { "const": "open-system-settings" } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "finalization-failed" } } },
+          "then": {
+            "properties": {
+              "action": { "type": "object", "properties": { "kind": { "const": "retry-stop" } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "recording-unavailable" } } },
+          "then": { "properties": { "action": { "anyOf": [{ "type": "null" }, { "type": "object", "properties": { "kind": { "const": "recheck-audio" } } }] } } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "companion-unavailable" } } },
+          "then": { "properties": { "action": { "type": "null" } } }
+        }
+      ]
+    },
+    "AudioSourceStatus": {
+      "type": "string",
+      "enum": ["ready", "device-absent", "permission-denied", "permission-required", "unavailable"]
+    },
+    "AudioSources": {
+      "type": "object",
+      "required": ["microphone", "systemAudio", "warning"],
+      "additionalProperties": false,
+      "properties": {
+        "microphone": { "$ref": "#/$defs/AudioSourceStatus" },
+        "systemAudio": { "$ref": "#/$defs/AudioSourceStatus" },
+        "warning": { "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 256 }, { "type": "null" }] }
+      }
+    },
+    "RecordingPresentation": {
+      "type": "object",
+      "required": ["phase", "session", "controls", "permissions", "notice"],
+      "additionalProperties": false,
+      "properties": {
+        "phase": { "enum": ["idle", "starting", "recording", "stopping", "unavailable"] },
+        "session": { "anyOf": [{ "$ref": "#/$defs/RecordingSession" }, { "type": "null" }] },
+        "controls": {
+          "type": "object",
+          "required": ["start", "stop"],
+          "additionalProperties": false,
+          "properties": {
+            "start": { "$ref": "#/$defs/StartControl" },
+            "stop": { "$ref": "#/$defs/StopControl" }
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "required": ["microphone", "systemAudio"],
+          "additionalProperties": false,
+          "properties": {
+            "microphone": { "$ref": "#/$defs/Permission" },
+            "systemAudio": { "$ref": "#/$defs/Permission" }
+          }
+        },
+        "notice": { "anyOf": [{ "$ref": "#/$defs/RecordingNotice" }, { "type": "null" }] },
+        "audioSources": { "$ref": "#/$defs/AudioSources" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["audioSources"], "properties": { "controls": { "properties": { "start": { "properties": { "enabled": { "const": true } } } } } } },
+          "then": { "properties": { "audioSources": { "oneOf": [
+            { "properties": { "microphone": { "const": "ready" }, "systemAudio": { "const": "ready" } } },
+            { "properties": { "microphone": { "const": "ready" }, "systemAudio": { "const": "device-absent" } } },
+            { "properties": { "microphone": { "const": "device-absent" }, "systemAudio": { "const": "ready" } } }
+          ] } } }
+        },
+        {
+          "if": { "properties": { "controls": { "properties": { "stop": { "properties": { "enabled": { "const": true } } } } } } },
+          "then": { "properties": { "session": { "$ref": "#/$defs/RecordingSession" } } }
+        },
+        {
+          "if": { "properties": { "phase": { "const": "idle" } } },
+          "then": {
+            "properties": {
+              "session": { "type": "null" },
+              "controls": { "properties": { "stop": { "properties": { "enabled": { "const": false } } } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "phase": { "const": "starting" } } },
+          "then": {
+            "properties": {
+              "controls": {
+                "properties": {
+                  "start": { "properties": { "enabled": { "const": false } } },
+                  "stop": { "properties": { "enabled": { "const": false } } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "phase": { "const": "recording" } } },
+          "then": {
+            "properties": {
+              "session": { "$ref": "#/$defs/RecordingSession" },
+              "controls": {
+                "properties": {
+                  "start": { "properties": { "enabled": { "const": false }, "disabledReason": { "const": "recording-active" } } },
+                  "stop": { "properties": { "enabled": { "const": true } } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "phase": { "const": "stopping" } } },
+          "then": {
+            "properties": {
+              "session": { "$ref": "#/$defs/RecordingSession" },
+              "controls": {
+                "properties": {
+                  "start": { "properties": { "enabled": { "const": false }, "disabledReason": { "const": "recording-active" } } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "phase": { "const": "unavailable" } } },
+          "then": {
+            "properties": {
+              "session": { "type": "null" },
+              "controls": {
+                "properties": {
+                  "start": { "properties": { "enabled": { "const": false } } },
+                  "stop": { "properties": { "enabled": { "const": false } } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "controls": { "properties": { "start": { "properties": { "enabled": { "const": true } } } } } } },
+          "then": { "properties": { "phase": { "const": "idle" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "notice": {
+                "type": "object",
+                "properties": { "kind": { "const": "finalization-failed" } }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "phase": { "const": "stopping" },
+              "session": { "$ref": "#/$defs/RecordingSession" },
+              "controls": { "properties": { "stop": { "properties": { "enabled": { "const": true } } } } }
+            }
+          }
+        }
+      ]
+    },
+    "ReplacementAvailability": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["allowed", "blockedReason"],
+          "additionalProperties": false,
+          "properties": { "allowed": { "const": true }, "blockedReason": { "type": "null" } }
+        },
+        {
+          "type": "object",
+          "required": ["allowed", "blockedReason"],
+          "additionalProperties": false,
+          "properties": {
+            "allowed": { "const": false },
+            "blockedReason": { "enum": ["recording-active", "recording-starting", "recording-stopping", "owner-unavailable"] }
+          }
+        }
+      ]
+    },
+    "RecordingSummary": {
+      "type": "object",
+      "required": ["total", "capturing", "stopped", "waitingForAuth", "creatingStream", "streaming", "finalizing", "delivered", "blocked"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "$ref": "#/$defs/SafeInteger" },
+        "capturing": { "$ref": "#/$defs/SafeInteger" },
+        "stopped": { "$ref": "#/$defs/SafeInteger" },
+        "waitingForAuth": { "$ref": "#/$defs/SafeInteger" },
+        "creatingStream": { "$ref": "#/$defs/SafeInteger" },
+        "streaming": { "$ref": "#/$defs/SafeInteger" },
+        "finalizing": { "$ref": "#/$defs/SafeInteger" },
+        "delivered": { "$ref": "#/$defs/SafeInteger" },
+        "blocked": { "$ref": "#/$defs/SafeInteger" }
+      }
+    },
+    "UploadPhase": {
+      "enum": ["idle", "uploading", "uploaded", "needs-sign-in", "failed"]
+    },
+    "UploadFailureStage": {
+      "enum": ["session-create", "stream-resume", "audio-delivery", "finalization", "full-audio-upload", "receipt-validation", "local-recovery"]
+    },
+    "UploadFailureCategory": {
+      "enum": ["invalid-request", "invalid-credential", "authorization-changed", "buffer-full", "session-closed", "offline", "timeout", "tls", "http-rejected", "invalid-response", "protocol-violation", "cancelled", "internal", "encryption-key-missing", "decryption-failed", "database-too-new", "missing-audio", "corrupt-audio", "unsafe-audio", "invalid-receipt", "invalid-acknowledgment", "unknown"]
+    },
+    "UploadFailure": {
+      "type": "object",
+      "required": ["stage", "category", "attempt", "retryable"],
+      "additionalProperties": false,
+      "properties": {
+        "stage": { "$ref": "#/$defs/UploadFailureStage" },
+        "category": { "$ref": "#/$defs/UploadFailureCategory" },
+        "httpStatus": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "attempt": { "type": "integer", "minimum": 0, "maximum": 9999 },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "UploadItem": {
+      "type": "object",
+      "required": ["recordingId", "phase", "createdAt", "audioDurationMs", "audioBytes", "canRetry"],
+      "additionalProperties": false,
+      "properties": {
+        "recordingId": { "$ref": "#/$defs/UploadRecordingId" },
+        "phase": { "$ref": "#/$defs/UploadPhase" },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "audioDurationMs": { "$ref": "#/$defs/SafeInteger" },
+        "audioBytes": { "$ref": "#/$defs/SafeInteger" },
+        "canRetry": { "type": "boolean" },
+        "failure": { "$ref": "#/$defs/UploadFailure" },
+        "memoryOnly": { "type": "boolean" }
+      }
+    },
+    "UploadQueue": {
+      "type": "object",
+      "required": ["items", "totalCount", "nextOffset", "revision", "hasFailedUploads", "hasUploadsNeedingSignIn"],
+      "additionalProperties": false,
+      "properties": {
+        "items": { "type": "array", "maxItems": 24, "items": { "$ref": "#/$defs/UploadItem" } },
+        "totalCount": { "$ref": "#/$defs/SafeInteger" },
+        "nextOffset": { "anyOf": [{ "$ref": "#/$defs/SafeInteger" }, { "type": "null" }] },
+        "revision": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
+        "historyFailure": { "$ref": "#/$defs/UploadFailure" },
+        "hasFailedUploads": { "type": "boolean" },
+        "hasUploadsNeedingSignIn": { "type": "boolean" }
+      }
+    },
+    "UploadsResult": {
+      "type": "object",
+      "required": ["accountScopeFingerprint", "queue"],
+      "additionalProperties": false,
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+        "queue": { "$ref": "#/$defs/UploadQueue" }
+      }
+    },
+    "RetryUploadResult": {
+      "type": "object",
+      "required": ["accepted"],
+      "additionalProperties": false,
+      "properties": { "accepted": { "const": true } }
+    },
+    "EligibilityUpdateStatus": {
+      "enum": [
+        "none",
+        "warning",
+        "required"
+      ]
+    },
+    "EligibilityUpdate": {
+      "type": "object",
+      "required": [
+        "status",
+        "currentVersion",
+        "minimumVersion",
+        "warningVersion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/EligibilityUpdateStatus"
+        },
+        "currentVersion": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "minimumVersion": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "warningVersion": {
+          "type": "string",
+          "maxLength": 128
+        }
+      }
+    },
+    "EligibilityUpdates": {
+      "type": "object",
+      "required": [
+        "app",
+        "plugin",
+        "codex"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "$ref": "#/$defs/EligibilityUpdate"
+        },
+        "plugin": {
+          "$ref": "#/$defs/EligibilityUpdate"
+        },
+        "codex": {
+          "$ref": "#/$defs/EligibilityUpdate"
+        }
+      }
+    },
+    "EligibilityCapacity": {
+      "enum": [
+        "off",
+        "warning",
+        "blocked"
+      ]
+    },
+    "EligibilityAvailability": {
+      "enum": [
+        "available",
+        "coming_soon"
+      ]
+    },
+    "EligibilityReason": {
+      "enum": [
+        "capacity",
+        "availability",
+        "app_update",
+        "codex_update",
+        "plugin_update",
+        "context_unavailable"
+      ]
+    },
+    "EligibilityClient": {
+      "type": "object",
+      "required": [
+        "pluginVersion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pluginVersion": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "codexVersion": {
+          "type": "string",
+          "maxLength": 128
+        }
+      }
+    },
+    "MeetingsEligibilityDecision": {
+      "type": "object",
+      "required": [
+        "canUseMeetings",
+        "serviceCapacity",
+        "pluginAvailability",
+        "requiredUpdates",
+        "platform",
+        "client"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "canUseMeetings": {
+          "type": "boolean"
+        },
+        "reason": {
+          "$ref": "#/$defs/EligibilityReason"
+        },
+        "serviceCapacity": {
+          "$ref": "#/$defs/EligibilityCapacity"
+        },
+        "pluginAvailability": {
+          "$ref": "#/$defs/EligibilityAvailability"
+        },
+        "requiredUpdates": {
+          "$ref": "#/$defs/EligibilityUpdates"
+        },
+        "platform": {
+          "enum": [
+            "macos",
+            "windows"
+          ]
+        },
+        "client": {
+          "$ref": "#/$defs/EligibilityClient"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "canUseMeetings": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "reason"
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "reason"
+            ]
+          }
+        }
+      ]
+    },
+    "EligibilityStatus": {
+      "enum": [
+        "unresolved",
+        "resolved",
+        "error"
+      ]
+    },
+    "MeetingsEligibility": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/EligibilityStatus"
+        },
+        "decision": {
+          "$ref": "#/$defs/MeetingsEligibilityDecision"
+        }
+      },
+      "description": "Native accepted policy only, independent of audio and recording state. Error may retain a last accepted decision for the same authenticated account. Never performs network I/O when read.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "resolved"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "unresolved"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "decision"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "CompanionState": {
+      "type": "object",
+      "required": ["revision", "accountScopeFingerprint", "recording", "lifecycle"],
+      "additionalProperties": false,
+      "properties": {
+        "revision": { "$ref": "#/$defs/SafeInteger" },
+        "accountScopeFingerprint": { "anyOf": [{ "$ref": "#/$defs/AccountScopeFingerprint" }, { "type": "null" }] },
+        "recording": { "$ref": "#/$defs/RecordingPresentation" },
+        "recordingSummary": { "$ref": "#/$defs/RecordingSummary" },
+        "meetingsEligibility": { "$ref": "#/$defs/MeetingsEligibility" },
+        "lifecycle": {
+          "type": "object",
+          "required": ["replacement"],
+          "additionalProperties": false,
+          "properties": {
+            "replacement": { "$ref": "#/$defs/ReplacementAvailability" },
+            "bootstrapRecovery": { "$ref": "#/$defs/BootstrapRecovery" }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "required": ["meetingsEligibility"], "properties": { "meetingsEligibility": { "required": ["decision"] } } }, "then": { "properties": { "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" } } } },
+        {
+          "if": { "properties": { "recording": { "properties": { "phase": { "const": "starting" } } } } },
+          "then": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "replacement": {
+                    "properties": { "allowed": { "const": false }, "blockedReason": { "const": "recording-starting" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "recording": { "properties": { "phase": { "const": "recording" } } } } },
+          "then": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "replacement": {
+                    "properties": { "allowed": { "const": false }, "blockedReason": { "const": "recording-active" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "recording": { "properties": { "phase": { "const": "stopping" } } } } },
+          "then": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "replacement": {
+                    "properties": { "allowed": { "const": false }, "blockedReason": { "const": "recording-stopping" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "recording": { "properties": { "phase": { "const": "unavailable" } } } } },
+          "then": {
+            "properties": {
+              "lifecycle": {
+                "properties": {
+                  "replacement": {
+                    "properties": { "allowed": { "const": false }, "blockedReason": { "const": "owner-unavailable" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "lifecycle": { "required": ["bootstrapRecovery"] } } },
+          "then": {
+            "properties": {
+              "recordingSummary": { "properties": { "capturing": { "const": 0 } } },
+              "recording": {
+                "properties": {
+                  "phase": { "const": "unavailable" },
+                  "session": { "type": "null" },
+                  "controls": {
+                    "properties": {
+                      "start": { "properties": { "enabled": { "const": false } } },
+                      "stop": { "properties": { "enabled": { "const": false } } }
+                    }
+                  }
+                }
+              },
+              "lifecycle": { "properties": { "replacement": { "properties": { "allowed": { "const": false } } } } }
+            }
+          }
+        }
+      ]
+    },
+    "InitializeResult": {
+      "type": "object",
+      "required": ["protocolVersion", "ownerEpoch", "companionVersion", "capabilities", "state"],
+      "additionalProperties": false,
+      "properties": {
+        "protocolVersion": { "const": 2 },
+        "ownerEpoch": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "companionVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "capabilities": { "$ref": "#/$defs/CapabilityList" },
+        "state": { "$ref": "#/$defs/CompanionState" }
+      }
+    },
+    "SettingsState": {
+      "type": "object",
+      "required": ["accountScopeFingerprint", "revision", "status", "canUpdate", "values", "availability"],
+      "additionalProperties": false,
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+        "revision": { "$ref": "#/$defs/SafeInteger" },
+        "status": { "enum": ["ready", "saving", "unavailable"] },
+        "canUpdate": { "type": "boolean" },
+        "values": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "calendarRemindersEnabled": { "type": "boolean" },
+            "meetingDetectionEnabled": { "type": "boolean" },
+            "soundEffectsEnabled": { "type": "boolean" }
+          }
+        },
+        "availability": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reminders": { "type": "boolean" },
+            "meetingDetection": { "type": "boolean" },
+            "soundEffects": { "type": "boolean" }
+          }
+        }
+      },
+      "if": { "properties": { "status": { "enum": ["saving", "unavailable"] } } },
+      "then": { "properties": { "canUpdate": { "const": false } } }
+    },
+    "MeetingUrl": {
+      "type": "string",
+      "minLength": 9,
+      "maxLength": 2048,
+      "pattern": "^https://"
+    },
+    "CalendarEvent": {
+      "type": "object",
+      "required": ["id", "title", "startAtMillis", "endAtMillis", "meetingUrl", "responseStatus"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Exact upstream hosted Calendar event identifier; never replace it with a synthetic or hashed ID."
+        },
+        "title": { "type": "string", "maxLength": 512 },
+        "startAtMillis": { "$ref": "#/$defs/SafeInteger" },
+        "endAtMillis": { "$ref": "#/$defs/SafeInteger" },
+        "meetingUrl": { "anyOf": [{ "$ref": "#/$defs/MeetingUrl" }, { "type": "null" }] },
+        "responseStatus": { "enum": ["accepted", "tentative", "declined", "unknown"] }
+      }
+    },
+    "CalendarSnapshot": {
+      "type": "object",
+      "required": ["fetchedAt", "generatedAt", "truncated", "stale", "events"],
+      "additionalProperties": false,
+      "properties": {
+        "fetchedAt": { "$ref": "#/$defs/Timestamp" },
+        "generatedAt": { "$ref": "#/$defs/Timestamp" },
+        "truncated": { "type": "boolean" },
+        "stale": { "type": "boolean" },
+        "events": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/CalendarEvent" } }
+      }
+    },
+    "MeetingNote": {
+      "type": "object",
+      "required": ["id", "title", "startedAt", "endedAt", "status", "isEmpty", "numShareRecipients"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "title": { "type": "string", "maxLength": 512 },
+        "startedAt": { "$ref": "#/$defs/Timestamp" },
+        "endedAt": { "anyOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] },
+        "status": { "enum": ["ready", "joining", "waiting", "recording", "uploading", "processing", "failed"] },
+        "isEmpty": { "type": "boolean" },
+        "numShareRecipients": { "$ref": "#/$defs/SafeInteger" },
+        "summaryPageId": { "type": "string", "pattern": "^page_[0-9a-f]{32}$" },
+        "recordSource": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "devicePlatform": { "enum": ["ios", "android"] }
+      }
+    },
+    "NotesSnapshot": {
+      "type": "object",
+      "required": ["fetchedAt", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["meetings", "private-notes"] },
+        "fetchedAt": { "$ref": "#/$defs/Timestamp" },
+        "items": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/MeetingNote" } }
+      }
+    },
+    "HomeSnapshot": {
+      "type": "object",
+      "required": ["accountScopeFingerprint", "calendar", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" },
+        "calendar": { "anyOf": [{ "$ref": "#/$defs/CalendarSnapshot" }, { "type": "null" }] },
+        "notes": { "anyOf": [{ "$ref": "#/$defs/NotesSnapshot" }, { "type": "null" }] }
+      }
+    },
+    "RecordingCompletion": {
+      "type": "object",
+      "required": ["sessionId", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "sessionId": { "$ref": "#/$defs/OpaqueIdentifier" },
+        "outcome": { "const": "saved" }
+      }
+    },
+    "StopRecordingResult": {
+      "type": "object",
+      "required": ["state"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "$ref": "#/$defs/CompanionState" },
+        "completion": { "$ref": "#/$defs/RecordingCompletion" }
+      }
+    },
+    "QuitForUpdateResult": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["disposition", "handoffId", "ownerEpoch", "captureAdmissionFenced"],
+          "additionalProperties": false,
+          "properties": {
+            "disposition": { "const": "accepted" },
+            "handoffId": { "$ref": "#/$defs/OpaqueIdentifier" },
+            "ownerEpoch": { "$ref": "#/$defs/OpaqueIdentifier" },
+            "captureAdmissionFenced": { "const": true }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["disposition", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "disposition": { "const": "blocked" },
+            "reason": { "enum": ["recording-active", "recording-starting", "recording-stopping", "owner-unavailable"] }
+          }
+        }
+      ]
+    },
+    "SuccessResult": {
+      "oneOf": [
+        { "$ref": "#/$defs/InitializeResult" },
+        { "$ref": "#/$defs/CompanionState" },
+        { "$ref": "#/$defs/SettingsState" },
+        { "$ref": "#/$defs/HomeSnapshot" },
+        { "$ref": "#/$defs/StopRecordingResult" },
+        { "$ref": "#/$defs/UploadsResult" },
+        { "$ref": "#/$defs/RetryUploadResult" },
+        { "$ref": "#/$defs/QuitForUpdateResult" }
+      ]
+    },
+    "ErrorKind": {
+      "enum": [
+        "unsupported-protocol",
+        "unsupported-capability",
+        "invalid-arguments",
+        "owner-changed",
+        "account-changed",
+        "session-mismatch",
+        "recording-active",
+        "recording-unavailable",
+        "permission-required",
+        "permission-denied",
+        "settings-unavailable",
+        "update-blocked",
+        "operation-cancelled",
+        "operation-ambiguous"
+      ]
+    },
+    "JsonRpcError": {
+      "type": "object",
+      "required": ["code", "message", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "integer", "minimum": -32768, "maximum": -32000 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "data": {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": { "kind": { "$ref": "#/$defs/ErrorKind" } }
+        }
+      }
+    },
+    "Response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["jsonrpc", "id", "result"],
+          "additionalProperties": false,
+          "properties": {
+            "jsonrpc": { "const": "2.0" },
+            "id": { "$ref": "#/$defs/OpaqueIdentifier" },
+            "result": { "$ref": "#/$defs/SuccessResult" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["jsonrpc", "id", "error"],
+          "additionalProperties": false,
+          "properties": {
+            "jsonrpc": { "const": "2.0" },
+            "id": { "$ref": "#/$defs/OpaqueIdentifier" },
+            "error": { "$ref": "#/$defs/JsonRpcError" }
+          }
+        }
+      ]
+    },
+    "StateChangedNotification": {
+      "type": "object",
+      "required": ["jsonrpc", "method", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "method": { "const": "companion.stateChanged" },
+        "params": { "$ref": "#/$defs/CompanionState" }
+      }
+    },
+    "RecordingCompletedNotification": {
+      "type": "object",
+      "required": ["jsonrpc", "method", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "method": { "const": "recording.completed" },
+        "params": { "$ref": "#/$defs/RecordingCompletion" }
+      }
+    },
+    "WorkspaceChangedNotification": {
+      "type": "object",
+      "required": ["jsonrpc", "method", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "method": { "const": "workspace.changed" },
+        "params": {
+          "type": "object",
+          "required": ["resource", "accountScopeFingerprint"],
+          "additionalProperties": false,
+          "properties": {
+            "resource": { "enum": ["calendar", "notes"] },
+            "accountScopeFingerprint": { "$ref": "#/$defs/AccountScopeFingerprint" }
+          }
+        }
+      }
+    },
+    "Notification": {
+      "oneOf": [
+        { "$ref": "#/$defs/StateChangedNotification" },
+        { "$ref": "#/$defs/RecordingCompletedNotification" },
+        { "$ref": "#/$defs/WorkspaceChangedNotification" }
+      ]
+    }
+  }
+}

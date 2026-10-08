@@ -1,0 +1,116 @@
+{
+  "name": "biohub-esm",
+  "version": "0.4.3",
+  "description": "Understand proteins with ESM: explore mutation landscapes, interpret learned features, predict and view structures, and discover relatives.",
+  "author": {
+    "name": "Chan Zuckerberg Biohub, Inc.",
+    "email": "support@biohub.org",
+    "url": "https://biohub.org/"
+  },
+  "homepage": "https://biohub.ai/esm/protein",
+  "license": "MIT",
+  "keywords": [
+    "biohub",
+    "esm",
+    "esmc",
+    "esmfold2",
+    "esm-atlas",
+    "protein-language-model",
+    "mutation-landscape",
+    "sparse-autoencoder",
+    "multiple-sequence-alignment",
+    "structure-prediction",
+    "computational-biology",
+    "modal",
+    "hugging-face"
+  ],
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "repository": "https://github.com/Biohub/skills",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Biohub ESM",
+        "shortDescription": "Understand proteins with ESM",
+        "longDescription": "Biohub ESM helps you understand proteins from a name, sequence, or file: explore mutation landscapes, interpret what ESMC sees, predict and view all-atom structures, and discover related proteins. It chooses the right ESM workflow, preserves confidence and provenance, and presents results automatically. It also supports MSA-guided and modified-complex workflows, and private or large-scale compute routing. Supported protein sequences use the Biohub MCP viewer. Complexes and exact prediction files use a separate molecular viewer when available, with an agent-generated static rendering as a last resort where local rendering tools are available. Managed inference requires a Biohub API key and may incur usage charges. Predictions support research hypotheses, not experimental conclusions.",
+        "developerName": "Chan Zuckerberg Biohub, Inc.",
+        "category": "Scientific Research",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://biohub.ai/esm/protein",
+        "privacyPolicyURL": "https://biohub.org/privacy-policy/",
+        "termsOfServiceURL": "https://biohub.org/terms-of-use/",
+        "supportURL": "https://biohub.org/contact/",
+        "brandColor": "#6E4FF9",
+        "composerIcon": "./assets/app-icon.png",
+        "logo": "./assets/app-icon.png",
+        "defaultPrompt": [
+          "Map the mutational landscape of PETase and show me where it is most constrained or tolerant.",
+          "Show me what ESMC has learned about ATP synthase and map the strongest features onto its structure.",
+          "Model how a modified GLP-1 peptide with a lipid linker might engage GLP-1R, then show me the complex."
+        ],
+        "brandColorDark": "#6E4FF9"
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Resolve a UniParc accession and explain its three strongest SAE features.",
+              "prompt": "Look up UniParc UPI00291807DD in the ESM Atlas. Report its predicted structure confidence and explain its three strongest SAE features.",
+              "tools_triggered": "esm_atlas_lookup_accession, esm_atlas_get_protein_details",
+              "expected_behavior": "Resolves UPI00291807DD to a 108-residue UniParc sequence. Reports pTM of about 0.84 and mean pLDDT of about 0.88 as computational predictions. Names the three strongest features with their returned labels: 10026 PPIase catalytic loop detector, 16221 FKBP PPIase core domain, and 14731 Antiparallel \u03b2-hairpin motif. Describes the features as learned model properties, not experimental evidence."
+            },
+            {
+              "description": "Resolve a UniProt accession.",
+              "prompt": "Find human hemoglobin alpha, UniProt P69905, and report its name, organism, and sequence length.",
+              "tools_triggered": "esm_atlas_search_uniprot",
+              "expected_behavior": "Returns P69905, Hemoglobin subunit alpha, Homo sapiens, 142 residues."
+            },
+            {
+              "description": "Find similar proteins, show the top hit, and judge how well each neighbor is annotated.",
+              "prompt": "Find the 10 proteins most similar to T4 lysozyme in the ESM Atlas, show the top hit, and check the cluster annotation of every neighbor to tell me which are well annotated: MNIFEMLRIDERLRLKIYKDTEGYYTIGIGHLLTKSPSLNAAKSELDKAIGRNCNGVITKDEAEKLFNQDVDAAVRGILRNAKLKPVYDSLDAVRRCALINMVFQMGETGVAGFTNSLRMLQQKRWDEAAVNLAKSIWYNQTPNRAKRVITTFRTGTWDAYKNL",
+              "tools_triggered": "esm_atlas_search_similar_protein_clusters, ui_show_protein_structure, esm_atlas_get_cluster_info",
+              "expected_behavior": "Lists the similarity hits in returned order; the current ESM Atlas returns 7 of the 10 requested, led by MGYP003152722897. Shows the top hit's structure with its preview image. Uses cluster info for every hit to report that all 7 clusters carry Phage lysozyme (PF00959), that six are 73 to 100% characterized, and that cluster 2921978187 is the least annotated at 24%. Explains that similarity compares learned SAE features, not sequence identity."
+            },
+            {
+              "description": "Explain one SAE feature.",
+              "prompt": "Explain ESM Atlas SAE feature 13, including its activation pattern, example protein families, and nearest decoder features.",
+              "tools_triggered": "esm_atlas_get_sae_feature_detail",
+              "expected_behavior": "Reports feature 13 with its label N-terminal \u03b2-strand block. Summarizes its activation over an N-terminal block of residues. Lists example families such as phage capsid coat proteins and SecB chaperones. Lists the nearest decoder features 14228, 5157, 5301, 7807, and 6038."
+            },
+            {
+              "description": "Show a stored structure as a cartoon colored by confidence with one highlighted residue.",
+              "prompt": "Show the structure of UniParc UPI00291807DD as a cartoon colored by confidence, and highlight Trp60 on chain A.",
+              "tools_triggered": "esm_atlas_lookup_accession, ui_show_protein_structure",
+              "expected_behavior": "Resolves the accession to its sequence, then shows the ESM Atlas structure as a cartoon colored by confidence with residue 60 (TRP) highlighted. Shows the preview image and, where the client supports it, the interactive viewer. Describes the structure as a computational prediction, not an experimental structure."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not open a local structure file. Expected: Explains that the app has no tool that reads local or uploaded files, and that its structure view takes a protein sequence, not a structure file or coordinates. Does not call ui_show_protein_structure and does not claim to show the file.",
+              "prompt": "Using only the public Biohub MCP, display the exact coordinates from my local prediction.pdb. Do not look up or refold its sequence."
+            },
+            {
+              "description": "Do not score mutations. Expected: Explains that the app cannot score mutations or return log-likelihoods. Does not produce a score and does not substitute SAE features or similarity.",
+              "prompt": "Using only this public Biohub MCP connection, calculate an ESMC W43F mutation log-likelihood score for this GB1 sequence: MTYKLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDDATKTFTVTE"
+            },
+            {
+              "description": "Do not save a sequence or create a share link. Expected: Explains that the app saves nothing and creates no links, so it cannot store the sequence or give a link to share. Does not claim that anything was saved or that a link exists. It may offer other help in this conversation.",
+              "prompt": "Using only the public Biohub MCP, save this GB1 sequence to my Biohub account and give me a link I can share with my team: MTYKLILNGKTLKGETTTEAVDAATAEKVFKQYANDNGVDGEWTYDDATKTFTVTE"
+            }
+          ]
+        },
+        "commerce_description": "This plugin does not sell products or process payments or purchases.",
+        "demo_recording_url": "https://drive.google.com/file/d/1JGTQ9Rg6KqjHIt80T0MTyJ0SxB6viyQf/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "Updates Biohub ESM to 0.4.3: replaces inaccessible Git dependencies with pinned PyPI wheels; includes the public Biohub MCP for ESM Atlas and sequence structure views; restores exact-artifact presentation for complexes and allows an agent-generated rendering image only as a last resort when the external molecular viewer is unavailable. Preserves all components, provenance, and chemistry warnings. Removes the unsupported Binder Design skill.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+# Public Listing
+
+## Name
+Platform Engineering Copilot
+
+## Subtitle
+Build reliable cloud platforms
+
+## Category
+Developer Tools
+
+## Description
+Platform Engineering Copilot helps you design, review, troubleshoot, and operate reliable cloud platforms across Kubernetes, containers, infrastructure as code, CI/CD, GitOps, networking, IAM, observability, SRE, and developer-platform workflows. It can review platform architecture, diagnose deployment and cluster incidents, design safer Terraform changes, reason about Kubernetes probes, resources, disruption budgets, and security controls, define SLOs and error budgets, improve telemetry and incident response, and design self-service golden paths that reduce developer cognitive load. It prioritizes reliability, least privilege, reversible changes, blast-radius control, cost awareness, and evidence before production actions.
+
+## Capabilities
+- Design cloud and internal developer platforms around reliability, security, cost, and developer experience
+- Troubleshoot Kubernetes, containers, networking, DNS, ingress, scheduling, rollout, and runtime incidents
+- Review Kubernetes probes, requests, limits, disruption budgets, autoscaling, and workload availability
+- Design safer Terraform plans, modules, state workflows, drift controls, approvals, and rollback strategies
+- Plan CI/CD and GitOps workflows with immutable artifacts, environment promotion, and deployment guardrails
+- Review IAM, secrets, workload identity, network boundaries, and least-privilege platform controls
+- Define SLOs, SLIs, error budgets, alerts, runbooks, and incident-response workflows
+- Design OpenTelemetry-based traces, metrics, logs, correlation, and actionable observability
+- Create platform golden paths, self-service workflows, templates, scorecards, and paved-road abstractions
+- Compare AWS, Azure, GCP, Kubernetes, and platform trade-offs using current primary documentation
+
+## Starter prompts
+1. Review this cloud or Kubernetes architecture and identify the highest-risk platform issues.
+2. Debug this deployment or cluster incident from the logs, events, and configuration.
+3. Design a safer Terraform, CI/CD, or GitOps rollout plan for this change.

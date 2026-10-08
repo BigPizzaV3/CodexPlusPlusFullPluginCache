@@ -1,0 +1,450 @@
+<div id="model-tradeoff-map-v1">
+  <style>
+    #model-tradeoff-map-v1 {
+      color: var(--foreground);
+      width: 100%;
+    }
+
+    #model-tradeoff-map-v1 .tm-stack {
+      display: grid;
+      gap: 1rem;
+    }
+
+    #model-tradeoff-map-v1 .tm-evidence {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    #model-tradeoff-map-v1 .tm-benchmarks {
+      display: grid;
+      gap: 0.875rem;
+    }
+
+    #model-tradeoff-map-v1 .tm-bench-row {
+      display: grid;
+      grid-template-columns: minmax(10rem, 1.25fr) minmax(12rem, 3fr) minmax(6.5rem, auto);
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    #model-tradeoff-map-v1 .tm-bench-label {
+      min-width: 0;
+    }
+
+    #model-tradeoff-map-v1 .tm-bench-value {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    #model-tradeoff-map-v1 .tm-track {
+      display: block;
+      width: 100%;
+      min-height: 1.75rem;
+      overflow: visible;
+    }
+
+    #model-tradeoff-map-v1 .tm-track-line {
+      stroke: var(--border);
+      stroke-width: 2;
+    }
+
+    #model-tradeoff-map-v1 .tm-track-sol {
+      stroke: var(--muted-foreground);
+      stroke-width: 2;
+    }
+
+    #model-tradeoff-map-v1 .tm-track-selected {
+      fill: var(--viz-series-1);
+      stroke: var(--background);
+      stroke-width: 2;
+      transition: cx 220ms ease;
+    }
+
+    #model-tradeoff-map-v1 .tm-track-missing {
+      stroke: var(--muted-foreground);
+      stroke-width: 2;
+      stroke-dasharray: 4 4;
+    }
+
+    #model-tradeoff-map-v1 .tm-source-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    @media (max-width: 540px) {
+      #model-tradeoff-map-v1 .tm-bench-row {
+        grid-template-columns: 1fr auto;
+        gap: 0.375rem 0.75rem;
+      }
+
+      #model-tradeoff-map-v1 .tm-track {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #model-tradeoff-map-v1 .tm-track-selected {
+        transition: none;
+      }
+    }
+  </style>
+
+  <div class="tm-stack">
+    <div class="viz-controls" aria-label="Configuration">
+      <label class="form-label" for="tm-model">
+        Model
+        <select class="form-select" id="tm-model">
+          <option value="gpt-5.6-sol">GPT-5.6 Sol</option>
+          <option value="gpt-5.6-terra" selected>GPT-5.6 Terra</option>
+          <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+          <option value="gpt-5.5">GPT-5.5</option>
+          <option value="gpt-5.3-codex-spark">GPT-5.3 Codex Spark</option>
+        </select>
+      </label>
+
+      <label class="form-label" for="tm-effort">
+        Reasoning effort
+        <select class="form-select" id="tm-effort">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high" selected>High</option>
+          <option value="xhigh">Extra high</option>
+          <option value="max">Max</option>
+        </select>
+      </label>
+
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="tm-fast">
+        <label class="form-check-label" for="tm-fast">Fast mode</label>
+      </div>
+    </div>
+
+    <div class="tm-evidence" aria-label="Evidence coverage">
+      <span class="viz-badge">Model · published numbers</span>
+      <span class="viz-badge">Fast · published multiplier</span>
+      <span class="viz-badge">Effort · one domain matrix</span>
+    </div>
+
+    <div class="viz-grid" aria-live="polite">
+      <div class="card viz-stat">
+        <div class="text-muted">Coding signal</div>
+        <div class="viz-stat-value" id="tm-quality-value">77.4</div>
+        <div class="text-small" id="tm-quality-context">−2.6 points vs Sol</div>
+      </div>
+
+      <div class="card viz-stat">
+        <div class="text-muted">Published speed</div>
+        <div class="viz-stat-value" id="tm-speed-value">3 / 5</div>
+        <div class="text-small" id="tm-speed-context">Standard service tier</div>
+      </div>
+
+      <div class="card viz-stat">
+        <div class="text-muted">API list price / 1M</div>
+        <div class="viz-stat-value" id="tm-price-value">$2.50 / $15</div>
+        <div class="text-small" id="tm-price-context">input / output · 50% below Sol</div>
+      </div>
+    </div>
+
+    <div class="card" aria-live="polite">
+      <div id="tm-effort-detail">
+        High suits difficult work with multiple steps, sources, or tradeoffs.
+      </div>
+      <div class="text-small" id="tm-effort-example">GeneBench-Pro example: Terra high scored 16.2% with 22.2k average tokens — +2.6 points and 1.40× tokens versus Terra medium.</div>
+      <div class="text-small text-muted">Ultra is a parallel multi-agent mode, not another reasoning-effort notch.</div>
+    </div>
+
+    <section aria-labelledby="tm-bench-title">
+      <div class="viz-row">
+        <h3 id="tm-bench-title">Release benchmark profile</h3>
+        <span class="text-small text-muted">Sol marker │ selected dot ●</span>
+      </div>
+
+      <div class="tm-benchmarks" id="tm-benchmarks">
+        <div class="tm-bench-row" data-benchmark="coding">
+          <div class="tm-bench-label">
+            <div>AA Coding Agent Index</div>
+            <div class="text-small text-muted">index points</div>
+          </div>
+          <svg class="tm-track" viewBox="0 0 100 16" preserveAspectRatio="none" role="img" aria-label="Artificial Analysis Coding Agent Index comparison">
+            <line class="tm-track-line" x1="2" y1="8" x2="98" y2="8"></line>
+            <line class="tm-track-sol" x1="78.8" y1="2" x2="78.8" y2="14"></line>
+            <circle class="tm-track-selected" cx="76.304" cy="8" r="4"></circle>
+          </svg>
+          <div class="tm-bench-value">
+            <span data-role="selected-value">77.4</span>
+            <span class="text-small text-muted" data-role="delta">−2.6</span>
+          </div>
+        </div>
+
+        <div class="tm-bench-row" data-benchmark="terminal">
+          <div class="tm-bench-label">
+            <div>Terminal-Bench 2.1</div>
+            <div class="text-small text-muted">pass rate</div>
+          </div>
+          <svg class="tm-track" viewBox="0 0 100 16" preserveAspectRatio="none" role="img" aria-label="Terminal-Bench 2.1 comparison">
+            <line class="tm-track-line" x1="2" y1="8" x2="98" y2="8"></line>
+            <line class="tm-track-sol" x1="87.248" y1="2" x2="87.248" y2="14"></line>
+            <circle class="tm-track-selected" cx="85.904" cy="8" r="4"></circle>
+          </svg>
+          <div class="tm-bench-value">
+            <span data-role="selected-value">87.4%</span>
+            <span class="text-small text-muted" data-role="delta">−1.4</span>
+          </div>
+        </div>
+
+        <div class="tm-bench-row" data-benchmark="agents">
+          <div class="tm-bench-label">
+            <div>Agents’ Last Exam</div>
+            <div class="text-small text-muted">score</div>
+          </div>
+          <svg class="tm-track" viewBox="0 0 100 16" preserveAspectRatio="none" role="img" aria-label="Agents' Last Exam comparison">
+            <line class="tm-track-line" x1="2" y1="8" x2="98" y2="8"></line>
+            <line class="tm-track-sol" x1="52.592" y1="2" x2="52.592" y2="14"></line>
+            <circle class="tm-track-selected" cx="50.384" cy="8" r="4"></circle>
+          </svg>
+          <div class="tm-bench-value">
+            <span data-role="selected-value">50.4%</span>
+            <span class="text-small text-muted" data-role="delta">−2.3</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-small text-muted" id="tm-benchmark-note">
+        OpenAI release results are model-level reference points, not a prediction for the selected effort or Fast mode.
+      </div>
+    </section>
+
+    <div class="viz-row">
+      <button type="button" class="btn btn-primary" id="tm-measure">Measure this on my task</button>
+      <div class="tm-source-row text-small">
+        <a href="https://openai.com/index/gpt-5-6/" target="_blank" rel="noreferrer">Benchmarks</a>
+        <a href="https://learn.chatgpt.com/docs/models" target="_blank" rel="noreferrer">Model guidance</a>
+        <a href="https://learn.chatgpt.com/docs/agent-configuration/speed" target="_blank" rel="noreferrer">Speed</a>
+        <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noreferrer">API pricing</a>
+        <a href="https://cdn.openai.com/pdf/21938268-21af-442f-af93-3b2249afb241/genebench-pro.pdf" target="_blank" rel="noreferrer">Effort matrix</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById("model-tradeoff-map-v1");
+      if (!root) return;
+
+      const models = {
+        "gpt-5.6-sol": {
+          label: "GPT-5.6 Sol",
+          speed: 2,
+          input: 5,
+          output: 30,
+          fastCredit: 2.5,
+          fast: true,
+          benchmarks: { coding: 80, terminal: 88.8, agents: 52.7 },
+          geneBench: {
+            low: { score: 14.4, tokens: 5.6 },
+            medium: { score: 22.5, tokens: 14.4 },
+            high: { score: 24.4, tokens: 19.5 },
+            xhigh: { score: 26.8, tokens: 25.7 },
+            max: { score: 28.7, tokens: 33.2 }
+          }
+        },
+        "gpt-5.6-terra": {
+          label: "GPT-5.6 Terra",
+          speed: 3,
+          input: 2.5,
+          output: 15,
+          fastCredit: 2.5,
+          fast: true,
+          benchmarks: { coding: 77.4, terminal: 87.4, agents: 50.4 },
+          geneBench: {
+            low: { score: 6.5, tokens: 5.5 },
+            medium: { score: 13.6, tokens: 15.9 },
+            high: { score: 16.2, tokens: 22.2 },
+            xhigh: { score: 18.8, tokens: 31.1 },
+            max: { score: 23.3, tokens: 54.3 }
+          }
+        },
+        "gpt-5.6-luna": {
+          label: "GPT-5.6 Luna",
+          speed: 4,
+          input: 1,
+          output: 6,
+          fastCredit: 2.5,
+          fast: true,
+          benchmarks: { coding: 74.6, terminal: 84.7, agents: 50.3 },
+          geneBench: {
+            low: { score: 2.3, tokens: 3.6 },
+            medium: { score: 4.7, tokens: 15.6 },
+            high: { score: 8, tokens: 32.3 },
+            xhigh: { score: 10.8, tokens: 53.1 },
+            max: { score: 16.5, tokens: 118.2 }
+          }
+        },
+        "gpt-5.5": {
+          label: "GPT-5.5",
+          speed: 3,
+          input: 5,
+          output: 30,
+          fastCredit: 2.5,
+          fast: true,
+          benchmarks: { coding: 76.4, terminal: 85.6, agents: 46.9 },
+          geneBench: null
+        },
+        "gpt-5.3-codex-spark": {
+          label: "GPT-5.3 Codex Spark",
+          speed: 5,
+          input: null,
+          output: null,
+          fastCredit: null,
+          fast: false,
+          benchmarks: { coding: null, terminal: null, agents: null },
+          geneBench: null
+        }
+      };
+
+      const effortCopy = {
+        low: "Low suits quick, well-scoped work.",
+        medium: "Medium balances speed and depth for work that needs more planning.",
+        high: "High suits difficult work with multiple steps, sources, or tradeoffs.",
+        xhigh: "Extra high gives difficult work more room for analysis and checking.",
+        max: "Max gives the model the most single-agent reasoning time for the hardest quality-first work."
+      };
+
+      const modelSelect = root.querySelector("#tm-model");
+      const effortSelect = root.querySelector("#tm-effort");
+      const fastSwitch = root.querySelector("#tm-fast");
+      const qualityValue = root.querySelector("#tm-quality-value");
+      const qualityContext = root.querySelector("#tm-quality-context");
+      const speedValue = root.querySelector("#tm-speed-value");
+      const speedContext = root.querySelector("#tm-speed-context");
+      const priceValue = root.querySelector("#tm-price-value");
+      const priceContext = root.querySelector("#tm-price-context");
+      const effortDetail = root.querySelector("#tm-effort-detail");
+      const effortExample = root.querySelector("#tm-effort-example");
+      const benchmarkNote = root.querySelector("#tm-benchmark-note");
+      const measureButton = root.querySelector("#tm-measure");
+      const sol = models["gpt-5.6-sol"];
+
+      const formatNumber = value => Number.isInteger(value) ? String(value) : value.toFixed(1);
+      const formatMoney = value => value < 10 ? `$${value.toFixed(2)}` : `$${value.toFixed(0)}`;
+      const signed = value => {
+        if (Math.abs(value) < 0.05) return "same as Sol";
+        return `${value > 0 ? "+" : "−"}${Math.abs(value).toFixed(1)} points vs Sol`;
+      };
+
+      const position = value => 2 + (value / 100) * 96;
+
+      function updateBenchmarkRow(key, selected) {
+        const row = root.querySelector(`[data-benchmark="${key}"]`);
+        const circle = row.querySelector(".tm-track-selected");
+        const selectedValue = row.querySelector('[data-role="selected-value"]');
+        const delta = row.querySelector('[data-role="delta"]');
+        const value = selected.benchmarks[key];
+        const baseline = sol.benchmarks[key];
+        const suffix = key === "coding" ? "" : "%";
+
+        if (value === null) {
+          circle.style.display = "none";
+          selectedValue.textContent = "Not published";
+          delta.textContent = "";
+          return;
+        }
+
+        circle.style.display = "";
+        circle.setAttribute("cx", String(position(value)));
+        selectedValue.textContent = `${formatNumber(value)}${suffix}`;
+        const difference = value - baseline;
+        delta.textContent = Math.abs(difference) < 0.05
+          ? "same"
+          : `${difference > 0 ? "+" : "−"}${Math.abs(difference).toFixed(1)}`;
+      }
+
+      function update() {
+        const selected = models[modelSelect.value];
+        const effort = effortSelect.value;
+
+        fastSwitch.disabled = !selected.fast;
+        if (!selected.fast) fastSwitch.checked = false;
+        const isFast = fastSwitch.checked && selected.fast;
+
+        const coding = selected.benchmarks.coding;
+        if (coding === null) {
+          qualityValue.textContent = "Not published";
+          qualityContext.textContent = "OpenAI labels it less capable";
+        } else {
+          qualityValue.textContent = formatNumber(coding);
+          qualityContext.textContent = signed(coding - sol.benchmarks.coding);
+        }
+
+        speedValue.textContent = isFast ? "1.5×" : `${selected.speed} / 5`;
+        if (!selected.fast) {
+          speedContext.textContent = "Near-instant model · Fast mode unavailable";
+        } else if (isFast) {
+          speedContext.textContent = `${selected.fastCredit}× ChatGPT credits`;
+        } else {
+          speedContext.textContent = "OpenAI ordinal · Standard tier";
+        }
+
+        if (selected.input === null) {
+          priceValue.textContent = "Not on API";
+          priceContext.textContent = "Separate ChatGPT Pro usage limits";
+        } else {
+          priceValue.textContent = `${formatMoney(selected.input)} / ${formatMoney(selected.output)}`;
+          const discount = Math.round((1 - selected.input / sol.input) * 100);
+          priceContext.textContent = discount === 0
+            ? "input / output · same as Sol"
+            : `input / output · ${discount}% below Sol`;
+        }
+
+        effortDetail.textContent = `${effortCopy[effort]} OpenAI does not publish a universal cross-task multiplier.`;
+        if (selected.geneBench) {
+          const point = selected.geneBench[effort];
+          const medium = selected.geneBench.medium;
+          const scoreDelta = point.score - medium.score;
+          const tokenRatio = point.tokens / medium.tokens;
+          const scoreText = Math.abs(scoreDelta) < 0.05
+            ? "the same score"
+            : `${scoreDelta > 0 ? "+" : "−"}${Math.abs(scoreDelta).toFixed(1)} points`;
+          effortExample.textContent = `GeneBench-Pro example: ${selected.label.replace("GPT-5.6 ", "")} ${effort.replace("xhigh", "extra high")} scored ${formatNumber(point.score)}% with ${formatNumber(point.tokens)}k average tokens — ${scoreText} and ${tokenRatio.toFixed(2)}× tokens versus medium.`;
+        } else {
+          effortExample.textContent = "OpenAI has not published a comparable model-by-effort matrix for this model.";
+        }
+
+        ["coding", "terminal", "agents"].forEach(key => updateBenchmarkRow(key, selected));
+        benchmarkNote.textContent = selected.benchmarks.coding === null
+          ? "OpenAI has not published comparable release-benchmark numbers for Codex Spark."
+          : "OpenAI release results are model-level reference points, not a prediction for the selected effort or Fast mode.";
+      }
+
+      modelSelect.addEventListener("change", update);
+      effortSelect.addEventListener("change", update);
+      fastSwitch.addEventListener("change", update);
+
+      measureButton.addEventListener("click", async () => {
+        const selected = models[modelSelect.value];
+        const speed = fastSwitch.checked && selected.fast ? "Fast" : "Standard";
+        const prompt = [
+          `Measure ${selected.label} with ${effortSelect.value} reasoning and ${speed} mode against GPT-5.6 Sol with medium reasoning and Standard mode on my task.`,
+          "Use the same prompt, inputs, tools, and success criteria for both configurations.",
+          "If this conversation does not contain a representative task, ask me for one.",
+          "Where practical, run at least three trials and report task success, wall-clock latency, observable tokens or credits, failure modes, and confidence.",
+          "Keep official published facts separate from measurements and estimates."
+        ].join(" ");
+
+        if (window.openai && typeof window.openai.sendFollowUpMessage === "function") {
+          await window.openai.sendFollowUpMessage({
+            title: "Measure this configuration?",
+            prompt
+          });
+        }
+      });
+
+      update();
+    })();
+  </script>
+</div>

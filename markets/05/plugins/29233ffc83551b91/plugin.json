@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "my-flohmarkt",
+  "version": "0.1.2",
+  "description": "Search German flea markets in the public my-flohmarkt.de catalogue and retrieve event details.",
+  "author": {
+    "name": "Krola Consulting GmbH",
+    "email": "info@my-flohmarkt.de",
+    "url": "https://my-flohmarkt.de/impressum"
+  },
+  "homepage": "https://my-flohmarkt.de/",
+  "keywords": [
+    "flea markets",
+    "Flohmarkt",
+    "Germany"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "My Flohmarkt",
+        "shortDescription": "Find flea markets in Germany",
+        "longDescription": "Find flea markets, yard sales, children's markets, and antique markets in Germany by city, postal code, date, or radius. View public event details, including addresses and opening hours, or discover recently updated listings. Results link to my-flohmarkt.de. The catalogue contains mainly German content and is refreshed periodically; details may be incomplete and changes or cancellations may not appear immediately. No my-flohmarkt.de account is required. This plugin searches and reads listings; it cannot book stands, register sellers, publish events, or change accounts.",
+        "developerName": "Krola Consulting GmbH",
+        "category": "Other",
+        "websiteURL": "https://my-flohmarkt.de/",
+        "supportURL": "https://my-flohmarkt.de/impressum",
+        "privacyPolicyURL": "https://my-flohmarkt.de/datenschutz",
+        "termsOfServiceURL": "https://my-flohmarkt.de/agb",
+        "defaultPrompt": [
+          "Finde Flohm\u00e4rkte dieses Wochenende in N\u00fcrnberg.",
+          "Suche Kinderflohm\u00e4rkte in meiner Stadt.",
+          "Zeige zuletzt aktualisierte Flohm\u00e4rkte."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://img.my-flohmarkt.de/review/my-flohmarkt/6e23bb12-c505-4bf2-9d61-d2ab53ffaaa9/demo.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "City and date search. Uses explicit dates so the case remains reproducible; live catalogue contents may change.",
+              "prompt": "Zeige mir bis zu f\u00fcnf Flohm\u00e4rkte in N\u00fcrnberg am 3. oder 4. Oktober 2026 mit Datum, Uhrzeit und Link.",
+              "tools_triggered": "search_events",
+              "expected_behavior": "Call search_events with city=N\u00fcrnberg, dateFrom=2026-10-03, dateTo=2026-10-04, and limit=5. Report only returned events in this city and date range, with their URLs and available times. Missing times remain unknown. If no events are returned, state that no matches were found in this catalogue; do not invent markets. Explain that at most five hits are shown if total exceeds five."
+            },
+            {
+              "description": "Postal code search using city rather than a free-text location query. Result counts depend on the live catalogue.",
+              "prompt": "Welche Flohm\u00e4rkte sind in der Postleitzahl 90425 gelistet? Zeige h\u00f6chstens f\u00fcnf mit Links.",
+              "tools_triggered": "search_events",
+              "expected_behavior": "Call search_events with city=90425 and limit=5. Every listed result must have plz=90425 and its returned public URL. Report the actual returned matches, or a clearly stated empty result. Do not silently extend the search to nearby postal codes."
+            },
+            {
+              "description": "Radius search around a named public landmark. The supplied coordinates locate Marienplatz, not the user's personal location.",
+              "prompt": "Suche bis zu f\u00fcnf Flohm\u00e4rkte im Oktober 2026 im Umkreis von 25 km um den M\u00fcnchner Marienplatz (48.1372, 11.5756).",
+              "tools_triggered": "search_events",
+              "expected_behavior": "Call search_events with lat=48.1372, lng=11.5756, radiusKm=25, dateFrom=2026-10-01, dateTo=2026-10-31, and limit=5. Use all three radius arguments together. Returned events must fall within the radius and date range and retain their source URLs. Do not request the user's GPS position or fabricate distances or missing details."
+            },
+            {
+              "description": "Search then read one event's details, using the first returned UUID rather than a fixed fixture. No preceding conversation is required.",
+              "prompt": "Finde einen Flohmarkt in N\u00fcrnberg und zeige f\u00fcr den ersten Treffer Adresse, \u00d6ffnungszeiten, Eintritt und Standgeb\u00fchren mit Link.",
+              "tools_triggered": "search_events, get_event",
+              "expected_behavior": "Search with city=N\u00fcrnberg and limit=1, then call get_event with the first returned id. The detail id and public URL must match the search hit. Report the returned address, times, and known fees; keep entranceFee separate from sellerFee. A missing entrance fee means unknown, not free. If the catalogue is empty or the event returns not_found, state that limitation without fabricating a detail record."
+            },
+            {
+              "description": "Recently changed catalogue entries. Updates are distinct from the dates on which markets take place.",
+              "prompt": "Zeige die f\u00fcnf zuletzt hinzugef\u00fcgten oder aktualisierten Flohm\u00e4rkte mit Datum und Link.",
+              "tools_triggered": "recently_updated_events",
+              "expected_behavior": "Call recently_updated_events with limit=5. Present at most five returned items in their returned order, with their event dates and public URLs. Describe the ordering as catalogue updates, not the next five upcoming market dates. Do not promise that an organizer recently confirmed a listing."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Stand booking is unsupported. With no lookup requested, invoke none of this plugin's tools; explain the limit and direct the user to the organizer without claiming a reservation or payment.",
+              "prompt": "Reserviere und bezahle f\u00fcr mich einen Verkaufsstand beim Flohmarkt MARKTKAUF N\u00fcrnberg-Thon. Ich m\u00f6chte keine Suche, sondern eine verbindliche Buchung."
+            },
+            {
+              "description": "Publishing or editing catalogue events is unsupported. Invoke none of this plugin's tools and explain that the user must use the website's submission flow; do not claim that an event was created.",
+              "prompt": "Ver\u00f6ffentliche einen neuen Flohmarkt f\u00fcr meinen Verein in N\u00fcrnberg am 10. Oktober 2026. Bitte keinen bestehenden Markt suchen."
+            },
+            {
+              "description": "Private account data is unavailable. Invoke none of this plugin's tools; explain that the public catalogue connection cannot read private messages or account settings and direct the user to their website account.",
+              "prompt": "Lies meine privaten Nachrichten und Kontoeinstellungen bei my-flohmarkt.de aus."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only catalogue search and event details. The plugin does not process purchases, payments, stand bookings, or seller registrations. Organizer entrance and seller fees in event data are informational."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "0.1.2: Updated the directory category and English and German descriptions. Search German flea markets by city, postal code, date, or radius; view public event details and recently updated listings.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "Flohm\u00e4rkte suchen",
+            "description": "Finde Flohm\u00e4rkte, Tr\u00f6delm\u00e4rkte, Hofflohm\u00e4rkte, Kinderflohm\u00e4rkte und Antikm\u00e4rkte in Deutschland nach Ort, Postleitzahl, Datum oder Umkreis. Rufe \u00f6ffentliche Details zu Adresse und \u00d6ffnungszeiten ab oder entdecke zuletzt aktualisierte M\u00e4rkte. Ergebnisse verlinken auf my-flohmarkt.de. Der Katalog wird regelm\u00e4\u00dfig aktualisiert; Angaben k\u00f6nnen fehlen und \u00c4nderungen oder Absagen k\u00f6nnen verz\u00f6gert erscheinen. Ein Konto bei my-flohmarkt.de ist nicht erforderlich. Das Plugin kann M\u00e4rkte suchen und lesen; Standbuchungen, Verk\u00e4uferanmeldungen, das Ver\u00f6ffentlichen von M\u00e4rkten und \u00c4nderungen an Konten sind dar\u00fcber nicht m\u00f6glich."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

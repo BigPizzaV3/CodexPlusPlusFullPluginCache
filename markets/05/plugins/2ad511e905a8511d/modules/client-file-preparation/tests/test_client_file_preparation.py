@@ -1,0 +1,3524 @@
+from __future__ import annotations
+
+import hashlib
+import importlib
+import importlib.util
+import json
+import shutil
+import subprocess
+import sys
+import types
+import zipfile
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from scripts.validate_plugin_review_contract import validate_contract
+
+SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+PLUGIN_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = PLUGIN_ROOT.parents[1]
+MCP_SERVER_PATH = PLUGIN_ROOT / "mcp" / "server.cjs"
+
+import extract_documents as extraction_module
+import parse_fiscal_forms as fiscal_module
+
+build_module = importlib.import_module("build_file_preparation_outputs")
+check_environment_module = importlib.import_module("check_environment")
+scan_module = importlib.import_module("scan_folder")
+from build_file_preparation_outputs import build_file_preparation_outputs
+from model_handoff import (
+    CLIENT_REFERENCE,
+    MAX_HANDOFF_ITEMS,
+    MAX_HANDOFF_PAGE_BYTES,
+    write_model_handoff,
+)
+from parse_fatturapa_xml import (
+    parse_fatturapa_audit_file,
+    parse_fatturapa_file,
+    parse_xml_files,
+    write_summary_csv,
+)
+from parse_fiscal_forms import (
+    FiscalField,
+    parse_structured_fiscal_fields,
+    write_fiscal_fields_summary,
+)
+from scan_folder import (
+    CATEGORY_CH_GE_TAX,
+    CATEGORY_CH_ZH_TAX,
+    CATEGORY_CU,
+    CATEGORY_F24,
+    CATEGORY_FATTURE_XML,
+    CATEGORY_UK_HMRC_NOTICE,
+    CATEGORY_UK_SELF_ASSESSMENT,
+    CATEGORY_UK_YEAR_END_PAYROLL,
+    scan_folder,
+)
+
+CU_TEXT = (
+    "Certificazione Unica 2025. Codice fiscale TSTUSR80A01H501U. "
+    "Sostituto d'imposta Fornitore Test SRL. Redditi lavoro dipendente 24.000,00."
+)
+F24_TEXT = (
+    "Modello F24 sezione erario. Codice tributo 4001. Anno riferimento 2025. "
+    "Importo a debito versato € 1.234,00."
+)
+MUTUO_TEXT = (
+    "Contratto di mutuo ipotecario stipulato nel 2025 per abitazione principale. "
+    "Non contiene una certificazione separata degli oneri."
+)
+MEDICAL_TEXT = (
+    "Ricevuta spese sanitarie farmacia. Codice fiscale TSTUSR80A01H501U. "
+    "Importo € 45,90 pagato con carta."
+)
+NOTICE_TEXT = (
+    "Agenzia delle Entrate. Avviso bonario. Protocollo ABC12345. "
+    "Data 15/09/2025. Importo richiesto € 200,00."
+)
+MODEL_730_TEXT = (
+    "Modello 730 2025 dichiarazione precompilata. "
+    "Codice fiscale TSTUSR80A01H501U. "
+    "Importo da rimborsare 850,00. "
+    "RC1 redditi lavoro dipendente 24.000,00. "
+    "E1 spese sanitarie 450,00."
+)
+REDDITI_PF_TEXT = (
+    "Modello Redditi Persone Fisiche 2025. "
+    "Codice fiscale TSTUSR80A01H501U. "
+    "Reddito complessivo 30.000,00. Imposta netta 5.000,00. "
+    "RN1 30.000,00 RN5 5.000,00 RX1 100,00."
+)
+GENEVA_TEXT = (
+    "Certificat de salaire 2025. Numero AVS 756.1234.5678.97. "
+    "Salaire brut CHF 120000.00. Impot anticipe CHF 1500.00."
+)
+ZURICH_TEXT = (
+    "Steuererklarung 2025 Kanton Zurich. "
+    "Steuerbares Einkommen CHF 95000.00. Steuerbares Vermogen CHF 250000.00."
+)
+UK_P60_TEXT = (
+    "P60 2025. National Insurance number AB123456C. "
+    "Total pay £45,000.00. Tax deducted £8,000.00."
+)
+UK_SELF_ASSESSMENT_TEXT = (
+    "HMRC Self Assessment 2025. UTR 1234567890. Amount due £1,250.00."
+)
+
+
+def _load_model_handoff(
+    output_dir: Path,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    handoff = json.loads(
+        (output_dir / "model_handoff.json").read_text(encoding="utf-8")
+    )
+    items: list[dict[str, Any]] = []
+    for page in handoff["pagination"]["pages"]:
+        page_path = output_dir / page["path"]
+        page_bytes = page_path.read_bytes()
+        assert len(page_bytes) == page["size_bytes"]
+        assert len(page_bytes) <= MAX_HANDOFF_PAGE_BYTES
+        assert hashlib.sha256(page_bytes).hexdigest() == page["sha256"]
+        page_payload = json.loads(page_bytes)
+        assert len(page_payload["items"]) == page["item_count"]
+        assert len(page_payload["items"]) <= MAX_HANDOFF_ITEMS
+        items.extend(page_payload["items"])
+    assert len(items) == handoff["pagination"]["item_count"]
+    return handoff, items
+
+
+def _write_invoice_xml(
+    path: Path,
+    date: str = "2025-06-15",
+    *,
+    quantity: str = "1",
+    unit_price: str = "100.00",
+) -> None:
+    path.write_text(
+        f"""<?xml version="1.0" encoding="UTF-8"?>
+<FatturaElettronica>
+  <FatturaElettronicaHeader>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>01234567890</IdCodice></IdFiscaleIVA>
+        <Anagrafica><Denominazione>Fornitore Test SRL</Denominazione></Anagrafica>
+      </DatiAnagrafici>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <CodiceFiscale>TSTUSR80A01H501U</CodiceFiscale>
+        <Anagrafica><Nome>Example</Nome><Cognome>Client</Cognome></Anagrafica>
+      </DatiAnagrafici>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+      <DatiGenerali>
+        <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento><Divisa>EUR</Divisa><Data>{date}</Data><Numero>1</Numero><ImportoTotaleDocumento>122.00</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee><NumeroLinea>1</NumeroLinea><Descrizione>Servizio test</Descrizione><Quantita>{quantity}</Quantita><PrezzoUnitario>{unit_price}</PrezzoUnitario><PrezzoTotale>100.00</PrezzoTotale></DettaglioLinee>
+      <DatiRiepilogo><AliquotaIVA>22.00</AliquotaIVA><ImponibileImporto>100.00</ImponibileImporto><Imposta>22.00</Imposta></DatiRiepilogo>
+    </DatiBeniServizi>
+  </FatturaElettronicaBody>
+</FatturaElettronica>
+""",
+        encoding="utf-8",
+    )
+
+
+def _write_text_pdf(path: Path, text: str) -> None:
+    from reportlab.pdfgen.canvas import Canvas
+
+    pdf = Canvas(str(path))
+    pdf.drawString(72, 720, text)
+    pdf.save()
+
+
+def _write_docx(path: Path, text: str) -> None:
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(
+            "word/document.xml",
+            (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+                'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'
+                f"{text}"
+                "</w:t></w:r></w:p></w:body></w:document>"
+            ),
+        )
+
+
+def _write_xlsx(path: Path, text: str) -> None:
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(
+            "xl/worksheets/sheet1.xml",
+            (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<worksheet xmlns="http://schemas.openxmlformats.org/'
+                'spreadsheetml/2006/main"><sheetData><row r="1">'
+                '<c r="A1" t="inlineStr"><is><t>'
+                f"{text}"
+                "</t></is></c></row></sheetData></worksheet>"
+            ),
+        )
+
+
+def _call_mcp_server(messages: list[dict[str, object]]) -> list[dict[str, object]]:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip(
+            "Node.js is required to exercise the Client File Preparation MCP server."
+        )
+    completed = subprocess.run(
+        [node, str(MCP_SERVER_PATH), "--stdio"],
+        input="\n".join(json.dumps(message) for message in messages) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    return [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _expected_package_hash(outputs: list[dict[str, object]]) -> str:
+    canonical_outputs = sorted(
+        (
+            {
+                "path": output["path"],
+                "sha256": output["sha256"],
+                "size_bytes": output["size_bytes"],
+            }
+            for output in outputs
+        ),
+        key=lambda output: str(output["path"]).encode("utf-8"),
+    )
+    canonical_bytes = json.dumps(
+        canonical_outputs,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical_bytes).hexdigest()
+
+
+def _load_review_run(
+    output_dir: Path,
+) -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    return (
+        json.loads((output_dir / "run_intake.json").read_text(encoding="utf-8")),
+        json.loads((output_dir / "review_payload.json").read_text(encoding="utf-8")),
+        json.loads((output_dir / "final_artifacts.json").read_text(encoding="utf-8")),
+    )
+
+
+def _managed_review_run(
+    tmp_path: Path,
+    *,
+    content: str = CU_TEXT,
+    nested: bool = False,
+) -> tuple[Any, Path]:
+    ledger_path = (
+        REPOSITORY_ROOT / "plugins" / "studio-archive" / "scripts" / "client_ledger.py"
+    )
+    module_name = "client_file_preparation_test_customer_ledger"
+    ledger = sys.modules.get(module_name)
+    if ledger is None:
+        spec = importlib.util.spec_from_file_location(module_name, ledger_path)
+        assert spec is not None and spec.loader is not None
+        ledger = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = ledger
+        spec.loader.exec_module(ledger)
+
+    client_root = tmp_path / "Managed Customer"
+    client_root.mkdir(mode=0o700)
+    client_id = "client_333333333333333333333333"
+    ledger.create_client_manifest(client_root, client_id)
+    engagement = ledger.create_engagement(
+        client_root,
+        client_id,
+        "client-file-preparation-review",
+    )
+    source_root = tmp_path / "received"
+    source_root.mkdir(mode=0o700)
+    source_path = source_root / "support.txt"
+    source_path.write_text(content, encoding="utf-8")
+    imported = ledger.import_document(
+        client_root,
+        client_id,
+        engagement["engagement_id"],
+        source_path.resolve(),
+        "source",
+    )
+    prepared = ledger.prepare_run(
+        client_root,
+        client_id,
+        engagement["engagement_id"],
+        "client-file-preparation",
+        "test-version",
+        input_ids=[imported["receipt"]["input_id"]],
+        idempotency_key="client-file-preparation-review",
+    )
+    running = ledger.start_run(
+        client_root,
+        engagement["engagement_id"],
+        prepared["run"]["run_id"],
+    )
+    context = running["context"]
+    result = build_file_preparation_outputs(
+        Path(context["input_dir"]),
+        target_year=2025,
+        output_dir=(
+            Path(running["output_dir"]) / "intake"
+            if nested
+            else Path(running["output_dir"])
+        ),
+        run_id=str(context["run_id"]),
+        run_root=Path(context["run_root"]),
+    )
+    return result, Path(running["context_path"])
+
+
+def _call_review_decision_tool(
+    tool_name: str,
+    *,
+    run_intake: dict[str, object],
+    review_payload: dict[str, object],
+    final_artifacts: dict[str, object],
+    decisions: list[dict[str, object]],
+    reviewer: str | None = None,
+    client_engagement: Path | None = None,
+) -> dict[str, object]:
+    arguments: dict[str, object] = {
+        "run_intake": run_intake,
+        "review_payload": review_payload,
+        "final_artifacts": final_artifacts,
+        "decisions": decisions,
+    }
+    if client_engagement is not None:
+        arguments["client_engagement"] = str(client_engagement)
+    if reviewer is not None:
+        arguments["reviewer"] = reviewer
+    response = _call_mcp_server(
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": tool_name, "arguments": arguments},
+            }
+        ]
+    )[0]
+    return response["result"]["structuredContent"]
+
+
+def _reseal_review_run(output_dir: Path) -> dict[str, object]:
+    final_path = output_dir / "final_artifacts.json"
+    final_artifacts = json.loads(final_path.read_text(encoding="utf-8"))
+    for output in final_artifacts["outputs"]:
+        output_path = output_dir / output["path"]
+        output["size_bytes"] = output_path.stat().st_size
+        output["sha256"] = hashlib.sha256(output_path.read_bytes()).hexdigest()
+    final_artifacts["integrity"] = {
+        "algorithm": "sha256",
+        "package_hash_basis": "sorted_outputs_path_size_sha256_canonical_json_v1",
+        "package_hash": _expected_package_hash(final_artifacts["outputs"]),
+    }
+    final_path.write_text(
+        json.dumps(final_artifacts, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    final_path.chmod(0o600)
+    return final_artifacts
+
+
+def _run_tree_bytes(output_dir: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(output_dir).as_posix(): path.read_bytes()
+        for path in sorted(output_dir.rglob("*"))
+        if path.is_file() and not path.is_symlink()
+    }
+
+
+def test_scan_folder_classifies_core_document_types(tmp_path: Path) -> None:
+    customer = tmp_path / "Example Client" / "2025"
+    fatture = customer / "fatture"
+    fatture.mkdir(parents=True)
+    (customer / "CU_Example_2025.pdf").write_text(CU_TEXT, encoding="utf-8")
+    (customer / "F24_giugno.pdf").write_text(F24_TEXT, encoding="utf-8")
+    _write_invoice_xml(fatture / "IT01234567890_001.xml")
+
+    records = scan_folder(customer, target_year=2025)
+
+    categories = {record.file_name: record.category for record in records}
+    assert categories["CU_Example_2025.pdf"] == CATEGORY_CU
+    assert categories["F24_giugno.pdf"] == CATEGORY_F24
+    assert categories["IT01234567890_001.xml"] == CATEGORY_FATTURE_XML
+
+
+def test_scan_folder_classifies_geneva_zurich_and_uk_documents(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "International Client" / "2025"
+    customer.mkdir(parents=True)
+    (customer / "Geneva_certificat_de_salaire_2025.pdf").write_text(
+        GENEVA_TEXT, encoding="utf-8"
+    )
+    (customer / "Zurich_Steuererklarung_2025.pdf").write_text(
+        ZURICH_TEXT, encoding="utf-8"
+    )
+    (customer / "UK_P60_2025.pdf").write_text(UK_P60_TEXT, encoding="utf-8")
+    (customer / "HMRC_Self_Assessment_2025.pdf").write_text(
+        UK_SELF_ASSESSMENT_TEXT, encoding="utf-8"
+    )
+    (customer / "HMRC_tax_code_notice_2025.pdf").write_text(
+        "HMRC tax code notice 2025.", encoding="utf-8"
+    )
+
+    records = scan_folder(customer, target_year=2025)
+
+    categories = {record.file_name: record.category for record in records}
+    assert categories["Geneva_certificat_de_salaire_2025.pdf"] == CATEGORY_CH_GE_TAX
+    assert categories["Zurich_Steuererklarung_2025.pdf"] == CATEGORY_CH_ZH_TAX
+    assert categories["UK_P60_2025.pdf"] == CATEGORY_UK_YEAR_END_PAYROLL
+    assert categories["HMRC_Self_Assessment_2025.pdf"] == CATEGORY_UK_SELF_ASSESSMENT
+    assert categories["HMRC_tax_code_notice_2025.pdf"] == CATEGORY_UK_HMRC_NOTICE
+
+
+def test_parse_fatturapa_file_extracts_formal_invoice_fields(tmp_path: Path) -> None:
+    xml_path = tmp_path / "invoice.xml"
+    _write_invoice_xml(xml_path)
+
+    record = parse_fatturapa_file(xml_path, base_dir=tmp_path, target_year=2025)
+
+    assert record.supplier_vat == "01234567890"
+    assert record.customer_tax_id == "TSTUSR80A01H501U"
+    assert record.invoice_date == "2025-06-15"
+    assert record.invoice_number == "1"
+    assert record.document_type == "TD01"
+    assert record.total_amount == "122.00"
+    assert record.vat_summary == "aliquota=22.00, imponibile=100.00, imposta=22.00"
+    assert record.line_count == 1
+    assert record.anomalies == ()
+
+
+def test_fatturapa_audit_preserves_quantity_and_unit_price_precision(
+    tmp_path: Path,
+) -> None:
+    xml_path = tmp_path / "invoice.xml"
+    _write_invoice_xml(xml_path, quantity="0.125", unit_price="1234.5678")
+
+    records = parse_fatturapa_audit_file(xml_path, base_dir=tmp_path)
+
+    assert records[0]["lines"][0]["quantity"] == "0.125"
+    assert records[0]["lines"][0]["unit_price"] == "1234.5678"
+
+
+def test_parse_fatturapa_file_rejects_entity_declarations(tmp_path: Path) -> None:
+    xml_path = tmp_path / "unsafe-invoice.xml"
+    xml_path.write_text(
+        "<!DOCTYPE invoice [<!ENTITY payload 'unsafe'>]><invoice>&payload;</invoice>",
+        encoding="utf-8",
+    )
+
+    record = parse_fatturapa_file(xml_path, base_dir=tmp_path, target_year=2025)
+
+    assert record.malformed is True
+    assert record.anomalies == (
+        "XML non leggibile: DTD and entity declarations are not allowed",
+    )
+
+
+def test_build_file_preparation_outputs_extracts_geneva_zurich_and_uk_fields(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "Clienti" / "International Client" / "2025"
+    customer.mkdir(parents=True)
+    _write_text_pdf(
+        customer / "Geneva_certificat_de_salaire_2025.pdf",
+        GENEVA_TEXT,
+    )
+    _write_text_pdf(
+        customer / "Zurich_Steuererklarung_2025.pdf",
+        ZURICH_TEXT,
+    )
+    _write_text_pdf(customer / "UK_P60_2025.pdf", UK_P60_TEXT)
+    _write_text_pdf(
+        customer / "HMRC_Self_Assessment_2025.pdf",
+        UK_SELF_ASSESSMENT_TEXT,
+    )
+
+    result = build_file_preparation_outputs(customer, target_year=2025)
+
+    assert result.file_count == 4
+    assert result.structured_field_count >= 10
+    fiscal_csv = (
+        result.output_dir / "extracted" / "structured_fiscal_fields.csv"
+    ).read_text(encoding="utf-8")
+    assert "salary_gross" in fiscal_csv
+    assert "taxable_income" in fiscal_csv
+    assert "national_insurance_number_1" in fiscal_csv
+    assert "total_pay" in fiscal_csv
+    assert "amount_due" in fiscal_csv
+
+
+def test_build_file_preparation_outputs_writes_expected_files(tmp_path: Path) -> None:
+    customer = tmp_path / "Clienti" / "Example Client" / "2025"
+    fatture = customer / "fatture"
+    fatture.mkdir(parents=True)
+    _write_text_pdf(customer / "CU_Example_2025.pdf", CU_TEXT)
+    _write_text_pdf(customer / "F24_giugno.pdf", F24_TEXT)
+    _write_text_pdf(customer / "mutuo_contratto.pdf", MUTUO_TEXT)
+    _write_text_pdf(customer / "spese_mediche_1.pdf", MEDICAL_TEXT)
+    _write_text_pdf(customer / "avviso_agenzia.pdf", NOTICE_TEXT)
+    _write_text_pdf(customer / "Precompilata_730.pdf", MODEL_730_TEXT)
+    _write_text_pdf(customer / "Redditi_PF_2025.pdf", REDDITI_PF_TEXT)
+    _write_invoice_xml(fatture / "IT01234567890_001.xml")
+    _write_invoice_xml(fatture / "IT01234567890_002.xml")
+
+    result = build_file_preparation_outputs(customer, target_year=2025)
+
+    assert result.file_count == 9
+    assert result.extracted_count >= 7
+    assert result.structured_field_count >= 18
+    assert (result.output_dir / "00_fascicolo_index.md").exists()
+    assert (result.output_dir / "01_document_inventory.csv").exists()
+    assert (result.output_dir / "00_environment_check.md").exists()
+    assert (result.output_dir / "extracted" / "documents.jsonl").exists()
+    assert (result.output_dir / "03_domande_interne_studio.md").exists()
+    assert (result.output_dir / "04_bozza_email_cliente.md").exists()
+    assert (result.output_dir / "06_memo_istruttoria.md").exists()
+    assert (result.output_dir / "07_scheda_codex_per_studio.md").exists()
+    assert (result.output_dir / "08_dati_fiscali_strutturati.md").exists()
+    assert (result.output_dir / "run_intake.json").exists()
+    assert (result.output_dir / "review_payload.json").exists()
+    assert (result.output_dir / "ui_decisions.json").exists()
+    assert (result.output_dir / "model_handoff.json").exists()
+    assert (result.output_dir / "final_artifacts.json").exists()
+    assert (result.output_dir / "extracted" / "structured_fiscal_fields.csv").exists()
+    assert (result.output_dir / "extracted" / "structured_fiscal_fields.jsonl").exists()
+    assert (result.output_dir / "fatture" / "duplicate_candidates.csv").exists()
+    deadlines = (result.output_dir / "avviso" / "deadlines_and_amounts.csv").read_text(
+        encoding="utf-8"
+    )
+    assert "ABC12345" in deadlines
+    assert "15/09/2025" in deadlines
+    extraction_report = (
+        result.output_dir / "extracted" / "extraction_report.md"
+    ).read_text(encoding="utf-8")
+    assert "CU_Example_2025.pdf" in extraction_report
+    memo = (result.output_dir / "06_memo_istruttoria.md").read_text(encoding="utf-8")
+    assert "certificazione interessi passivi" in memo
+    fiscal_csv = (
+        result.output_dir / "extracted" / "structured_fiscal_fields.csv"
+    ).read_text(encoding="utf-8")
+    assert "importo_debito" in fiscal_csv
+    assert "redditi_lavoro_dipendente" in fiscal_csv
+    assert "importo_da_rimborsare" in fiscal_csv
+    assert "reddito_complessivo" in fiscal_csv
+    fiscal_summary = (result.output_dir / "08_dati_fiscali_strutturati.md").read_text(
+        encoding="utf-8"
+    )
+    assert "F24" in fiscal_summary
+    assert "CU" in fiscal_summary
+    assert "730" in fiscal_summary
+    assert "Redditi PF" in fiscal_summary
+    email = (result.output_dir / "04_bozza_email_cliente.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Oggetto: Documenti e chiarimenti per completare l'istruttoria" in email
+    assert "certificazione degli interessi passivi del mutuo" in email
+    assert "spese sanitarie inviate sono complete" in email
+    assert "modelli o quietanze F24 sono disponibili" in email
+    assert "documenti non classificati" not in email
+
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    assert run_intake["schema_version"] == "1.0"
+    assert run_intake["plugin"] == "client-file-preparation"
+    assert run_intake["workflow"] == "client-file-preparation"
+    assert run_intake["assumptions"]["target_year"] == 2025
+    assert run_intake["assumptions"]["file_count"] == result.file_count
+    assert run_intake["data_posture"]["local_files_read"] == [customer.as_posix()]
+    assert run_intake["data_posture"]["external_connectors_used"] == []
+    assert run_intake["data_posture"]["upload_paths_used"] == []
+    source_snapshot = run_intake["source_snapshot"]
+    assert source_snapshot["algorithm"] == "sha256"
+    assert len(source_snapshot["files"]) == result.file_count
+    assert source_snapshot["observed"]["file_count"] == result.file_count
+    assert source_snapshot["observed"]["regular_file_count"] == result.file_count
+    assert source_snapshot["observed"]["symlink_count"] == 0
+    assert source_snapshot["observed"]["total_regular_bytes"] == sum(
+        source["size_bytes"] for source in source_snapshot["files"]
+    )
+    assert source_snapshot["limits"] == {
+        "max_entry_count": scan_module.MAX_SOURCE_ENTRIES,
+        "max_file_count": scan_module.MAX_SOURCE_FILES,
+        "max_file_bytes": scan_module.MAX_SOURCE_FILE_BYTES,
+        "max_total_bytes": scan_module.MAX_SOURCE_TOTAL_BYTES,
+    }
+    assert all(
+        source["entry_type"] == "regular_file" and len(source["sha256"]) == 64
+        for source in source_snapshot["files"]
+    )
+
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    assert review_payload["run_id"] == run_intake["run_id"]
+    assert review_payload["review_type"] == "client_file_preparation_folder_review"
+    assert review_payload["item_count"] == len(review_payload["items"])
+    item_types = {item["item_type"] for item in review_payload["items"]}
+    assert {
+        "document_inventory",
+        "uncertain_file",
+        "missing_document_request",
+        "extracted_fiscal_field",
+        "draft_memo_section",
+        "draft_client_email",
+    } <= item_types
+    assert review_payload["summary"]["file_count"] == result.file_count
+    assert review_payload["summary"]["structured_field_count"] == (
+        result.structured_field_count
+    )
+    draft_email_items = [
+        item
+        for item in review_payload["items"]
+        if item["item_type"] == "draft_client_email"
+    ]
+    assert draft_email_items
+    assert draft_email_items[0]["data"]["preview"]
+    studio_brief = next(
+        item for item in review_payload["items"] if item["id"] == "draft-studio-brief"
+    )
+    assert studio_brief["output_path"] == "07_scheda_codex_per_studio.md"
+    assert "edit" in studio_brief["allowed_actions"]
+    for item in review_payload["items"]:
+        if item["item_type"] not in {"draft_memo_section", "draft_client_email"}:
+            assert "edit" not in item["allowed_actions"]
+    fiscal_items = [
+        item
+        for item in review_payload["items"]
+        if item["item_type"] == "extracted_fiscal_field"
+    ]
+    assert all("evidence" not in item["data"] for item in fiscal_items)
+    assert all(
+        any(evidence.get("kind") == "snippet" for evidence in item["evidence"])
+        for item in fiscal_items
+    )
+    assert review_payload["source_paths"] == []
+    assert review_payload["preview_limits"] == {
+        "document_text_characters": 600,
+        "fiscal_evidence_characters": 600,
+        "draft_text_characters": 2000,
+    }
+
+    ui_decisions = json.loads(
+        (result.output_dir / "ui_decisions.json").read_text(encoding="utf-8")
+    )
+    assert ui_decisions["decision_source"] == "not_collected"
+    assert ui_decisions["status"] == "pending_review"
+    assert ui_decisions["decisions"] == []
+
+    model_handoff, model_items = _load_model_handoff(result.output_dir)
+    assert model_handoff["runtime_profiles"] == [
+        "openai-codex",
+        "anthropic-cowork",
+    ]
+    assert model_handoff["client_reference"] == CLIENT_REFERENCE
+    assert model_handoff["pagination"]["sampling"] is False
+    assert model_handoff["source_population"]["file_count"] == result.file_count
+    assert model_handoff["source_population"]["mapped_fiscal_field_count"] == (
+        result.structured_field_count
+    )
+    assert model_handoff["source_population"]["reviewed_email_request_count"] == 0
+    model_items_by_kind: dict[str, list[dict[str, Any]]] = {}
+    for item in model_items:
+        model_items_by_kind.setdefault(item["kind"], []).append(item)
+    assert len(model_items_by_kind["file_metadata"]) == result.file_count
+    metadata = model_items_by_kind["file_metadata"]
+    assert {item["category_status"] for item in metadata} == {"candidate"}
+    assert {item["category_basis"] for item in metadata} == {"lexical_hint"}
+    dispositions = json.loads(
+        (result.output_dir / "extracted/document_dispositions.json").read_text()
+    )["documents"]
+    assert {item["relative_path"] for item in metadata} == {
+        item["relative_path"] for item in dispositions
+    }
+    assert all(
+        item["fiscal_extraction_disposition"]["status"] != "not_evaluated"
+        for item in metadata
+    )
+    assert len(model_items_by_kind["fiscal_field"]) == result.structured_field_count
+    assert "email_request" not in model_items_by_kind
+    high_confidence_document_refs = {
+        item["id"]
+        for item in review_payload["items"]
+        if item["item_type"] == "document_inventory"
+        and item["data"]["confidence"] == "alta"
+    }
+    assert high_confidence_document_refs.isdisjoint(
+        {
+            item["document_ref"]
+            for item in model_items_by_kind.get("evidence_excerpt", [])
+        }
+    )
+    assert all(
+        len(item["citation"]["text"]) <= 600
+        for item in model_items_by_kind["fiscal_field"]
+    )
+    xml_model_items = [
+        item
+        for kind in ("xml_anomaly", "xml_duplicate_group")
+        for item in model_items_by_kind.get(kind, [])
+    ]
+    xml_model_text = json.dumps(xml_model_items, ensure_ascii=False)
+    assert "supplier_name" not in xml_model_text
+    assert "customer_name" not in xml_model_text
+    assert "customer_tax_id" not in xml_model_text
+    assert "Fornitore Test SRL" not in xml_model_text
+    assert "TSTUSR80A01H501U" not in xml_model_text
+
+    final_artifacts = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    assert final_artifacts["run_id"] == run_intake["run_id"]
+    assert final_artifacts["status"] == "written_pending_review"
+    assert final_artifacts["integrity"]["algorithm"] == "sha256"
+    assert all(
+        output["size_bytes"] == (result.output_dir / output["path"]).stat().st_size
+        and output["sha256"]
+        == hashlib.sha256((result.output_dir / output["path"]).read_bytes()).hexdigest()
+        for output in final_artifacts["outputs"]
+    )
+    assert final_artifacts["integrity"]["package_hash"] == _expected_package_hash(
+        final_artifacts["outputs"]
+    )
+    output_paths = {item["path"] for item in final_artifacts["outputs"]}
+    assert "review_handoff.md" in output_paths
+    assert "model_handoff.json" in output_paths
+    assert "model_handoff_pages/page-0001.json" in output_paths
+    assert "04_bozza_email_cliente.md" in output_paths
+    assert "06_memo_istruttoria.md" in output_paths
+    handoff_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "review_handoff.md"
+    )
+    handoff_text = (result.output_dir / "review_handoff.md").read_text(encoding="utf-8")
+    assert handoff_output["required_text"] == [
+        "Review Handoff",
+        "Passaggio alla revisione",
+        "review_payload.json",
+        "ui_decisions.json",
+        "applied_decisions.json",
+        "final_artifacts.json",
+        "model_handoff.json",
+    ]
+    assert "render_client_file_preparation_review" in handoff_text
+    assert "apply_client_file_preparation_decisions" in handoff_text
+    index_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "00_fascicolo_index.md"
+    )
+    assert "# Indice fascicolo" in index_output["required_text"]
+    assert "Anno target: 2025" in index_output["required_text"]
+    assert "File analizzati: 9" in index_output["required_text"]
+    assert "CU_Example_2025.pdf" in index_output["required_text"]
+    inventory_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "01_document_inventory.csv"
+    )
+    assert inventory_output["row_count"] == result.file_count
+    assert inventory_output["required_columns"] == [
+        "relative_path",
+        "file_name",
+        "extension",
+        "size_bytes",
+        "modified_iso",
+        "sha256",
+        "category",
+        "confidence",
+        "years",
+        "notes",
+    ]
+    missing_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "02_documenti_mancanti_o_incerti.md"
+    )
+    assert "Presente una CU. Confermare con il cliente" in (
+        missing_output["required_text"][1]
+    )
+    email_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "04_bozza_email_cliente.md"
+    )
+    assert email_output["required_text"] == [
+        "Oggetto: Documenti e chiarimenti per completare l'istruttoria",
+        "Example Client",
+        (
+            "confermare che non vi siano altre CU o ulteriori documenti "
+            "reddituali non ancora trasmessi;"
+        ),
+    ]
+    memo_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "06_memo_istruttoria.md"
+    )
+    assert memo_output["required_text"][:6] == [
+        "# Memo di istruttoria clienti",
+        "Cliente Example Client",
+        "Anno 2025",
+        "File analizzati: 9.",
+        "## Documenti ricevuti",
+        "## Elementi mancanti o incerti",
+    ]
+    assert "Presente una CU. Confermare con il cliente" in (
+        memo_output["required_text"][6]
+    )
+    assert "Il perimetro reddituale del cliente" in memo_output["required_text"][7]
+    assert "confermare che non vi siano altre CU" in memo_output["required_text"][8]
+    studio_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "07_scheda_codex_per_studio.md"
+    )
+    assert studio_output["required_text"][:7] == [
+        "# Scheda per lo studio",
+        "Example Client",
+        "2025",
+        "## Sintesi del fascicolo",
+        "File analizzati: 9",
+        f"Campi fiscali strutturati estratti: {result.structured_field_count}",
+        "## Punti mancanti o incerti",
+    ]
+    assert "Presente una CU. Confermare con il cliente" in (
+        studio_output["required_text"][7]
+    )
+    assert "Il perimetro reddituale del cliente" in studio_output["required_text"][8]
+    fiscal_fields_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "extracted/structured_fiscal_fields.csv"
+    )
+    assert fiscal_fields_output["row_count"] == result.structured_field_count
+    assert fiscal_fields_output["required_columns"] == [
+        "relative_path",
+        "file_name",
+        "document_kind",
+        "field_code",
+        "label",
+        "value",
+        "confidence",
+    ]
+    fiscal_summary_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "08_dati_fiscali_strutturati.md"
+    )
+    assert "# Dati fiscali strutturati" in fiscal_summary_output["required_text"]
+    assert (
+        f"Campi estratti: {result.structured_field_count}"
+        in fiscal_summary_output["required_text"]
+    )
+    assert any(
+        fragment.startswith("codice_fiscale")
+        for fragment in fiscal_summary_output["required_text"]
+    )
+    xml_summary_output = next(
+        item
+        for item in final_artifacts["outputs"]
+        if item["path"] == "fatture/fatture_summary.csv"
+    )
+    assert xml_summary_output["row_count"] == result.xml_count
+    assert "invoice_number" in xml_summary_output["required_columns"]
+    contract_report = validate_contract(
+        result.output_dir,
+        strict_data_posture=True,
+        strict_execution_trace=True,
+        strict_output_paths=True,
+        strict_output_content=True,
+    )
+    assert contract_report.ok, contract_report.as_dict()
+
+
+def test_build_rejects_missing_or_empty_folder_without_creating_output(
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "mistyped-client"
+
+    with pytest.raises(NotADirectoryError, match="Cartella non valida"):
+        build_file_preparation_outputs(missing)
+
+    assert not missing.exists()
+
+    empty = tmp_path / "empty-client"
+    empty.mkdir()
+
+    with pytest.raises(ValueError, match="non contiene file"):
+        build_file_preparation_outputs(empty)
+
+    assert not (empty / "out").exists()
+
+
+def test_model_handoff_paginates_full_population_by_byte_limit(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    file_count = 1_400
+    long_name = f"{'document-evidence-' * 55}.pdf"
+    items = [
+        {
+            "id": f"document-{index:04d}",
+            "item_type": "document_inventory",
+            "source_path": f"folder-{index:04d}/{long_name}",
+            "evidence": [{"kind": "extraction_result", "readable": True}],
+            "data": {
+                "relative_path": f"folder-{index:04d}/{long_name}",
+                "file_name": long_name,
+                "extension": ".pdf",
+                "size_bytes": index,
+                "modified_iso": "2026-08-14T00:00:00",
+                "sha256": f"{index:064x}",
+                "category": "CU",
+                "confidence": "alta",
+                "years": [2025],
+                "notes": "",
+                "readable": True,
+                "extraction_method": "pdfplumber",
+                "text_path": f"extracted/{index:04d}.txt",
+                "structured_field_count": 0,
+            },
+        }
+        for index in range(1, file_count + 1)
+    ]
+    (output_dir / "review_payload.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "plugin": "client-file-preparation",
+                "workflow": "client-file-preparation",
+                "run_id": "pagination-test",
+                "created_at": "2026-08-14T00:00:00+00:00",
+                "language": "it",
+                "jurisdiction": "italy",
+                "items": items,
+                "item_count": len(items),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "ui_decisions.json").write_text(
+        json.dumps(
+            {
+                "run_id": "pagination-test",
+                "status": "pending_review",
+                "decisions": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    first = write_model_handoff(output_dir)
+    first_page_hashes = [
+        hashlib.sha256(path.read_bytes()).hexdigest() for path in first.page_paths
+    ]
+    handoff, model_items = _load_model_handoff(output_dir)
+    second = write_model_handoff(output_dir)
+
+    assert len(first.page_paths) > 1
+    assert len(first.page_paths) == handoff["pagination"]["page_count"]
+    assert handoff["pagination"]["sampling"] is False
+    assert handoff["source_population"]["file_count"] == file_count
+    assert len(model_items) == file_count
+    assert {item["document_ref"] for item in model_items} == {
+        f"document-{index:04d}" for index in range(1, file_count + 1)
+    }
+    assert first_page_hashes == [
+        hashlib.sha256(path.read_bytes()).hexdigest() for path in second.page_paths
+    ]
+
+
+def test_model_handoff_xml_synthesis_omits_invoice_party_fields(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    review_items = [
+        {
+            "id": "document-1",
+            "item_type": "document_inventory",
+            "source_path": "invoice.xml",
+            "evidence": [],
+            "data": {
+                "relative_path": "invoice.xml",
+                "file_name": "invoice.xml",
+                "extension": ".xml",
+                "category": "fatture elettroniche XML",
+                "confidence": "media",
+            },
+        },
+        {
+            "id": "xml-anomaly-1",
+            "item_type": "formal_xml_anomaly",
+            "source_path": "invoice.xml",
+            "data": {
+                "supplier_vat": "01234567890",
+                "supplier_name": "Supplier Private SRL",
+                "customer_tax_id": "TSTUSR80A01H501U",
+                "customer_name": "Private Customer",
+                "duplicate_key": "01234567890|1|2025-06-15|122.00",
+                "malformed": False,
+                "anomalies": ["sezione DatiRiepilogo non individuata"],
+            },
+        },
+    ]
+    (output_dir / "review_payload.json").write_text(
+        json.dumps(
+            {
+                "run_id": "xml-minimization-test",
+                "items": review_items,
+                "item_count": len(review_items),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "ui_decisions.json").write_text(
+        json.dumps(
+            {
+                "run_id": "xml-minimization-test",
+                "status": "pending_review",
+                "decisions": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    write_model_handoff(output_dir)
+    _, model_items = _load_model_handoff(output_dir)
+    xml_item = next(item for item in model_items if item["kind"] == "xml_anomaly")
+
+    assert xml_item == {
+        "id": "xml-anomaly:xml-anomaly-1",
+        "kind": "xml_anomaly",
+        "source_document_ref": "document-1",
+        "malformed": False,
+        "anomalies": ["sezione DatiRiepilogo non individuata"],
+    }
+
+
+def test_build_rejects_nonempty_output_without_mutating_prior_run(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "fresh-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    output_dir = tmp_path / "existing-output"
+    output_dir.mkdir()
+    stale_path = output_dir / "applied_decisions.json"
+    stale_bytes = b'{"run_id":"prior-client"}\n'
+    stale_path.write_bytes(stale_bytes)
+
+    with pytest.raises(FileExistsError, match="nuova o vuota"):
+        build_file_preparation_outputs(customer, output_dir=output_dir)
+
+    assert stale_path.read_bytes() == stale_bytes
+    assert list(output_dir.iterdir()) == [stale_path]
+
+
+def test_build_resumes_partial_run_without_reextracting_completed_documents(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "resume-client"
+    customer.mkdir()
+    (customer / "a.txt").write_text(CU_TEXT, encoding="utf-8")
+    (customer / "b.txt").write_text(F24_TEXT, encoding="utf-8")
+    output_dir = tmp_path / "resume-output"
+    original_extract_one = extraction_module._extract_one
+
+    def interrupt_after_first_document(
+        record: object,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        if getattr(record, "relative_path") == "b.txt":
+            raise TimeoutError("simulated execution deadline")
+        return original_extract_one(record, *args, **kwargs)
+
+    monkeypatch.setattr(
+        extraction_module,
+        "_extract_one",
+        interrupt_after_first_document,
+    )
+    with pytest.raises(TimeoutError, match="execution deadline"):
+        build_file_preparation_outputs(
+            customer,
+            output_dir=output_dir,
+            enable_ocr=False,
+        )
+
+    retried_paths: list[str] = []
+
+    def record_retry(
+        record: object,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        retried_paths.append(str(getattr(record, "relative_path")))
+        return original_extract_one(record, *args, **kwargs)
+
+    monkeypatch.setattr(extraction_module, "_extract_one", record_retry)
+    result = build_file_preparation_outputs(
+        customer,
+        output_dir=output_dir,
+        enable_ocr=False,
+    )
+
+    assert retried_paths == ["b.txt"]
+    assert result.extracted_count == 2
+    assert not (
+        output_dir / "extracted" / extraction_module.EXTRACTION_CHECKPOINT_NAME
+    ).exists()
+
+
+def test_build_rejects_partial_run_after_source_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "changed-resume-client"
+    customer.mkdir()
+    first_source = customer / "a.txt"
+    first_source.write_text(CU_TEXT, encoding="utf-8")
+    (customer / "b.txt").write_text(F24_TEXT, encoding="utf-8")
+    output_dir = tmp_path / "changed-resume-output"
+    original_extract_one = extraction_module._extract_one
+
+    def interrupt_after_first_document(
+        record: object,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        if getattr(record, "relative_path") == "b.txt":
+            raise TimeoutError("simulated execution deadline")
+        return original_extract_one(record, *args, **kwargs)
+
+    monkeypatch.setattr(
+        extraction_module,
+        "_extract_one",
+        interrupt_after_first_document,
+    )
+    with pytest.raises(TimeoutError, match="execution deadline"):
+        build_file_preparation_outputs(
+            customer,
+            output_dir=output_dir,
+            enable_ocr=False,
+        )
+    environment_path = output_dir / "00_environment_check.md"
+    environment_bytes = environment_path.read_bytes()
+    first_source.write_text(f"{CU_TEXT} Modificato.", encoding="utf-8")
+
+    with pytest.raises(FileExistsError, match="non corrisponde più"):
+        build_file_preparation_outputs(
+            customer,
+            output_dir=output_dir,
+            enable_ocr=False,
+        )
+    assert environment_path.read_bytes() == environment_bytes
+
+
+def test_build_rejects_symlinked_output_without_touching_target(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "symlink-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    target_dir = tmp_path / "external-target"
+    target_dir.mkdir()
+    victim = target_dir / "04_bozza_email_cliente.md"
+    victim_bytes = b"external content must remain unchanged\n"
+    victim.write_bytes(victim_bytes)
+    output_link = tmp_path / "output-link"
+    output_link.symlink_to(target_dir, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="link simbolici"):
+        build_file_preparation_outputs(customer, output_dir=output_link)
+
+    assert victim.read_bytes() == victim_bytes
+
+
+def test_build_rejects_output_inside_source_repository(tmp_path: Path) -> None:
+    customer = tmp_path / "repository-output-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    protected_output = PLUGIN_ROOT / ".test-client-output-must-not-be-created"
+
+    with pytest.raises(ValueError, match="esterna al repository"):
+        build_file_preparation_outputs(
+            customer,
+            output_dir=protected_output,
+        )
+
+    assert not protected_output.exists()
+
+
+def test_build_rejects_source_file_above_hashing_limit_before_output_creation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "oversized-source-client"
+    customer.mkdir()
+    (customer / "support.txt").write_bytes(b"0123456789")
+    output_dir = tmp_path / "oversized-output"
+    monkeypatch.setattr(scan_module, "MAX_SOURCE_FILE_BYTES", 8)
+
+    with pytest.raises(ValueError, match="supera il limite di dimensione"):
+        build_file_preparation_outputs(customer, output_dir=output_dir)
+
+    assert not output_dir.exists()
+
+
+def test_build_fails_when_source_changes_after_inventory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "changing-client"
+    customer.mkdir()
+    source = customer / "support.txt"
+    source.write_text(CU_TEXT, encoding="utf-8")
+    output_dir = tmp_path / "changing-output"
+    original_writer = build_module._write_studio_synthesis
+
+    def write_then_change_source(*args: object, **kwargs: object) -> object:
+        result = original_writer(*args, **kwargs)
+        source.write_text(CU_TEXT + " changed", encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(
+        build_module,
+        "_write_studio_synthesis",
+        write_then_change_source,
+    )
+
+    with pytest.raises(RuntimeError, match="file sorgente è cambiato"):
+        build_module.build_file_preparation_outputs(
+            customer,
+            output_dir=output_dir,
+        )
+
+    assert not (output_dir / "final_artifacts.json").exists()
+
+
+def test_run_id_is_opaque_and_does_not_expose_customer_folder_name(
+    tmp_path: Path,
+) -> None:
+    private_folder_name = "Francesco Giraldo Private Client"
+    customer = tmp_path / private_folder_name
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+
+    result = build_file_preparation_outputs(customer)
+
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    assert review_payload["run_id"] == run_intake["run_id"]
+    assert private_folder_name.casefold() not in review_payload["run_id"].casefold()
+    assert "francesco" not in review_payload["run_id"].casefold()
+
+
+def test_unsupported_high_confidence_file_is_inventory_evidence_but_never_accepted(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "Sensitive Client"
+    customer.mkdir()
+    (customer / "CU_2025.msg").write_bytes(b"Outlook message placeholder")
+
+    result = build_file_preparation_outputs(customer, target_year=2025)
+
+    evidence = [
+        json.loads(line)
+        for line in (result.output_dir / "extracted" / "documents.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert len(evidence) == 1
+    assert evidence[0]["relative_path"] == "CU_2025.msg"
+    assert evidence[0]["extraction_method"] == "unsupported_msg"
+    assert evidence[0]["readable"] is False
+    review_payload_path = result.output_dir / "review_payload.json"
+    review_payload = json.loads(review_payload_path.read_text(encoding="utf-8"))
+    document_item = next(
+        item
+        for item in review_payload["items"]
+        if item["item_type"] == "document_inventory"
+    )
+    assert document_item["recommended_action"] == "mark_unclear"
+    assert document_item["source_path"] == "CU_2025.msg"
+    assert customer.as_posix() not in review_payload_path.read_text(encoding="utf-8")
+
+
+def test_docx_xlsx_and_eml_are_extracted_locally(tmp_path: Path) -> None:
+    customer = tmp_path / "office-files"
+    customer.mkdir()
+    _write_docx(customer / "CU_2025.docx", CU_TEXT)
+    _write_xlsx(customer / "F24_2025.xlsx", F24_TEXT)
+    (customer / "documenti_2025.eml").write_text(
+        "From: cliente@example.test\n"
+        "To: studio@example.test\n"
+        "Subject: Documenti fiscali 2025\n"
+        "MIME-Version: 1.0\n"
+        'Content-Type: multipart/mixed; boundary="boundary-test"\n\n'
+        "--boundary-test\n"
+        "Content-Type: text/plain; charset=utf-8\n\n"
+        f"{MEDICAL_TEXT}\n"
+        "--boundary-test\n"
+        "Content-Type: application/pdf\n"
+        'Content-Disposition: attachment; filename="ricevuta.pdf"\n'
+        "Content-Transfer-Encoding: base64\n\n"
+        "cGRm\n"
+        "--boundary-test--\n",
+        encoding="utf-8",
+    )
+
+    result = build_file_preparation_outputs(customer, target_year=2025)
+
+    evidence = {
+        item["file_name"]: item
+        for item in (
+            json.loads(line)
+            for line in (result.output_dir / "extracted" / "documents.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+    }
+    assert evidence["CU_2025.docx"]["extraction_method"] == "docx_ooxml"
+    assert evidence["F24_2025.xlsx"]["extraction_method"] == "xlsx_ooxml"
+    assert evidence["documenti_2025.eml"]["extraction_method"] == "eml_stdlib"
+    assert evidence["documenti_2025.eml"]["notes"] == ["allegati EML non estratti: 1"]
+    assert all(item["readable"] for item in evidence.values())
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    eml_item = next(
+        item
+        for item in review_payload["items"]
+        if item["item_type"] == "document_inventory"
+        and item["title"] == "documenti_2025.eml"
+    )
+    assert eml_item["recommended_action"] == "mark_unclear"
+
+
+def test_ocr_page_limit_is_recorded_as_a_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "ocr-client"
+    customer.mkdir()
+    (customer / "CU_scan_2025.pdf").write_bytes(b"not a text PDF")
+    records = scan_folder(customer, target_year=2025)
+    monkeypatch.setattr(
+        extraction_module,
+        "_extract_with_pdfplumber",
+        lambda _path, _max_pages: ("", 5, "", None),
+    )
+    monkeypatch.setattr(
+        extraction_module,
+        "_extract_with_fitz",
+        lambda _path, _max_pages: ("", 5, "", None),
+    )
+    monkeypatch.setattr(
+        extraction_module,
+        "_plain_text_fallback",
+        lambda _path: pytest.fail("PDF binary bytes must never be decoded as text"),
+    )
+    monkeypatch.setattr(
+        extraction_module,
+        "_render_pdf_pages",
+        lambda _path, max_pages: ([object()] * max_pages, 5, ""),
+    )
+    monkeypatch.setattr(
+        extraction_module._PaddleOcrSession,
+        "extract",
+        lambda _self, _image: (CU_TEXT, ""),
+    )
+
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        tmp_path / "extracted",
+        max_pages=2,
+    )
+
+    assert evidence[0].readable is True
+    assert evidence[0].extraction_method == "paddle_ocr"
+    assert "OCR limitato alle prime 2 di 5 pagine" in evidence[0].notes
+
+
+def test_ocr_preflight_visual_pdf_requires_ocr(tmp_path: Path) -> None:
+    fitz = pytest.importorskip("fitz", reason="PyMuPDF is a core dependency")
+    customer = tmp_path / "visual-pdf"
+    customer.mkdir()
+    document = fitz.open()
+    page = document.new_page()
+    page.draw_rect(fitz.Rect(72, 72, 300, 180))
+    document.save(customer / "scan.pdf")
+    document.close()
+
+    requires_ocr = check_environment_module.input_requires_ocr(customer)
+
+    assert requires_ocr is True
+
+
+def test_ocr_preflight_text_pdf_does_not_require_ocr(tmp_path: Path) -> None:
+    fitz = pytest.importorskip("fitz", reason="PyMuPDF is a core dependency")
+    customer = tmp_path / "text-pdf"
+    customer.mkdir()
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text(
+        (72, 72),
+        "Testo PDF nativo sufficientemente lungo per evitare una richiesta OCR.",
+    )
+    document.save(customer / "native.pdf")
+    document.close()
+
+    requires_ocr = check_environment_module.input_requires_ocr(customer)
+
+    assert requires_ocr is False
+
+
+def test_ocr_preflight_missing_paddle_uses_managed_setup_prompt(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing = [check_environment_module.OCR_DEPENDENCIES[1]]
+
+    check_environment_module._print_report([], missing, require_ocr=True)
+
+    output = capsys.readouterr().out
+    assert "OCR_SETUP_REQUIRED" in output
+    assert (
+        "PaddleOCR is required to read this document. Shall Codex install it now? "
+        "The download is about 500 MB."
+    ) in output
+    assert "pip install" not in output
+
+
+def test_paddle_session_normalizes_current_result_structure() -> None:
+    class FakePaddleEngine:
+        def predict(self, _image: object) -> list[dict[str, list[str]]]:
+            return [{"rec_texts": [" Riga uno ", "Riga due"]}]
+
+    session = extraction_module._PaddleOcrSession("it")
+    session.engine = FakePaddleEngine()
+    session.initialized = True
+
+    text, error = session.extract(object())
+
+    assert error == ""
+    assert text == "Riga uno\nRiga due"
+
+
+def test_paddle_session_initializes_without_legacy_show_log(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, object]] = []
+    fake_module = types.ModuleType("paddleocr")
+
+    def fake_paddle_ocr(**kwargs: object) -> object:
+        calls.append(kwargs)
+        return object()
+
+    fake_module.PaddleOCR = fake_paddle_ocr  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "paddleocr", fake_module)
+    session = extraction_module._PaddleOcrSession("it")
+
+    session._initialize()
+
+    assert calls == [{"lang": "it"}]
+    assert session.engine is not None
+    assert session.init_error == ""
+
+
+def test_extraction_never_follows_symbolic_links_outside_customer_folder(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside-secret.txt"
+    outside.write_text(
+        "External secret that must never enter the customer evidence extraction.",
+        encoding="utf-8",
+    )
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    (customer / "linked-secret.txt").symlink_to(outside)
+    (customer / "linked-secret-copy.txt").symlink_to(outside)
+
+    records = scan_folder(customer, target_year=2025)
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        tmp_path / "extracted",
+        enable_ocr=False,
+        language="de",
+    )
+
+    assert len(records) == 2
+    assert all(
+        "collegamento simbolico non seguito" in record.notes for record in records
+    )
+    assert all(record.extraction_method == "unsafe_source_path" for record in evidence)
+    assert all(record.readable is False for record in evidence)
+    assert all(record.text_path == "" for record in evidence)
+    assert "External secret that must never enter" not in (
+        tmp_path / "extracted" / "documents.jsonl"
+    ).read_text(encoding="utf-8")
+    assert "External secret that must never enter" not in (
+        tmp_path / "extracted" / "extraction_report.md"
+    ).read_text(encoding="utf-8")
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        enable_ocr=False,
+    )
+    assert (
+        len(
+            (result.output_dir / "duplicate_candidates.csv")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+        == 1
+    )
+
+
+def test_symlink_snapshot_rejects_regular_file_replacement(tmp_path: Path) -> None:
+    outside = tmp_path / "outside-secret.txt"
+    outside.write_text("Original external secret.", encoding="utf-8")
+    customer = tmp_path / "customer-replacement"
+    customer.mkdir()
+    source = customer / "linked-secret.txt"
+    source.symlink_to(outside)
+    records = scan_folder(customer, target_year=2025)
+
+    source.unlink()
+    source.write_text("Replacement content must not be extracted.", encoding="utf-8")
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        tmp_path / "replacement-extracted",
+        enable_ocr=False,
+    )
+
+    assert evidence[0].extraction_method == "unsafe_source_path"
+    assert evidence[0].readable is False
+    assert "Replacement content must not be extracted" not in (
+        tmp_path / "replacement-extracted" / "documents.jsonl"
+    ).read_text(encoding="utf-8")
+    with pytest.raises(RuntimeError, match="cambiato tipo"):
+        scan_module.verify_source_snapshot(records, customer)
+
+
+def test_extracted_text_paths_do_not_collide_after_filename_sanitization(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "customer"
+    nested = customer / "a"
+    nested.mkdir(parents=True)
+    first_text = "First document marker. " * 4
+    second_text = "Second document marker. " * 4
+    (nested / "b.txt").write_text(first_text, encoding="utf-8")
+    (customer / "a_b.txt").write_text(second_text, encoding="utf-8")
+
+    records = scan_folder(customer, target_year=2025)
+    output_dir = tmp_path / "extracted"
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        output_dir,
+        enable_ocr=False,
+    )
+
+    paths = {record.relative_path: record.text_path for record in evidence}
+    assert paths["a/b.txt"] != paths["a_b.txt"]
+    assert "First document marker" in (output_dir / paths["a/b.txt"]).read_text(
+        encoding="utf-8"
+    )
+    assert "Second document marker" in (output_dir / paths["a_b.txt"]).read_text(
+        encoding="utf-8"
+    )
+
+
+def test_ooxml_rejects_entity_declaration_after_large_leading_prefix(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    path = customer / "unsafe.docx"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(
+            "word/document.xml",
+            b" " * 5_000
+            + b"<!DOCTYPE w:document [<!ENTITY unsafe 'payload'>]>"
+            + b"<w:document xmlns:w='urn:test'><w:body><w:p><w:r>"
+            + b"<w:t>&unsafe;</w:t></w:r></w:p></w:body></w:document>",
+        )
+
+    records = scan_folder(customer)
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        tmp_path / "extracted",
+        enable_ocr=False,
+        language="de",
+    )
+
+    assert evidence[0].extraction_method == "docx_unreadable"
+    assert evidence[0].readable is False
+    assert any(
+        "DTD-/Entity-Deklarationen sind nicht zulässig" in note
+        for note in evidence[0].notes
+    )
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be"])
+@pytest.mark.parametrize(
+    ("declaration", "content"),
+    [
+        (
+            "<!DOCTYPE w:document [<!ENTITY unsafe 'INERT_ENTITY_MARKER'>]>",
+            "&unsafe; harmless synthetic document text for extraction.",
+        ),
+        (
+            "<!DOCTYPE w:document>",
+            "Harmless synthetic document text for extraction.",
+        ),
+    ],
+)
+def test_ooxml_rejects_utf16_dtd_declarations(
+    tmp_path: Path, encoding: str, declaration: str, content: str
+) -> None:
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    xml = (
+        "<?xml version='1.0' encoding='UTF-16'?>"
+        + declaration
+        + "<w:document xmlns:w='urn:test'><w:body><w:p><w:r>"
+        + f"<w:t>{content}</w:t>"
+        + "</w:r></w:p></w:body></w:document>"
+    )
+    with zipfile.ZipFile(customer / "unsafe.docx", "w") as archive:
+        archive.writestr("word/document.xml", xml.encode(encoding))
+
+    evidence = extraction_module.extract_documents(
+        scan_folder(customer), customer, tmp_path / "extracted", enable_ocr=False
+    )
+
+    assert evidence[0].extraction_method == "docx_unreadable"
+    assert evidence[0].readable is False
+    assert any("DTD/entity non consentite" in note for note in evidence[0].notes)
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be"])
+def test_ooxml_extracts_normal_utf16_xml(tmp_path: Path, encoding: str) -> None:
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    expected_text = "Documento ordinario UTF-16: società e attività professionale."
+    xml = (
+        "<?xml version='1.0' encoding='UTF-16'?>"
+        "<w:document xmlns:w='urn:test'><w:body><w:p><w:r>"
+        f"<w:t>{expected_text}</w:t></w:r></w:p></w:body></w:document>"
+    )
+    with zipfile.ZipFile(customer / "safe.docx", "w") as archive:
+        archive.writestr("word/document.xml", xml.encode(encoding))
+    output_dir = tmp_path / "extracted"
+
+    evidence = extraction_module.extract_documents(
+        scan_folder(customer), customer, output_dir, enable_ocr=False
+    )
+
+    assert evidence[0].extraction_method == "docx_ooxml"
+    assert evidence[0].readable is True
+    assert expected_text in (output_dir / evidence[0].text_path).read_text(
+        encoding="utf-8"
+    )
+
+
+def test_ooxml_rejects_archives_over_the_member_count_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    path = customer / "oversized-structure.docx"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(
+            "word/document.xml",
+            "<w:document xmlns:w='urn:test'><w:body/></w:document>",
+        )
+        archive.writestr("custom/one.xml", "<one/>")
+        archive.writestr("custom/two.xml", "<two/>")
+    monkeypatch.setattr(extraction_module, "MAX_ARCHIVE_MEMBERS", 2)
+
+    records = scan_folder(customer)
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        tmp_path / "extracted",
+        enable_ocr=False,
+    )
+
+    assert evidence[0].extraction_method == "docx_unreadable"
+    assert any("troppi membri" in note for note in evidence[0].notes)
+
+
+def test_text_extraction_rejects_files_over_the_configured_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    (customer / "oversized.txt").write_text("A" * 256, encoding="utf-8")
+    monkeypatch.setattr(extraction_module, "MAX_TEXT_BYTES", 64)
+
+    records = scan_folder(customer)
+    evidence = extraction_module.extract_documents(
+        records,
+        customer,
+        tmp_path / "extracted",
+        enable_ocr=False,
+        language="fr",
+    )
+
+    assert evidence[0].readable is False
+    assert any("dépasse la limite de" in note for note in evidence[0].notes)
+
+
+def test_short_text_diagnostic_uses_working_language(tmp_path: Path) -> None:
+    customer = tmp_path / "short-text-customer"
+    customer.mkdir()
+    (customer / "short.txt").write_text("x", encoding="utf-8")
+
+    evidence = extraction_module.extract_documents(
+        scan_folder(customer),
+        customer,
+        tmp_path / "short-text-extracted",
+        enable_ocr=False,
+        language="de",
+    )
+
+    assert evidence[0].notes == ("Text fehlt oder ist zu kurz",)
+
+
+def test_non_italian_generic_xml_is_not_processed_as_fatturapa(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "uk-client"
+    customer.mkdir()
+    (customer / "generic.xml").write_text(
+        "<records><record>UK supporting data</record></records>",
+        encoding="utf-8",
+    )
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        jurisdiction="uk",
+        language="en",
+        enable_ocr=False,
+    )
+
+    records = scan_folder(customer, jurisdiction="uk")
+    assert records[0].category != CATEGORY_FATTURE_XML
+    assert (result.output_dir / "extracted" / "fatture_xml.jsonl").read_text(
+        encoding="utf-8"
+    ) == ""
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    assert all(
+        item["item_type"] != "formal_xml_anomaly" for item in review_payload["items"]
+    )
+
+
+def test_mixed_generic_xml_is_not_misclassified_as_fatturapa(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "mixed-client"
+    customer.mkdir()
+    (customer / "swiss_export.xml").write_text(
+        "<records><record>Geneva supporting data</record></records>",
+        encoding="utf-8",
+    )
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        jurisdiction="mixed",
+        language="fr",
+        enable_ocr=False,
+    )
+
+    records = scan_folder(customer, jurisdiction="mixed", language="fr")
+    assert records[0].category != CATEGORY_FATTURE_XML
+    assert "XML generico: struttura FatturaPA non individuata" in records[0].notes
+    assert (result.output_dir / "extracted" / "fatture_xml.jsonl").read_text(
+        encoding="utf-8"
+    ) == ""
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    assert all(
+        item["item_type"] != "formal_xml_anomaly" for item in review_payload["items"]
+    )
+    anomaly_text = (result.output_dir / "05_anomalie_formali.md").read_text(
+        encoding="utf-8"
+    )
+    assert "structure FatturaPA non identifiée" in anomaly_text
+
+
+def test_run_scope_records_supported_jurisdiction_language_and_default_previews(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "geneva-client"
+    customer.mkdir()
+    (customer / "Geneva_tax_2025.txt").write_text(GENEVA_TEXT, encoding="utf-8")
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        jurisdiction="geneva",
+        language="fr",
+    )
+
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    assert run_intake["jurisdiction"] == "geneva"
+    assert run_intake["language"] == "fr"
+    assert run_intake["assumptions"]["ocr_language"] == "fr"
+    assert review_payload["jurisdiction"] == "geneva"
+    assert review_payload["language"] == "fr"
+    assert review_payload["preview_limits"] == {
+        "document_text_characters": 600,
+        "fiscal_evidence_characters": 600,
+        "draft_text_characters": 2000,
+    }
+    inventory_item = next(
+        item
+        for item in review_payload["items"]
+        if item["item_type"] == "document_inventory"
+    )
+    assert inventory_item["data"]["category"] == "documents fiscaux genevois"
+    assert any(
+        evidence.get("preview")
+        for item in review_payload["items"]
+        for evidence in item.get("evidence", [])
+    )
+    assert any(
+        evidence.get("kind") == "snippet"
+        for item in review_payload["items"]
+        if item["item_type"] == "extracted_fiscal_field"
+        for evidence in item.get("evidence", [])
+    )
+    for draft_id in ("draft-studio-brief", "draft-memo", "draft-client-email"):
+        draft = next(item for item in review_payload["items"] if item["id"] == draft_id)
+        assert draft["data"]["preview"]
+
+
+@pytest.mark.parametrize(
+    ("language", "jurisdiction", "expected"),
+    [
+        (
+            "it",
+            "italy",
+            {
+                "index": "# Indice fascicolo",
+                "memo": "# Memo di istruttoria clienti",
+                "email": "Oggetto: Documenti e chiarimenti per completare l'istruttoria",
+                "limits": "## Limiti della lettura",
+                "handoff": "Passaggio alla revisione",
+                "column": "Azione suggerita",
+                "fiscal_title": "# Dati fiscali strutturati",
+                "fiscal_count": "- Campi estratti: 0",
+                "fiscal_limit": "Ogni valore va verificato sul documento originale",
+                "fiscal_empty": "Nessun campo fiscale strutturato estratto",
+                "anomalies": "# Anomalie formali",
+                "xml_anomalies": "# Anomalie formali e-fattura XML",
+                "confidence": "bassa",
+                "posture_note": "Gli script esaminano localmente",
+            },
+        ),
+        (
+            "en",
+            "uk",
+            {
+                "index": "# Client file index",
+                "memo": "# Client file-preparation memo",
+                "email": "Subject: Documents and clarifications needed to complete file preparation",
+                "limits": "## Reading limitations",
+                "handoff": "Review handoff",
+                "column": "Suggested action",
+                "fiscal_title": "# Structured fiscal data",
+                "fiscal_count": "- Extracted fields: 0",
+                "fiscal_limit": "Verify every value against the original document",
+                "fiscal_empty": "No structured fiscal fields were extracted",
+                "anomalies": "# Formal anomalies",
+                "xml_anomalies": "# Formal electronic-invoice XML anomalies",
+                "confidence": "low",
+                "posture_note": "Scripts inspect local customer-folder files",
+            },
+        ),
+        (
+            "fr",
+            "geneva",
+            {
+                "index": "# Index du dossier client",
+                "memo": "# Note de préparation du dossier client",
+                "email": "Objet : Documents et précisions nécessaires pour compléter le dossier",
+                "limits": "## Limites de lecture",
+                "handoff": "Passage à la revue",
+                "column": "Action suggérée",
+                "fiscal_title": "# Données fiscales structurées",
+                "fiscal_count": "- Champs extraits: 0",
+                "fiscal_limit": "Chaque valeur doit être vérifiée",
+                "fiscal_empty": "Aucun champ fiscal structuré n’a été extrait",
+                "anomalies": "# Anomalies formelles",
+                "xml_anomalies": "# Anomalies formelles des factures électroniques XML",
+                "confidence": "faible",
+                "posture_note": "Les scripts examinent localement",
+            },
+        ),
+        (
+            "de",
+            "zurich",
+            {
+                "index": "# Index der Mandantenakte",
+                "memo": "# Arbeitsvermerk zur Mandantenakte",
+                "email": "Betreff: Unterlagen und Angaben zur Vervollständigung der Akte",
+                "limits": "## Grenzen der Auslesung",
+                "handoff": "Übergabe zur Prüfung",
+                "column": "Empfohlene Aktion",
+                "fiscal_title": "# Strukturierte Steuerdaten",
+                "fiscal_count": "- Extrahierte Felder: 0",
+                "fiscal_limit": "Jeder Wert muss vor der operativen Verwendung",
+                "fiscal_empty": "keine strukturierten Steuerfelder extrahiert",
+                "anomalies": "# Formale Anomalien",
+                "xml_anomalies": "# Formale Anomalien in E-Rechnungs-XML",
+                "confidence": "niedrig",
+                "posture_note": "Die Skripte prüfen die Dateien",
+            },
+        ),
+        (
+            "es",
+            "italy",
+            {
+                "index": "# Índice del expediente del cliente",
+                "memo": "# Memoria de preparación del expediente del cliente",
+                "email": "Asunto: Documentos y aclaraciones necesarios para completar el expediente",
+                "limits": "## Limitaciones de lectura",
+                "handoff": "Entrega para revisión",
+                "column": "Acción sugerida",
+                "fiscal_title": "# Datos fiscales estructurados",
+                "fiscal_count": "- Campos extraídos: 0",
+                "fiscal_limit": "Cada valor debe verificarse",
+                "fiscal_empty": "No se extrajeron campos fiscales estructurados",
+                "anomalies": "# Anomalías formales",
+                "xml_anomalies": "# Anomalías formales en XML de factura electrónica",
+                "confidence": "baja",
+                "posture_note": "Los scripts examinan localmente",
+            },
+        ),
+    ],
+)
+def test_language_controls_user_facing_run_outputs(
+    tmp_path: Path,
+    language: str,
+    jurisdiction: str,
+    expected: dict[str, str],
+) -> None:
+    customer = tmp_path / f"client-{language}"
+    customer.mkdir()
+    (customer / "supporting_document_2025.txt").write_text(
+        "General supporting document for the 2025 client file. "
+        "This content is intentionally long enough for local extraction.",
+        encoding="utf-8",
+    )
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        jurisdiction=jurisdiction,
+        language=language,
+    )
+
+    assert expected["index"] in (result.output_dir / "00_fascicolo_index.md").read_text(
+        encoding="utf-8"
+    )
+    assert expected["memo"] in (result.output_dir / "06_memo_istruttoria.md").read_text(
+        encoding="utf-8"
+    )
+    email_text = (result.output_dir / "04_bozza_email_cliente.md").read_text(
+        encoding="utf-8"
+    )
+    assert expected["email"] in email_text
+    if language != "it":
+        assert "Bozza email cliente" not in email_text
+        assert "Nessuna richiesta cliente generata automaticamente" not in email_text
+    assert expected["limits"] in (
+        result.output_dir / "07_scheda_codex_per_studio.md"
+    ).read_text(encoding="utf-8")
+    assert expected["anomalies"] in (
+        result.output_dir / "05_anomalie_formali.md"
+    ).read_text(encoding="utf-8")
+    assert expected["xml_anomalies"] in (
+        result.output_dir / "fatture" / "formal_anomalies.md"
+    ).read_text(encoding="utf-8")
+    assert expected["handoff"] in (result.output_dir / "review_handoff.md").read_text(
+        encoding="utf-8"
+    )
+    fiscal_summary = (result.output_dir / "08_dati_fiscali_strutturati.md").read_text(
+        encoding="utf-8"
+    )
+    assert expected["fiscal_title"] in fiscal_summary
+    assert expected["fiscal_count"] in fiscal_summary
+    assert expected["fiscal_limit"] in fiscal_summary
+    assert expected["fiscal_empty"] in fiscal_summary
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    assert expected["column"] in {
+        column["label"] for column in review_payload["columns"]
+    }
+    assert review_payload["language"] == language
+    uncertain_item = next(
+        item
+        for item in review_payload["items"]
+        if item["item_type"] == "uncertain_file"
+    )
+    assert uncertain_item["data"]["confidence"] == expected["confidence"]
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    assert any(
+        expected["posture_note"] in note for note in run_intake["data_posture"]["notes"]
+    )
+    final_artifacts = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    fiscal_output = next(
+        output
+        for output in final_artifacts["outputs"]
+        if output["path"] == "08_dati_fiscali_strutturati.md"
+    )
+    assert expected["fiscal_title"] in fiscal_output["required_text"]
+    assert expected["fiscal_count"].removeprefix("- ") in fiscal_output["required_text"]
+
+
+@pytest.mark.parametrize(
+    ("language", "expected_title", "expected_dates"),
+    [
+        (
+            "it",
+            "# Avviso / comunicazione - scheda di prima lettura",
+            "Date individuate",
+        ),
+        ("en", "# Notice / communication - initial reading sheet", "Dates identified"),
+        ("fr", "# Avis / communication - fiche de première lecture", "Dates relevées"),
+        ("de", "# Bescheid / Mitteilung - Erstprüfungsblatt", "Erkannte Daten"),
+    ],
+)
+def test_notice_artifact_follows_working_language(
+    tmp_path: Path,
+    language: str,
+    expected_title: str,
+    expected_dates: str,
+) -> None:
+    customer = tmp_path / f"notice-{language}"
+    customer.mkdir()
+    (customer / "Agenzia_avviso_2025.txt").write_text(
+        NOTICE_TEXT,
+        encoding="utf-8",
+    )
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        jurisdiction="italy",
+        language=language,
+    )
+
+    notice = (result.output_dir / "avviso" / "avviso_intake_memo.md").read_text(
+        encoding="utf-8"
+    )
+    assert expected_title in notice
+    assert expected_dates in notice
+
+
+@pytest.mark.parametrize(
+    ("language", "label", "confidence", "warning"),
+    [
+        (
+            "it",
+            "Codice fiscale individuato",
+            "alta",
+            "campo da verificare su layout originale",
+        ),
+        (
+            "en",
+            "Tax code identified",
+            "high",
+            "field to verify against the original layout",
+        ),
+        (
+            "fr",
+            "Code fiscal identifié",
+            "élevée",
+            "champ à vérifier dans la mise en page originale",
+        ),
+        (
+            "de",
+            "Ermittelte italienische Steuernummer",
+            "hoch",
+            "Feld anhand des Originallayouts prüfen",
+        ),
+    ],
+)
+def test_fiscal_summary_localizes_display_text_without_changing_structured_data(
+    tmp_path: Path,
+    language: str,
+    label: str,
+    confidence: str,
+    warning: str,
+) -> None:
+    field = FiscalField(
+        relative_path="CU_2025.pdf",
+        file_name="CU_2025.pdf",
+        document_kind="CU",
+        section="identificativi",
+        field_code="codice_fiscale_1",
+        label="Codice fiscale individuato",
+        value="TSTUSR80A01H501U",
+        normalized_value="TSTUSR80A01H501U",
+        value_type="text",
+        confidence="alta",
+        evidence="Codice fiscale TSTUSR80A01H501U",
+        warnings=("campo da verificare su layout originale",),
+    )
+    output_path = tmp_path / f"fiscal-summary-{language}.md"
+
+    write_fiscal_fields_summary([field], output_path, language=language)
+
+    summary = output_path.read_text(encoding="utf-8")
+    assert f"- {label} (`codice_fiscale_1`): TSTUSR80A01H501U [{confidence}]" in summary
+    assert warning in summary
+    assert field.field_code == "codice_fiscale_1"
+    assert field.normalized_value == "TSTUSR80A01H501U"
+
+
+def test_selected_jurisdiction_gates_italian_completeness_requests(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "uk-client"
+    customer.mkdir()
+    (customer / "CU_2025.txt").write_text(CU_TEXT, encoding="utf-8")
+
+    result = build_file_preparation_outputs(
+        customer,
+        target_year=2025,
+        jurisdiction="uk",
+        language="en",
+    )
+
+    missing_text = (result.output_dir / "02_documenti_mancanti_o_incerti.md").read_text(
+        encoding="utf-8"
+    )
+    email_text = (result.output_dir / "04_bozza_email_cliente.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Check document completeness against the jurisdiction" in missing_text
+    assert "confirm that there are no other CUs" not in email_text
+    assert "confermare che non vi siano altre CU" not in email_text
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("jurisdiction", "canada", "Giurisdizione non supportata"),
+        ("language", "pt", "Lingua non supportata"),
+    ],
+)
+def test_build_rejects_unsupported_scope_values(
+    tmp_path: Path,
+    field: str,
+    value: str,
+    message: str,
+) -> None:
+    customer = tmp_path / f"client-{field}"
+    customer.mkdir()
+    (customer / "document.txt").write_text(CU_TEXT, encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        build_file_preparation_outputs(customer, **{field: value})
+
+
+def test_client_file_preparation_mcp_server_validates_and_renders_review_payload() -> (
+    None
+):
+    run_intake = {
+        "run_id": "client-file-preparation-test-run",
+        "output_dir": "/private/customer/output",
+        "input_paths": ["/private/customer"],
+        "data_posture": {"local_files_read": ["/private/customer"]},
+        "assumptions": {"client_name": "Private Client", "file_count": 1},
+        "execution_trace": [
+            {
+                "command": ["python", "/private/customer/run.py"],
+                "inputs": ["/private/customer/document.pdf"],
+            }
+        ],
+    }
+    review_payload = {
+        "schema_version": "1.0",
+        "plugin": "client-file-preparation",
+        "workflow": "client-file-preparation",
+        "run_id": "client-file-preparation-test-run",
+        "review_type": "client_file_preparation_folder_review",
+        "items": [
+            {
+                "id": "document-1",
+                "item_type": "document_inventory",
+                "title": "CU_Example_2025.pdf",
+                "source_path": "/tmp/CU_Example_2025.pdf",
+                "output_path": None,
+                "allowed_actions": ["accept", "edit", "mark_unclear", "skip"],
+                "recommended_action": "accept",
+                "evidence": [],
+                "data": {"category": "CU", "confidence": "alta"},
+                "status": "needs_review",
+            },
+            {
+                "id": "draft-client-email",
+                "item_type": "draft_client_email",
+                "title": "Bozza email cliente",
+                "source_path": None,
+                "output_path": "04_bozza_email_cliente.md",
+                "allowed_actions": ["accept", "edit", "mark_unclear", "skip"],
+                "recommended_action": "accept",
+                "evidence": [],
+                "data": {"preview": "Gentile cliente, inviare la CU mancante."},
+                "status": "needs_review",
+            },
+        ],
+        "item_count": 2,
+        "columns": [],
+        "evidence": {},
+        "allowed_actions": ["accept", "edit", "mark_unclear", "skip"],
+        "status": "ready_for_review",
+        "summary": {"file_count": 1, "missing_document_count": 1},
+    }
+    private_required_text = "Private Client must send the confidential source"
+    final_artifacts = {
+        "outputs": [
+            {
+                "path": "04_bozza_email_cliente.md",
+                "size_bytes": 123,
+                "sha256": "0" * 64,
+                "qa_checks": ["nonempty_text", "required_text"],
+                "required_text": [private_required_text],
+            }
+        ]
+    }
+    nonpersistent_render_intake = dict(run_intake)
+    nonpersistent_render_intake.pop("output_dir")
+    messages: list[dict[str, object]] = [
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "validate_client_file_preparation_review",
+                "arguments": {
+                    "run_intake": run_intake,
+                    "review_payload": review_payload,
+                },
+            },
+        },
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "render_client_file_preparation_review",
+                "arguments": {
+                    "run_intake": nonpersistent_render_intake,
+                    "review_payload": review_payload,
+                    "final_artifacts": final_artifacts,
+                },
+            },
+        },
+        {"jsonrpc": "2.0", "id": 4, "method": "resources/list"},
+        {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "resources/read",
+            "params": {"uri": "ui://widget/client-file-preparation-review.html"},
+        },
+    ]
+
+    responses = {response["id"]: response for response in _call_mcp_server(messages)}
+
+    tool_names = {tool["name"] for tool in responses[1]["result"]["tools"]}
+    assert {
+        "validate_client_file_preparation_review",
+        "render_client_file_preparation_review",
+    } <= tool_names
+    validate_result = responses[2]["result"]["structuredContent"]
+    assert validate_result["ok"] is True
+    assert validate_result["item_count"] == 2
+    render_result = responses[3]["result"]
+    assert (
+        render_result["structuredContent"]["widget_type"]
+        == "client_file_preparation_review"
+    )
+    assert "output_dir" not in render_result["structuredContent"]["run_intake"]
+    assert render_result["structuredContent"]["run_intake"]["input_paths"] == []
+    assert (
+        render_result["structuredContent"]["run_intake"]["data_posture"][
+            "local_files_read"
+        ]
+        == []
+    )
+    sanitized_intake = render_result["structuredContent"]["run_intake"]
+    assert sanitized_intake["assumptions"]["client_name"] == "Private Client"
+    assert sanitized_intake["execution_trace"][0]["inputs"] == ["<local-path>"]
+    assert sanitized_intake["execution_trace"][0]["command"] == [
+        "python",
+        "<local-path>",
+    ]
+    rendered_artifacts = render_result["structuredContent"]["final_artifacts"]
+    assert rendered_artifacts["outputs"][0]["qa_checks"] == [
+        "nonempty_text",
+        "required_text",
+    ]
+    assert rendered_artifacts["outputs"][0]["required_text"] == [private_required_text]
+    assert private_required_text in json.dumps(render_result)
+    assert (
+        render_result["_meta"]["openai/outputTemplate"]
+        == "ui://widget/client-file-preparation-review.html"
+    )
+    resource_uris = {
+        resource["uri"] for resource in responses[4]["result"]["resources"]
+    }
+    assert "ui://widget/client-file-preparation-review.html" in resource_uris
+    widget_html = responses[5]["result"]["contents"][0]["text"]
+    assert "New Client · File Preparation" in widget_html
+
+
+def test_client_file_preparation_hosted_mcp_render_save_apply_is_path_private(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(
+        tmp_path,
+        content=f"Ragione sociale: Hosted Path Private Client\n{CU_TEXT}",
+    )
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    private_required_text = [
+        text
+        for output in final_artifacts["outputs"]
+        for text in output.get("required_text", [])
+    ]
+    assert private_required_text
+    decisions = [
+        {"item_id": item["id"], "action": "accept"} for item in review_payload["items"]
+    ]
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip(
+            "Node.js is required to exercise the Client File Preparation MCP server."
+        )
+    process = subprocess.Popen(
+        [node, str(MCP_SERVER_PATH), "--stdio"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    def call_tool(
+        request_id: int,
+        tool_name: str,
+        arguments: dict[str, object],
+    ) -> dict[str, object]:
+        assert process.stdin is not None
+        assert process.stdout is not None
+        process.stdin.write(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "tools/call",
+                    "params": {"name": tool_name, "arguments": arguments},
+                }
+            )
+            + "\n"
+        )
+        process.stdin.flush()
+        response_line = process.stdout.readline()
+        assert response_line, "Client File Preparation MCP server closed unexpectedly"
+        return json.loads(response_line)
+
+    try:
+        validate_response = call_tool(
+            1,
+            "validate_client_file_preparation_review",
+            {
+                "client_engagement": str(client_engagement),
+                "run_intake": run_intake,
+                "review_payload": review_payload,
+                "final_artifacts": final_artifacts,
+            },
+        )
+        validated = validate_response["result"]["structuredContent"]
+        persistence_token = validated["review_reference"]["persistence_token"]
+        assert "review_payload" not in validated
+        assert private_required_text[0] not in json.dumps(validate_response)
+        render_response = call_tool(
+            2,
+            "render_client_file_preparation_review",
+            {
+                "persistence_token": persistence_token,
+            },
+        )
+        rendered = render_response["result"]["structuredContent"]
+        persistence_token = rendered["decision_policy"]["persistence_token"]
+        assert rendered["decision_policy"]["can_persist"] is True
+        assert len(persistence_token) == 43
+        assert "output_dir" not in rendered["run_intake"]
+        assert result.output_dir.as_posix() not in json.dumps(render_response)
+        assert str(result.output_dir.parent / "inputs") not in json.dumps(
+            render_response
+        )
+        assert all(
+            text in json.dumps(render_response, ensure_ascii=False)
+            for text in private_required_text
+        )
+
+        initial_ui_bytes = (result.output_dir / "ui_decisions.json").read_bytes()
+        rejected_response = call_tool(
+            2,
+            "save_client_file_preparation_decisions",
+            {
+                "client_engagement": str(client_engagement),
+                "run_intake": rendered["run_intake"],
+                "persistence_token": "x" * 43,
+                "review_payload": rendered["review_payload"],
+                "decisions": [],
+            },
+        )
+        rejected = rejected_response["result"]["structuredContent"]
+        assert rejected["ok"] is False
+        assert "unknown or expired" in rejected["error"]
+        assert (
+            result.output_dir / "ui_decisions.json"
+        ).read_bytes() == initial_ui_bytes
+
+        save_response = call_tool(
+            3,
+            "save_client_file_preparation_decisions",
+            {
+                "client_engagement": str(client_engagement),
+                "run_intake": rendered["run_intake"],
+                "persistence_token": persistence_token,
+                "review_payload": rendered["review_payload"],
+                "ui_decisions": rendered["ui_decisions"],
+                "decisions": decisions,
+                "decision_source": "hosted_mcp_test",
+                "reviewer": "reviewer-hosted-01",
+            },
+        )
+        saved = save_response["result"]["structuredContent"]
+        assert saved["ok"] is True
+        assert saved["persisted"] is True
+        assert saved["ui_decisions_path"] == "ui_decisions.json"
+        assert "final_artifacts" not in saved
+
+        apply_response = call_tool(
+            4,
+            "apply_client_file_preparation_decisions",
+            {
+                "client_engagement": str(client_engagement),
+                "run_intake": rendered["run_intake"],
+                "persistence_token": persistence_token,
+                "review_payload": rendered["review_payload"],
+                "ui_decisions": saved["ui_decisions"],
+                "decisions": decisions,
+                "decision_source": "hosted_mcp_test",
+                "reviewer": "reviewer-hosted-01",
+            },
+        )
+        applied = apply_response["result"]["structuredContent"]
+        assert applied["ok"] is True
+        assert applied["persisted"] is True
+        assert applied["application_status"] == "final_ready"
+        assert applied["ui_decisions_path"] == "ui_decisions.json"
+        assert applied["applied_decisions_path"] == "applied_decisions.json"
+        assert applied["final_artifacts_path"] == "final_artifacts.json"
+        assert applied["run_intake_path"] == "run_intake.json"
+        assert any(
+            output.get("required_text")
+            for output in applied["final_artifacts"]["outputs"]
+        )
+        browser_results = json.dumps(
+            [render_response, save_response, apply_response],
+            ensure_ascii=False,
+        )
+        assert result.output_dir.as_posix() not in browser_results
+        assert str(result.output_dir.parent / "inputs") not in browser_results
+        assert "Hosted Path Private Client" in browser_results
+        persisted_final_artifacts = json.loads(
+            (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+        )
+        assert any(
+            output.get("required_text")
+            for output in persisted_final_artifacts["outputs"]
+        )
+        handoff, handoff_items = _load_model_handoff(result.output_dir)
+        email_requests = [
+            item for item in handoff_items if item["kind"] == "email_request"
+        ]
+        expected_reviewed_requests = sum(
+            item["item_type"] == "missing_document_request"
+            for item in review_payload["items"]
+        )
+        assert len(email_requests) == expected_reviewed_requests
+        assert handoff["source_population"]["reviewed_email_request_count"] == (
+            expected_reviewed_requests
+        )
+        assert all(
+            item["client_reference"] == CLIENT_REFERENCE for item in email_requests
+        )
+        assert "Hosted Path Private Client" not in json.dumps(
+            email_requests,
+            ensure_ascii=False,
+        )
+        persisted_output_paths = {
+            output["path"] for output in persisted_final_artifacts["outputs"]
+        }
+        assert "model_handoff.json" in persisted_output_paths
+        assert set(handoff["pagination"]["pages"][0].keys()) >= {
+            "path",
+            "size_bytes",
+            "sha256",
+        }
+    finally:
+        if process.stdin is not None:
+            process.stdin.close()
+        return_code = process.wait(timeout=10)
+        stderr = process.stderr.read() if process.stderr is not None else ""
+        assert return_code == 0, stderr
+
+    written_ui = json.loads(
+        (result.output_dir / "ui_decisions.json").read_text(encoding="utf-8")
+    )
+    written_applied = json.loads(
+        (result.output_dir / "applied_decisions.json").read_text(encoding="utf-8")
+    )
+    written_final = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    assert written_ui["status"] == "reviewed"
+    assert written_applied["application_status"] == "final_ready"
+    assert written_final["review_status"] == "final_ready"
+
+
+def test_client_file_preparation_mcp_apply_updates_draft_email_artifact(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    output_dir = result.output_dir
+    draft_email_path = output_dir / "04_bozza_email_cliente.md"
+    original_email = draft_email_path.read_text(encoding="utf-8")
+    run_intake = json.loads(
+        (output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    review_payload = json.loads(
+        (output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    final_artifacts = json.loads(
+        (output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    edited_email = (
+        original_email.rstrip()
+        + "\n\nNota di revisione: verificare anche la certificazione del mutuo.\n"
+    )
+    messages: list[dict[str, object]] = [
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "apply_client_file_preparation_decisions",
+                "arguments": {
+                    "client_engagement": str(client_engagement),
+                    "run_intake": run_intake,
+                    "review_payload": review_payload,
+                    "final_artifacts": final_artifacts,
+                    "reviewer": "reviewer-email-01",
+                    "decisions": [
+                        (
+                            {
+                                "item_id": item["id"],
+                                "action": "edit",
+                                "edit_value": edited_email,
+                                "reviewer_note": "Rewrite the client request.",
+                            }
+                            if item["id"] == "draft-client-email"
+                            else {"item_id": item["id"], "action": "accept"}
+                        )
+                        for item in review_payload["items"]
+                    ],
+                },
+            },
+        }
+    ]
+
+    responses = {response["id"]: response for response in _call_mcp_server(messages)}
+
+    payload = responses[1]["result"]["structuredContent"]
+    assert payload["ok"] is True
+    assert payload["target_update_count"] == 1
+    assert payload["application_status"] == "final_ready"
+    assert draft_email_path.read_text(encoding="utf-8") == edited_email.rstrip()
+    applied = json.loads(
+        (output_dir / "applied_decisions.json").read_text(encoding="utf-8")
+    )
+    email_effect = next(
+        effect
+        for effect in applied["effects"]
+        if effect["item_id"] == "draft-client-email"
+    )
+    assert email_effect["artifact_update"] == "target_artifact_updated"
+    assert email_effect["target_artifact"] == "04_bozza_email_cliente.md"
+    assert applied["target_update_paths"] == ["04_bozza_email_cliente.md"]
+    backup_path = output_dir / applied["original_backup_paths"][0]
+    assert backup_path.read_text(encoding="utf-8") == original_email
+    updated_final = json.loads(
+        (output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    assert updated_final["review_status"] == "final_ready"
+    assert updated_final["review_application"]["target_update_paths"] == [
+        "04_bozza_email_cliente.md"
+    ]
+    assert any(
+        "galleria verificata" in action for action in updated_final["next_actions"]
+    )
+    email_output = next(
+        output
+        for output in updated_final["outputs"]
+        if output["path"] == "04_bozza_email_cliente.md"
+    )
+    assert email_output["status"] == "updated_from_review"
+
+
+@pytest.mark.parametrize(
+    "item_id,target",
+    [
+        ("draft-client-email", "04_bozza_email_cliente.md"),
+        ("draft-memo", "06_memo_istruttoria.md"),
+        ("draft-studio-brief", "07_scheda_codex_per_studio.md"),
+    ],
+)
+def test_client_file_preparation_mcp_accepts_exact_reviewed_draft_replacement(
+    tmp_path: Path,
+    item_id: str,
+    target: str,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    decisions = [
+        (
+            {
+                "item_id": item["id"],
+                "action": "edit",
+                "edit_value": "Oggetto: Documenti aggiornati\n\nGentile cliente, confermi i documenti ancora mancanti.",
+            }
+            if item["id"] == item_id
+            else {"item_id": item["id"], "action": "accept"}
+        )
+        for item in review_payload["items"]
+    ]
+
+    payload = _call_review_decision_tool(
+        "apply_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=decisions,
+        reviewer="reviewer-qa-01",
+        client_engagement=client_engagement,
+    )
+
+    assert payload["ok"] is True
+    edited = next(row["edit_value"] for row in decisions if row["action"] == "edit")
+    assert (result.output_dir / target).read_text() == edited
+    updated = json.loads((result.output_dir / "final_artifacts.json").read_text())
+    email = next(row for row in updated["outputs"] if row["path"] == target)
+    assert email["required_text"] == [edited]
+    assert email["qa_checks"] == ["nonempty_text", "required_text"]
+
+
+def test_client_file_preparation_mcp_save_reseals_generated_package(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    final_artifacts = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+
+    responses = _call_mcp_server(
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "save_client_file_preparation_decisions",
+                    "arguments": {
+                        "client_engagement": str(client_engagement),
+                        "run_intake": run_intake,
+                        "review_payload": review_payload,
+                        "final_artifacts": final_artifacts,
+                        "decisions": [
+                            {
+                                "item_id": review_payload["items"][0]["id"],
+                                "action": "accept",
+                            }
+                        ],
+                    },
+                },
+            }
+        ]
+    )
+
+    assert responses[0]["result"]["structuredContent"]["ok"] is True
+    updated = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    ui_output = next(
+        output for output in updated["outputs"] if output["path"] == "ui_decisions.json"
+    )
+    ui_path = result.output_dir / "ui_decisions.json"
+    assert ui_output["sha256"] == hashlib.sha256(ui_path.read_bytes()).hexdigest()
+    assert updated["integrity"]["package_hash"] == _expected_package_hash(
+        updated["outputs"]
+    )
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_client_file_preparation_persistence_survives_customer_folder_rename_and_rejects_escape(
+    tmp_path: Path,
+    nested: bool,
+) -> None:
+    result, old_context_path = _managed_review_run(tmp_path, nested=nested)
+    old_output_dir = result.output_dir
+    old_client_root = old_context_path.parents[5]
+    relative_output = old_output_dir.relative_to(old_client_root)
+    relative_context = old_context_path.relative_to(old_client_root)
+    renamed_client_root = old_client_root.with_name("Renamed Managed Customer")
+    old_client_root.rename(renamed_client_root)
+    output_dir = renamed_client_root / relative_output
+    context_path = renamed_client_root / relative_context
+    run_intake, review_payload, final_artifacts = _load_review_run(output_dir)
+    assert run_intake["path_reference"] == "run_root_relative"
+    assert run_intake["output_dir"] == ("outputs/intake" if nested else "outputs")
+    arguments = {
+        "client_engagement": str(context_path),
+        "run_intake": run_intake,
+        "review_payload": review_payload,
+        "final_artifacts": final_artifacts,
+        "decisions": [
+            {"item_id": review_payload["items"][0]["id"], "action": "accept"}
+        ],
+    }
+
+    saved = _call_mcp_server(
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "save_client_file_preparation_decisions",
+                    "arguments": arguments,
+                },
+            }
+        ]
+    )[0]["result"]
+
+    assert saved["isError"] is False
+    assert saved["structuredContent"]["persisted"] is True
+    protected = {
+        path: path.read_bytes()
+        for path in (
+            output_dir / "ui_decisions.json",
+            output_dir / "final_artifacts.json",
+        )
+    }
+    rejected = _call_mcp_server(
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "save_client_file_preparation_decisions",
+                    "arguments": {
+                        **arguments,
+                        "run_intake": {**run_intake, "output_dir": "../outside"},
+                    },
+                },
+            }
+        ]
+    )[0]["result"]
+    assert rejected["isError"] is True
+    assert "leaves the customer run" in rejected["structuredContent"]["error"]
+    assert all(path.read_bytes() == before for path, before in protected.items())
+    assert not old_output_dir.exists()
+
+
+def test_client_file_preparation_mcp_apply_rejects_tampered_generated_artifact(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "tamper-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    result = build_file_preparation_outputs(customer, target_year=2025)
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    final_artifacts = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    email_path = result.output_dir / "04_bozza_email_cliente.md"
+    original_email = email_path.read_text(encoding="utf-8")
+    email_path.write_text(f"X{original_email[1:]}", encoding="utf-8")
+
+    responses = _call_mcp_server(
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "apply_client_file_preparation_decisions",
+                    "arguments": {
+                        "run_intake": run_intake,
+                        "review_payload": review_payload,
+                        "final_artifacts": final_artifacts,
+                        "decisions": [
+                            {
+                                "item_id": review_payload["items"][0]["id"],
+                                "action": "accept",
+                            }
+                        ],
+                    },
+                },
+            }
+        ]
+    )
+
+    payload = responses[0]["result"]["structuredContent"]
+    assert payload["ok"] is False
+    assert "sha256 mismatch: 04_bozza_email_cliente.md" in payload["error"]
+    assert not (result.output_dir / "applied_decisions.json").exists()
+
+
+def test_client_file_preparation_mcp_apply_reseals_generated_package(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    run_intake = json.loads(
+        (result.output_dir / "run_intake.json").read_text(encoding="utf-8")
+    )
+    review_payload = json.loads(
+        (result.output_dir / "review_payload.json").read_text(encoding="utf-8")
+    )
+    final_artifacts = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    decisions = [
+        {"item_id": item["id"], "action": "accept"}
+        for item in review_payload["items"]
+        if "accept" in item["allowed_actions"]
+    ]
+
+    responses = _call_mcp_server(
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "apply_client_file_preparation_decisions",
+                    "arguments": {
+                        "client_engagement": str(client_engagement),
+                        "run_intake": run_intake,
+                        "review_payload": review_payload,
+                        "final_artifacts": final_artifacts,
+                        "reviewer": "reviewer-reseal-01",
+                        "decisions": decisions,
+                    },
+                },
+            }
+        ]
+    )
+
+    payload = responses[0]["result"]["structuredContent"]
+    assert payload["ok"] is True
+    updated = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    output_paths = {output["path"] for output in updated["outputs"]}
+    assert {"run_intake.json", "ui_decisions.json", "applied_decisions.json"} <= (
+        output_paths
+    )
+    for output in updated["outputs"]:
+        output_path = result.output_dir / output["path"]
+        assert output["size_bytes"] == output_path.stat().st_size
+        assert output["sha256"] == hashlib.sha256(output_path.read_bytes()).hexdigest()
+    assert updated["integrity"]["package_hash"] == _expected_package_hash(
+        updated["outputs"]
+    )
+
+
+def test_generated_review_run_is_owner_only(tmp_path: Path) -> None:
+    customer = tmp_path / "private-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+
+    result = build_file_preparation_outputs(customer, target_year=2025)
+
+    assert result.output_dir.stat().st_mode & 0o777 == 0o700
+    for path in result.output_dir.rglob("*"):
+        expected_mode = 0o700 if path.is_dir() else 0o600
+        assert path.stat().st_mode & 0o777 == expected_mode
+
+
+def test_mcp_save_rejects_missing_integrity_without_writing(tmp_path: Path) -> None:
+    customer = tmp_path / "missing-integrity-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    result = build_file_preparation_outputs(customer, target_year=2025)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    before = _run_tree_bytes(result.output_dir)
+    final_artifacts.pop("integrity")
+    final_path = result.output_dir / "final_artifacts.json"
+    final_path.write_text(
+        json.dumps(final_artifacts, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    expected_after_fixture_change = _run_tree_bytes(result.output_dir)
+
+    payload = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=[],
+    )
+
+    assert payload["ok"] is False
+    assert "final_artifacts.integrity is required" in payload["error"]
+    assert _run_tree_bytes(result.output_dir) == expected_after_fixture_change
+    assert (
+        before["ui_decisions.json"]
+        == expected_after_fixture_change["ui_decisions.json"]
+    )
+
+
+def test_mcp_save_rejects_stale_manifest_argument(tmp_path: Path) -> None:
+    customer = tmp_path / "stale-manifest-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    result = build_file_preparation_outputs(customer, target_year=2025)
+    run_intake, review_payload, stale_final = _load_review_run(result.output_dir)
+    current_final = json.loads(json.dumps(stale_final))
+    current_final["next_actions"].append("A newer local manifest state.")
+    final_path = result.output_dir / "final_artifacts.json"
+    final_path.write_text(
+        json.dumps(current_final, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    before = _run_tree_bytes(result.output_dir)
+
+    payload = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=stale_final,
+        decisions=[],
+    )
+
+    assert payload["ok"] is False
+    assert "stale" in payload["error"]
+    assert _run_tree_bytes(result.output_dir) == before
+
+
+def test_mcp_persistence_rejects_protected_and_non_owner_only_output_dirs(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "unsafe-output-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    result = build_file_preparation_outputs(customer, target_year=2025)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+
+    protected_intake = dict(run_intake)
+    protected_intake["output_dir"] = PLUGIN_ROOT.as_posix()
+    protected_payload = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=protected_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=[],
+    )
+    assert protected_payload["ok"] is False
+    assert (
+        "outside the plugin package and source repository" in protected_payload["error"]
+    )
+
+    result.output_dir.chmod(0o755)
+    non_owner_payload = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=[],
+    )
+    assert non_owner_payload["ok"] is False
+    assert "owner-only (mode 0700)" in non_owner_payload["error"]
+
+
+def test_mcp_save_rejects_symlinked_run_output(tmp_path: Path) -> None:
+    customer = tmp_path / "symlink-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    result = build_file_preparation_outputs(customer, target_year=2025)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    email_path = result.output_dir / "04_bozza_email_cliente.md"
+    real_email_path = result.output_dir / "email-bytes.md"
+    email_path.rename(real_email_path)
+    email_path.symlink_to(real_email_path.name)
+
+    payload = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=[],
+    )
+
+    assert payload["ok"] is False
+    assert "symbolic links" in payload["error"]
+    assert email_path.is_symlink()
+
+
+def test_mcp_save_binds_caller_review_to_sealed_run_payload(tmp_path: Path) -> None:
+    customer = tmp_path / "review-binding-client"
+    customer.mkdir()
+    (customer / "support.txt").write_text(CU_TEXT, encoding="utf-8")
+    result = build_file_preparation_outputs(customer, target_year=2025)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    changed_review = json.loads(json.dumps(review_payload))
+    changed_review["items"][0]["title"] = "Different caller-provided item title"
+    before = _run_tree_bytes(result.output_dir)
+
+    payload = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=changed_review,
+        final_artifacts=final_artifacts,
+        decisions=[],
+    )
+
+    assert payload["ok"] is False
+    assert "canonical hash" in payload["error"]
+    assert _run_tree_bytes(result.output_dir) == before
+
+
+def test_mcp_final_ready_requires_stable_reviewer_attribution(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    decisions = [
+        {"item_id": item["id"], "action": "accept"} for item in review_payload["items"]
+    ]
+    before = _run_tree_bytes(result.output_dir)
+
+    missing_reviewer = _call_review_decision_tool(
+        "apply_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=decisions,
+        client_engagement=client_engagement,
+    )
+
+    assert missing_reviewer["ok"] is False
+    assert "stable professional or account reference" in missing_reviewer["error"]
+    assert _run_tree_bytes(result.output_dir) == before
+
+    saved = _call_review_decision_tool(
+        "save_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=decisions[:1],
+        reviewer="Fabio Annovazzi",
+        client_engagement=client_engagement,
+    )
+    assert saved["ok"] is True
+    current_final = json.loads(
+        (result.output_dir / "final_artifacts.json").read_text(encoding="utf-8")
+    )
+    changed_reviewer = _call_review_decision_tool(
+        "apply_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=current_final,
+        decisions=decisions,
+        reviewer="Maria Rossi",
+        client_engagement=client_engagement,
+    )
+    assert changed_reviewer["ok"] is False
+    assert "must remain stable" in changed_reviewer["error"]
+
+
+def test_mcp_skip_is_blocked_not_final_ready(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    run_intake, review_payload, final_artifacts = _load_review_run(result.output_dir)
+    skipped_id = next(
+        item["id"]
+        for item in review_payload["items"]
+        if "skip" in item["allowed_actions"]
+    )
+    decisions = [
+        {
+            "item_id": item["id"],
+            "action": "skip" if item["id"] == skipped_id else "accept",
+        }
+        for item in review_payload["items"]
+    ]
+
+    payload = _call_review_decision_tool(
+        "apply_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=decisions,
+        reviewer="reviewer-skip-01",
+        client_engagement=client_engagement,
+    )
+
+    assert payload["ok"] is True
+    assert payload["application_status"] == "blocked"
+    applied = json.loads(
+        (result.output_dir / "applied_decisions.json").read_text(encoding="utf-8")
+    )
+    assert applied["application_status"] == "blocked"
+    assert applied["reviewer"] == "reviewer-skip-01"
+
+
+def test_mcp_apply_is_transactional_when_later_effect_is_invalid(
+    tmp_path: Path,
+) -> None:
+    result, client_engagement = _managed_review_run(tmp_path)
+    run_intake, review_payload, _ = _load_review_run(result.output_dir)
+    email_item = next(
+        item for item in review_payload["items"] if item["id"] == "draft-client-email"
+    )
+    email_item["output_path"] = "missing-later-target.md"
+    review_path = result.output_dir / "review_payload.json"
+    review_path.write_text(
+        json.dumps(review_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    review_path.chmod(0o600)
+    final_artifacts = _reseal_review_run(result.output_dir)
+    before = _run_tree_bytes(result.output_dir)
+
+    payload = _call_review_decision_tool(
+        "apply_client_file_preparation_decisions",
+        run_intake=run_intake,
+        review_payload=review_payload,
+        final_artifacts=final_artifacts,
+        decisions=[
+            {
+                "item_id": "draft-memo",
+                "action": "edit",
+                "edit_value": "A valid first edit that must be rolled back.",
+            },
+            {
+                "item_id": "draft-client-email",
+                "action": "edit",
+                "edit_value": "The later invalid target must fail the batch.",
+            },
+        ],
+        reviewer="reviewer-transaction-01",
+        client_engagement=client_engagement,
+    )
+
+    assert payload["ok"] is False
+    assert "not a sealed output" in payload["error"]
+    assert _run_tree_bytes(result.output_dir) == before
+
+
+def test_invoice_summary_keeps_multiple_bodies_separate(tmp_path: Path) -> None:
+    source = tmp_path / "invoices.xml"
+    _write_invoice_xml(source)
+    text = source.read_text()
+    body = text.split("<FatturaElettronicaBody>", 1)[1].split(
+        "</FatturaElettronicaBody>", 1
+    )[0]
+    # The second body has a distinct date; monetary sections must remain per body.
+    second = body.replace("2025-06-15", "2025-07-15")
+    source.write_text(
+        text.replace(
+            "</FatturaElettronicaBody>",
+            "</FatturaElettronicaBody><FatturaElettronicaBody>"
+            + second
+            + "</FatturaElettronicaBody>",
+            1,
+        )
+    )
+
+    records = parse_xml_files([source], tmp_path)
+
+    assert len(records) == 2
+    assert records[0].body_index == 1
+    assert records[1].body_index == 2
+    assert records[0].invoice_date == "2025-06-15"
+    assert records[1].invoice_date == "2025-07-15"
+    assert records[0].vat_summary == records[1].vat_summary
+    assert records[0].vat_summary.count("aliquota=") == 1
+    assert records[0].source_sha256 == hashlib.sha256(source.read_bytes()).hexdigest()
+    write_summary_csv(records, tmp_path / "summary.csv")
+    with pytest.raises(ValueError, match="Multiple invoice bodies"):
+        parse_fatturapa_file(source)
+
+
+def fiscal_review_evidence(output: Path, *, readable: bool = True):
+    """Create a source whose misleading name suggests a different adapter."""
+    text = CU_TEXT
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "source.txt").write_text(text, encoding="utf-8")
+    return extraction_module.DocumentEvidence(
+        relative_path="F24-cover-letter.txt",
+        file_name="F24-cover-letter.txt",
+        extension=".txt",
+        category="unknown",
+        extraction_method="text",
+        readable=readable,
+        needs_ocr=False,
+        ocr_available=False,
+        page_count=1,
+        char_count=len(text),
+        text_path="source.txt",
+        confidence="high",
+        detected_fields_json="{}",
+        notes=(),
+    )
+
+
+def test_fiscal_amount_with_dot_grouped_thousands_is_not_scaled_down(
+    tmp_path: Path,
+) -> None:
+    text = (
+        "Modello F24 sezione erario. Codice tributo 4001. "
+        "Anno riferimento 2025. Importo a debito versato € 1.234."
+    )
+    tmp_path.joinpath("source.txt").write_text(text, encoding="utf-8")
+    source = extraction_module.DocumentEvidence(
+        relative_path="F24_2025.txt",
+        file_name="F24_2025.txt",
+        extension=".txt",
+        category=CATEGORY_F24,
+        extraction_method="text",
+        readable=True,
+        needs_ocr=False,
+        ocr_available=False,
+        page_count=1,
+        char_count=len(text),
+        text_path="source.txt",
+        confidence="high",
+        detected_fields_json="{}",
+        notes=(),
+    )
+
+    fields = parse_structured_fiscal_fields([source], tmp_path)
+
+    amount = next(field for field in fields if field.value_type == "amount")
+    assert amount.normalized_value == "1234.00"
+
+
+def test_reviewed_document_kind_overrides_misleading_filename(tmp_path: Path) -> None:
+    source = fiscal_review_evidence(tmp_path)
+    decision = {
+        source.relative_path: {
+            "kind": "CU",
+            "basis": "model_review",
+            "text_sha256": hashlib.sha256(CU_TEXT.encode("utf-8")).hexdigest(),
+        }
+    }
+
+    fields = parse_structured_fiscal_fields([source], tmp_path, kind_decisions=decision)
+
+    assert fields
+    assert {field.document_kind for field in fields} == {"CU"}
+    assert {field.document_kind_status for field in fields} == {"reviewed"}
+    disposition = json.loads((tmp_path / "document_dispositions.json").read_text())
+    assert disposition["documents"][0]["candidate_kind"] == "F24"
+    assert disposition["documents"][0]["selected_kind"] == "CU"
+
+
+def test_stale_document_kind_review_cannot_authorize_changed_text(
+    tmp_path: Path,
+) -> None:
+    source = fiscal_review_evidence(tmp_path)
+    decision = {
+        source.relative_path: {
+            "kind": "CU",
+            "basis": "professional_review",
+            "text_sha256": "0" * 64,
+        }
+    }
+
+    with pytest.raises(ValueError, match="stale"):
+        parse_structured_fiscal_fields([source], tmp_path, kind_decisions=decision)
+
+
+def test_unreadable_fiscal_source_has_explicit_disposition(tmp_path: Path) -> None:
+    source = fiscal_review_evidence(tmp_path, readable=False)
+
+    fields = parse_structured_fiscal_fields([source], tmp_path)
+
+    assert fields == []
+    disposition = json.loads((tmp_path / "document_dispositions.json").read_text())
+    assert disposition["documents"] == [
+        {
+            "relative_path": source.relative_path,
+            "status": "unreadable",
+            "field_count": 0,
+        }
+    ]
+
+
+@pytest.mark.parametrize("xml_text", ["<broken", "<UnrelatedDocument/>"])
+def test_invalid_invoice_source_retains_byte_identity_without_inventing_a_body(
+    tmp_path: Path, xml_text: str
+) -> None:
+    source = tmp_path / "invalid.xml"
+    source.write_text(xml_text, encoding="utf-8")
+
+    record = parse_fatturapa_file(source)
+
+    assert record.malformed is True
+    assert record.body_index == 0
+    assert record.source_sha256 == hashlib.sha256(xml_text.encode()).hexdigest()
+
+
+def test_successor_intake_preserves_reviewed_kind_in_complete_model_handoff(
+    tmp_path: Path,
+) -> None:
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    (customer / "F24-cover-letter.txt").write_text(CU_TEXT, encoding="utf-8")
+    first = build_file_preparation_outputs(
+        customer, output_dir=tmp_path / "first", enable_ocr=False
+    )
+    disposition = json.loads(
+        (first.output_dir / "extracted/document_dispositions.json").read_text()
+    )["documents"][0]
+    decisions = {
+        "F24-cover-letter.txt": {
+            "kind": "CU",
+            "basis": "model_review",
+            "text_sha256": disposition["text_sha256"],
+        }
+    }
+
+    successor = build_file_preparation_outputs(
+        customer,
+        output_dir=tmp_path / "successor",
+        enable_ocr=False,
+        kind_decisions=decisions,
+    )
+
+    _, items = _load_model_handoff(successor.output_dir)
+    metadata = next(item for item in items if item["kind"] == "file_metadata")
+    assert metadata["category_status"] == "candidate"
+    assert metadata["fiscal_extraction_disposition"]["selected_kind"] == "CU"
+    assert metadata["fiscal_extraction_disposition"]["status"] == "reviewed_kind"
+    fields = [item for item in items if item["kind"] == "fiscal_field"]
+    assert fields
+    assert {item["document_kind_status"] for item in fields} == {"reviewed"}
+    assert (
+        json.loads((successor.output_dir / "document_kind_decisions.json").read_text())
+        == decisions
+    )
+
+
+def test_standalone_fiscal_parser_cannot_invalidate_existing_review_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    extracted = tmp_path / "extracted"
+    extracted.mkdir()
+    sealed_review = tmp_path / "final_artifacts.json"
+    sealed_review.write_text('{"status":"pending_review"}\n')
+    monkeypatch.setattr(
+        fiscal_module,
+        "_parse_args",
+        lambda: types.SimpleNamespace(
+            extracted_dir=extracted, client_engagement=tmp_path / "context.json"
+        ),
+    )
+    monkeypatch.setattr(
+        fiscal_module, "load_client_engagement_context_file", lambda *args, **kwargs: {}
+    )
+
+    assert fiscal_module.main() == 2
+    assert sealed_review.read_text() == '{"status":"pending_review"}\n'
+    assert not (extracted / "structured_fiscal_fields.csv").exists()
+
+
+def test_mixed_pdf_retains_unread_page_in_normal_handoff(tmp_path: Path) -> None:
+    """A readable cover cannot hide a following image-only page."""
+    import fitz
+
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    source = customer / "avviso_accertamento_IVA.pdf"
+    with fitz.open() as document, fitz.open() as scan:
+        document.new_page().insert_text(
+            (72, 72), "Synthetic cover: attached document awaits review."
+        )
+        scan.new_page().insert_text((72, 72), "Synthetic scanned page")
+        document.new_page().insert_image(
+            fitz.Rect(0, 0, 595, 842), stream=scan[0].get_pixmap().tobytes("png")
+        )
+        document.save(source)
+    output = tmp_path / "output"
+
+    build_file_preparation_outputs(customer, 2026, output, enable_ocr=False)
+
+    page = json.loads((output / "model_handoff_pages/page-0001.json").read_text())
+    metadata = next(item for item in page["items"] if item["kind"] == "file_metadata")
+    assert metadata["pdf_text_coverage"]["pages_with_text"] == [1]
+    assert metadata["pdf_text_coverage"]["pages_without_text"] == [2]
+    assert metadata["pdf_text_coverage"]["status"] == "partial"
+    assert metadata["category_status"] == "candidate"
+    report = (output / "extracted/extraction_report.md").read_text()
+    assert "pagine senza testo: [2]" in report
+    assert (output / "avviso/deadlines_and_amounts.csv").read_text().splitlines() == [
+        "relative_path,type,value"
+    ]
+
+
+def test_pdf_fallback_preserves_blank_page_coverage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fallback page accounting survives even when it extracts no text."""
+    import fitz
+    import pdfplumber
+
+    customer = tmp_path / "customer"
+    customer.mkdir()
+    with fitz.open() as document:
+        document.new_page()
+        document.save(customer / "avviso.pdf")
+
+    def failed_open(*args: Any, **kwargs: Any) -> None:
+        raise ValueError("Synthetic primary-reader failure")
+
+    monkeypatch.setattr(pdfplumber, "open", failed_open)
+    records = scan_folder(customer)
+
+    evidence = extraction_module.extract_documents(
+        records, customer, tmp_path / "output", enable_ocr=False
+    )
+
+    assert evidence[0].pdf_text_coverage["pages_without_text"] == [1]
+    assert evidence[0].page_count == 1
+    assert evidence[0].readable is False
+    assert evidence[0].needs_ocr is True

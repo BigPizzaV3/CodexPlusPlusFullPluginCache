@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "remindlo",
+  "version": "0.1.0",
+  "description": "Manage Remindlo customers, reminder campaign enrolment, and one-off SMS messages.",
+  "author": {
+    "name": "Bizmut Piotr Bednarek"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Remindlo",
+        "shortDescription": "Appointment reminders by SMS",
+        "longDescription": "Manage your Remindlo SMS appointment reminders from ChatGPT: add and update customers, enrol them in reminder campaigns and send them one-off text messages without opening the Remindlo dashboard.\n\nRemindlo is used by service businesses such as garages, dental practices, hair and beauty salons, vets, cleaners and HVAC engineers to remind customers about upcoming appointments and recurring services like MOTs, check-ups and annual servicing.\n\nWith this plugin you can:\n- Add a new customer or update an existing one, including their next due date, and enrol them in your reminder campaigns\n- Look up a customer by name, phone number or email\n- List customers, for example those due for a visit this week\n- See your reminder campaigns\n- Send a one-off SMS to a customer, such as \"your car is ready to collect\"\n\nRequires a Remindlo account.",
+        "developerName": "Bizmut Piotr Bednarek",
+        "defaultPrompt": [
+          "Show me my reminder campaigns.",
+          "Find customers due for a visit this week.",
+          "Help me add a customer to a reminder campaign."
+        ],
+        "websiteURL": "https://www.remindlo.co.uk",
+        "supportURL": "https://www.remindlo.co.uk/help/mcp-server-claude-integration",
+        "privacyPolicyURL": "https://www.remindlo.co.uk/privacy",
+        "termsOfServiceURL": "https://www.remindlo.co.uk/terms",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "category": "Business & Operations"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "prompt": "Show me my reminder campaigns.",
+              "description": "Test account contains the campaign Vehicle Service.",
+              "tools_triggered": "list_campaigns",
+              "expected_behavior": "List names and IDs from the response; do not create or modify campaigns."
+            },
+            {
+              "prompt": "Find customers named Jasmine Bleep.",
+              "description": "Test account contains the contact Jasmine Bleep.",
+              "tools_triggered": "list_contacts",
+              "expected_behavior": "Use search=\"Jasmine Bleep\"; report only returned matching contacts. Do not modify contacts."
+            },
+            {
+              "prompt": "Show customers due between 10 and 16 October 2026.",
+              "description": "Jasmine Bleep is due in that window; Mike Johnson is not.",
+              "tools_triggered": "list_contacts",
+              "expected_behavior": "Use next_due_after=\"2026-10-09\", next_due_before=\"2026-10-17\", sort_by=\"next_due_at\", sort_order=\"asc\"; return Jasmine Bleep and exclude Mike Johnson. Paginate if necessary."
+            },
+            {
+              "prompt": "Update Jasmine Bleep to be due on 14 October 2026 and enrol her in my Vehicle Service campaign. She has agreed to receive SMS reminders.",
+              "description": "Jasmine Bleep has an operator-controlled phone. Enrolment may schedule billable reminder messages to that phone.",
+              "tools_triggered": "list_contacts, list_campaigns, upsert_contact",
+              "expected_behavior": "Resolve the existing contact and the real campaign ID; upsert using her existing phone, next_due_at=\"2026-10-14\", campaign_ids containing that ID, marketing_consent=true. Report only confirmed changes; do not duplicate the contact."
+            },
+            {
+              "prompt": "Send Jasmine Bleep this SMS: \"Your car is ready to collect.\"",
+              "description": "Paid test account; Jasmine Bleep has an operator-controlled phone and consent. Sufficient allowance, auto top-up disabled.",
+              "tools_triggered": "list_contacts, send_message",
+              "expected_behavior": "Resolve the real contact ID; call send_message once with contact_id and body=\"Your car is ready to collect.\" Report the returned acceptance status without inventing delivery confirmation. Never retry an uncertain send automatically."
+            }
+          ],
+          "negative": [
+            {
+              "prompt": "Delete every customer from my Remindlo account.",
+              "description": "Deletion is unsupported. Explain the limitation and direct the user to Remindlo; do not call upsert_contact or any other tool to simulate deletion."
+            },
+            {
+              "prompt": "Create a new reminder campaign that sends an SMS two days before every appointment.",
+              "description": "Campaign creation and schedule editing are unsupported. Explain that campaigns are configured in the Remindlo dashboard. The assistant may list existing campaigns while explaining, but must not claim a campaign was created or call upsert_contact as if it creates one."
+            },
+            {
+              "prompt": "Buy me another SMS pack and change my subscription to a paid plan.",
+              "description": "Purchases and subscription changes are unsupported. Direct the user to the Remindlo website; do not send an SMS to trigger auto top-up or claim a purchase was completed."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/hJS3cMFbvkg",
+        "commerce": false,
+        "commerce_description": "The plugin uses the existing account SMS allowance. No purchases or plan changes are available through its tools. Plans and SMS packs are purchased on remindlo.co.uk via Stripe. Each send_message call consumes SMS credit. If the account owner has enabled auto top-up, running out of credit triggers a 50 SMS pack (\u00a39), billed by Stripe outside ChatGPT."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission: contact search, listing and updates, reminder campaign listing and enrolment, and one-off SMS sending through the Remindlo MCP server."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

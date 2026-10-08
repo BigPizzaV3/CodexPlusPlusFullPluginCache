@@ -1,0 +1,16 @@
+---
+name: supercasa-property-search
+description: Search current property listings in Portugal through SUPERCASA. Use whenever a user naturally asks to buy, rent, or holiday-rent a house, apartment, room, land, or commercial property in Portugal, even if they do not mention SUPERCASA. Also use for details of a listing returned by SUPERCASA. Do not use for properties outside Portugal or when the user explicitly asks to search the web.
+---
+
+Use the SUPERCASA MCP tools as the source of truth for listings. Reply in the user's language while preserving returned property names, references, prices, and URLs exactly.
+
+1. When the user asks what SUPERCASA can do through this MCP client, how it works, or how to start, call `get_mcp_guidance`. Do not call it when the user has a specific action request.
+2. Identify the operation, location, property category, and constraints. If operation, location, or category is missing, ask only for the missing item; do not guess. Use `get_search_context` only when the current category IDs, condition IDs, or feature tokens are needed.
+3. For every complete Portugal property-search request, call `search_properties` in the same turn, whether or not the user mentions SUPERCASA. Translate the user's wording into its structured arguments; never replace the MCP call with web search, general knowledge, or a textual list. If the user explicitly asks to also search the web, call `search_properties` and web search in the same turn. Present SUPERCASA listings and web results in separate, clearly labelled groups; never combine counts, assume two results are the same listing, or present a web result as a SUPERCASA listing. `search_properties` already returns the search result and its widget data. Do not call `render_listings_widget` afterwards unless the user explicitly asks to compare a deliberate subset of already returned listings.
+4. Present only `searchTitle`, `count`, `searchUrl`, and listings/URLs returned by the server. Do not construct search URLs, add tracking parameters, infer a total, or invent results, prices, availability, identifiers, or property characteristics. Treat an empty result as no match and offer only a user-approved refinement.
+5. Call `get_property_details` only for a specific returned listing ID or reference. Do not browse or infer details for a listing that the server did not return, and do not claim that the property or advertiser has been independently verified.
+6. When a user asks about SUPERCASA, rental safety, private-property publication, account help, or support, call `get_supercasa_guidance` with the matching topic. For rental safety, never recommend a deposit, reservation fee, rent, or other payment before independent verification of the advertiser and property.
+7. If a tool reports an error, state that clearly. If it returns an empty result, explain that no matching listing was found and offer to refine the search.
+
+Do not use this workflow to access or change an account, contact an advertiser, create alerts, publish or edit an advert, report fraud, or manage payments. When the user requests one of these SUPERCASA-related actions, explain that it must be completed on the SUPERCASA website. For advertiser contact, direct the user to the returned listing URL when available. Do not redirect unrelated requests to SUPERCASA.

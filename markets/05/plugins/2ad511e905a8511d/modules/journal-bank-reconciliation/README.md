@@ -1,0 +1,173 @@
+# Journal-Bank Reconciliation Codex Plugin
+
+[Source code](https://github.com/fabioannovazzi/app_files/tree/main/plugins/journal-bank-reconciliation) · [GNU AGPLv3 License](https://github.com/fabioannovazzi/app_files/blob/main/LICENSE)
+
+Guided Codex workflow for bounded, reviewable reconciliation between bank
+statements and journal or ledger exports.
+
+The plugin is multilingual (`it`, `en`, `fr`, `de`, `es`). Codex handles
+mapping and review judgment; helper scripts own mechanically verifiable source
+qualification, exact-decimal normalization, explicit-reference and
+amount/date matching, receipts, lineage, and exports without direct model API
+calls.
+
+Only one unambiguous, exact supported header contract qualifies automatically.
+Profiled dates, numeric positions, and fuzzy labels remain proposals and emit
+zero rows until a reviewer seals the chosen mapping against the content-addressed
+source receipt. Every run also requires a reviewed relationship policy whose
+shape may be one-to-one, one-to-many, many-to-one, or many-to-many, covering
+evidence reuse, currency, unit, entity/party perimeter,
+direction, amount tolerance, date window, and any defaults.
+Non-canonical source direction labels require a complete, source-bound value
+mapping to `positive`, `negative`, or `zero`; the plugin does not assume a
+universal debit/credit polarity.
+
+CSV transport and the base date contract use adapter
+`journal_bank.tabular.v6`.
+The field delimiter is a
+separate reviewed input from decimal and thousands separators. A bounded,
+strict profile considers only comma, semicolon, tab, and pipe. Only a uniquely
+profiled comma source with the exact header contract can qualify without a
+mapping receipt; a non-default delimiter or an explicit/profile mismatch needs
+a current v6 receipt. Ambiguous or unsupported delimiters emit zero rows.
+LF, CRLF, and CR record terminators are normalized mechanically in a streamed
+private copy before a strict full-file parse; malformed or ragged records fail
+as parser errors rather than yielding a partial population.
+
+Native date/datetime cells, valid compact `YYYYMMDD`, valid year-first text,
+and integral spreadsheet serial dates are mechanical. Ambiguous day/month
+text emits zero rows until `day_first` or `month_first` is sealed in the
+source-bound v6 mapping receipt. An invalid populated date fails the complete
+source even when the row has a stable reference; only a truly blank date with
+a stable explicit identifier may enter reference-only matching.
+
+Adapter `journal_bank.tabular.v7` is an explicit additive extension. A
+source-bound `date_locale: it` mapping receipt admits only full Italian
+textual-month dates under the frozen vocabulary and Gregorian calendar rules.
+Without that receipt, textual-month dates emit zero rows and require review;
+unknown, abbreviated, embedded, or invalid dates fail the complete source.
+The same v7 receipt may bind a sorted exact
+`non_movement_summary_labels` list. A reviewed label excludes a row only when
+its mapped date is truly blank and it has no stable reference; an actual date,
+stable reference, substring, or fuzzy similarity prevents exclusion.
+
+Every reviewed mapping also binds the current complete list of potential
+monetary columns and an explicit excluded list, including an empty list. Each
+potential column must be mapped to amount/debit/credit or explicitly excluded;
+an incomplete or stale disposition emits zero rows.
+
+Relationship receipts use `journal_bank.relationship.v3`. Matching first
+evaluates conflict-free singleton reference batches, then mechanically closes
+permitted one-to-many or many-to-one groups when one shared stable reference
+defines the population and exact Decimal totals agree. Overlapping possible
+groups stay unmatched. Amount/date singleton waves follow; source row order
+never breaks a collision.
+
+Labelled text-PDF tables are supported through `journal_bank.pdf_table.v1`.
+The adapter preserves physical page/table/row lineage and emits zero movements
+until a current source-bound receipt approves the recovered header, monetary
+roles, sign convention, and exclusions such as a running balance. Generic PDF
+text, inconsistent page tables, and OCR-only input remain blocked with
+`unsupported_source_layout`; inspection may still retain narrowly classified
+balance, total, scalare, and conditions lines for review. A
+supplied sample that is empty, invalid, or selects no journal movements also
+blocks the run instead of silently falling back to the full journal.
+
+Every completed or blocked run adds `input_receipts.json`,
+`source_qualifications.json`,
+`reviewed_decisions.json`, `lineage.json`, `relationship_ledger.json`,
+`relationship_residuals.csv`,
+`assurance_gates.json`, and `artifact_receipts.json` to the existing review
+package. Qualified runs with current relationship authority also add
+`material_value_ledger.json`; blocked runs deliberately omit it. Monetary
+values and tolerance differences are stored as canonical Decimal text. The
+material-value ledger freshly replays matching and residual
+preparation and binds every declared match and residual value to its exact CSV
+row/column and XLSX cell. Lineage uses the physical sheet and row from the
+source, even across preambles and blank rows.
+
+Reconciliation is passed only when the non-reusing relationship ledger is exactly closed and
+no bank or journal rows remain unmatched. Reviewer acceptance cannot override a
+withheld reconciliation gate. Authorized review edits regenerate native output
+when needed and reseal artifact receipts; unexpected output changes block final
+readiness. Generated reconciliation workbooks normalize only mechanical OOXML
+timestamps and ZIP ordering so identical inputs produce byte-identical XLSX
+receipts; duplicate package member names are rejected.
+
+Before importing local workflow code, every public Python command validates an
+exact 24-file implementation/configuration/UI/shared-assurance tree and
+disables local bytecode. The MCP server closes the same physical tree before
+reading the manifest and launches Python with isolated imports and bytecode
+disabled. Unowned files, directories, caches, links, or special files block
+execution. The resulting hashes prove replay consistency; they do not
+authenticate the package publisher or a professional reviewer.
+
+The row-free machine-readable repository contract is
+`../../docs/specs/vera_audit_assurance/journal-bank-evaluation-contract.v5.json`.
+It binds adapter IDs, schemas, stage semantics, native outputs, workbook
+closure, gates, threats, and cross-run equality scope without oracle rows or
+hidden expected matches. The v2, v3, and v4 contracts remain immutable
+historical evaluation evidence and are not the current prospective contract.
+The additive v7 rules are separately frozen in
+`../../docs/specs/vera_audit_assurance/journal-bank-tabular-v7-extension-contract.v1.json`;
+they do not rewrite or promote v5.
+
+## Internal Scripts
+
+- `scripts/check_dependencies.py`
+- `scripts/inspect_inputs.py`
+- `scripts/run_reconciliation.py`
+- `scripts/semantic_review.py`
+- `scripts/journal_bank_core.py`
+
+Users should invoke the plugin from Codex rather than running the scripts directly.
+
+The Codex-only residual resolution pass keeps the main reconciliation chat on
+its existing model. After deterministic qualification and matching, Codex may
+use `semantic_review.py run-all` only when the complete unresolved review set
+fits one bounded packet. The workflow does not split a large residual into
+successive automatic model calls; over-cap residuals remain in the human-review
+queue without launching Luna. The packet contains populated canonical fields
+selected after source-column mapping, not the raw source columns, empty fields,
+physical source locators, or the redundant absolute amount. The
+launcher is qualified only on its pinned macOS/Codex/Seatbelt environment,
+fails closed when those pins or its filesystem canaries do not match, and
+records a content-bound launch receipt. The bounded packet is transmitted to
+the OpenAI Codex service. Raw worker output remains advisory until validation;
+validated decisions update a sibling cumulative certainty funnel and remove
+movements meeting the human-selected threshold from its review queue and
+bank-side operational human-review payload. Unmatched journal rows remain
+available as strict evidence and candidate context without creating a second
+standalone queue. They
+cannot change canonical perfect matches, ledgers, receipts, gates, or report
+readiness.
+
+The default worker remains Luna at max effort. `prepare` and `run-all` accept
+`--worker-selection <receipt.json>` for an explicitly reviewed alternative.
+Use the shared `vera.reviewed_decision_receipt.v1` format with decision type
+`worker-model-selection`, adapter `vera-native-worker` version `1`, and reviewed
+status. Its content must contain `workflow_id` (`journal-bank-reconciliation`),
+`model`, `reasoning_effort`, and `benchmark_sha256`; its source reference must be
+`benchmark-<digest>`. The selection file is an authorized engagement input.
+The graph binds this receipt, and launch/replay must use the same configuration.
+A local review declaration does not authenticate its reviewer, prove benchmark
+quality, or qualify another host. Compare representative outputs and obtain the
+actual selection review before using an alternative; do not manufacture a
+reviewed receipt to enable a model. The calling chat model remains unchanged.
+
+## Local MCP Review UI
+
+Deterministic runs now emit `run_intake.json`, `review_payload.json`,
+`ui_decisions.json`, and `final_artifacts.json` in the reconciliation output
+folder.
+
+- `validate_journal_bank_review` validates the review payload. After semantic
+  resolution, pass `semantic-review/operational_review_payload.json`, not the
+  unreduced deterministic `review_payload.json`.
+- `render_journal_bank_review` renders the local widget
+  `ui://widget/journal-bank-review.html`.
+- The widget focuses on unmatched bank rows, unmatched journal rows, matched
+  pair evidence, diagnostics, and generated artifacts.
+
+If MCP rendering is unavailable, Codex should use the JSON payloads plus
+`review_notes.md`, CSVs, and workbook as the fallback review surface.

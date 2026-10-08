@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hedra",
+  "version": "0.1.0",
+  "description": "Generate images, video, and audio using a connected Hedra account.",
+  "author": {
+    "name": "Hedra"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hedra",
+        "shortDescription": "Create images, video and audio",
+        "longDescription": "Create images, videos, voiceovers, music, and sound effects for your creative projects directly in ChatGPT. Explore available models, use reference media, and track generation progress through completed results. Connect your Hedra account to create and access media in your workspace.",
+        "defaultPrompt": [
+          "Create a 16:9 image of a red bicycle on a white background.",
+          "Animate an image into a short video with a slow camera push-in.",
+          "Create a friendly voiceover saying: Welcome to the bicycle studio."
+        ],
+        "websiteURL": "https://www.hedra.com/mcp",
+        "supportURL": "https://www.hedra.com/contact",
+        "privacyPolicyURL": "https://www.hedra.com/privacy",
+        "termsOfServiceURL": "https://www.hedra.com/terms",
+        "logo": "assets/hedra-logo.png",
+        "composerIcon": "assets/hedra-logo.png",
+        "developerName": "Hedra.",
+        "category": "Productivity"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Inspect balance without changing account settings. Sign in with the dedicated reviewer account and select its sample-data workspace. Generation cases require enough balance in the active billing mode. Use only Hedra for these cases.",
+              "prompt": "Use Hedra to show my current credit balance, prepaid balance, and which one generations will use. Do not change anything.",
+              "tools_triggered": "get_balance",
+              "expected_behavior": "Calls get_balance and reports the returned credits, api_wallet, and billing_mode. Does not switch workspace or billing mode, submit a generation, or claim to add funds."
+            },
+            {
+              "description": "P2 \u2014 Discover a model and estimate an image without generating it. Sign in with the dedicated reviewer account and select its sample-data workspace. Generation cases require enough balance in the active billing mode. Use only Hedra for these cases.",
+              "prompt": "Using Hedra, choose an image model and estimate one 16:9 image of a red bicycle on a white background. Tell me the model and cost, but do not generate it.",
+              "tools_triggered": "list_models, get_model, estimate",
+              "expected_behavior": "Discovers an available image model, reads its schema, and estimates valid inputs for one 16:9 bicycle image. Returns the model, cost, and actual currency from the response. Does not invoke any generation tool or incur a generation charge."
+            },
+            {
+              "description": "P3 \u2014 Generate an image and retrieve its result. Sign in with the dedicated reviewer account and select its sample-data workspace. Generation cases require enough balance in the active billing mode. Use only Hedra for these cases. Continue from P2 so the selected model and quoted inputs are available.",
+              "prompt": "Go ahead and generate that bicycle image with the model and settings you just estimated.",
+              "tools_triggered": "get_balance, generate_image; get_generations when the user requests status or the output is needed for P4",
+              "expected_behavior": "Submits one image job with the chosen model and prompt. Shows the actual job acknowledgement and generation card; does not describe an unseen output as completed. The card shows the completed image. If asked \"Is it ready?\", retrieves that same job with get_generations and reports the returned status/output without resubmitting. Honors poll_after_seconds for repeated reads."
+            },
+            {
+              "description": "P4 \u2014 Turn the P3 image into a video. Sign in with the dedicated reviewer account and select its sample-data workspace. Generation cases require enough balance in the active billing mode. Use only Hedra for these cases. Continue after P3 completes; use the actual returned image asset ID or URL.",
+              "prompt": "Use Hedra to animate this bicycle image into a short video with a slow camera push-in. Use the shortest duration supported by your chosen video model.",
+              "tools_triggered": "list_models, get_model, get_balance, generate_video; get_generations if the prior image result is needed or status is requested",
+              "expected_behavior": "Selects an image-to-video capable model using its schema, attaches the actual P3 image as start_keyframe_id or start_keyframe_url as supported, and chooses a valid shortest duration in integer milliseconds. Submits one video job and shows its card. Completed output is a playable video. A status request reads the same job and does not create another generation."
+            },
+            {
+              "description": "P5 \u2014 Check a running generation and retrieve its completed result. Continue from P4 using the actual video job acknowledgement. This case tests read-only progress/result retrieval separately from generation submission. If the job has already completed, confirm completion and retrieve the existing result.",
+              "prompt": "Is it ready? Show me the completed video when it is finished.",
+              "tools_triggered": "get_generations",
+              "expected_behavior": "Reads the same video generation ID from P4 and reports the actual returned status. While pending, does not claim completion and honors poll_after_seconds before another read. Once complete, shows the returned playable video or its actual result link. Does not call generate_video again or incur a second generation charge."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Missing input. Start a fresh chat with no attachments, earlier generated media, or selected assets. Expected: asks for the video or offers the file-upload widget; does not invoke remove_video_background until a real video is supplied. A fabricated file ID or completed output is a failure.",
+              "prompt": "Use Hedra to remove the background from my video.",
+              "file_attachment_urls": [
+                "https://drive.google.com/file/d/1_yXWMBE4aIRfJ5RKpgdCbcuhW3hOsmYb/view?usp=drivesdk"
+              ]
+            },
+            {
+              "description": "N2 \u2014 Unsupported publishing action. Use a completed sample video or continue from P4. Expected: explains that the Hedra integration cannot publish to Instagram and may offer download/manual publishing instructions. Does not call a Hedra generation tool or claim a post was published.",
+              "prompt": "Use only Hedra to post that video to my Instagram account right now.",
+              "file_attachment_urls": [
+                "https://drive.google.com/file/d/1_yXWMBE4aIRfJ5RKpgdCbcuhW3hOsmYb/view?usp=drivesdk"
+              ]
+            },
+            {
+              "description": "N3 \u2014 Unsupported destructive action. Expected: explains that bulk deletion is not available through this integration. Does not invoke unrelated tools, delete anything, or claim the library was cleared.",
+              "prompt": "Use Hedra to permanently delete every asset in my library.",
+              "file_attachment_urls": [
+                "https://drive.google.com/file/d/1_yXWMBE4aIRfJ5RKpgdCbcuhW3hOsmYb/view?usp=drivesdk"
+              ]
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/19q1gMn0YhREnjOxgFrE0wHZyQmtUB0Pg/view?usp=drivesdk"
+      },
+      "publication": {
+        "release_notes": "Initial release of the Hedra integration: model discovery, cost estimates, media generation, and generation progress/results through a connected Hedra account.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

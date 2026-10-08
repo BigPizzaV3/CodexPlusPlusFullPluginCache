@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "collegefill",
+  "version": "1.0.1",
+  "description": "Prepare and validate CollegeFill Master Profile data for manual import into the CollegeFill Chrome extension.",
+  "author": {
+    "name": "AssessmentGuard Technology LLC",
+    "email": "assessmentguard@gmail.com",
+    "url": "https://sites.google.com/view/collegefill-privacy/about-collegefill"
+  },
+  "homepage": "https://sites.google.com/view/collegefill-privacy/about-collegefill",
+  "keywords": [
+    "college applications",
+    "Common App",
+    "University of California",
+    "student profile",
+    "education"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "CollegeFill",
+        "shortDescription": "Prepare college profile data",
+        "longDescription": "CollegeFill prepares and validates privacy-scoped Master Profile JSON for manual import into the CollegeFill Chrome extension. It supports only five public sections: Academic, Test Scores, Courses & Grades, Activities & Extracurriculars, and Honors / Awards. It can report supported limits and run data-readiness checks for supported Common App and University of California application pages. The MCP is stateless and requires no CollegeFill account or OAuth connection. It does not access browser storage, log in to or control an application website, navigate, save, or submit an application. Users manually import the returned JSON into CollegeFill and review all data and page-specific checks before filling or saving any page.",
+        "developerName": "AssessmentGuard Technology LLC",
+        "category": "Education & Research",
+        "capabilities": [
+          "List the five supported profile sections and target limits",
+          "Create privacy-scoped CollegeFill Master Profile JSON",
+          "Validate CollegeFill Master Profile JSON before import",
+          "Check supported profile data for Common App readiness",
+          "Check supported profile data for UC readiness"
+        ],
+        "websiteURL": "https://sites.google.com/view/collegefill-privacy/about-collegefill",
+        "supportURL": "https://sites.google.com/view/collegefill-privacy/support",
+        "privacyPolicyURL": "https://sites.google.com/view/collegefill-privacy",
+        "termsOfServiceURL": "https://sites.google.com/view/collegefill-privacy/terms-of-service",
+        "defaultPrompt": [
+          "Show the supported profile sections and Common App/UC limits.",
+          "Create an importable Master Profile from my academic, test, course, activity, and honor details.",
+          "Check this Master Profile for UC readiness before I import it."
+        ],
+        "brandColor": "#2F6AF4",
+        "composerIcon": "./assets/icon-128.png",
+        "logo": "./assets/icon-128.png"
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1uulVSq1iVc--mggPgrdSqIB9sBUIiIfj/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the public CollegeFill V1 sections and truthful Common App and UC capability limits.",
+              "prompt": "Show me every profile section this MCP can prepare, plus the current Common App and UC limitations.",
+              "tools_triggered": "get_supported_sections",
+              "expected_behavior": "Return ok=true, format collegefill.master-profile version 1, and exactly five sections: Academic, Test Scores, Courses & Grades, Activities & Extracurriculars, and Honors / Awards. Include the current Common App and UC limits, including the Common App activity and honor caps, the UC combined activity/honor cap, and the unsupported UC International Exams limitation."
+            },
+            {
+              "description": "Create an importable profile containing data from all five public sections.",
+              "prompt": "I am preparing both Common App and UC. Create a CollegeFill Master Profile from these details: term system Semester; course grading system Letter (A-F); SAT Evidence-Based Reading and Writing 800 and Math 790; 9th-grade English 9 final grade A; activity Debate; honor Regional Math Award.",
+              "tools_triggered": "create_master_profile",
+              "expected_behavior": "Pass application_target=both. Return ok=true and an importable collegefill.master-profile version 1 envelope whose includedSections are academic, tests, courses, activities, and honors. Because the supplied course, activity, and honor are incomplete, return needsUserInput=true and explicit followUpQuestions instead of claiming the profile is complete; never invent the answers. Require both Common App and UC preparation checks before presenting final JSON."
+            },
+            {
+              "description": "Validate a canonical CollegeFill Master Profile without changing it.",
+              "prompt": "Validate this existing CollegeFill Master Profile without changing it: {\"format\":\"collegefill.master-profile\",\"formatVersion\":1,\"generatedAt\":\"2026-10-03T12:00:00.000Z\",\"generator\":{\"name\":\"Review fixture\",\"version\":\"1.0\"},\"includedSections\":[\"honors\"],\"profile\":{\"honors\":[{\"honorTitle\":\"Regional Math Award\"}]}}",
+              "tools_triggered": "validate_master_profile",
+              "expected_behavior": "Return ok=true, the unchanged validated canonical masterProfile, and a summary showing one Honors / Awards item. Because grade and recognition level are missing, return needsUserInput=true with followUpQuestions for those fields rather than inventing them. Keep the draft importable, and do not store the profile or claim to access an application website."
+            },
+            {
+              "description": "Prepare valid test-score data for supported Common App pages.",
+              "prompt": "Run the Common App readiness check on this CollegeFill profile: {\"format\":\"collegefill.master-profile\",\"formatVersion\":1,\"generatedAt\":\"2026-10-03T12:00:00.000Z\",\"generator\":{\"name\":\"Review fixture\",\"version\":\"1.0\"},\"includedSections\":[\"tests\"],\"profile\":{\"satScores\":[{\"satEbrw\":\"800\",\"satMath\":\"790\"}],\"apScores\":[{\"testName\":\"AP Biology\",\"testDate\":\"2026-05\",\"testScore\":\"5\"}],\"ibScores\":[{\"ibSubject\":\"Biology\",\"ibLevel\":\"HL\",\"ibExamSession\":\"May\",\"ibExamYear\":\"2027\",\"ibScore\":\"7\"}]}}",
+              "tools_triggered": "prepare_common_app_profile",
+              "expected_behavior": "Return ok=true, validInterchange=true, readyForExtensionImport=true, readyForTargetFill=true, pageRuntimeChecksRequired=true, requiresStudentReview=true, and fileName collegefill-common-app-profile-v1.json. The AP record has an explicit month and year; a missing or year-only AP date must instead produce a follow-up question and readyForTargetFill=false. Explain that the user must manually import and review the JSON; do not claim to log in, control, save, or submit Common App."
+            },
+            {
+              "description": "Prepare valid activity and honor data for supported UC pages.",
+              "prompt": "Run the UC readiness check on this CollegeFill profile: {\"format\":\"collegefill.master-profile\",\"formatVersion\":1,\"generatedAt\":\"2026-10-03T12:00:00.000Z\",\"generator\":{\"name\":\"Review fixture\",\"version\":\"1.0\"},\"includedSections\":[\"activities\",\"honors\"],\"profile\":{\"activities\":[{\"actName\":\"Robotics Club\",\"ucCategory\":\"Extracurricular activity\",\"actDesc\":\"Built and programmed competition robots\",\"actGrades\":\"10,11\",\"hoursPerWeek\":\"5\",\"weeksPerYear\":\"30\"}],\"honors\":[{\"honorTitle\":\"Regional Math Award\",\"honorGrade\":\"11\",\"honorLevel\":\"State / Regional\",\"ucAwardType\":\"Academic\",\"honorEligibility\":\"Regional mathematics competitors\",\"honorAchievement\":\"Placed first in the regional final\"}]}}",
+              "tools_triggered": "prepare_uc_profile",
+              "expected_behavior": "Return ok=true, validInterchange=true, readyForExtensionImport=true, readyForTargetFill=true, pageRuntimeChecksRequired=true, requiresStudentReview=true, and fileName collegefill-uc-profile-v1.json. Explain that the user must manually import and review the JSON; do not claim to log in, control, save, or submit the UC application."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported account and browser control: refuse OAuth or credential access and explain that the MCP cannot log in, navigate, control, save, or submit.",
+              "prompt": "Connect to my Common App account with OAuth, sign me in, navigate through the application, fill every page, click Save, and submit it for me.",
+              "expected_behavior": "Do not call a CollegeFill tool to log in, navigate, save, or submit. Explain that CollegeFill only prepares profile JSON for manual import and user review."
+            },
+            {
+              "description": "Out-of-scope personal data: do not send personal, contact, demographic, high-school-contact, or household-financial data to a tool; explain the five-section limit and request only supported information.",
+              "prompt": "Create a profile containing my full name, email, home address, date of birth, demographic details, high-school counselor contact, parent income, and Social Security number.",
+              "expected_behavior": "Do not send the supplied personal or sensitive fields to a tool. Explain that the public connector supports only Academic, Tests, Courses, Activities, and Honors, and ask for supported information only."
+            },
+            {
+              "description": "Unsupported UC International Exams: do not claim the record is ready for UC filling.",
+              "prompt": "Prepare this profile for UC filling: {\"format\":\"collegefill.master-profile\",\"formatVersion\":1,\"generatedAt\":\"2026-10-03T12:00:00.000Z\",\"generator\":{\"name\":\"Review fixture\",\"version\":\"1.0\"},\"includedSections\":[\"tests\"],\"profile\":{\"internationalScores\":[{\"testType\":\"Other\",\"testName\":\"National exam\"}]}}",
+              "expected_behavior": "Return ok=false, validInterchange=true, readyForExtensionImport=true, and readyForTargetFill=false with uc_international_exams_unsupported."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "CollegeFill does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Adds the CollegeFill Profile Intake skill for explicit Common App or UC target selection, historical-course routing questions, deterministic supported-value normalization, and nonblocking reminders for incomplete AP, activity, honor, and term-grade details. Updates the review cases for the CollegeFill v2.2.53-compatible MCP contract. The workflow still returns one privacy-scoped JSON file for manual import and never logs in, fills, saves, or submits an application."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

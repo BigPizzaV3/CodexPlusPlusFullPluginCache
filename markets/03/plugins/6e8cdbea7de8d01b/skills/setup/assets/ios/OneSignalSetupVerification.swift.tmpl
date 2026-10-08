@@ -1,0 +1,51 @@
+// onesignal:managed v1 — debug-only verification helper.
+// File: OneSignalSetupVerification.swift
+// Call site: OneSignalSetupVerification.install() — call once from your launch
+//   context (AppDelegate application(_:didFinishLaunchingWithOptions:) or the
+//   SwiftUI App init()), right after OneSignal.initialize(...).
+// The #if DEBUG guard compiles this file out of release builds, so the file is
+// safe to keep. Delete it and its single install() call only if you want to.
+//
+// What it does in a debug build:
+//   1. Requests push permission — the only place the integration prompts.
+//   2. Watches the push subscription and prints the subscription ID once the
+//      device registers. The verify skill confirms the registration
+//      server-side and sends the test push from chat — this file makes no
+//      network call.
+#if DEBUG
+import Foundation
+import OneSignalFramework
+
+final class OneSignalSetupVerification: NSObject, OSPushSubscriptionObserver {
+    static let shared = OneSignalSetupVerification()
+    private var hasLogged = false
+
+    static func install() {
+        let verifier = shared
+        OneSignal.User.pushSubscription.addObserver(verifier)
+        // Race guard: the subscription id may already be present before the
+        // observer fires, so evaluate the current value immediately too.
+        verifier.evaluate(OneSignal.User.pushSubscription.id)
+        // fallbackToSettings must be false here: this call runs at launch with
+        // no user gesture, and `true` would bounce a previously-denied user
+        // into the Settings app on every debug start.
+        OneSignal.Notifications.requestPermission({ _ in }, fallbackToSettings: false)
+    }
+
+    func onPushSubscriptionDidChange(state: OSPushSubscriptionChangedState) {
+        evaluate(state.current.id)
+    }
+
+    private func evaluate(_ subscriptionId: String?) {
+        // A real subscription ID is server-assigned: non-empty and not the
+        // SDK's "local-" pre-registration placeholder.
+        guard let id = subscriptionId, !id.isEmpty, !id.hasPrefix("local-") else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, !self.hasLogged else { return }
+            self.hasLogged = true
+            print("[OneSignal] Push subscription registered: \(id)")
+            OneSignal.User.pushSubscription.removeObserver(self)
+        }
+    }
+}
+#endif

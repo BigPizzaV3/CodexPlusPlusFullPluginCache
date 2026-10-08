@@ -1,0 +1,1108 @@
+# Clara
+
+[Source code](https://github.com/fabioannovazzi/app_files/tree/main/plugins/clara) · [GNU AGPLv3 License](https://github.com/fabioannovazzi/app_files/blob/main/LICENSE)
+
+Clara works in ChatGPT with material supplied in the conversation. She analyzes,
+asks focused questions, drafts, and reviews before recommending Codex Desktop
+for direct folder access, persistent project files, local tools and checks, and
+durable deliverables. The recommendation never blocks the conversation: Clara
+can continue working in ChatGPT.
+
+Clara supports commercial due-diligence preparation—market, customer, product,
+competitive, and operating evidence.
+
+Clara is a Codex plugin for advisory and succession projects where the
+core asset is consultant judgement. It keeps a durable case map, indexes source
+materials in place, stores Codex-structured judgement as draft candidates, and
+maintains cross-interview case issues that accumulate evidence for and against
+the live hypotheses. It renders only decision-pack-ready items into Markdown and
+Word client outputs. It also maintains `case_brief.md`, a derived working brief
+for resuming the case without relying on chat history. Clara also embeds the
+Attribute Reporting specialist workflow for centrally governed retail taxonomy
+mapping, preserved cohort comparisons, private local HTML reports, and direct
+correctness verdicts. Its distinct Brand Fit workflow compares completed
+retailer signals with the brand's current presence at that retailer and the
+brand-owned catalogue. It also embeds Reporting Engine and eight chart-family
+components for local business-data analysis and rendering.
+
+Clara is the plugin's AI consultant role. The senior partner keeps judgement;
+Clara prepares the intelligence layer, asks only for judgement bottlenecks, and
+turns validated understanding into working artifacts.
+
+## Conversation Workflows
+
+Clara keeps its specialist workflows separate:
+
+- `advisory-brief-planner` turns a naturally described advisory assignment into
+  `advisory_contract.json`, preserving material facts, scope, evidence needs,
+  assumptions, success criteria, validation policy, and the handoff to the
+  existing Clara workflow that will execute the work;
+- `advisory-case-director` owns the living answer after assignment framing. It
+  maintains the case-specific analytical spine, cumulative evidence lineage,
+  partner judgement, open questions, next work, and the timing of working
+  deliverable updates;
+- `advisory-deliverable-validator` validates a completed advisory memo, report,
+  analysis, presentation, or other supported professional document by walking
+  generation-time evidence and claim dependencies when available, or by
+  explicitly labelled matched support for an external document, against
+  `advisory_contract.json` and the applicable existing Clara format checks;
+- `hosted-interview` prepares an expiring browser link for an adaptive external
+  participant interview, then retrieves the completed bundle and quality review;
+- `transcribe` records or uploads advisor voice notes, meetings, and calls,
+  preserves the local bundle, and completes transcript attribution and review;
+- `deck-correction` turns spoken or written feedback into reviewed, approved,
+  rendered, and verified changes to an existing PPTX or Clara HTML deck.
+- `html-deck` builds or preservation-revises a source-faithful standalone
+  animated HTML presentation with provenance and browser QA.
+- `research-video` turns approved ordered research scenes into a source-faithful
+  16:9 MP4 with synchronized English, Italian, French, German, or Spanish
+  narration generated through authenticated Mparanza access, captions, a visible localized AI-voice disclosure,
+  narration review, restrained motion, and mechanical media validation, without
+  requiring a user API key.
+- `attribute-reporting` maps retailer products to the central category
+  taxonomy, preserves the established new-versus-rest and
+  best-seller-versus-other comparisons, creates a private local HTML report,
+  and answers whether the report is correct.
+- `brand-fit` starts from a completed, checked Retailer Signals analysis and
+  compares those signals with the brand's current presence at the selected
+  retailer and the brand-owned catalogue in the stored database snapshot. It
+  creates a private local HTML report and answers whether that report is
+  correct; the snapshot is not represented as a live shelf check.
+- `reporting-engine` profiles a CSV/XLSX/Parquet dataset, lets Codex select the useful
+  analysis from the business question and actual fields, and runs the embedded
+  distribution, funnel, mix, period, scatter, overlap, statement, or variance
+  component.
+
+Advisory Deliverable Validator supports Markdown, text, standalone HTML,
+readable PDF, DOCX, and PPTX as primary deliverables. CSV, XLSX, and Parquet are
+supporting analytical evidence and retain Reporting Engine as their calculation
+and provenance authority. Corrections are separate artifacts; the original is
+never overwritten.
+
+Hosted interviews and Hosted Voice are different systems and bundle schemas.
+The first conducts an external interview; the second captures or transcribes an
+advisor discussion or existing recording. Neither automatically promotes its
+output into advisory conclusions.
+
+Attribute Reporting is also independent of the advisory case workflow. Its
+structured scrape records, canonical taxonomy, accepted mappings, and image
+URLs remain server-authoritative; product images and report artifacts remain
+local. Do not add its report to a case or convert it into a 16:9 deck unless the
+user explicitly asks for that follow-on work.
+
+Brand Fit uses a hosted evidence boundary and local report artifacts. The server
+prepares structured evidence from its stored product snapshot; the completed
+Retailer Signals report, downloaded product images, and final HTML report remain
+local. Codex performs semantic interpretation and independent review through the
+user's existing ChatGPT plan; no separate model-provider API key is required.
+
+Reporting Engine's canonical implementation lives inside Clara at
+`modules/reporting-engine`; it has no standalone plugin identity. Editable
+Attribute Reporting and chart-family implementations remain in their
+`plugins/<component>` source folders and Clara's package builder embeds them
+under `modules/`. Clara's skills own discovery and routing.
+
+The scripts are intentionally mechanical. They validate JSON shape, preserve
+source provenance, enforce the client-pack inclusion gate, and render outputs.
+Codex handles the semantic work through the user's existing ChatGPT plan:
+interpreting advisor judgement, challenging assumptions after import, asking
+follow-up questions, and drafting client-facing narrative.
+
+## Evidence-Preparation Engineering Benchmarks
+
+Clara's first upstream evidence-preparation benchmark is packaged under
+`evals/public_truth/fastenal_q1_2025`. It pins three issuer monthly-sales
+releases and the related quarterly SEC filing, reconciles their disclosed
+precision with exact Decimal arithmetic, verifies quarterly P&L identities, and
+requires abstention from undisclosed monthly expense facts.
+
+Run the offline benchmark from the Clara root:
+
+```bash
+python scripts/validate_public_truth_benchmark.py \
+  evals/public_truth/fastenal_q1_2025/benchmark.json \
+  evals/public_truth/fastenal_q1_2025/expected_prepared_observations.csv \
+  --output /tmp/fastenal-q1-public-truth-validation.json
+```
+
+This proves the prepared candidate matches the reviewed frozen fixture. It does
+not independently refetch the source documents or prove account-level,
+trial-balance, consolidation, or monthly full-P&L semantics. A benchmark pass
+does not claim downstream report readiness; render compatibility and evidence
+sealing are evaluated in later milestones.
+
+The second preparation benchmark is packaged under
+`evals/preparation/wd40_fy2025`. It starts from a balanced 12-month synthetic
+trial balance and a reviewed, effective-dated synthetic chart-of-accounts
+mapping. Exact Decimal preparation produces a 14-line monthly P&L and ties all
+lines to published WD-40 Q1–Q4 and FY2025 controls. The issuer facts are real;
+the monthly phasing, ledger rows, accounts, splits, mapping, and clearing
+account are explicitly synthetic.
+
+Run the offline preparation from the Clara root:
+
+```bash
+python scripts/prepare_monthly_pnl_case.py \
+  evals/preparation/wd40_fy2025/case.json \
+  --output-dir /tmp/wd40-fy2025-monthly-pnl
+```
+
+A passing run writes `monthly_pnl.csv`, `unmapped_accounts.csv`,
+`reconciliation.json`, and `prepared_evidence_manifest.json`. Frozen expected
+copies are packaged with the fixture. The reconciliation includes source-row
+and leaf-contribution conservation, 12 balanced trial-balance checks, 60
+monthly statement identities, and 70 exact public tie-outs.
+
+The tests also prove that all 168 prepared values survive the existing
+`statement.pnl_table` transport and that exact synthetic cells can be sealed
+and resolved through `clara.evidence_bundle.v1`. The renderer does no
+authoritative arithmetic. These are preparation and transport proofs, not a
+claim that an arbitrary company trial balance has correct semantics or that a
+report is ready. Account classification and scope remain reviewed judgement;
+the bounded reporting/evidence handoff is the next benchmark. No orchestrator
+participates in this benchmark.
+
+The third preparation milestone packages the shared mechanical boundary as
+`contracts/preparation_audit_envelope.v1.schema.json`. Its audit-only adapters
+bind each frozen benchmark, local artifacts, declared source receipts, reviewed
+decision receipts, exact numeric policy, reconciliation, and available lineage
+into a canonical envelope.
+
+Each adapter replays its registered deterministic producer before emitting the
+envelope. The M1 report must match the complete replayed report. The M2
+producer-owned filename set and every output byte must match a fresh replay;
+failed runs are represented by `reconciliation.json` and
+`unmapped_accounts.csv` without invented success artifacts.
+
+Run the adapters from the Clara root:
+
+```bash
+python scripts/build_public_truth_audit_envelope.py \
+  evals/public_truth/fastenal_q1_2025/benchmark.json \
+  evals/public_truth/fastenal_q1_2025/expected_prepared_observations.csv \
+  evals/public_truth/fastenal_q1_2025/expected_validation_report.json \
+  --output /tmp/fastenal-q1-preparation-audit.json
+
+python scripts/build_monthly_pnl_audit_envelope.py \
+  evals/preparation/wd40_fy2025/case.json \
+  evals/preparation/wd40_fy2025/expected \
+  --output /tmp/wd40-fy2025-preparation-audit.json
+```
+
+These envelopes are reproducible audit records, not report approvals. Remote
+sources remain declared receipts rather than authenticated bytes; reviewed
+decision records preserve an explicit source review status and prove presence
+and identity rather than correctness or reviewer authority. M1 claims artifact
+lineage; successful M2 binds content-bound aggregate dependency metadata and
+the exact prepared-output digest; row lineage is unavailable in v1. Semantic
+and downstream gates remain
+`not_assessed`, publication remains `withheld`, and `report_ready` is always
+`false`. Shared numeric validation enforces canonical Decimal syntax without
+promoting M2's scale or precision limits. The kernel adds no universal
+crosswalk, formula language, semantic layer, automatic analysis selection, or
+orchestrator.
+
+The fourth preparation milestone adds a frozen reporting-transport handoff for
+the same WD-40 fixture. It replays M3, validates the exact model-reviewed
+semantic layer and review notes, invokes the explicitly requested
+`statement.pnl_table`, and closes all 168 numeric addresses across the prepared
+CSV, rendered chart-data CSV, chart-context JSON, serialized HTML table, and
+cell ledger. It also validates renderer control manifests and pins the
+executed implementation files.
+
+Build and independently validate the handoff from the Clara root:
+
+```bash
+python scripts/build_monthly_pnl_reporting_handoff.py build \
+  evals/preparation/wd40_fy2025/case.json \
+  evals/preparation/wd40_fy2025/expected \
+  /tmp/wd40-fy2025-reporting-handoff \
+  --semantic-layer evals/preparation/wd40_fy2025/monthly_pnl.semantic.json \
+  --statement-recipe evals/preparation/wd40_fy2025/statement_render_recipe.json \
+  --reporting-request evals/preparation/wd40_fy2025/reporting_handoff_request.json
+
+python scripts/build_monthly_pnl_reporting_handoff.py validate \
+  evals/preparation/wd40_fy2025/case.json \
+  evals/preparation/wd40_fy2025/expected \
+  /tmp/wd40-fy2025-reporting-handoff \
+  --semantic-layer evals/preparation/wd40_fy2025/monthly_pnl.semantic.json \
+  --statement-recipe evals/preparation/wd40_fy2025/statement_render_recipe.json \
+  --reporting-request evals/preparation/wd40_fy2025/reporting_handoff_request.json
+```
+
+The final receipt is written only after a fresh render reproduces every
+portable output. It is ready for review, not report-ready:
+`report_ready=false` and publication remains withheld. Serialized HTML parsing
+does not prove browser-computed visibility, and the standalone statement HTML
+is not an HTML-deck evidence ledger. The handoff therefore does not claim that
+its cells are source-bound report numbers. It adds no automatic analysis
+selection, chart selection, interpretation, report composition, or
+orchestrator.
+
+The fifth preparation milestone adds two public-source analytical slices
+without extending the reporting handoff or introducing an orchestrator.
+
+The Universal Display Corporation case preserves anonymous customer aliases,
+reported whole-percentage revenue shares, and disclosed receivable balances.
+It calculates only reviewed annual subtotals, receivables coverage where a
+source denominator exists, and the explicitly labelled contribution from
+squared reported shares:
+
+```bash
+python scripts/prepare_customer_concentration_case.py \
+  evals/preparation/udc_fy2025_customer_concentration/case.json \
+  --output-dir /tmp/udc-fy2025-customer-concentration
+
+python scripts/build_customer_concentration_audit_envelope.py \
+  evals/preparation/udc_fy2025_customer_concentration/case.json \
+  evals/preparation/udc_fy2025_customer_concentration/expected \
+  --output /tmp/udc-fy2025-customer-concentration-audit.json
+```
+
+The WD-40 case applies a reviewed operating-working-capital perimeter to exact
+public balance-sheet facts, de-cumulates reported year-to-date cash-flow lines
+into discrete quarters, and retains every stock/flow difference as an
+unallocated `unexplained` residual:
+
+```bash
+python scripts/prepare_working_capital_case.py \
+  evals/preparation/wd40_fy2025_working_capital/case.json \
+  --output-dir /tmp/wd40-fy2025-working-capital
+
+python scripts/build_working_capital_audit_envelope.py \
+  evals/preparation/wd40_fy2025_working_capital/case.json \
+  evals/preparation/wd40_fy2025_working_capital/expected \
+  --output /tmp/wd40-fy2025-working-capital-audit.json
+```
+
+These fixtures do not identify anonymous customers, infer precise customer
+revenue from rounded shares, calculate full HHI, equate unlike statement
+captions, split combined cash-flow lines, explain residuals, calculate days
+metrics, normalize working capital, or set targets. The audit adapters replay
+the packaged expected outputs inside Clara's bounded artifact root. Producer
+output roots are dedicated: a run removes registered stale outputs and fails
+closed if any unregistered entry remains; the audit adapters independently
+require the exact complete root entry set. They prove exact mechanics and
+receipts only: source authority remains `receipt_only`, semantics and downstream
+compatibility remain `not_assessed`, publication is `withheld`, and
+`report_ready` remains `false`. Neither case selects a chart, interprets an
+implication, composes a report, invokes the Reporting Engine, or uses an
+orchestrator.
+
+## Privacy Surface Governance
+
+Every new or materially changed Clara workflow or hosted integration must use
+`skills/privacy-surface-review`, update the relevant records under `privacy/`,
+and pass its validator before packaging. This is a developer/release check, not
+a routine per-case notice or consent step.
+
+For Attribute Reporting, delegate its dependency check before component helper
+scripts:
+
+```bash
+python scripts/check_dependencies.py --module attribute-reporting
+```
+
+For data analysis and charts:
+
+```bash
+python scripts/check_dependencies.py --module reporting-engine
+```
+
+These checks prepare fingerprinted, user-scoped managed virtual environments only when
+needed and reuse them across restarts. Run core or component helpers through
+`scripts/managed_python_runtime.py` so the selected environment is bound to the
+helper process. The optional shared OCR runtime remains separate.
+
+## Advisory Case Direction
+
+`advisory-case-director` owns durable case direction. It states the best current
+answer first, builds the smallest case-specific analytical structure needed to
+explain and test that answer, chooses the next decision-relevant work, and
+revises the position when new evidence or partner judgement warrants it. Clara
+does not impose separate inner and outer loops or a universal analysis schema.
+
+`advisory_workpaper.md` is the current partner-readable semantic spine. The
+structured material, evidence, claim, judgement, question, issue, mandate, and
+manifest files preserve durable traceability. Prior evidence and materially
+different workpaper versions remain available; a new research report does not
+replace the cumulative case with only the latest iteration.
+
+Research, interviews, data analysis, reporting, and presentations are bounded
+contributions. The case director gives each specialist the current answer,
+exact question, relevant evidence and limitations, expected return, and the
+result that would disconfirm the working view. It then decides how the returned
+work changes the overall answer and next questions.
+
+A deck, memo, or brief is a milestone view of the spine rather than the memory
+of the case. It may be created early to make the answer visible and improve
+partner challenge. Semantic feedback returns to the workpaper and evidence
+lineage before the deliverable is revised; pure wording or layout feedback stays
+with the relevant presentation workflow.
+
+Use `/goal` for major phase gates only. Use ordinary checklists inside each
+goal.
+
+Deck correction is always a goal-level workflow. When Clara/Codex corrects,
+revises, or rebuilds a PPTX from a call, transcript, screen video, review notes,
+or partner feedback, start or continue an explicit goal before the
+deck-revision work begins. The goal covers intake, interpretation, approval,
+PPTX application, rendering, verification, and final output review; use ordinary
+checklists for the internal substeps.
+
+## Animated HTML Decks
+
+The `html-deck` skill turns approved Word, PDF, Markdown, report, or case
+materials into a source-faithful standalone 16:9 browser presentation. Its
+structured deck plan selects from a 15-layout editorial registry, while a
+claim-level content ledger and source-bound chart/table components preserve
+provenance. The shared stage engine provides semantic motion, fragments,
+keyboard/touch navigation, notes, overview, fullscreen, print behavior, and
+Voice Capture metadata. The builder creates one dependency-free,
+content-addressed HTML file and canonical ZIP. Automated multi-viewport browser
+QA checks geometry, collisions, interactions, console output, reduced motion,
+and print; model-led review still judges fidelity, hierarchy, and usefulness.
+Preservation-aware revision maps protect untouched slides, components, global
+styles/runtime, IDs, order, and slide-local provenance. A difficult URL is
+convenient obscurity, not access control.
+
+Standalone educational or conference talks do not require a fabricated Clara
+case workspace. Decks that carry an active Clara case recommendation still
+inherit the evidence-map and advisory-workpaper gates before presentation work.
+
+Strict HTML deck browser QA also requires a runnable Chrome or Chromium. The
+dependency checker verifies the Python Playwright binding; it does not install
+or verify a browser executable. On a fresh environment, provide Chrome/Chromium
+or run `playwright install chromium` before browser QA.
+
+## Narrated Research Videos
+
+The `research-video` skill prepares, approves, and renders an ordered set of
+user-approved research images as a 16:9 H.264/AAC MP4. Clara writes and reviews
+narration in English, Italian, French, German, or Spanish against an explicit
+source basis for every scene. The local renderer fingerprints the visual inputs
+and exact plan and requires explicit user-confirmation evidence. The
+authenticated Mparanza Research Video page sends only the approved narration
+and binding metadata to OpenAI using a server-held credential and returns one
+downloadable audio artifact per scene. The local renderer validates and hashes
+those files and assembles the voice-over,
+localized on-screen AI-voice disclosure, captions, poster, restrained motion,
+cross-fades, render report, and final artifact manifest. No user API key is
+used. Images and sources stay local; Mparanza builds the response in memory and
+does not write the request or audio to application storage.
+
+Accepted Vera graphical explainers, financial-analysis visuals, and report
+figures may be handed to Clara for media production. Vera retains source
+authority, claim assurance, professional acceptance, and publication decisions;
+Research Video's source-basis field does not replace those reviews.
+
+Flat images receive pan or zoom motion and are never represented as true
+parallax. Layered parallax is available only when the user supplies an aligned
+transparent foreground PNG and a separate clean background. Mechanical media
+validation does not replace final source-fidelity, pronunciation, legibility,
+and editorial review.
+
+## Typical Flow
+
+1. Run `scripts/check_dependencies.py`. For PDFs, images, or folders containing
+   them, run `scripts/check_dependencies.py --input <file-or-folder>`. A scanned
+   document with no usable text layer starts the managed PaddleOCR first-use
+   flow. After user approval, Codex installs the roughly 500 MB dependency once
+   into a persistent runtime shared with Vera, then retries automatically.
+   Users are never asked to run package-manager or Terminal commands.
+2. Initialize a case workspace with `scripts/init_case.py`.
+3. Index source files with `scripts/index_materials.py`. Supported previews
+   include Markdown/text, Word, PDF placeholders, and PowerPoint decks.
+4. Copy downloaded/local files into the case with `scripts/add_case_file.py`
+   when Codex needs to make a file durable before indexing or handoff. The
+   helper routes presentation drafts to `outputs/presentations/current`, notes
+   to `notes/`, audio to `source_materials/interviews/audio/`, and ordinary
+   source documents to `source_materials/project_docs/`. Add `--register` when
+   the copied file should be recorded in `material_registry.json`.
+5. Prepare Clara's first kickoff with `scripts/prepare_clara_kickoff.py`.
+6. Ingest pasted notes with `scripts/ingest_notes.py`, or launch hosted Voice
+   Capture with `scripts/launch_hosted_voice.py`.
+7. Let Codex draft structured judgement entries, then store them with
+   `scripts/add_judgement.py`. Store separately drafted follow-up questions
+   with `scripts/add_open_questions.py`.
+8. For a reviewed transcript integration that needs several mechanical updates
+   at once, let Codex prepare a JSON plan and apply it with
+   `scripts/integrate_transcript_review.py`. The helper can correct a transcript
+   material path, fill review-note sections, append pending judgement, link
+   existing open questions, update issue evidence/synthesis, refresh
+   `case_brief.md`, and print a validation/evidence-chain summary. It does not
+   interpret transcript content; Codex supplies the semantic plan from inspected
+   text evidence.
+9. Let Codex update cross-interview issues with `scripts/upsert_case_issues.py`
+   when an interview confirms, weakens, contradicts, or opens a live hypothesis.
+10. For high-stakes advisory deliverables, let Codex create
+   `advisory_evidence_map.md`, `advisory_workpaper.md`,
+   `judgement_checkpoint.md`, `presentation_storyline.md`, and
+   `presentation_review.md` as the two-loop reasoning and deck-quality
+   artifacts. These are Codex-authored working
+   artifacts, not deterministic script outputs.
+11. Let Codex show a short numbered inclusion summary in chat. The advisor says
+   what should go into the client pack, and Codex records that decision with
+   `scripts/approve_judgements.py`. When the pending list is long, Codex first
+   groups entries semantically into advisor-readable bundles, applies the
+   bundle plan with `scripts/apply_inclusion_bundles.py`, rebuilds
+   `inclusion_review.md`, and lets the advisor include or exclude whole bundles
+   while preserving item-level traceability.
+12. When Clara is not enough, ask Codex to prepare a support package;
+   Codex runs `scripts/prepare_support_package.py` and creates a clean ZIP plus
+   a `support_request.md` note.
+13. Share a clean full workspace ZIP with `scripts/export_case_workspace.py`
+   when a coworker needs the whole folder. Exchange append-only updates with
+   another local workspace using `scripts/export_case_update.py` and
+   `scripts/import_case_update.py` when collaborating over time.
+14. Refresh or inspect `case_brief.md` with `scripts/build_case_brief.py` when
+   the JSON files were edited outside the helper scripts.
+15. Generate clean `decision_pack.md` / `decision_pack.docx` and separate
+   provenance workpapers with `scripts/build_decision_pack.py`.
+
+## Adding Downloaded Files
+
+Use `scripts/add_case_file.py` when a downloaded or local file should be copied
+into the case workspace before further work. It preserves the original filename,
+reuses an identical existing copy, and adds `-2`, `-3`, and so on when a
+different file with the same name is already present.
+
+```bash
+python scripts/add_case_file.py <case-dir> ~/Downloads/example.pptx
+python scripts/add_case_file.py <case-dir> ~/Downloads/source.pdf --register
+python scripts/add_case_file.py <case-dir> ~/Downloads/interview.m4a --kind audio
+python scripts/add_case_file.py <case-dir> ~/Downloads/notes.md --kind note --register
+```
+
+`--kind auto` routes audio files to `source_materials/interviews/audio/`, note
+files and note-like names to `notes/`, presentation draft names such as
+`incontro`, `deck`, `slides`, or `draft` to `outputs/presentations/current/`,
+and other files to `source_materials/project_docs/`. Use `--kind source`,
+`--kind note`, `--kind audio`, or `--kind deck` when the filename is ambiguous.
+When `--register` is used, the helper registers the copied path and refreshes
+`case_brief.md`. If the new registered material could affect the advisory
+position, Codex updates `advisory_evidence_map.md` before using it in a
+workpaper, storyline, deck, memo, or decision pack. For `.pptx` presentation
+drafts, `add_case_file.py` automatically inspects the deck for WMF/EMF media
+and writes a `<name>_normalized_for_merge.pptx` sibling plus a
+`.normalization_report.json` when legacy media are found. Use
+`--skip-legacy-pptx-normalization` only when the copied deck will not feed an
+editable merge.
+
+## Importing Hosted Voice Bundles Into Ordinary Folders
+
+When the user only needs a hosted call transcript preserved in a normal
+document folder, do not initialize a Clara case workspace. Use the lightweight
+plain-folder importer instead:
+
+```bash
+python scripts/import_hosted_voice_bundle_to_folder.py \
+  <target-folder> <case-notes-audio-or-voice.zip>
+```
+
+The helper keeps the original ZIP or JSON bundle in the target folder, writes a
+readable sibling `<bundle-stem>-transcript.md`, and maintains the hidden control
+registry `.clara/voice_imports.json`. It uses bundle, canonical payload,
+transcript, and available media SHA-256 fingerprints to make repeated imports
+idempotent. On its first run against a folder that already contains an identical
+bundle and a transcript containing the same source text, it adopts those files
+without rewriting the transcript. A missing transcript is repaired.
+
+The helper never deletes or overwrites documents. Unrelated filename collisions
+receive `-2`, `-3`, and so on. A suspicious alternate version of the same
+recording is rejected unless the user deliberately passes `--allow-variant`;
+the registry then links the variant to the earlier import. Use `--dry-run` to
+inspect the intended paths and `--json` for a machine-readable result.
+
+This path only preserves source material. It does not create case JSON files,
+register judgement, infer speakers, or make the transcript advisory evidence.
+If `case_manifest.json` is present, use `import_hosted_voice_bundle.py` instead.
+Speaker attribution remains a separate text-only Codex/Clara review after local
+import. The transcript may enter model context through the user's existing
+ChatGPT plan; the original local transcript remains unchanged.
+
+## Normalizing Legacy PowerPoint Decks
+
+Use `scripts/normalize_legacy_pptx.py` before editable slide merging when a
+source deck already sits outside the `add_case_file.py` flow and contains
+legacy WMF/EMF media or was produced by an older PowerPoint/export pipeline.
+
+```bash
+python scripts/normalize_legacy_pptx.py ~/Downloads/example.pptx
+python scripts/normalize_legacy_pptx.py ~/Downloads/example.pptx \
+  --output ~/Downloads/example_normalized_for_merge.pptx --overwrite
+```
+
+The helper inspects `ppt/media/` for `.wmf` and `.emf` parts, runs a
+LibreOffice PPTX round-trip only when needed or when `--force` is passed,
+preserves Clara custom properties such as transcript links, validates the output
+package, and writes a `.normalization_report.json`. Use the normalized deck as
+the base for editable merge operations. If legacy media remain after
+normalization, use an image fallback only for affected slide content.
+
+Before any editable PPTX merge, run the merge-input guard:
+
+```bash
+python scripts/prepare_editable_pptx_merge_input.py ~/Downloads/example.pptx
+python scripts/prepare_editable_pptx_merge_input.py ~/Downloads/example.pptx \
+  --normalized-pptx ~/Downloads/example_normalized_for_merge.pptx
+```
+
+The guard writes an `.editable_merge_input_report.json` and returns the PPTX
+base that merge code may use. It fails when a legacy WMF/EMF source has no
+normalized merge base. If normalization is deliberately skipped because the
+operation is image-only or otherwise safe, pass
+`--skip-normalization-reason "<specific reason>"`; do not let merge code bypass
+this check silently.
+
+## Clara Kickoff
+
+Clara's first useful loop is preparation plus kickoff. Codex may browse public
+or authorized sources before calling the helper, then pass concise source
+takeaways as JSON. The helper itself is deterministic: it records source links,
+industry implications, material anchors, succession lenses, and red flags.
+
+```bash
+python scripts/prepare_clara_kickoff.py <case-dir>
+python scripts/build_clara_kickoff_deck.py <case-dir>
+python scripts/launch_hosted_voice.py <case-dir>
+python scripts/launch_hosted_voice.py <case-dir> --cookie-header-file /tmp/mparanza.cookie
+python scripts/import_hosted_voice_bundle.py <case-dir> <downloaded-bundle.json>
+python scripts/build_clara_partner_brief.py <case-dir>
+```
+
+The kickoff posture is that the senior partner briefs Clara. Clara listens and
+asks only essential clarifications when a missing point blocks understanding.
+The kickoff deck is the first working readout when the partner has not yet
+imported a voice kickoff. Kickoff imports update `clara_mandate.json`; the HTML
+brief and deck are local working artifacts for the partner, not client
+deliverables.
+
+## Case Brief
+
+`case_brief.md` is a readable working view generated from the canonical case
+JSON files. It is useful when reopening a case after a break: Codex can read the
+brief first, then inspect the underlying JSON and source materials as needed.
+
+The brief is not a source of truth. It is rebuilt from `case_manifest.json`,
+`material_registry.json`, `judgement_log.json`, `open_questions.json`, and
+`case_issues.json`, and `clara_mandate.json`. Draft judgement appears only in a
+pending-review section and cannot feed the client decision pack until the
+advisor marks it ready for client-pack use.
+
+```bash
+python scripts/build_case_brief.py <case-dir>
+```
+
+Validate the canonical JSON files without rebuilding derived artifacts:
+
+```bash
+python scripts/validate_workspace.py <case-dir>
+```
+
+Validation also checks linked raw-audio pointers. If a transcript material
+references `raw_audio_pointer_material_id`, the pointer must be marked
+transcribed, link back to the transcript material/path, and must not still say
+"not yet transcribed" in the pointer Markdown.
+
+If validation is already failing only because linked raw-audio pointer metadata
+or pointer Markdown is stale, repair that narrow pointer linkage before running
+full validation again:
+
+```bash
+python scripts/repair_audio_pointer_links.py <case-dir>
+python scripts/repair_audio_pointer_links.py <case-dir> \
+  --transcript-material-id <transcript-material-id>
+```
+
+This helper runs without a pre-validation gate. It only repairs existing
+transcript records that already reference an existing raw-audio pointer; it
+does not recreate missing pointer records or change transcript content.
+
+## Removing Wrong Materials
+
+If a material was imported or registered by mistake, remove it through the
+deterministic helper instead of hand-editing `material_registry.json`.
+
+```bash
+python scripts/delete_material.py <case-dir> mat-0055 mat-0056
+python scripts/delete_material.py <case-dir> mat-0055 --ignore-missing
+python scripts/delete_material.py <case-dir> mat-0055 --remove-empty-orphan-dirs
+```
+
+The helper removes the registry records, scrubs canonical material references
+from `judgement_log.json` and `clara_mandate.json`, refreshes `case_brief.md`,
+validates the workspace, and reports orphan candidate paths. It never deletes
+files or non-empty folders; `--remove-empty-orphan-dirs` only removes empty
+case-owned directories.
+
+## Cross-Interview Issues
+
+`case_issues.json` is the lightweight issue model Clara uses when a case has
+multiple interviews or source rounds. Each issue has a stable ID, title,
+decision area, current synthesis, status, evidence-for judgement IDs,
+evidence-against judgement IDs, and open-test question IDs.
+
+Use it only for live questions that matter to the client decision. It is not a
+taxonomy exercise and should not duplicate every judgement entry.
+
+```bash
+python scripts/upsert_case_issues.py <case-dir> --issues-json <issues.json>
+python scripts/upsert_case_issues.py <case-dir> \
+  --id production_quality_transition \
+  --title "Production and quality transition" \
+  --decision-area "Operating transition" \
+  --current-synthesis "Quality ownership is unresolved." \
+  --evidence-for jud-0017 \
+  --open-test q-0012
+```
+
+## Client-Pack Inclusion
+
+For solo-advisor work there is no separate approval ceremony. The advisor is
+not approving themselves; they are deciding which Codex-structured statements
+are ready to rely on in a client-facing pack.
+
+In normal Codex use, Codex shows a short numbered summary in chat and the
+advisor replies naturally, such as "include all", "include bundle 1",
+"exclude item 7", or "show me more on item 3". Codex then runs the mechanical
+helper and records the advisor name in the audit log.
+
+For long reviews, Codex/Clara should create thematic inclusion bundles before
+asking the advisor to decide. Bundle themes are semantic judgement from the
+case evidence, not deterministic keyword classification. The bundle JSON may be
+a list or an object with `bundles`; each bundle has `title`, optional `id`,
+optional `description`, and `entry_ids`.
+
+```bash
+python scripts/apply_inclusion_bundles.py <case-dir> \
+  --bundles-json <inclusion-bundles.json>
+python scripts/build_inclusion_review.py <case-dir>
+```
+
+The helper can also print the candidate summary directly:
+
+```bash
+python scripts/approve_judgements.py <case-dir>
+```
+
+After the advisor confirms that all candidate entries are ready for the client
+pack, mark them in one audited update:
+
+```bash
+python scripts/approve_judgements.py <case-dir> \
+  --all-pending \
+  --recorded-by "<advisor>"
+```
+
+For a single numbered item that needs a different decision:
+
+```bash
+python scripts/approve_judgements.py <case-dir> --item <number> \
+  --include \
+  --recorded-by "<advisor>"
+```
+
+For a whole thematic bundle:
+
+```bash
+python scripts/approve_judgements.py <case-dir> --bundle <number-or-id> \
+  --include \
+  --recorded-by "<advisor>"
+```
+
+## Hosted Voice Debrief
+
+The hosted voice path lets the Clara plugin use the Mparanza server for
+Realtime voice without requiring a local OpenAI API key. With an authenticated
+cookie or magic link, the launcher sends compact context from the local
+`case_brief.md` in an HTTPS request body. The server keeps that context in
+short-lived metadata and returns an opaque token; case context is never placed
+in the launch URL. The token is bound to the authenticated user and does not
+replace the Mparanza session. Without supplied authentication material, the
+launcher uses an explicit browser-authenticated fallback without reading or
+attaching the case brief. The hosted page records live audio or uploads an existing recording;
+for browser tab audio it can also capture tab video as provenance. The server
+transcribes audio and returns a downloadable bundle. Attribution, challenge,
+and semantic review happen after import, when Codex reviews the full transcript
+in the case workspace through the user's existing ChatGPT plan.
+
+```bash
+python scripts/launch_hosted_voice.py <case-dir>
+python scripts/import_hosted_voice_bundle.py <case-dir> <downloaded-bundle.json>
+python scripts/upload_hosted_audio.py <case-dir> <audio-file> --magic-link-file /tmp/mparanza.magic-link
+python scripts/upload_hosted_audio.py <case-dir> <audio-file> --cookie-header-file /tmp/mparanza.cookie
+```
+
+For deck feedback, the normal Codex-facing entry point is the natural-language
+request **“Clara, record feedback on this deck.”** Clara resolves the current
+case and target deck, then runs the single continuing helper:
+
+```bash
+python scripts/start_deck_feedback.py <case-dir> \
+  --deck <existing-deck.pptx-or-html> \
+  --browser chrome \
+  --cookie-header-file /tmp/mparanza.cookie
+```
+
+The helper opens the hosted capture, watches for a new bundle, imports it
+automatically, and records the exact deck target in the imported voice session.
+When authentication material is supplied, it attaches case context through the
+same body-based launch; otherwise its handoff records that the context-free
+browser-authenticated fallback was used. Users do not need the server URL or a
+manual Downloads-folder handoff.
+
+Imported sessions are written under `voice_sessions/`, registered as transcript
+materials, and added to `judgement_log.json` as pending entries only. They are
+not used in the decision pack unless later marked ready for client-pack use.
+The import also writes `voice_sessions/<timestamp>/codex_discussion_review.md`,
+a locally stored review pack for Codex's second-pass advisory read of the full
+discussion: weak assumptions, contradictions, missed questions, and candidate
+Clara entries. Its contents may enter model context through the user's ChatGPT
+plan. Before an imported transcript changes the advisory position or deck,
+Codex updates `advisory_evidence_map.md`.
+
+For screen-video sessions that may revise an existing deck, Clara prepares a
+local deck-revision intake before slide editing. The intake is evidence
+plumbing, not semantic judgement: it links transcript/video/deck evidence,
+extracts a PPTX snapshot when a deck is attached, resolves the inherited
+company/deck style authority, snapshots that style spec into the voice session,
+enriches feedback timeline frames with conservative slide-match candidates when
+rendered slide images and extracted video frames are available, and writes
+`deck_revision_gate.md` for Codex/Clara review. Slide matching is visual
+candidate evidence only; Clara/Codex still decides what the speaker meant.
+
+After the intake has an attributed transcript, attached PPTX, and resolved
+style authority, build the local revision workbench:
+
+```bash
+python scripts/build_deck_revision_workbench.py <case-dir>
+```
+
+This writes:
+
+- `voice_sessions/<timestamp>/deck_revision_workbench.json`
+- `voice_sessions/<timestamp>/deck_revision_prompt.md`
+- `voice_sessions/<timestamp>/deck_revision_changes.schema.json`
+- `voice_sessions/<timestamp>/deck_revision_changes.md`
+
+The workbench still does not call a model and does not edit the PPTX. It gives
+Codex the exact local prompt, evidence paths, deck snapshot, style spec, and
+  schema for producing focused interpretation packets and then
+  `deck_revision_changes.json`: the list of changes Clara understood from the
+  attributed transcript and visual context.
+
+  Before writing that change list, build focused interpretation packets:
+
+  ```bash
+  python scripts/build_deck_revision_interpretation_packets.py <case-dir>
+  ```
+
+  This writes `deck_revision_interpretation_packets.json`,
+  `deck_revision_interpretation_packets.md`, and per-packet JSON/Markdown files
+  under `deck_revision_interpretation_packets/`. The workbench remains the
+  evidence index; Codex/Clara should interpret the smaller packets rather than
+  using the full workbench as one huge semantic prompt. If
+  `feedback_timeline.json` contains `slide_match` fields, use high/medium
+  matches as slide-location grounding and treat low/no matches as navigation
+  hints. Each change must include a scope, Clara's interpretation of the
+  requested correction, an execution strategy, success criteria, and packet
+  metadata such as `packet_scope`, `affected_slide_numbers`, group id, or
+  dependencies when the edit is global or cross-slide.
+
+After Codex writes `deck_revision_changes.json`, render the consultant-facing
+review and the controlled PPTX handoff:
+
+```bash
+python scripts/finalize_deck_revision_plan.py <case-dir> \
+  voice_sessions/<timestamp>/deck_revision_changes.json
+```
+
+The finalizer validates slide numbers against the deck snapshot, requires
+transcript and visual/deck evidence for each change, requires success criteria,
+ignores any model-authored approval flag, writes
+`deck_revision_changes.normalized.json`, renders the readable
+`deck_revision_changes.md`, writes the simpler consultant checkpoint
+`deck_revision_understanding.md`, and writes `deck_revision_handoff.md`. PPTX
+editing is a separate step: Clara/Codex applies the deck only after a separate
+approval artifact is written for the exact normalized plan hash.
+
+Then build the execution route:
+
+```bash
+python scripts/build_deck_revision_execution_plan.py <case-dir>
+```
+
+  This writes `deck_revision_execution_plan.json` and
+  `deck_revision_execution_plan.md`. The execution strategy is explicit per
+  change: `deterministic_patch`, `model_assisted_edit`, `slide_rebuild`,
+  `deck_restructure`, or `needs_human_decision`. Deterministic routing is used
+  only for mechanical readiness checks from the explicit strategy; semantic
+  judgement stays with Clara/Codex.
+
+  Then build focused execution packets:
+
+  ```bash
+  python scripts/build_deck_revision_execution_packets.py <case-dir>
+  ```
+
+  This writes `deck_revision_execution_packets.json`,
+  `deck_revision_execution_packets.md`, and per-packet JSON/Markdown files under
+  `deck_revision_execution_packets/`. Clara/Codex should execute one packet at a
+  time: a local slide packet, a related slide-cluster packet, or a deck-level
+  packet for global changes such as "make the font bigger in all slides" or
+  deck sequence edits. The whole change list is global context, not one giant
+  deck-editing prompt.
+
+For automatic PPTX application, a change with strategy `deterministic_patch`
+must include concrete `application_patches`. Supported deterministic patches
+are deliberately narrow: `set_title_text`, `set_shape_text`, `replace_text`,
+`add_textbox`, `delete_shape`, and `move_shape`. Semantic, structural, visual,
+or content changes still belong in the plan; route them to model-assisted edit,
+slide rebuild, deck restructure, or human decision instead of forcing a fragile
+patch. Existing-object patches must include target identity from the pre-edit
+deck, especially `target.expected_text`, and text replacement must name a
+specific target shape.
+
+Before applying, write the material-needs review:
+
+```bash
+python scripts/analyze_deck_revision_materials.py <case-dir>
+```
+
+This writes `deck_revision_material_needs.json` and
+`deck_revision_material_needs.md`, separating changes that are ready for
+automatic deterministic application from changes that require Codex/model
+editing, slide rebuild, deck restructuring, source material, or a human
+decision.
+
+When a change asks for better quotes, interview evidence, transcript excerpts,
+or source-backed examples for a slide, build the quote candidate matrix before
+selecting quotes or editing the PPTX:
+
+```bash
+python scripts/build_deck_revision_quote_candidate_matrix.py <case-dir>
+```
+
+This writes `deck_revision_quote_candidate_matrix.json` and
+`deck_revision_quote_candidate_matrix.md`. The matrix is evidence preparation:
+deterministic code finds candidate transcript passages, while Clara/Codex still
+selects quotes by relevance, sharpness, source diversity, and room-safe wording.
+`analyze_deck_revision_materials.py` flags quote-backed changes as blocked
+until this matrix exists.
+
+After the consultant/user reviews `deck_revision_changes.md`, approve the exact
+normalized plan:
+
+```bash
+python scripts/approve_deck_revision_plan.py <case-dir> --reviewer "<name>"
+```
+
+This writes `deck_revision_approval.json` and `deck_revision_approval.md`. The
+approval stores the SHA-256 of the normalized plan. If the plan changes after
+approval, Clara must re-run approval before applying.
+
+After approval, apply only the supported patches to a copied PPTX:
+
+```bash
+python scripts/apply_deck_revision_plan.py <case-dir>
+```
+
+The applier writes `deck_revision_corrected.pptx`,
+`deck_revision_apply_report.json`, and `deck_revision_apply_report.md`; it
+keeps the original deck untouched. It also runs verification automatically and
+writes `deck_revision_verification.json` plus `deck_revision_verification.md`.
+Verification mechanically checks supported patch assertions, such as title
+text, exact text replacement, added text, moved coordinates, and explicit
+absent-text checks for deletions. It also checks every normalized success
+criterion where the criterion is mechanical, and marks semantic/manual criteria
+for review. Failed or manual-review assertions block the deck from being
+treated as correct; the apply report status is successful only when
+verification also passes.
+
+For regression tests of the full harness, create a fixture with a case folder,
+voice session, change JSON, and expected statuses, then run:
+
+```bash
+python scripts/run_deck_revision_fixture.py <fixture-dir>
+```
+
+The runner executes the local harness from workbench through finalization,
+execution planning, material-needs analysis, optional approval, optional apply,
+and verification. It writes `deck_revision_eval_report.json` and
+`deck_revision_eval_report.md`.
+
+Deck revision requires three authorities before edits are produced:
+
+- the case workspace, including `case_manifest.json`;
+- a visual style authority, normally inherited from a firm/company profile in
+  the case folder or parent company folder;
+- the advisory method authority, currently `advisory-output-shaper`, so
+  family/governance feedback becomes useful, evidence-aware, room-safe slide
+  changes rather than raw transcript paste.
+
+A company folder can hold `company_profile.json` or
+`clara_company_profile.json` above its project folders. Supported profile
+fields include `default_deck_style`, `deck_style`, `deck_style_spec_path`, and
+`advisory_method`. For example, `default_deck_style: "ag"` resolves to
+`docs/specs/pptx_templates/ag-style-spec.md`; `default_deck_style: "bain"`
+resolves to `docs/specs/pptx_templates/bain-style-spec.md`. A project case can
+override this by passing `--deck-style`, `--style-spec`, or by adding a style
+field to `case_manifest.json`.
+
+Speaker attribution is text-only Codex work after local import. The hosted
+server transcribes audio and may provide clean text, but it is not the authority
+for naming speakers in Clara case work. The transcript Codex reads may enter the
+model context through the user's existing ChatGPT plan. Import creates and registers
+`voice_sessions/<timestamp>/attributed_transcript.md` only when attribution is
+actually trivial: a single known speaker. If more than one speaker is possible,
+import writes `speaker_attribution_task.md` plus
+`speaker_attribution_report.json` and leaves the raw transcript registered until
+Clara/Codex completes attribution. If real names are unavailable, Clara/Codex
+may use stable labels such as `Speaker 1` and `Speaker 2`. Codex/Clara
+attributes from transcript text plus source metadata: preserve the unattributed
+transcript, inspect for obvious merged turns or wrong labels, correct only clear
+text-supported boundary errors, and leave uncertainty visible. Do not use an
+audio or voice diarization model for Clara speaker attribution.
+
+When Codex/Clara later creates or replaces the attributed transcript with a
+reviewed one, finalize the registry mechanically instead of editing JSON by hand:
+
+```bash
+python scripts/finalize_hosted_transcript.py <case-dir> <transcript-material-id> \
+  <voice_sessions/.../raw_transcript_rule_attributed.md> \
+  --audio-pointer <source_materials/interviews/...-audio.md>
+```
+
+This command preserves `raw_transcript_unattributed.md`, updates the transcript
+material to point at the attributed working transcript, marks the raw-audio
+pointer as transcribed, links it visibly to the transcript material/path, and
+refreshes `case_brief.md`.
+
+For existing local recordings, prefer `scripts/upload_hosted_audio.py` when the
+browser or Chrome extension cannot attach local files. The script can consume a
+Mparanza magic link or reuse an existing authenticated `Cookie` header, uploads
+the audio through the hosted API, saves the bundle under the case workspace,
+imports it into `voice_sessions/`, and copies the original audio file into the
+imported session folder. By default it sends compact local case context in the
+authenticated upload body; use `--no-case-context` when the hosted
+transcription should not receive that context. Use `--no-import` only when you
+need to inspect the hosted bundle before registering it locally.
+
+## Support Package
+
+If Clara is not enough for delivery, the advisor should not handle CLI,
+manually zip folders, or decide which hidden folders to exclude. Codex should
+treat natural-language requests such as "prepare a support package" or "these
+slides are not good enough" as a support escalation. The live case remains
+local and authoritative; the package is only a clean diagnostic and delivery
+handoff.
+
+```bash
+python scripts/prepare_support_package.py <case-dir> \
+  --request "The slides are not good enough; the support reviewer should improve the output." \
+  --requested-by "<advisor>"
+```
+
+The package is written by default to `../case_support_exports/`. It contains the
+clean case workspace plus `support_request.md`, and excludes hidden OCR/runtime
+dependency folders such as `.codex_*_py`, virtual environments, caches,
+`.DS_Store`, and prior exchange exports.
+
+## Case Exchange
+
+For a first handoff, export a clean workspace ZIP instead of zipping the folder
+manually. The clean archive keeps case files, notes, transcripts, materials, and
+outputs, but excludes local runtime libraries, hidden dependency folders such as
+`.codex_*_py`, virtual environments, caches, `.DS_Store`, and prior exchange
+exports.
+
+```bash
+python scripts/export_case_workspace.py <case-dir>
+```
+
+For ongoing collaboration, case exchange is local-first and deterministic. One
+user exports a ZIP update
+package; another imports it into their own case workspace. Import appends new
+materials, judgement entries, and open questions. It does not overwrite local
+records. If the same imported origin has changed, the import logs an open
+conflict question for manual review.
+
+```bash
+python scripts/export_case_update.py <case-dir> --exporter "<name>"
+python scripts/import_case_update.py <case-dir> <case-update.zip>
+```
+
+Case-owned note and transcript files are included in the package and extracted
+under `exchange_imports/`. External source paths are retained as provenance
+references rather than copied. After importing new material, judgement, open
+questions, or conflicts, Codex updates `advisory_evidence_map.md` before using
+the imported content in a deliverable.
+
+## Case Files
+
+- `case_manifest.json`
+- `case_brief.md`
+- `clara_mandate.json`
+- `clara_kickoff_preparation.md`
+- `clara_kickoff_deck.html`
+- `clara_partner_brief.html`
+- `advisory_evidence_map.md`
+- `advisory_workpaper.md`
+- `judgement_checkpoint.md`
+- `presentation_storyline.md`
+- `presentation_review.md`
+- `material_registry.json`
+- `judgement_log.json`
+- `open_questions.json`
+- `case_issues.json`
+- `exchange_log.json`
+- `company_profile.json` or `clara_company_profile.json` in a case folder or
+  parent company folder when project folders inherit firm defaults
+- `voice_sessions/<timestamp>/raw_transcript.md`
+- `voice_sessions/<timestamp>/judgement_candidates.json`
+- `voice_sessions/<timestamp>/codex_discussion_review.md`
+- `voice_sessions/<timestamp>/deck_revision_intake.json`
+- `voice_sessions/<timestamp>/deck_revision_gate.md`
+- `voice_sessions/<timestamp>/deck_style_spec.md`
+- `voice_sessions/<timestamp>/deck_revision_workbench.json`
+- `voice_sessions/<timestamp>/deck_revision_prompt.md`
+- `voice_sessions/<timestamp>/deck_revision_changes.schema.json`
+- `voice_sessions/<timestamp>/deck_revision_interpretation_packets.json`
+- `voice_sessions/<timestamp>/deck_revision_interpretation_packets.md`
+- `voice_sessions/<timestamp>/deck_revision_changes.json`
+- `voice_sessions/<timestamp>/deck_revision_changes.md`
+- `voice_sessions/<timestamp>/deck_revision_understanding.md`
+- `voice_sessions/<timestamp>/deck_revision_handoff.md`
+- `voice_sessions/<timestamp>/deck_revision_execution_plan.json`
+- `voice_sessions/<timestamp>/deck_revision_execution_plan.md`
+- `voice_sessions/<timestamp>/deck_revision_execution_packets.json`
+- `voice_sessions/<timestamp>/deck_revision_execution_packets.md`
+- `voice_sessions/<timestamp>/deck_revision_material_needs.json`
+- `voice_sessions/<timestamp>/deck_revision_material_needs.md`
+- `voice_sessions/<timestamp>/deck_revision_quote_candidate_matrix.json`
+- `voice_sessions/<timestamp>/deck_revision_quote_candidate_matrix.md`
+- `voice_sessions/<timestamp>/deck_revision_approval.json`
+- `voice_sessions/<timestamp>/deck_revision_approval.md`
+- `voice_sessions/<timestamp>/deck_revision_corrected.pptx`
+- `voice_sessions/<timestamp>/deck_revision_apply_report.json`
+- `voice_sessions/<timestamp>/deck_revision_apply_report.md`
+- `voice_sessions/<timestamp>/deck_revision_verification.json`
+- `voice_sessions/<timestamp>/deck_revision_verification.md`
+- `../case_support_exports/<case-support>.zip`
+- `../case_share_exports/<case-workspace>.zip`
+- `exchange_exports/<case-update>.zip`
+- `exchange_imports/<exchange-id>/...`
+- `outputs/decision_pack.md`
+- `outputs/decision_pack.docx`
+- `outputs/decision_pack_workpaper.md`
+- `outputs/decision_pack_workpaper.docx`
+
+## Public Explainer
+
+The public plugin explainer is maintained at
+`static/shared/clara/index.html`.
+
+## Python runtime
+
+Python workflows use **CPython 3.12 only**. The managed setup reuses Python 3.12, finds an installed 3.12 interpreter, or provisions it with an already installed `uv`. It never creates workflow environments with another Python minor version. If neither is available, setup gives an explicit installation instruction. Existing environments are preserved; separate component dependency environments remain necessary until their dependency sets are consolidated.

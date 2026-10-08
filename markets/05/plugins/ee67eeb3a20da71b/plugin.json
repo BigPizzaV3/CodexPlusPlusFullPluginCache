@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tolstoy-closet",
+  "version": "0.1.0",
+  "description": "Save, find, and remove your clothes in a private digital closet with My Closet.",
+  "author": {
+    "name": "Tolstoy LTD",
+    "url": "https://www.gotolstoy.com"
+  },
+  "homepage": "https://www.gotolstoy.com",
+  "repository": "https://github.com/GoTolstoy/tolstoy-backend-cdk",
+  "keywords": [
+    "closet",
+    "wardrobe",
+    "digital closet",
+    "clothes",
+    "clothing",
+    "wardrobe organizer",
+    "clothing photos",
+    "personal wardrobe"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "My Closet",
+        "shortDescription": "Save and find your clothes",
+        "longDescription": "Use My Closet to keep clothes you own in a private digital closet. Save clothing descriptions or attached photos, search the text saved with your items, and remove items you select. Get a private link to continue in Shopbots; the link expires after 24 hours, and sharing the closet with your Shopbots account requires sign-in and confirmation.",
+        "developerName": "Tolstoy LTD",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.gotolstoy.com",
+        "supportURL": "https://help.gotolstoy.com/en/",
+        "privacyPolicyURL": "https://www.gotolstoy.com/privacy-policy",
+        "termsOfServiceURL": "https://www.gotolstoy.com/terms-of-use",
+        "defaultPrompt": [
+          "Show me what is in my closet.",
+          "Add these clothes to my closet."
+        ],
+        "logo": "./assets/shopbots.png",
+        "composerIcon": "./assets/shopbots.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Save owned clothes from text as one batch. Setup: use a fresh review closet and say that both items are owned. Pass condition: both returned added items have exact IDs and the supplied descriptions; report added and skipped counts from the tool. Keep those IDs for later cases.",
+              "prompt": "I own a navy cotton shirt in size M and blue straight-leg jeans in size 30. Save both in my closet.",
+              "tools_triggered": "add_closet_items",
+              "expected_behavior": "Call add_closet_items with two items, each using extraDescription containing the supplied clothing, color, material or cut, and size. Each description must be at most 200 characters. Do not invent a photo, price, purchase date, or product barcode. Report the actual added items, their IDs, and skipped count; do not claim a save if the response reports an error."
+            },
+            {
+              "description": "Save an attached photo with matching text. Setup: in a fresh review conversation attach either the synthetic demo-green-sweater.png fixture or one photo of a garment the reviewer owns, not already saved. For the synthetic image, use a test persona and make clear that it represents a sample garment; it is not evidence of actual ownership. The prompt assumes a green wool sweater, size M; use that sample or change the description to match a supplied garment. No hosted photo fixture URL is supplied. Pass condition: one saved item has a returned ID, a stored photoUrl, and the supplied description.",
+              "prompt": "This is my green wool sweater, size M. Add it to my closet with this photo.",
+              "tools_triggered": "add_closet_items",
+              "expected_behavior": "Call add_closet_items with files containing the actual attachment download_url and file_id supplied by the host, plus fileDescriptions in the same order, with the description green wool sweater, size M. Do not fabricate attachment fields. Report the actual added/skipped result and returned item ID. Confirm the saved photo only when the returned item contains photoUrl. If the host supplies no accessible attachment, explain that input is missing and ask for the photo; do not claim success."
+            },
+            {
+              "description": "Search stored text and continue a paginated result. Setup: save the shirt and jeans from the text case in an otherwise empty review closet, then save a blue denim jacket, size M. Pass condition: two blue items are returned in separate pages of one, using nextOffset from the first response and the same query; do not return the navy shirt.",
+              "prompt": "Find my blue clothes. Show one item first, then show the next one.",
+              "tools_triggered": "search_closet",
+              "expected_behavior": "Call search_closet with query blue, limit 1, and offset 0. Use the returned nextOffset with the same query and limit for the second call. In this setup, both responses report matchCount 2 and totalCount 3. Show the returned jeans and jacket once each, in the server order, and preserve their exact IDs. Explain that the search uses stored text when relevant; do not claim to search image contents."
+            },
+            {
+              "description": "Remove an explicitly selected saved item. Setup: run the text case, keep its returned navy-shirt ID, and keep the jeans. Pass condition: the shirt ID appears in removedIds; a subsequent text search returns no shirt while the jeans remain. If more than one shirt matches, ask for a selection before removal.",
+              "prompt": "Remove my navy cotton shirt from my closet and check that it is gone. Keep my jeans.",
+              "tools_triggered": "search_closet, remove_closet_items",
+              "expected_behavior": "Find the shirt with search_closet using query navy cotton shirt if its exact ID is not already available. Call remove_closet_items with itemIds containing only that exact returned shirt ID. Report removedIds, missingIds, and failedIds accurately. Call search_closet to verify the shirt is absent and the jeans remain. Do not delete source images or messages or claim they were deleted."
+            },
+            {
+              "description": "Create a private Shopbots continuation link on request. Setup: use the connected review closet. Pass condition: the response contains the tool-returned HTTPS link and 24-hour expiry notice; the assistant warns that it is private and expires after 24 hours. Account linking requires a separate Shopbots sign-in and confirmation; the link alone must not be described as a completed link.",
+              "prompt": "Give me a link to continue with this closet in Shopbots.",
+              "tools_triggered": "get_shopbots_link",
+              "expected_behavior": "Call get_shopbots_link with an empty object. Show exactly the returned private URL and explain the returned notice that it expires after 24 hours; do not invent an expiration timestamp. Explain that the shopper must sign in and confirm in Shopbots to share the closet with that account. Do not publish the link, send it to another person, or claim the accounts are already linked."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Image generation is outside this MCP. Explain that Closet can save, find, and remove owned clothes but cannot create a virtual try-on image. Do not invoke any of the four Closet tools for this request, and do not claim an image was generated.",
+              "prompt": "Create a photo of me wearing a red dress from a store, without saving anything in my closet."
+            },
+            {
+              "description": "Automatic mailbox import is outside this MCP. Explain that Closet has no Gmail or purchase-email reader. Ask the user to provide the clothes or photos they want to save if useful. Do not invoke any Closet tool for this request and do not claim mail was read or items were imported.",
+              "prompt": "Read my Gmail purchase receipts and automatically import all the clothes I bought into my closet."
+            },
+            {
+              "description": "In-place editing is outside this MCP. Explain that Closet does not have an item-edit tool. Do not silently remove and re-add the item, do not invoke any Closet tool, and do not claim the stored size changed. Ask for separate permission only if the user wants a supported replacement workflow.",
+              "prompt": "Change my saved navy cotton shirt from size M to size L. Keep the same item and photo."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://drive.google.com/file/d/1lpc5UQspq_oEAKKSgxZTjlPSGQHbStBw/view?usp=drivesdk"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release of My Closet. Save owned clothes from descriptions or attached photos, search saved text, remove selected items, and create a private Shopbots continuation link."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

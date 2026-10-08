@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "eigakan-guide",
+  "version": "1.0.0",
+  "description": "Find cinema showtimes across Japan by movie, location, date, time, and screening features.",
+  "author": {
+    "name": "Martin Oyama",
+    "url": "https://eigakanguide.jp/en"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "\u6620\u753b\u9928\u30ac\u30a4\u30c9 | Eigakan Guide",
+        "shortDescription": "Japan cinema showtimes",
+        "longDescription": "Find cinema showtimes across Japan without checking each cinema's website separately. Search by movie, area, cinema, date, start time, finish time, and screening features such as IMAX, Dolby Cinema, English audio, and English subtitles.\n\nEigakan Guide supports Japanese and English. Results include movie posters, cinemas, screening times in Japan Standard Time, and links to the matching listings on Eigakan Guide. Use Show more to load additional screenings with the same conditions.\n\nAn Eigakan Guide account is not required. The plugin searches collected schedules, not live seat availability, and cannot reserve seats or purchase tickets. Schedules can change; confirm the details on the cinema's official website before booking. Coverage is limited to supported cinemas and published schedules. English audio is marked only for eligible subtitled screenings of movies whose original English audio has been confirmed. English subtitles are a separate screening feature.",
+        "developerName": "Martin Oyama",
+        "category": "Entertainment",
+        "websiteURL": "https://eigakanguide.jp/en",
+        "supportURL": "https://eigakanguide.jp/en/contact",
+        "privacyPolicyURL": "https://eigakanguide.jp/en/privacy",
+        "termsOfServiceURL": "https://eigakanguide.jp/en/terms",
+        "defaultPrompt": [
+          "Find movies with English audio in Shinjuku tomorrow after 18:00 that finish before 23:00.",
+          "Find IMAX screenings in Tokyo this weekend.",
+          "Find movies with English subtitles in Tokyo tomorrow."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/j0Q5hf92crY",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "English-language search with location, date, start-time and finish-time constraints. Resolve tomorrow in Asia/Tokyo. Results depend on published schedules; a truthful empty result also passes.",
+              "prompt": "Find movies with English audio in Shinjuku tomorrow after 18:00 that finish before 23:00.",
+              "tools_triggered": "find_locations, search_showtimes",
+              "expected_behavior": "Resolve Shinjuku to the returned area slug. Search with area shinjuku, feature englishaudio, language en, tomorrow as dateStart and dateEnd, timeStart 18-00 and timeEnd 23-00. Make one initial search without cursor or limit. Display English widget labels and only returned screenings starting at or after 18:00 and finishing by 23:00 JST. Do not claim live seat availability or complete totals when nextCursor is present."
+            },
+            {
+              "description": "Japanese-language discovery of screening features and IMAX-family search. This checks localized results and inclusion of IMAX Laser and IMAX Laser GT through the existing IMAX hierarchy.",
+              "prompt": "\u6771\u4eac\u90fd\u3067\u4eca\u9031\u672b\u306bIMAX\u3067\u89b3\u3089\u308c\u308b\u6620\u753b\u3092\u6559\u3048\u3066\u3002IMAX\u30ec\u30fc\u30b6\u30fc\u3082\u542b\u3081\u3066\u63a2\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "find_locations, list_features, search_showtimes",
+              "expected_behavior": "Resolve Tokyo prefecture and the IMAX feature using returned slugs. Search the upcoming Saturday and Sunday in JST with prefecture tokyo, feature imax and language ja. IMAX Laser and Laser GT screenings remain eligible. Use Japanese labels, show the first page or a truthful empty result, and do not silently search only one cinema or exclude IMAX variants."
+            },
+            {
+              "description": "Movie-title lookup distinguishes film editions from a double-feature event before choosing a canonical ID. The registered catalogue contains separate \u516b\u3064\u5893\u6751-related records; lookup must precede selection.",
+              "prompt": "\u516b\u3064\u5893\u6751\u3092\u89b3\u305f\u3044\u3067\u3059\u3002\u4e0a\u6620\u6642\u9593\u3092\u6559\u3048\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "find_movies",
+              "expected_behavior": "Look up the title in Japanese. If multiple distinct editions or the double-feature event match, ask which work the user means or present clearly separate alternatives using their returned titles and IDs. Do not silently select one edition, merge distinct movies or choose the double feature solely because its title contains the same words."
+            },
+            {
+              "description": "Overnight business-day times use an exclusive upper bound on the screening's start, not its finish. Resolve tomorrow relative to JST.",
+              "prompt": "Find movies in Shinjuku tomorrow that start at or after 26:00 but before 27:00. The upper bound is on the start time, not the finish time.",
+              "tools_triggered": "find_locations, search_showtimes",
+              "expected_behavior": "Search Shinjuku for tomorrow's business date with timeStart 26-00, startBefore 27-00 and language en. Do not use timeEnd 27-00 as a substitute. Returned starts must be between 02:00 inclusive and 03:00 exclusive on the following calendar day. Exclude 08:00 screenings. Explain that website links omit the upper start-time bound and can show a broader list."
+            },
+            {
+              "description": "Broad search followed by widget pagination. Click Show more if the first page returns nextCursor. If the current schedule has no second page, verify the button is absent rather than fabricating additional results.",
+              "prompt": "Find movies with English audio across Tokyo prefecture this weekend, with no time-of-day limits.",
+              "tools_triggered": "find_locations, search_showtimes",
+              "expected_behavior": "Search Tokyo prefecture and the upcoming weekend with englishaudio and language en, without time constraints. Make one initial search at the default page size. When Show more is clicked, call search_showtimes with the returned cursor and otherwise identical arguments. Append returned screenings without duplicating prior entries or dropping filters. Poster images and pagination must work with CSP enforcement enabled."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchasing and reserving tickets are unsupported. The assistant must not claim to perform a transaction or invoke the search tools as if they were booking tools.",
+              "prompt": "Reserve two seats and pay for my movie tickets using Eigakan Guide.",
+              "expected_behavior": "Explain that Eigakan Guide cannot reserve seats or pay for tickets. Do not request payment details, invent booking confirmation, or call a tool to perform a purchase. Direct the user to a cinema's official booking flow when an actual returned listing is available."
+            },
+            {
+              "description": "Live seat inventory is not available. This request must not be answered from scraped showtime schedules.",
+              "prompt": "Check whether seats F10 and F11 are available at TOHO Cinemas Shinjuku right now.",
+              "expected_behavior": "Explain that the integration cannot check live seat availability. Do not invoke its read-only schedule tools to infer occupied or available seats and do not fabricate a seat map. Advise checking the cinema's official booking website."
+            },
+            {
+              "description": "Cinema coverage is limited to Japan; a location outside Japan must not be silently replaced by a Japanese location.",
+              "prompt": "Find movie showtimes in London tomorrow using Eigakan Guide.",
+              "expected_behavior": "Explain that Eigakan Guide searches supported Japanese cinemas and cannot supply London showtimes. Do not run search_showtimes with an omitted location or substitute a Japanese cinema."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin only searches schedules and links to Eigakan Guide listings. It does not take payments, sell tickets, reserve seats, or expose checkout tools. Users may leave Eigakan Guide for official cinema booking websites."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission: Japanese and English cinema-showtime searches, movie and location lookup, screening-feature discovery, and a paginated showtimes widget. Searches are read-only and do not require an Eigakan Guide account.",
+        "translations": {
+          "ja-JP": {
+            "subtitle": "\u5168\u56fd\u306e\u6620\u753b\u9928\u306e\u4e0a\u6620\u6642\u9593\u3092\u691c\u7d22",
+            "description": "\u6620\u753b\u9928\u3054\u3068\u306e\u30b5\u30a4\u30c8\u3092\u958b\u304b\u305a\u306b\u4e0a\u6620\u6642\u9593\u3092\u307e\u3068\u3081\u3066\u63a2\u305b\u307e\u3059\u3002\u4f5c\u54c1\u3001\u30a8\u30ea\u30a2\u3001\u6620\u753b\u9928\u3001\u65e5\u4ed8\u3001\u958b\u59cb\u6642\u523b\u3001\u7d42\u4e86\u6642\u523b\u3084IMAX\u306a\u3069\u306e\u6761\u4ef6\u3067\u7d5e\u308a\u8fbc\u3081\u307e\u3059\u3002\u82f1\u8a9e\u97f3\u58f0\u3068\u82f1\u8a9e\u5b57\u5e55\u306e\u4e0a\u6620\u3082\u691c\u7d22\u3067\u304d\u307e\u3059\u3002\n\n\u691c\u7d22\u7d50\u679c\u306b\u306f\u30dd\u30b9\u30bf\u30fc\u3068\u6620\u753b\u9928\u540d\u3084\u4e0a\u6620\u6642\u9593\u304c\u8868\u793a\u3055\u308c\u307e\u3059\u3002\u6620\u753b\u9928\u30ac\u30a4\u30c9\u3092\u958b\u304f\u3068\u540c\u3058\u6761\u4ef6\u306e\u4e0a\u6620\u3092\u78ba\u8a8d\u3067\u304d\u307e\u3059\u3002\u7d9a\u304d\u306e\u4e0a\u6620\u306f\u300c\u3082\u3063\u3068\u898b\u308b\u300d\u304b\u3089\u8868\u793a\u3067\u304d\u307e\u3059\u3002\u6642\u523b\u306f\u65e5\u672c\u6642\u9593\u3067\u3059\u3002\n\n\u6620\u753b\u9928\u30ac\u30a4\u30c9\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u306f\u4e0d\u8981\u3067\u3059\u3002\u5bfe\u5fdc\u6620\u753b\u9928\u304c\u516c\u958b\u3057\u3066\u3044\u308b\u4e0a\u6620\u30b9\u30b1\u30b8\u30e5\u30fc\u30eb\u3092\u691c\u7d22\u3059\u308b\u30b5\u30fc\u30d3\u30b9\u3067\u3059\u3002\u7a7a\u5e2d\u306e\u78ba\u8a8d\u3084\u5ea7\u5e2d\u4e88\u7d04\u3084\u6c7a\u6e08\u306f\u3067\u304d\u307e\u305b\u3093\u3002\u4e88\u7d04\u524d\u306b\u6620\u753b\u9928\u306e\u516c\u5f0f\u30b5\u30a4\u30c8\u3067\u6700\u65b0\u306e\u60c5\u5831\u3092\u3054\u78ba\u8a8d\u304f\u3060\u3055\u3044\u3002\u82f1\u8a9e\u97f3\u58f0\u306e\u6761\u4ef6\u306f\u539f\u8a9e\u304c\u82f1\u8a9e\u3068\u78ba\u8a8d\u3067\u304d\u305f\u4f5c\u54c1\u306e\u5b57\u5e55\u4e0a\u6620\u306b\u9069\u7528\u3057\u3066\u3044\u307e\u3059\u3002\u82f1\u8a9e\u5b57\u5e55\u306f\u5225\u306e\u6761\u4ef6\u3067\u3059\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,3061 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Replay</title>
+  <link rel="stylesheet" href="/controller.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <p class="empty">Connecting to Codex Replay…</p>
+  </div>
+
+  <script src="/controller-ranges.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const STEPS = [
+        { id: "thread", name: "Choose thread", short: "Imported history" },
+        { id: "configure", name: "Configure", short: "Exact configuration" },
+        { id: "run", name: "Run", short: "Isolated replay" },
+        { id: "results", name: "Results", short: "Comparison report" },
+      ];
+
+      const CONFIGURATION_STEPS = [
+        { id: "replay", name: "Replay details" },
+        { id: "beginning", name: "Beginning state" },
+        { id: "end", name: "End state" },
+        { id: "output", name: "Historical output" },
+        { id: "capabilities", name: "Capability parity" },
+        { id: "confirm", name: "Review & confirm" },
+      ];
+
+      const DEFAULT_PHASES = [
+        ["preparing", "Preparing configuration"],
+        ["creating_workspace", "Creating isolated workspace"],
+        ["implementing", "Implementing with Codex"],
+        ["collecting", "Capturing result"],
+        ["reviewing", "Running blind review"],
+        ["reporting", "Finalizing report"],
+      ];
+
+      const DEFAULT_MODEL_IDS = [
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+      ];
+
+      const THREAD_PAGE_SIZE = 20;
+      const THREAD_SEARCH_DEBOUNCE_MS = 200;
+      const DRAFT_STORAGE_KEY = "codex-replay.controller-draft.v7";
+      const ACTIVE_RUN_STORAGE_KEY = "codex-replay.controller-active-run.v1";
+      const DRAFT_VERSION = 7;
+      const DRAFT_STEPS = new Set(["thread", "configure"]);
+
+      const state = {
+        step: "thread",
+        hostReady: false,
+        loading: true,
+        busy: "",
+        error: "",
+        notice: "",
+        threads: [],
+        totalThreads: 0,
+        threadSource: "",
+        importedTotal: 0,
+        sampleTotal: 0,
+        query: "",
+        selectedThreadId: "",
+        selectedThreadNumber: 0,
+        selectedThread: null,
+        selectedThreads: [],
+        batchId: "",
+        batch: null,
+        batchPreparing: false,
+        batchView: "aggregate",
+        inspection: null,
+        replayMode: "whole",
+        actionableTurns: [],
+        dividers: [],
+        activeUnitKey: "",
+        unitDrafts: {},
+        wholeDraft: null,
+        attributionEdits: [],
+        pendingUnitKeys: [],
+        unitRuns: {},
+        submittingUnitKey: "",
+        maxParallelRuns: 8,
+        models: [],
+        model: "",
+        selectedModels: [],
+        classifications: Object.create(null),
+        reviewDraft: null,
+        configurationStep: 0,
+        configurationMaxStep: 0,
+        configurationDetailsOpen: false,
+        reviewRevision: 0,
+        promptGeneration: "",
+        promptEditRevision: 0,
+        promptSynthesisGeneration: 0,
+        workingDirectoryEditRevision: 0,
+        workingDirectoryGeneration: 0,
+        workingDirectoryLoading: false,
+        preparation: null,
+        runId: "",
+        run: null,
+        runs: [],
+        runErrors: [],
+        report: null,
+        reportPaths: null,
+        runRoot: "",
+        pluginVersion: "",
+        controllerSessionId: "",
+        pollGeneration: 0,
+      };
+
+      const app = document.getElementById("app");
+      let draftPersistenceReady = false;
+      let startPending = false;
+      let heartbeatTimer = null;
+      let threadLoadGeneration = 0;
+      let threadSearchTimer = null;
+
+      const isObject = (value) =>
+        value !== null && typeof value === "object" && !Array.isArray(value);
+
+      const asArray = (value) => Array.isArray(value) ? value : [];
+
+      const text = (value, fallback = "") =>
+        typeof value === "string" || typeof value === "number"
+          ? String(value)
+          : fallback;
+
+      const escapeHtml = (value) =>
+        text(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+
+      const safeJson = (value) => {
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch {
+          return "The configuration could not be serialized.";
+        }
+      };
+
+      const stringList = (value) => asArray(value)
+        .map((item) => text(item).trim())
+        .filter((item, index, values) => item && values.indexOf(item) === index);
+
+      function normalizeReviewDraft(value) {
+        if (!isObject(value)) return null;
+        const models = stringList(value.models?.length ? value.models : [value.model]);
+        return {
+          thread_id: text(value.thread_id),
+          source_path: text(value.source_path),
+          message_uuid: text(value.message_uuid),
+          request: text(value.request),
+          repo: text(value.repo),
+          beginning_kind: ["git", "non_git"].includes(value.beginning_kind)
+            ? value.beginning_kind
+            : "",
+          ending_kind: ["git", "non_git"].includes(value.ending_kind)
+            ? value.ending_kind
+            : "",
+          baseline_commit: text(value.baseline_commit),
+          ending_commit: text(value.ending_commit),
+          model: models[0] || "",
+          models,
+        };
+      }
+
+      function normalizeDraft(value) {
+        if (!isObject(value) || value.version !== DRAFT_VERSION) return null;
+        const classifications = Object.create(null);
+        if (isObject(value.classifications)) {
+          for (const [path, classification] of Object.entries(value.classifications)) {
+            if (path && ["claude", "exclude"].includes(classification)) {
+              classifications[path] = classification;
+            }
+          }
+        }
+        return {
+          version: DRAFT_VERSION,
+          step: DRAFT_STEPS.has(value.step) ? value.step : "thread",
+          selectedThreadId: text(value.selectedThreadId),
+          selectedThreadNumber: Number.isInteger(value.selectedThreadNumber) && value.selectedThreadNumber > 0
+            ? value.selectedThreadNumber
+            : 0,
+          selectedThreads: normalizeSelectedThreads(value.selectedThreads),
+          model: text(value.model),
+          selectedModels: stringList(value.selectedModels?.length
+            ? value.selectedModels : value.reviewDraft?.models?.length
+              ? value.reviewDraft.models : [value.model]),
+          classifications,
+          reviewDraft: normalizeReviewDraft(value.reviewDraft),
+          replayMode: value.replayMode === "chunks" ? "chunks" : "whole",
+          actionableTurns: asArray(value.actionableTurns).filter((turn) => text(turn?.message_uuid)),
+          dividers: stringList(value.dividers),
+          activeUnitKey: text(value.activeUnitKey),
+          unitDrafts: Object.fromEntries(Object.entries(isObject(value.unitDrafts) ? value.unitDrafts : {})
+            .map(([key, draft]) => [key, normalizeUnitDraft(draft)]).filter(([, draft]) => draft)),
+          wholeDraft: normalizeUnitDraft(value.wholeDraft),
+          pendingUnitKeys: stringList(value.pendingUnitKeys),
+          unitRuns: Object.fromEntries(Object.entries(isObject(value.unitRuns) ? value.unitRuns : {})
+            .map(([key, ids]) => [key, stringList(ids)])),
+          submittingUnitKey: text(value.submittingUnitKey),
+          configurationStep: Number.isInteger(value.configurationStep)
+            ? Math.min(Math.max(value.configurationStep, 0), CONFIGURATION_STEPS.length - 1)
+            : 0,
+          configurationMaxStep: Number.isInteger(value.configurationMaxStep)
+            ? Math.min(Math.max(value.configurationMaxStep, 0), CONFIGURATION_STEPS.length - 1)
+            : 0,
+        };
+      }
+
+      function controllerStorageKey(key) {
+        return state.controllerSessionId ? `${key}.${state.controllerSessionId}` : "";
+      }
+
+      function loadDraft() {
+        const key = controllerStorageKey(DRAFT_STORAGE_KEY);
+        if (!key) return null;
+        try {
+          return normalizeDraft(JSON.parse(localStorage.getItem(key) || "null"));
+        } catch {
+          return null;
+        }
+      }
+
+      function loadActiveRunId() {
+        const key = controllerStorageKey(ACTIVE_RUN_STORAGE_KEY);
+        if (!key) return "";
+        try {
+          return text(localStorage.getItem(key));
+        } catch {
+          return "";
+        }
+      }
+
+      function rememberActiveRun(runId) {
+        const key = controllerStorageKey(ACTIVE_RUN_STORAGE_KEY);
+        if (!key) return;
+        try {
+          if (runId) localStorage.setItem(key, runId);
+          else localStorage.removeItem(key);
+        } catch {
+          // Runs remain durable.
+        }
+      }
+
+      function draftSnapshot() {
+        rememberBatchThread();
+        rememberUnitDraft();
+        const reviewDraft = normalizeReviewDraft(state.reviewDraft);
+        if (reviewDraft && state.replayMode === "whole") delete reviewDraft.request;
+        const wholeDraft = normalizeUnitDraft(state.wholeDraft);
+        if (wholeDraft?.reviewDraft) delete wholeDraft.reviewDraft.request;
+        return {
+          version: DRAFT_VERSION,
+          step: DRAFT_STEPS.has(state.step) ? state.step : "thread",
+          selectedThreadId: state.selectedThreadId,
+          selectedThreadNumber: state.selectedThreadNumber,
+          selectedThreads: normalizeSelectedThreads(state.selectedThreads),
+          model: state.model,
+          selectedModels: state.selectedModels,
+          classifications: Object.fromEntries(
+            Object.entries(state.classifications)
+              .filter(([, value]) => ["claude", "exclude"].includes(value))
+          ),
+          reviewDraft,
+          replayMode: state.replayMode,
+          actionableTurns: state.actionableTurns.map(({ message_uuid }) => ({ message_uuid })),
+          dividers: state.dividers,
+          activeUnitKey: state.activeUnitKey,
+          unitDrafts: state.unitDrafts,
+          wholeDraft,
+          pendingUnitKeys: state.pendingUnitKeys,
+          unitRuns: state.unitRuns,
+          submittingUnitKey: state.submittingUnitKey,
+          configurationStep: state.configurationStep,
+          configurationMaxStep: state.configurationMaxStep,
+        };
+      }
+
+      function saveDraft() {
+        if (
+          !draftPersistenceReady ||
+          (state.replayMode !== "chunks" && (
+            startPending || state.run || ["run", "results"].includes(state.step)
+          ))
+        ) return;
+        try {
+          localStorage.setItem(controllerStorageKey(DRAFT_STORAGE_KEY), JSON.stringify(draftSnapshot()));
+        } catch {
+          // Draft persistence is best-effort.
+        }
+      }
+
+      function clearDraft() {
+        const key = controllerStorageKey(DRAFT_STORAGE_KEY);
+        if (!key) return;
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          // Reset without browser storage.
+        }
+      }
+
+      let restoredDraft = null;
+
+      const {
+        normalizeUnitDraft, rememberUnitDraft, restoreUnitState, replayUnits,
+        activeUnit, rangeParameters, earlierFileAttribution, configurationIsLocked,
+        editReplayUnit, changeReplayMode, toggleDivider, remainingUnits, unitConfigured, allUnitsConfigured, markUnitInspected,
+        startChunks, advanceChunkQueue, chunkLaunchActive, renderPendingChunks, renderRangeSelection, resultUnit, selectChunkResult, renderChunkResults,
+        recoverRangeRuns, resultUnits, resultScope
+      } = globalThis.createReplayRangeUI({
+        state, isObject, asArray, text, stringList, normalizeReviewDraft, escapeHtml, terminalRunStatus,
+        render: (...args) => render(...args),
+        callTool: (...args) => callTool(...args),
+        initializeClassifications: (...args) => initializeClassifications(...args),
+        reviewDraftFromConfiguration: (...args) => reviewDraftFromConfiguration(...args),
+        inspectionParts: (...args) => inspectionParts(...args),
+        setSelectedModels: (...args) => setSelectedModels(...args),
+        synthesizePrompt: (...args) => synthesizePrompt(...args),
+        inferWorkingDirectory: (...args) => inferWorkingDirectory(...args),
+        saveDraft: (...args) => saveDraft(...args),
+        prepareRun: (...args) => prepareRun(...args),
+        reviewProblems: (...args) => reviewProblems(...args),
+        preparationBlockers: (...args) => preparationBlockers(...args),
+        replayDetailsLoading: (...args) => replayDetailsLoading(...args),
+        selectionNeedsRefresh: (...args) => selectionNeedsRefresh(...args),
+        activateRun: (...args) => activateRun(...args),
+        rememberActiveRun: (...args) => rememberActiveRun(...args),
+        preparationReady: () => preparationReady(),
+        startRun: () => startRun(),
+        beginPolling: () => beginPolling(),
+      });
+
+      const {
+        normalizeSelectedThreads, isThreadBatch, restoreBatch, rememberBatchThread, toggleThreadSelection, configureSelectedThreads, selectBatchThread, renderBatchConfiguration, startThreadBatch, batchThreadResults, selectThreadResult, renderBatchResultsNavigation, aggregateModelResults, renderAggregateResults, renderThreadStep
+      } = globalThis.createReplayBatchUI({
+        state, text, isObject, asArray, stringList, normalizeUnitDraft, normalizeReviewDraft, escapeHtml,
+        threadTitle: (...args) => threadTitle(...args),
+        threadId: (...args) => threadId(...args),
+        reviewProblems: (...args) => reviewProblems(...args),
+        preparationBlockers: (...args) => preparationBlockers(...args),
+        replayDetailsLoading: (...args) => replayDetailsLoading(...args),
+        selectionNeedsRefresh: (...args) => selectionNeedsRefresh(...args),
+        render: (...args) => render(...args),
+        selectThread: (...args) => selectThread(...args),
+        setSelectedModels: (...args) => setSelectedModels(...args),
+        refreshAttributionAndContinue: (...args) => refreshAttributionAndContinue(...args),
+        reviewPayload: (...args) => reviewPayload(...args),
+        callTool: (...args) => callTool(...args),
+        ownedRunRecord: (...args) => ownedRunRecord(...args),
+        currentRunId: (...args) => currentRunId(...args),
+        clearDraft: (...args) => clearDraft(...args),
+        rememberActiveRun: (...args) => rememberActiveRun(...args),
+        activateRun: (...args) => activateRun(...args),
+        beginPolling: (...args) => beginPolling(...args),
+        applyPreparationInspection: (...args) => applyPreparationInspection(...args),
+        formatCost: (...args) => formatCost(...args),
+        formatDate: (...args) => formatDate(...args),
+        terminalRunStatus: (...args) => terminalRunStatus(...args),
+        successfulRunStatus: (...args) => successfulRunStatus(...args),
+        pageHeading: (...args) => pageHeading(...args),
+        setStartPending: (value) => { startPending = value; },
+        clearRestoredDraft: () => { restoredDraft = null; },
+      });
+
+      const pathBase = (value) => {
+        const parts = text(value).split("/").filter(Boolean);
+        return parts.at(-1) || text(value, "Unknown project");
+      };
+
+      const titleCase = (value) =>
+        text(value, "unknown")
+          .replaceAll("_", " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+      const formatDate = (value) => {
+        const stamp = Date.parse(text(value));
+        if (!Number.isFinite(stamp)) return "Date unavailable";
+        return new Intl.DateTimeFormat(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(stamp);
+      };
+
+      const formatTime = (value) => {
+        const stamp = Date.parse(text(value));
+        if (!Number.isFinite(stamp)) return "—";
+        return new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+        }).format(stamp);
+      };
+
+      const formatDuration = (value) => {
+        if (value === null || value === undefined || value === "") return "Unavailable";
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0) return "Unavailable";
+        const seconds = Math.round(amount), hours = Math.floor(seconds / 3600), minutes = Math.floor((seconds % 3600) / 60), remainder = seconds % 60;
+        return [hours && `${hours}h`, minutes && `${minutes}m`, (remainder || (!hours && !minutes)) && `${remainder}s`].filter(Boolean).join(" ");
+      };
+
+      const formatTokens = (value) => {
+        const amount = Number(value);
+        return Number.isFinite(amount) ? new Intl.NumberFormat().format(amount) : "Unavailable";
+      };
+
+      const formatCost = (value) => {
+        if (value === null || value === undefined || value === "") return "Unavailable";
+        const amount = Number(value);
+        return Number.isFinite(amount) ? `$${amount.toFixed(amount < .01 ? 4 : 2)}` : "Unavailable";
+      };
+
+      function unwrapToolResult(result) {
+        if (isObject(result) && result.isError) {
+          const content = asArray(result.content);
+          const message = content
+            .filter((item) => isObject(item) && item.type === "text")
+            .map((item) => text(item.text))
+            .join("\n");
+          throw new Error(message || "The controller tool returned an error.");
+        }
+        if (isObject(result) && isObject(result.structuredContent)) {
+          return result.structuredContent;
+        }
+        if (isObject(result) && isObject(result.result)) {
+          return unwrapToolResult(result.result);
+        }
+        if (isObject(result)) {
+          const content = asArray(result.content);
+          for (const item of content) {
+            if (!isObject(item) || item.type !== "text") continue;
+            try {
+              const parsed = JSON.parse(text(item.text));
+              if (isObject(parsed)) return parsed;
+            } catch {
+              // Ignore human-readable content.
+            }
+          }
+          return result;
+        }
+        throw new Error("The controller returned an unreadable response.");
+      }
+
+      async function callTool(name, args = {}) {
+        let response;
+        try {
+          response = await fetch("/api/call", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name, arguments: args }),
+          });
+        } catch {
+          throw new Error(
+            "The local replay service is unavailable. Invoke the plugin again to reopen it."
+          );
+        }
+        let result;
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error("The local replay service returned an unreadable response.");
+        }
+        if (!response.ok && !result.isError) {
+          throw new Error(text(result.error, `The controller request failed (${response.status}).`));
+        }
+        return unwrapToolResult(result);
+      }
+
+      async function heartbeatController() {
+        try {
+          const response = await fetch("/api/heartbeat", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          if (!response.ok) return;
+          const payload = await response.json();
+          if (
+            state.controllerSessionId &&
+            text(payload.controller_session_id) !== state.controllerSessionId
+          ) {
+            stopControllerHeartbeat();
+            state.error = "The controller session changed. Invoke the plugin again to reopen it.";
+            render();
+          }
+        } catch {
+          // Requests report connectivity failures.
+        }
+      }
+
+      function stopControllerHeartbeat() {
+        if (heartbeatTimer !== null) window.clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+
+      function startControllerHeartbeat() {
+        stopControllerHeartbeat();
+        void heartbeatController();
+        heartbeatTimer = window.setInterval(heartbeatController, 15_000);
+      }
+
+      function threadId(thread) {
+        if (!isObject(thread)) return "";
+        return text(
+          thread.imported_thread_id ||
+          thread.thread_id ||
+          thread.id ||
+          thread.session_id
+        );
+      }
+
+      function threadTitle(thread) {
+        return text(thread?.title || thread?.name || thread?.request, "Untitled Claude thread");
+      }
+
+      function threadStepEyebrow(label) {
+        return state.selectedThreadNumber > 0
+          ? `${label} · Thread #${state.selectedThreadNumber}`
+          : label;
+      }
+
+      function normalizeModels(values) {
+        const found = new Map(asArray(values).flatMap((item) => {
+          const value = typeof item === "string" ? { id: item } : item;
+          if (!isObject(value)) return [];
+          const id = text(value.id || value.slug || value.model).trim();
+          if (!id) return [];
+          return [[id, {
+            id,
+            label: text(value.label || value.display_name || value.name, id),
+            description: text(value.description),
+            recommended: value.recommended === true || value.is_default === true,
+          }]];
+        }));
+        return [...found.values()];
+      }
+
+      function setSelectedModels(values) {
+        const available = new Set(state.models.map(({ id }) => id));
+        state.selectedModels = stringList(values).filter((id) => !available.size || available.has(id));
+        if (!state.selectedModels.length && state.models.length) {
+          state.selectedModels = DEFAULT_MODEL_IDS.filter((id) => available.has(id));
+          if (!state.selectedModels.length) {
+            state.selectedModels = [selectedModelDefault()];
+          }
+        }
+        state.model = state.selectedModels[0] || "";
+        if (state.reviewDraft) {
+          state.reviewDraft.model = state.model;
+          state.reviewDraft.models = [...state.selectedModels];
+        }
+      }
+
+      function inspectionParts() {
+        const inspection = isObject(state.inspection) ? state.inspection : {};
+        const baseline = isObject(inspection.baseline) ? inspection.baseline : {};
+        const selection = isObject(inspection.file_selection)
+          ? inspection.file_selection
+          : {};
+        const workspace = isObject(inspection.workspace) ? inspection.workspace : {};
+        const capabilities = isObject(inspection.capabilities)
+          ? inspection.capabilities
+          : {};
+        const replay = isObject(inspection.replay)
+          ? inspection.replay
+          : (isObject(inspection.thread) ? inspection.thread : {});
+        const candidates = asArray(
+          workspace.files?.length ? workspace.files : selection.candidates
+        );
+        const kind = text(
+          workspace.kind || selection.source_kind || baseline.source_kind || baseline.kind
+        );
+        const carried = new Set(asArray(selection.before_files)
+          .map((file) => text(isObject(file) ? file.path : file)));
+        const outputs = new Set(asArray(kind === "git" ? selection.claude_output_changes
+          : selection.classifications?.created_by_claude)
+          .map((file) => text(isObject(file) ? file.path : file)));
+        const files = state.replayMode === "chunks"
+          ? candidates.filter((file) => !carried.has(text(file?.path)) || outputs.has(text(file?.path)))
+          : candidates;
+        return { inspection, baseline, selection, workspace, capabilities, replay, files, kind };
+      }
+
+      function initializeClassifications() {
+        state.classifications = Object.create(null);
+        const { selection, files, kind } = inspectionParts();
+        if (kind === "git") {
+          const selected = new Set(
+            asArray(selection.claude_output_changes).map((item) =>
+              text(isObject(item) ? item.path : item)
+            )
+          );
+          for (const file of files) {
+            const path = text(file?.path);
+            if (path) state.classifications[path] = selected.has(path) ? "claude" : "exclude";
+          }
+          return;
+        }
+        const classes = isObject(selection.classifications)
+          ? selection.classifications
+          : {};
+        for (const item of asArray(classes.created_by_claude)) {
+          const path = text(isObject(item) ? item.path : item);
+          if (path) state.classifications[path] = "claude";
+        }
+        for (const item of asArray(classes.exclude)) {
+          const path = text(isObject(item) ? item.path : item);
+          if (path) state.classifications[path] = "exclude";
+        }
+        for (const file of files) {
+          const path = text(file?.path);
+          if (!path) continue;
+          if (file.selectable !== true || file.suggested_class === "exclude") {
+            state.classifications[path] = "exclude";
+          }
+        }
+      }
+
+      function applyDraftToInspection(draft) {
+        if (!isObject(draft)) return;
+        setSelectedModels(draft.selectedModels);
+        state.configurationStep = draft.configurationStep;
+        state.configurationMaxStep = Math.max(
+          draft.configurationStep,
+          draft.configurationMaxStep
+        );
+        const { files } = inspectionParts();
+        const fileByPath = new Map(
+          files
+            .map((file) => [text(file?.path), file])
+            .filter(([path]) => Boolean(path))
+        );
+        for (const [path, classification] of Object.entries(draft.classifications)) {
+          const file = fileByPath.get(path);
+          if (!file || !["claude", "exclude"].includes(classification)) continue;
+          state.classifications[path] =
+            file.selectable === false ? "exclude" : classification;
+        }
+        state.reviewDraft = normalizeReviewDraft(draft.reviewDraft);
+        if (state.reviewDraft) {
+          setSelectedModels(state.selectedModels);
+          const { replay } = inspectionParts();
+          state.reviewDraft.request = text(replay.request);
+        }
+      }
+
+      function selectedModelDefault() {
+        return (
+          state.models.find((model) => model.recommended)?.id ||
+          state.models[0]?.id ||
+          ""
+        );
+      }
+
+      function recordPromptGeneration(requestGeneration, request = "") {
+        if (!isObject(state.inspection)) return;
+        for (const key of ["replay", "thread"]) {
+          if (!isObject(state.inspection[key])) continue;
+          state.inspection[key] = {
+            ...state.inspection[key],
+            ...(request ? { request } : {}),
+            request_generation: requestGeneration,
+          };
+        }
+      }
+
+      async function synthesizePrompt(threadIdValue, fallbackRequest) {
+        const generation = ++state.promptSynthesisGeneration;
+        const editRevision = state.promptEditRevision;
+        state.promptGeneration = "pending";
+        recordPromptGeneration({ method: "pending" });
+        render();
+        try {
+          const payload = await callTool("synthesize_request", {
+            thread_id: threadIdValue,
+            ...rangeParameters(),
+          });
+          if (
+            generation !== state.promptSynthesisGeneration ||
+            threadIdValue !== state.selectedThreadId
+          ) return;
+          const requestGeneration = isObject(payload.request_generation)
+            ? payload.request_generation
+            : {};
+          const method = text(requestGeneration.method);
+          const request = text(payload.request).trim();
+          if (method === "llm_synthesis" && request) {
+            state.promptGeneration = "llm_synthesis";
+            const canReplace = (
+              state.promptEditRevision === editRevision &&
+              text(state.reviewDraft?.request) === fallbackRequest
+            );
+            if (canReplace && state.reviewDraft) {
+              state.reviewDraft.request = request;
+              state.reviewRevision += 1;
+              state.preparation = null;
+              recordPromptGeneration(requestGeneration, request);
+            } else {
+              recordPromptGeneration(requestGeneration);
+            }
+          } else {
+            state.promptGeneration = "concatenated_fallback";
+            recordPromptGeneration({ method: "concatenated_fallback" });
+          }
+        } catch {
+          if (
+            generation !== state.promptSynthesisGeneration ||
+            threadIdValue !== state.selectedThreadId
+          ) return;
+          state.promptGeneration = "concatenated_fallback";
+          recordPromptGeneration({ method: "concatenated_fallback" });
+        } finally {
+          if (
+            generation === state.promptSynthesisGeneration &&
+            threadIdValue === state.selectedThreadId
+          ) {
+            render();
+          }
+        }
+      }
+
+      async function inferWorkingDirectory(threadIdValue) {
+        if (threadIdValue.startsWith("claude-sample:")) {
+          state.workingDirectoryLoading = false;
+          return;
+        }
+        const generation = ++state.workingDirectoryGeneration;
+        const editRevision = state.workingDirectoryEditRevision;
+        if (!state.workingDirectoryLoading) {
+          state.workingDirectoryLoading = true;
+          render();
+        }
+        try {
+          const payload = await callTool("infer_working_directory", {
+            thread_id: threadIdValue,
+            ...rangeParameters(),
+          });
+          if (
+            generation !== state.workingDirectoryGeneration ||
+            threadIdValue !== state.selectedThreadId ||
+            editRevision !== state.workingDirectoryEditRevision ||
+            !state.reviewDraft
+          ) return;
+          const workingDirectory = text(payload.working_directory).trim();
+          if (state.reviewDraft.repo !== workingDirectory) {
+            state.reviewDraft.repo = workingDirectory;
+            state.reviewRevision += 1;
+            state.preparation = null;
+            saveDraft();
+            render();
+          }
+        } catch {
+          // Keep the recorded cwd.
+        } finally {
+          if (
+            generation === state.workingDirectoryGeneration &&
+            threadIdValue === state.selectedThreadId
+          ) {
+            state.workingDirectoryLoading = false;
+            render();
+          }
+        }
+      }
+
+      function selectionNeedsRefresh() {
+        const draft = normalizeReviewDraft(state.reviewDraft);
+        if (!draft || !state.inspection) return false;
+        const { baseline, replay, selection } = inspectionParts();
+        const inspectedBeginning = text(baseline.beginning_kind) || (
+          baseline.kind === "git_commit"
+            ? "git"
+            : baseline.kind === "empty_directory" ||
+                baseline.proposed_kind === "empty_directory"
+              ? "non_git"
+              : ""
+        );
+        const inspectedEnding = text(baseline.ending_kind) || text(
+          selection.source_kind || baseline.source_kind
+        );
+        const inspectedRepository = text(
+          baseline.attribution_root ||
+          baseline.repository ||
+          replay.project_dir
+        );
+        return (
+          !inspectedBeginning ||
+          !inspectedEnding ||
+          draft.message_uuid.trim() !== text(replay.message_uuid).trim() ||
+          draft.repo.trim() !== inspectedRepository.trim() ||
+          draft.beginning_kind !== inspectedBeginning ||
+          draft.ending_kind !== inspectedEnding ||
+          (
+            draft.beginning_kind === "git" &&
+            draft.baseline_commit.trim().toLowerCase() !==
+              text(baseline.commit).trim().toLowerCase()
+          ) || (
+            draft.ending_kind === "git" &&
+            draft.ending_commit.trim().toLowerCase() !==
+              text(baseline.ending_commit).trim().toLowerCase()
+          )
+        );
+      }
+
+      function selectionPayload() {
+        const { baseline, files, kind } = inspectionParts();
+        const draft = normalizeReviewDraft(state.reviewDraft);
+        const isGit = draft
+          ? draft.ending_kind === "git"
+          : kind === "git";
+        const refreshing = selectionNeedsRefresh();
+        const claude = [];
+        const excluded = [];
+        for (const file of files) {
+          const path = text(file?.path);
+          if (!path) continue;
+          if (state.classifications[path] === "claude") claude.push(path);
+          else if (state.classifications[path] === "exclude") excluded.push(path);
+        }
+        const allClassified = files.every((file) => {
+          const path = text(file?.path);
+          return !path || ["claude", "exclude"].includes(state.classifications[path]);
+        });
+        const common = {
+          thread_id: state.selectedThreadId,
+          model: state.model,
+          models: state.selectedModels,
+          repo: text(baseline.attribution_root || baseline.repository) || undefined,
+          claude_output_files: isGit && !refreshing ? claude : [],
+          created_by_claude: !isGit && !refreshing ? claude : [],
+          excluded_files: !isGit && !refreshing ? excluded : [],
+          confirm_file_selection: refreshing
+            ? false
+            : isGit
+              ? kind === "git"
+              : kind === "non_git" && allClassified,
+        };
+        return Object.fromEntries(
+          Object.entries(common).filter(([, value]) => value !== undefined)
+        );
+      }
+
+      function applyPreparationInspection(preparation) {
+        if (!isObject(preparation)) return;
+        if (activeUnit() && !markUnitInspected(preparation)) return;
+        const current = isObject(state.inspection) ? state.inspection : {};
+        const baseline = isObject(preparation.baseline)
+          ? preparation.baseline
+          : current.baseline;
+        const replay = isObject(preparation.replay)
+          ? {
+              ...(isObject(current.replay) ? current.replay : {}),
+              ...preparation.replay,
+            }
+          : current.replay;
+        const selection = isObject(preparation.file_selection)
+          ? preparation.file_selection
+          : current.file_selection;
+        const capabilities = isObject(preparation.capabilities)
+          ? preparation.capabilities
+          : current.capabilities;
+        const workspace = {
+          ...(isObject(current.workspace) ? current.workspace : {}),
+          kind: text(selection?.source_kind),
+          files: asArray(selection?.candidates),
+        };
+        state.inspection = {
+          ...current,
+          baseline,
+          replay,
+          file_selection: selection,
+          capabilities,
+          workspace,
+        };
+        if (state.reviewDraft) {
+          if (typeof replay?.message_uuid === "string") {
+            state.reviewDraft.message_uuid = replay.message_uuid;
+          }
+          if (typeof replay?.request === "string") {
+            state.reviewDraft.request = replay.request;
+          }
+          if (typeof baseline?.commit === "string") {
+            state.reviewDraft.baseline_commit = baseline.commit;
+          }
+          if (typeof baseline?.ending_commit === "string") {
+            state.reviewDraft.ending_commit = baseline.ending_commit;
+          }
+          if (["git", "non_git"].includes(baseline?.beginning_kind)) {
+            state.reviewDraft.beginning_kind = baseline.beginning_kind;
+          }
+          if (["git", "non_git"].includes(baseline?.ending_kind)) {
+            state.reviewDraft.ending_kind = baseline.ending_kind;
+          }
+        }
+        initializeClassifications();
+      }
+
+      function inspectionDiagnostics() {
+        const inspection = isObject(state.inspection) ? state.inspection : {};
+        const selection = isObject(inspection.file_selection) ? inspection.file_selection : {};
+        const repositoryBlockers = new Set(
+          asArray(inspection.repository_blockers)
+            .map((item) => text(isObject(item) ? item.message : item))
+            .filter(Boolean)
+        );
+        return [
+          ...asArray(inspection.diagnostics),
+          ...asArray(inspection.blockers),
+          ...asArray(selection.blocking_reasons),
+        ]
+          .map((item) => text(isObject(item) ? item.message : item))
+          .filter((item, index, values) => (
+            item && !repositoryBlockers.has(item) && values.indexOf(item) === index
+          ));
+      }
+
+      function reviewDraftFromConfiguration() {
+        const { inspection, baseline, selection, replay, kind } = inspectionParts();
+        const failedSteps = new Set(
+          asArray(inspection.diagnostics)
+            .map((item) => text(isObject(item) ? item.step : ""))
+            .filter(Boolean)
+        );
+        const beginningKind = text(baseline.beginning_kind) || (
+          baseline.kind === "git_commit"
+            ? "git"
+            : baseline.kind === "empty_directory" || baseline.proposed_kind === "empty_directory"
+              ? "non_git"
+              : "git"
+        );
+        const endingKind = text(
+          baseline.ending_kind || selection.source_kind || baseline.source_kind || kind
+        ) || (beginningKind === "git" ? "git" : "non_git");
+        const baselineUnresolved = (
+          failedSteps.has("baseline") ||
+          asArray(inspection.repository_blockers).length > 0 ||
+          !beginningKind ||
+          !endingKind
+        );
+        return normalizeReviewDraft({
+          thread_id: state.selectedThreadId,
+          source_path: replay.source_path || state.selectedThread?.source_path,
+          message_uuid: failedSteps.has("thread") ? "" : replay.message_uuid,
+          request: failedSteps.has("thread")
+            ? ""
+            : replay.request || state.selectedThread?.request,
+          repo:
+            replay.project_dir ||
+            state.selectedThread?.project_dir,
+          beginning_kind: beginningKind,
+          ending_kind: beginningKind === "git" ? "git" : endingKind,
+          baseline_commit: baselineUnresolved ? "" : baseline.commit,
+          ending_commit: baselineUnresolved ? "" : baseline.ending_commit,
+          model: state.model,
+          models: state.selectedModels,
+        });
+      }
+
+      function reviewPayload() {
+        const draft = normalizeReviewDraft(state.reviewDraft) || {};
+        const gitBeginning = draft.beginning_kind === "git";
+        const gitEnding = draft.ending_kind === "git";
+        const selection = selectionPayload();
+        const earlier = earlierFileAttribution();
+        const currentOutputs = new Set(gitEnding ? selection.claude_output_files : selection.created_by_claude);
+        const carriedFiles = new Set(asArray(activeUnit() ? inspectionParts().selection.before_files : [])
+          .map((file) => text(isObject(file) ? file.path : file)));
+        return {
+          thread_id: text(draft.thread_id).trim(),
+          source_path: text(draft.source_path).trim(),
+          ...(activeUnit() ? rangeParameters() : { message_uuid: text(draft.message_uuid).trim() }),
+          request: text(draft.request).trim(),
+          repo: text(draft.repo).trim(),
+          beginning_kind: text(draft.beginning_kind),
+          ending_kind: text(draft.ending_kind),
+          baseline_commit: gitBeginning ? text(draft.baseline_commit).trim() : "",
+          ending_commit: gitEnding ? text(draft.ending_commit).trim() : "",
+          confirm_empty_beginning: draft.beginning_kind === "non_git",
+          confirm_repository_selection: Boolean(text(draft.repo).trim()),
+          model: text(draft.model).trim(),
+          models: draft.models,
+          claude_output_files: gitEnding ? stringList(selection.claude_output_files) : [],
+          created_by_claude: gitEnding ? [] : stringList(selection.created_by_claude),
+          excluded_files: stringList([
+            ...(gitEnding ? [] : stringList(selection.excluded_files).filter((path) =>
+              !carriedFiles.has(path) || state.attributionEdits.includes(path))),
+            ...earlier.excluded_files.filter((path) => !currentOutputs.has(path)),
+          ]),
+          ...(activeUnit() ? { carried_forward_files: earlier.carried_forward_files } : {}),
+          confirm_file_selection: selection.confirm_file_selection === true,
+        };
+      }
+
+      function reviewProblems() {
+        const draft = normalizeReviewDraft(state.reviewDraft);
+        if (!draft) return ["Open a configuration draft."];
+        const selection = selectionPayload();
+        const problems = [];
+        if (!draft.thread_id.trim()) problems.push("Choose the Claude task again.");
+        if (!draft.source_path.trim()) {
+          problems.push("The selected Claude task has no source transcript.");
+        }
+        if (!draft.message_uuid.trim()) {
+          problems.push("Enter the message ID within the original thread.");
+        }
+        if (!draft.request.trim()) problems.push("Enter the reconstructed task prompt.");
+        if (!draft.repo.trim()) problems.push("Enter the replay repository.");
+        if (!draft.beginning_kind) problems.push("Choose the beginning state.");
+        if (!draft.ending_kind) problems.push("Choose the end state.");
+        if (draft.beginning_kind === "git" && draft.ending_kind === "non_git") {
+          problems.push("A Git beginning state requires a Git end state.");
+        }
+        if (draft.beginning_kind === "git" && !draft.baseline_commit.trim()) {
+          problems.push("Enter the starting commit.");
+        }
+        if (draft.ending_kind === "git" && !draft.ending_commit.trim()) {
+          problems.push("Enter the ending commit.");
+        }
+        if (!draft.models.length) problems.push("Select at least one available Codex model.");
+        if (
+          draft.ending_kind === "non_git" &&
+          !selectionNeedsRefresh() &&
+          selection.confirm_file_selection !== true
+        ) {
+          problems.push("Classify every file in the Non-Git end state.");
+        }
+        return problems;
+      }
+
+      function invalidateReviewPreparation() {
+        state.reviewRevision += 1;
+        state.preparation = null;
+        state.error = "";
+        state.notice = "";
+      }
+
+      function invalidateConfigurationReview() {
+        state.reviewRevision += 1;
+        state.preparation = null;
+        state.error = "";
+        state.notice = "";
+        saveDraft();
+      }
+
+      function preparationBlockers() {
+        const preparation = isObject(state.preparation) ? state.preparation : {};
+        return [
+          ...asArray(preparation.blockers?.length
+            ? preparation.blockers
+            : preparation.blocking_reasons),
+          ...asArray(preparation.questions),
+        ]
+          .map((item) => text(isObject(item) ? item.question : item))
+          .filter((item, index, values) => item && values.indexOf(item) === index);
+      }
+
+      function preparationReady() {
+        const preparation = isObject(state.preparation) ? state.preparation : {};
+        return (
+          preparation.ready === true ||
+          preparation.can_run === true ||
+          preparation.status === "ready_for_approval"
+        ) && preparationBlockers().length === 0;
+      }
+
+      function approvedConfiguration() {
+        const preparation = isObject(state.preparation) ? state.preparation : {};
+        return (
+          (isObject(preparation.run_config) && preparation.run_config) ||
+          reviewPayload()
+        );
+      }
+
+      function runRecord(payload) {
+        if (!isObject(payload)) return null;
+        return isObject(payload.run) ? payload.run : payload;
+      }
+
+      function ownedRunRecord(payload) {
+        const run = runRecord(payload);
+        if (run && text(run.controller_session_id) !== state.controllerSessionId) {
+          throw new Error("The replay belongs to another controller instance.");
+        }
+        return run;
+      }
+
+      function currentRunId(payload) {
+        const run = runRecord(payload);
+        return text(payload?.run_id || run?.run_id || run?.id);
+      }
+
+      function activateRun(id) {
+        const entry = state.runs.find((item) => item.id === id);
+        if (!entry) return;
+        state.runId = entry.id;
+        state.run = entry.run;
+        state.report = entry.report || null;
+        state.reportPaths = entry.reportPaths || null;
+      }
+
+      function terminalRunStatus(value) {
+        return ["completed", "complete", "succeeded", "failed", "cancelled", "canceled"]
+          .includes(text(value).toLowerCase());
+      }
+
+      function successfulRunStatus(value) {
+        return ["completed", "complete", "succeeded"]
+          .includes(text(value).toLowerCase());
+      }
+
+      function stepIndex(id) {
+        return Math.max(0, STEPS.findIndex((step) => step.id === id));
+      }
+
+      function canNavigateTo(id) {
+        if (state.batchPreparing) return false;
+        if (state.busy && !state.run) return false;
+        if (id === state.step) return false;
+        if (id === "thread") return !state.run && !state.batchId;
+        if (id === "configure") return Boolean(state.selectedThreads.length) && Boolean(state.replayMode === "chunks"
+          ? activeUnit() : state.inspection) && !configurationIsLocked() && !state.batchId;
+        if (id === "run") return Boolean(state.run || state.batchId);
+        if (id === "results") return Boolean(state.report) || state.runs.some((entry) => entry.report);
+        return false;
+      }
+
+      function renderRail() {
+        const current = stepIndex(state.step);
+        return `
+          <nav class="step-rail" aria-label="Replay progress">
+            <p class="step-rail__label">Codex Replay</p>
+            <ol class="steps">
+              ${STEPS.map((step, index) => {
+                const isCurrent = step.id === state.step;
+                const completed = (
+                  index < current ||
+                  (step.id === "run" && state.run && successfulRunStatus(state.run.status))
+                );
+                const clickable = canNavigateTo(step.id);
+                const marker = completed ? "✓" : String(index + 1);
+                const missingRequirements = (
+                  step.id === "run" && state.step === "configure" && !state.run
+                ) ? reviewProblems() : [];
+                const tooltipId = `${step.id}-requirements-tooltip`;
+                return `
+                  <li class="step-item" ${missingRequirements.length
+                    ? `tabindex="0" aria-describedby="${tooltipId}"`
+                    : ""}>
+                    <button
+                      type="button"
+                      class="step-button"
+                      data-action="go-step"
+                      data-step="${escapeHtml(step.id)}"
+                      data-state="${completed ? "complete" : isCurrent ? "current" : "waiting"}"
+                      data-clickable="${clickable}"
+                      ${isCurrent ? 'aria-current="step"' : ""}
+                      ${clickable ? "" : "disabled"}
+                    >
+                      <span class="step-number" aria-hidden="true">${marker}</span>
+                      <span class="step-copy">
+                        <span class="step-name">${escapeHtml(step.name)}</span>
+                        <span class="step-state">${escapeHtml(
+                          completed ? "Complete" : isCurrent ? "Current step" : step.short
+                        )}</span>
+                      </span>
+                    </button>
+                    ${missingRequirements.length
+                      ? `<div id="${tooltipId}" class="step-tooltip" role="tooltip">
+                          <strong>Complete required fields before starting</strong>
+                          <ul>${missingRequirements.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+                        </div>`
+                      : ""}
+                  </li>
+                `;
+              }).join("")}
+            </ol>
+            ${renderDiagnostics()}
+          </nav>
+        `;
+      }
+
+      function renderDiagnostics() {
+        const exactLogPath = text(state.run?.log_path);
+        const runPath = exactLogPath || state.runRoot;
+        if (!runPath) return "";
+        return `
+          <div class="diagnostics" aria-label="Local diagnostics">
+            <div>
+              <p>${exactLogPath ? "Current run log" : "Run log root"}</p>
+              <code title="${escapeHtml(runPath)}">${escapeHtml(runPath)}</code>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderGlobalMessages() {
+        const messages = [];
+        if (state.error) {
+          messages.push(`
+            <div class="banner banner--error" role="alert">
+              <span class="banner__mark" aria-hidden="true">!</span>
+              <div class="banner__body">
+                <strong>Something needs attention</strong>
+                <p>${escapeHtml(state.error)}</p>
+              </div>
+            </div>
+          `);
+        }
+        if (state.notice) {
+          messages.push(`
+            <div class="banner banner--success" role="status">
+              <span class="banner__mark" aria-hidden="true">✓</span>
+              <div class="banner__body"><p>${escapeHtml(state.notice)}</p></div>
+            </div>
+          `);
+        }
+        return messages.join("");
+      }
+
+      function pageHeading(eyebrow, heading, description) {
+        return `
+          <header class="page-heading">
+            <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+            <h1 id="page-title" tabindex="-1">${escapeHtml(heading)}</h1>
+            <p class="lede">${escapeHtml(description)}</p>
+          </header>
+        `;
+      }
+
+      function capabilityRows(capabilities) {
+        const items = asArray(capabilities.items);
+        if (!items.length) {
+          const count = Number(capabilities.observed_count);
+          return `
+            <li class="capability">
+              <span class="capability__dot" aria-hidden="true"></span>
+              <span>${Number.isFinite(count) ? `${count} capabilities observed` : "No capability gaps recorded"}</span>
+            </li>
+          `;
+        }
+        return items.map((item) => {
+          const record = isObject(item) ? item : { name: text(item) };
+          const status = text(record.status || record.parity || "available").toLowerCase();
+          const tone = /missing|not_available|unsupported|failed/.test(status)
+            ? "bad"
+            : /partial|warning|limited|manual/.test(status)
+              ? "warning"
+              : "";
+          return `
+            <li class="capability ${tone ? `capability--${tone}` : ""}">
+              <span class="capability__dot" aria-hidden="true"></span>
+              <span>
+                ${escapeHtml(record.title || record.name || record.capability || record.tool || "Observed capability")}
+                ${record.reason || record.status
+                  ? `<small>${escapeHtml(record.reason || titleCase(record.status))}</small>`
+                  : ""}
+                ${record.guidance ? `<small>${escapeHtml(record.guidance)}</small>` : ""}
+              </span>
+            </li>
+          `;
+        }).join("");
+      }
+
+      function fileMetadata(file, kind) {
+        const values = [];
+        if (kind === "git") {
+          if (file.staged) values.push("staged");
+          if (file.unstaged) values.push("unstaged");
+          if (file.untracked) values.push("untracked");
+          if (!values.length && file.status) values.push(text(file.status).trim());
+        } else if (file.kind) {
+          values.push(titleCase(file.kind));
+        }
+        if (Number.isFinite(Number(file.size))) {
+          values.push(`${new Intl.NumberFormat().format(Number(file.size))} bytes`);
+        }
+        if (file.reason) values.push(text(file.reason));
+        return values.filter(Boolean);
+      }
+
+      function renderGitFiles(files, selection) {
+        return `
+          <div class="panel__body">
+            ${files.length
+              ? `<ul class="file-list">
+                  ${files.map((file) => {
+                    const path = text(file.path);
+                    const selectable = file.selectable === true;
+                    const selected = state.classifications[path] === "claude";
+                    return `
+                      <li class="file-row">
+                        <span class="file-copy">
+                          <span class="file-path" title="${escapeHtml(path)}">${escapeHtml(path)}</span>
+                          <span class="file-meta">
+                            ${fileMetadata(file, "git").map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+                          </span>
+                        </span>
+                        <label class="choice" ${selectable ? "" : 'aria-disabled="true"'}>
+                          <input
+                            type="checkbox"
+                            data-file-kind="git"
+                            data-path="${escapeHtml(path)}"
+                            ${selected ? "checked" : ""}
+                            ${selectable && !state.busy && !configurationIsLocked() ? "" : "disabled"}
+                          >
+                          <span>Attribute to this run</span>
+                        </label>
+                      </li>
+                    `;
+                  }).join("")}
+                </ul>`
+              : `<p class="empty">The current Git working tree is clean. No attribution is required.</p>`
+            }
+          </div>
+        `;
+      }
+
+      function renderNonGitFiles(files) {
+        return `
+          <div class="panel__body">
+            ${files.length
+              ? `<ul class="file-list">
+                  ${files.map((file, index) => {
+                    const path = text(file.path);
+                    const selectable = file.selectable === true;
+                    const selected = state.classifications[path] || "";
+                    return `
+                      <li class="file-row">
+                        <span class="file-copy">
+                          <span class="file-path" title="${escapeHtml(path)}">${escapeHtml(path)}</span>
+                          <span class="file-meta">
+                            ${fileMetadata(file, "non_git").map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+                          </span>
+                        </span>
+                        <span class="segmented" role="radiogroup" aria-label="Classification for ${escapeHtml(path)}">
+                          <label class="segment">
+                            <input
+                              type="radio"
+                              name="file-${index}"
+                              value="claude"
+                              data-file-kind="non_git"
+                              data-path="${escapeHtml(path)}"
+                              ${selected === "claude" ? "checked" : ""}
+                              ${selectable && !state.busy && !configurationIsLocked() ? "" : "disabled"}
+                            >
+                            <span>Created by Claude</span>
+                          </label>
+                          <label class="segment">
+                            <input
+                              type="radio"
+                              name="file-${index}"
+                              value="exclude"
+                              data-file-kind="non_git"
+                              data-path="${escapeHtml(path)}"
+                              ${selected === "exclude" ? "checked" : ""}
+                              ${state.busy || configurationIsLocked() ? "disabled" : ""}
+                            >
+                            <span>Exclude</span>
+                          </label>
+                        </span>
+                      </li>
+                    `;
+                  }).join("")}
+                </ul>`
+              : `<p class="empty">No current files were found in this directory.</p>`
+            }
+          </div>
+        `;
+      }
+
+      function capabilityGaps(capabilities) {
+        return asArray(capabilities.items).filter((item) => {
+          const status = text(item?.status || item?.parity).toLowerCase();
+          return /missing|not_available|unsupported|failed/.test(status);
+        });
+      }
+
+      function replayDetailsLoading() {
+        return state.busy === "inspection" || state.configurationStep === 0 && (
+          state.promptGeneration === "pending" || state.workingDirectoryLoading
+        );
+      }
+
+      function configurationStepProblems(index) {
+        const draft = normalizeReviewDraft(state.reviewDraft);
+        if (!draft) return ["Open a configuration draft."];
+        const problems = [];
+        if (index === 0) {
+          if (!draft.thread_id.trim()) problems.push("Choose the Claude task again.");
+          if (!draft.source_path.trim()) problems.push("The selected Claude task has no source transcript.");
+          if (!draft.message_uuid.trim()) problems.push("Enter the message ID within the original thread.");
+          if (!draft.request.trim()) problems.push("Enter the reconstructed task prompt.");
+          if (!draft.repo.trim()) problems.push("Enter the replay repository.");
+          if (!draft.models.length) problems.push("Select at least one available Codex model.");
+        }
+        if (index === 1) {
+          if (!draft.beginning_kind) problems.push("Choose the beginning state.");
+          if (draft.beginning_kind === "git" && !draft.baseline_commit.trim()) {
+            problems.push("Enter the starting commit.");
+          }
+        }
+        if (index === 2) {
+          if (!draft.ending_kind) problems.push("Choose the end state.");
+          if (draft.beginning_kind === "git" && draft.ending_kind === "non_git") {
+            problems.push("A Git beginning state requires a Git end state.");
+          }
+          if (draft.ending_kind === "git" && !draft.ending_commit.trim()) {
+            problems.push("Enter the ending commit.");
+          }
+        }
+        if (
+          index === 3 &&
+          draft.ending_kind === "non_git" &&
+          !selectionNeedsRefresh() &&
+          selectionPayload().confirm_file_selection !== true
+        ) {
+          problems.push("Classify every file in the Non-Git end state.");
+        }
+        return problems;
+      }
+
+      function renderReplayConfiguration(draft, replay, configurationLocked) {
+        const requestMethod = state.promptGeneration || text(replay.request_generation?.method);
+        const promptLoading = requestMethod === "pending";
+        const workingDirectoryLoading = state.workingDirectoryLoading;
+        const originalThreadId = text(
+          replay.session_id || state.selectedThread?.session_id,
+          "Unavailable"
+        );
+        return `<section class="panel" aria-labelledby="configuration-heading">
+          <div class="panel__header"><div>
+            <h2 id="configuration-heading">Replay details</h2>
+            <p>Review the task and choose how Codex should run it.</p>
+          </div></div>
+          <div class="panel__body">
+            <fieldset class="review-fields" ${state.busy || configurationLocked ? "disabled" : ""}>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="original-thread">Original Claude thread ID</label>
+                  <input id="original-thread" type="text" value="${escapeHtml(originalThreadId)}" readonly>
+                  <small>Selected on the previous step.</small>
+                </div>
+                ${activeUnit() ? `<div class="field field--wide">
+                  <label>Chunk boundaries</label>
+                  <p class="range-boundaries"><code>${escapeHtml(activeUnit().start_message_uuid)}</code> through <code>${escapeHtml(activeUnit().end_message_uuid)}</code></p>
+                  <small>Set by the dividers between user turns.</small>
+                </div>` : `<div class="field field--wide">
+                  <label for="review-message-uuid">Message ID within the original thread</label>
+                  <input id="review-message-uuid" type="text" value="${escapeHtml(draft.message_uuid)}">
+                </div>`}
+                <div class="field field--wide">
+                  <label for="review-request">${activeUnit() ? "Handoff summary" : "Reconstructed task prompt"} ${promptLoading
+                    ? '<span class="pill"><span class="spinner" aria-hidden="true"></span>Reconstructing task prompt…</span>'
+                    : requestMethod === "llm_synthesis"
+                      ? '<span class="pill">AI synthesized</span>'
+                      : requestMethod === "single_user_prompt"
+                        ? '<span class="pill">Original request</span>'
+                        : requestMethod === "concatenated_fallback"
+                          ? '<span class="pill pill--warning">Concatenated fallback</span>'
+                          : ""}</label>
+                  <textarea id="review-request" ${promptLoading ? 'placeholder="Reconstructing task prompt…" disabled' : ""}>${promptLoading ? "" : escapeHtml(draft.request)}</textarea>
+                  <small>Review and edit the reconstructed task before approval.</small>
+                </div>
+                <div class="field field--wide">
+                  <label for="review-repo">Replay working directory ${workingDirectoryLoading
+                    ? '<span class="pill"><span class="spinner" aria-hidden="true"></span>Inferring working directory…</span>'
+                    : ""}</label>
+                  <input id="review-repo" type="text" value="${workingDirectoryLoading ? "" : escapeHtml(draft.repo)}" placeholder="${workingDirectoryLoading ? "Inferring working directory…" : "/absolute/path/to/project"}" ${workingDirectoryLoading ? "disabled" : ""}>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </section>`;
+      }
+
+      function renderBeginningConfiguration(draft, configurationLocked) {
+        const gitBeginning = draft.beginning_kind === "git";
+        return `<section class="panel" aria-labelledby="beginning-state-heading">
+          <div class="panel__header"><div>
+            <h2 id="beginning-state-heading">Beginning state</h2>
+            <p>The isolated replay starts from this state.</p>
+          </div></div>
+          <div class="panel__body">
+            <fieldset class="review-fields" ${state.busy || configurationLocked ? "disabled" : ""}>
+              <div class="field-grid">
+                <div class="field field--wide">
+                  <label for="beginning-repo">Replay working directory</label>
+                  <input id="beginning-repo" type="text" value="${escapeHtml(draft.repo)}" readonly>
+                  <small>Configured in Replay details.</small>
+                </div>
+                <div class="field">
+                  <label for="review-beginning-kind">State type</label>
+                  <select id="review-beginning-kind">
+                    <option value="git" ${gitBeginning ? "selected" : ""}>Git</option>
+                    <option value="non_git" ${gitBeginning ? "" : "selected"}>Non-Git</option>
+                  </select>
+                </div>
+                ${gitBeginning
+                  ? `<div class="field"><label for="review-baseline-commit">Starting commit</label>
+                      <input id="review-baseline-commit" type="text" value="${escapeHtml(draft.baseline_commit)}">
+                      <small>Inferred starting state; editable.</small></div>`
+                  : `<div class="field field--wide"><p>${activeUnit() ? "The beginning state is an empty Non-Git directory plus files carried forward from earlier chunks." : "The beginning state is a blank, Non-Git directory. No commit is required."}</p></div>`}
+                ${activeUnit() && asArray(inspectionParts().selection.before_files).length
+                  ? `<div class="field field--wide"><label>Files carried forward from earlier chunks</label><p>${asArray(inspectionParts().selection.before_files).map((file) => `<code>${escapeHtml(isObject(file) ? file.path : file)}</code>`).join(", ")}</p><small>Whole-file inputs; intermediate file versions are not reconstructed.</small></div>` : ""}
+              </div>
+            </fieldset>
+          </div>
+        </section>`;
+      }
+
+      function renderEndConfiguration(draft, configurationLocked) {
+        const gitBeginning = draft.beginning_kind === "git";
+        const gitEnding = draft.ending_kind === "git";
+        return `<section class="panel" aria-labelledby="end-state-heading">
+          <div class="panel__header"><div>
+            <h2 id="end-state-heading">End state</h2>
+            <p>The historical result is reconstructed from this state.</p>
+          </div></div>
+          <div class="panel__body">
+            <fieldset class="review-fields" ${state.busy || configurationLocked ? "disabled" : ""}>
+              <div class="field-grid">
+                <div class="field field--wide">
+                  <label for="ending-repo">Replay working directory</label>
+                  <input id="ending-repo" type="text" value="${escapeHtml(draft.repo)}" readonly>
+                  <small>Configured in Replay details.</small>
+                </div>
+                <div class="field">
+                  <label for="review-ending-kind">State type</label>
+                  <select id="review-ending-kind">
+                    <option value="git" ${gitEnding ? "selected" : ""}>Git</option>
+                    <option value="non_git" ${gitEnding ? "" : "selected"} ${gitBeginning ? "disabled" : ""}>Non-Git</option>
+                  </select>
+                  ${gitBeginning ? "<small>A Git beginning requires a Git end state.</small>" : ""}
+                </div>
+                ${gitEnding
+                  ? `<div class="field"><label for="review-ending-commit">Ending commit</label>
+                      <input id="review-ending-commit" type="text" value="${escapeHtml(draft.ending_commit)}">
+                      <small>Inferred Claude completion state; editable.</small></div>`
+                  : '<div class="field field--wide"><p>The run ends as a directory that is still outside Git.</p></div>'}
+              </div>
+            </fieldset>
+          </div>
+        </section>`;
+      }
+
+      function renderHistoricalOutput(draft, selection, files, kind) {
+        const gitEnding = draft.ending_kind === "git";
+        const stale = selectionNeedsRefresh();
+        if (!files.length && gitEnding && !stale) return "";
+        return `<section class="panel" aria-labelledby="files-heading">
+            <div class="panel__header"><div>
+              <h2 id="files-heading">Historical output</h2>
+              <p>${gitEnding
+                ? "Optionally include working-tree changes in addition to the ending commit."
+                : "Identify the files created by the historical run."}</p>
+            </div><span class="pill">${files.length} ${files.length === 1 ? "item" : "items"}</span></div>
+            ${stale
+              ? `<div class="panel__body"><p>Refresh files for the edited working directory and state.</p><button type="button" class="button" data-action="refresh-files" ${state.busy ? "disabled" : ""}>Refresh files</button></div>`
+              : gitEnding && kind === "git"
+                ? renderGitFiles(files, selection)
+                : !gitEnding && kind === "non_git"
+                  ? files.length ? renderNonGitFiles(files) : '<div class="panel__body"><p>No files were found in this directory.</p></div>'
+                  : '<div class="panel__body"><p class="empty">No end-state files were found.</p></div>'}
+          </section>`;
+      }
+
+      function renderTranscriptInference(selection, files, kind) {
+        if (
+          !files.length ||
+          !["git", "non_git"].includes(kind) ||
+          !("transcript_inferred_file_count" in selection)
+        ) return "";
+        const included = stringList(selection.transcript_inferred_files).filter(
+          (path) => state.classifications[path] === "claude"
+        ).length;
+        return `<div class="banner" role="status"><div class="banner__body"><strong>Included ${included} ${included === 1 ? "file" : "files"} inferred from the Claude transcript.</strong></div></div>`;
+      }
+
+      function renderCapabilityConfiguration(capabilities) {
+        const gaps = capabilityGaps(capabilities);
+        return `${gaps.length
+          ? `<div class="banner banner--warning" role="status">
+              <span class="banner__mark" aria-hidden="true">!</span>
+              <div class="banner__body">
+                <strong>${gaps.length} capability ${gaps.length === 1 ? "gap" : "gaps"} may affect comparison fairness</strong>
+                <p>You can continue, but review the guidance before approval.</p>
+              </div>
+            </div>`
+          : ""}
+          <section class="panel" aria-labelledby="capability-heading">
+            <div class="panel__header"><div>
+              <h2 id="capability-heading">Capability parity</h2>
+              <p>Observed Claude capabilities and Codex equivalents for this replay.</p>
+            </div></div>
+            <div class="panel__body">
+              <ul class="capability-list">${capabilityRows(capabilities)}</ul>
+              ${asArray(capabilities.resolution_actions).length
+                ? `<details><summary>Guidance</summary><ul class="plain-list">
+                    ${asArray(capabilities.resolution_actions).map((item) => `<li>${escapeHtml(isObject(item) ? item.remediation_action || item.title : item)}</li>`).join("")}
+                  </ul></details>`
+                : ""}
+            </div>
+          </section>`;
+      }
+
+      function renderConfigurationConfirmation(draft, capabilities) {
+        const configuration = reviewPayload();
+        const selection = selectionPayload();
+        const outputFiles = draft.ending_kind === "git"
+          ? stringList(selection.claude_output_files)
+          : stringList(selection.created_by_claude);
+        const gaps = capabilityGaps(capabilities);
+        return `${gaps.length
+          ? `<div class="banner banner--warning" role="status">
+              <span class="banner__mark" aria-hidden="true">!</span>
+              <div class="banner__body">
+                <strong>${gaps.length} capability ${gaps.length === 1 ? "gap" : "gaps"} will be recorded</strong>
+                <p>The run can proceed, but the comparison may not have complete capability parity.</p>
+              </div>
+            </div>`
+          : ""}
+          <section class="panel" aria-labelledby="confirmation-heading">
+            <div class="panel__header"><div>
+              <h2 id="confirmation-heading">Review and confirm</h2>
+              <p>Configuration is complete. Review it once more before starting the replay.</p>
+            </div></div>
+            <div class="panel__body">
+              <dl class="configuration-review">
+                <div class="configuration-review__row"><dt>Replay</dt><dd><strong>${escapeHtml(draft.models.join(", "))}</strong><br><small>${escapeHtml(draft.repo)}</small></dd></div>
+                <div class="configuration-review__row"><dt>Beginning state</dt><dd>${draft.beginning_kind === "git" ? `Git at <code>${escapeHtml(draft.baseline_commit)}</code>` : activeUnit() ? "Empty Non-Git directory plus files from earlier chunks" : "Blank Non-Git directory"}</dd></div>
+                <div class="configuration-review__row"><dt>End state</dt><dd>${draft.ending_kind === "git" ? `Git at <code>${escapeHtml(draft.ending_commit)}</code>` : "Non-Git directory"}</dd></div>
+                <div class="configuration-review__row"><dt>Historical output</dt><dd>${outputFiles.length ? outputFiles.map((path) => `<code>${escapeHtml(path)}</code>`).join(", ") : "No additional files selected"}</dd></div>
+                <div class="configuration-review__row"><dt>Capability parity</dt><dd>${gaps.length ? `${gaps.length} ${gaps.length === 1 ? "gap" : "gaps"}` : "All observed capabilities matched"}</dd></div>
+              </dl>
+              <details open>
+                <summary>Entire configuration</summary>
+                <pre>${escapeHtml(safeJson(configuration))}</pre>
+              </details>
+            </div>
+          </section>`;
+      }
+
+      function renderConfigureStep() {
+        const draft = normalizeReviewDraft(state.reviewDraft) || reviewDraftFromConfiguration();
+        const { selection, capabilities, replay, files, kind } = inspectionParts();
+        const diagnostics = inspectionDiagnostics();
+        const blockers = preparationBlockers();
+        const problems = reviewProblems();
+        const configurationLocked = configurationIsLocked() || state.batchPreparing;
+        const gaps = capabilityGaps(capabilities);
+        const loading = replayDetailsLoading();
+        const needsFileAttribution = !loading && (
+          draft.ending_kind === "non_git" || (!problems.length && selectionNeedsRefresh()));
+        const needsReplayDetails = !loading && (
+          !draft.message_uuid.trim() || !draft.request.trim() ||
+          !draft.repo.trim());
+        const needsBeginningState = !loading && (!draft.beginning_kind ||
+          (draft.beginning_kind === "git" && !draft.baseline_commit.trim()));
+        const needsEndState = !loading && (!draft.ending_kind ||
+          (draft.ending_kind === "git" && !draft.ending_commit.trim()) ||
+          (draft.beginning_kind === "git" && draft.ending_kind === "non_git"));
+        const nextDisabled = Boolean(state.busy) || state.batchPreparing || loading || problems.length > 0 ||
+          (state.replayMode === "chunks" && (!remainingUnits().length || Boolean(state.submittingUnitKey)));
+        const selectedThread = state.selectedThread || replay;
+        return `
+          ${pageHeading(
+            threadStepEyebrow("Replay"),
+            "Choose models and start",
+            isThreadBatch() ? "Replay selected threads with shared models and a separate historical state for each thread."
+              : "Replay the selected task from its automatically detected historical state."
+          )}
+          ${isThreadBatch() ? renderBatchConfiguration() : `<section class="panel" aria-labelledby="selected-thread-heading">
+            <div class="panel__header"><div>
+              <h2 id="selected-thread-heading">Selected thread</h2>
+              <p>${escapeHtml(threadTitle(selectedThread))}</p>
+            </div>${configurationLocked ? "" : `<button type="button" class="button button--quiet" data-action="configuration-back" ${state.busy ? "disabled" : ""}>Choose another thread</button>`}</div>
+          </section>`}
+          ${isThreadBatch() ? "" : renderRangeSelection()}
+          <section class="panel" aria-labelledby="replay-models-heading" style="margin-top:14px">
+            <div class="panel__header"><div>
+              <h2 id="replay-models-heading">Choose models</h2>
+              <p>Select one or more models for the entire replay. ${isThreadBatch() ? "Every thread" : "Every chunk"} uses this selection.</p>
+            </div></div>
+            <div class="panel__body"><fieldset class="review-fields" ${state.busy || configurationLocked ? "disabled" : ""}>
+              <div class="variant-options" role="group" aria-label="Available Codex models">
+                ${state.models.length ? state.models.map(({ id, label }) => {
+                  const checked = draft.models.includes(id);
+                  return `<label class="variant-choice"><input type="checkbox" data-model-variant="${escapeHtml(id)}" ${checked ? "checked" : ""} ${(checked ? draft.models.length === 1 : draft.models.length>=8) ? "disabled" : ""}>${escapeHtml(label)}</label>`;
+                }).join("") : `<input id="review-model" type="text" value="${escapeHtml(draft.model)}">`}
+              </div>
+            </fieldset></div>
+          </section>
+          ${!loading && diagnostics.length
+            ? `<div class="banner banner--warning" role="status"><span class="banner__mark" aria-hidden="true">i</span><div class="banner__body"><strong>Some values could not be discovered</strong><ul>${diagnostics.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div></div>`
+            : ""}
+          ${!loading && blockers.length
+            ? `<div class="banner banner--warning" role="status"><span class="banner__mark" aria-hidden="true">!</span><div class="banner__body"><strong>The configuration still needs attention</strong><ul>${blockers.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div></div>`
+            : ""}
+          ${!loading ? renderTranscriptInference(selection, files, kind) : ""}
+          ${needsReplayDetails ? renderReplayConfiguration(draft, replay, configurationLocked) : ""}
+          ${needsBeginningState ? renderBeginningConfiguration(draft, configurationLocked) : ""}
+          ${needsEndState ? renderEndConfiguration(draft, configurationLocked) : ""}
+          ${needsFileAttribution ? renderHistoricalOutput(draft, selection, files, kind) : ""}
+          ${!loading && gaps.length ? `<div class="banner banner--warning" role="status"><span class="banner__mark" aria-hidden="true">!</span><div class="banner__body"><strong>${gaps.length} capability ${gaps.length === 1 ? "gap" : "gaps"} may affect comparison fairness</strong><p>Review capability parity in configuration details before starting.</p></div></div>` : ""}
+          <details id="configuration-details" class="panel" style="margin-top:14px" ${state.configurationDetailsOpen ? "open" : ""}>
+            <summary class="panel__header">Configure details</summary>
+            <div class="panel__body">
+              ${needsReplayDetails ? "" : renderReplayConfiguration(draft, replay, configurationLocked)}
+              ${needsBeginningState ? "" : renderBeginningConfiguration(draft, configurationLocked)}
+              ${needsEndState ? "" : renderEndConfiguration(draft, configurationLocked)}
+              ${needsFileAttribution ? "" : renderHistoricalOutput(draft, selection, files, kind)}
+              ${renderCapabilityConfiguration(capabilities)}
+              <div id="configuration-confirmation">
+                ${problems.length || loading
+                  ? ""
+                  : renderConfigurationConfirmation(draft, capabilities)}
+              </div>
+            </div>
+          </details>
+          ${problems.length && !loading
+            ? `<div class="banner banner--warning" role="status" style="margin-top:14px"><span class="banner__mark" aria-hidden="true">i</span><div class="banner__body"><strong>Required to continue</strong><ul>${problems.map((problem) => `<li>${escapeHtml(problem)}</li>`).join("")}</ul></div></div>`
+            : ""}
+          <div class="footer-actions footer-actions--configuration" style="margin-top:18px">
+            <span class="footer-actions__note">${configurationLocked
+              ? state.batchPreparing ? "Checking each thread before starting…" : chunkLaunchActive() ? "Checking chunks before starting their model runs…" : "This is the configuration used for the current replay."
+              : `${draft.models.length} ${draft.models.length === 1 ? "model" : "models"} · isolated workspaces · original task preserved`}</span>
+            ${state.batchPreparing
+              ? `<button type="button" class="button button--primary" disabled>Preparing threads…</button>`
+              : chunkLaunchActive()
+              ? `<button type="button" class="button button--primary" disabled>Preparing chunks…</button>`
+              : configurationLocked
+              ? `<button type="button" class="button button--primary" data-action="go-step" data-step="${state.report ? "results" : "run"}">Return to ${state.report ? "results" : "run"}</button>`
+              : `<button type="button" class="button button--primary" data-action="approve-configuration" ${nextDisabled ? "disabled" : ""}>
+                  ${loading
+                    ? '<span class="spinner" aria-hidden="true"></span>Loading configuration…'
+                    : state.busy === "attribution"
+                      ? '<span class="spinner" aria-hidden="true"></span>Checking repository…'
+                      : state.busy === "prepare"
+                        ? '<span class="spinner" aria-hidden="true"></span>Checking configuration…'
+                        : state.busy === "start"
+                          ? '<span class="spinner" aria-hidden="true"></span>Starting…'
+                          : isThreadBatch() ? `Start ${state.selectedThreads.length} threads`
+                          : state.replayMode === "chunks"
+                            ? `Start ${remainingUnits().length} ${remainingUnits().length === 1 ? "chunk" : "chunks"}`
+                            : gaps.length
+                            ? "Start with capability gaps"
+                            : draft.models.length === 1 ? "Start replay" : "Start replays"}
+                </button>`}
+          </div>
+          `;
+      }
+
+      function normalizedPhases(run) {
+        const provided = asArray(run?.phases);
+        if (provided.length) {
+          return provided.flatMap((item) => {
+            if (!isObject(item)) return [];
+            const id = text(item.id || item.phase);
+            if (!id) return [];
+            return [{
+              id,
+              label: text(item.label, DEFAULT_PHASES.find(([value]) => value === id)?.[1] || titleCase(id)),
+              status: text(item.status, "waiting").toLowerCase(),
+            }];
+          });
+        }
+        const current = text(run?.phase);
+        const index = DEFAULT_PHASES.findIndex(([id]) => id === current);
+        const failed = ["failed", "cancelled", "canceled"].includes(text(run?.status).toLowerCase());
+        return DEFAULT_PHASES.map(([id, label], itemIndex) => ({
+          id,
+          label,
+          status:
+            itemIndex < index ? "complete"
+              : itemIndex === index ? (failed ? "failed" : "running")
+                : "waiting",
+        }));
+      }
+
+      function renderRunVariants(results = false) {
+        const entries = [...state.runs,...state.runErrors].filter((entry) =>
+          !results || (isThreadBatch() ? (entry.run?.thread_id || entry.thread_id) === state.run?.thread_id
+            : state.replayMode !== "chunks" || entry.unitNumber === resultUnit()?.number)).sort((a,b)=>
+          (state.replayMode === "chunks" ? (a.unitNumber || 0) - (b.unitNumber || 0) : 0) ||
+          (DEFAULT_MODEL_IDS.indexOf(a.model)+1||99)-(DEFAULT_MODEL_IDS.indexOf(b.model)+1||99));
+        if (entries.length < 2 && state.replayMode !== "chunks") return "";
+        const html = escapeHtml;
+        const color = (value, other, higher = false) => comparisonClass(
+          parseFloat(higher ? other : value), parseFloat(higher ? value : other)
+        ).replace(" metric--", "v-");
+        return `${renderPendingChunks()}<div class="variant-grid" aria-label="${state.replayMode === "chunks" ? "Chunk replays" : "Parallel replay variants"}">${entries.map((entry) => {
+          const status = text(entry.run?.status, entry.error ? "failed" : "running");
+          const failed = ["failed", "cancelled", "canceled"].includes(status);
+          const modelLabel = asArray(state.models).find(({ id }) => id === entry.model)?.label || entry.model;
+          const label = isThreadBatch() && !results ? `${text(entry.run?.thread_title || entry.thread_title, "Thread")} · ${modelLabel}`
+            : entry.unitNumber ? `Chunk ${entry.unitNumber} · ${modelLabel}` : modelLabel;
+          const outcome = entry.report && outcomeSummary(entry.report.evaluation || {});
+          const scores = Object.fromEntries(outcome?.score.split("\n").map((value) => value.split(": ")) || []);
+          const shared = entry.report?.historical_usage_shared === true;
+          const metrics = [
+            ["Score", text(scores["Historical Claude"], "Unavailable"), text(scores["Codex replay"], "Unavailable"), String, true],
+            ["Cost", shared ? null : entry.report?.estimated_cost?.claude?.usd, entry.report?.estimated_cost?.codex?.usd, formatCost],
+            ["Time", shared ? null : entry.report?.historical_model_request_seconds, entry.report?.codex_execution?.elapsed_seconds, formatDuration],
+          ];
+          const active = entry.id && entry.id === state.runId;
+          return `<section class="panel vc${active ? " vc-a" : ""}"${active ? ' aria-current="true"' : ""}>
+<button type="button" class="v-open" data-action="select-run" data-run-id="${html(entry.id)}" ${!entry.id || results && !entry.report ? "disabled" : ""}>
+<span class="vh"><strong>${html(label)}</strong>${active ? `<span class="vi">Viewing ${results ? "result" : "progress"}</span>` : ""}</span>
+<span class="pill ${successfulRunStatus(status) ? "pill--good" : failed ? "pill--bad" : ""}">${html(titleCase(status))}</span>
+${outcome ? "" : `<span class="vs">${html(entry.error || entry.run?.error || titleCase(entry.run?.phase || "Starting"))}</span>`}
+<span class="vm"><span class="vp"><span></span><strong>Historical</strong><strong>Codex</strong></span>
+${metrics.map(([name, historical, codex, format, higher]) => `<span class="vp"><span>${name}</span><strong class="${color(historical, codex, higher)}">${html(shared && name !== "Score" ? "Shared" : format(historical))}</strong><strong class="${color(codex, historical, higher)}">${html(format(codex))}</strong></span>`).join("")}</span>
+${shared ? '<span class="vs">No standalone usage — shared across chunks</span>' : ""}</button>
+${entry.id && !terminalRunStatus(status) ? `<button type="button" class="button button--danger" data-action="cancel-run" data-run-id="${html(entry.id)}">Cancel</button>` : ""}
+          </section>`;
+        }).join("")}</div>`;
+      }
+
+      function renderRunStep() {
+        if (state.batchId && !state.run) {
+          return `${pageHeading("Selected threads", state.batch?.starting ? "Starting the threads" : "The threads could not start",
+            state.batch?.starting ? "The controller is creating the selected runs. Progress refreshes automatically."
+              : "Review the launch errors below. Open a new Codex task to try another replay.")}
+            ${state.runErrors.map((error) => `<div class="banner banner--error"><div class="banner__body"><strong>${escapeHtml(error.thread_title || error.thread_id)} · ${escapeHtml(error.model)}</strong><p>${escapeHtml(error.error)}</p></div></div>`).join("")}
+            <button type="button" class="button" data-action="refresh-run" ${state.busy ? "disabled" : ""}>Refresh status</button>`;
+        }
+        const run = isObject(state.run) ? state.run : {};
+        const status = text(run.status, "running").toLowerCase();
+        const running = state.runs.some((entry) => !terminalRunStatus(entry.run?.status));
+        const failed = !running && ["failed", "cancelled", "canceled"].includes(status);
+        const completed = !running && successfulRunStatus(status);
+        const phases = normalizedPhases(run);
+        const events = asArray(run.events).filter(isObject).slice(-12).reverse();
+        const runLog = text(run.run_log);
+        return `
+          ${pageHeading(
+            threadStepEyebrow("Run in progress"),
+            completed ? "The comparison report is ready"
+              : failed ? "The replay stopped"
+                : "Running the isolated replay",
+            completed
+              ? "Implementation, verification, and review completed."
+              : failed
+                ? "The run did not continue after this failure."
+                : isThreadBatch()
+                  ? "Selected threads run in isolated workspaces. Open finished comparisons while the others continue."
+                : state.replayMode === "chunks"
+                  ? "Chunks and selected models run in parallel in isolated workspaces."
+                : state.runs.length > 1
+                  ? "Selected variants run in parallel in isolated workspaces."
+                  : "You can leave and reopen this page; progress is stored in the local run directory."
+          )}
+          ${failed
+            ? `<div class="banner banner--error" role="alert">
+                <span class="banner__mark" aria-hidden="true">!</span>
+                <div class="banner__body">
+                  <strong>${escapeHtml(titleCase(status))}</strong>
+                  <p>${escapeHtml(run.error || "The replay could not continue.")}</p>
+                </div>
+              </div>`
+            : ""}
+          ${renderRunVariants()}
+          ${state.runs.some((entry) => entry.report) ? `<div class="footer-actions footer-actions--configuration"><button type="button" class="button button--primary" data-action="go-step" data-step="results">View available results</button></div>` : ""}
+          <div class="grid-2">
+            <section class="panel" aria-labelledby="progress-heading">
+              <div class="panel__header">
+                <div>
+                  <h2 id="progress-heading">Run phases</h2>
+                  <p>Run <code>${escapeHtml(state.runId || run.id || run.run_id)}</code></p>
+                </div>
+                <span class="pill ${completed ? "pill--good" : failed ? "pill--bad" : ""}">
+                  ${escapeHtml(titleCase(status))}
+                </span>
+              </div>
+              <div class="panel__body">
+                <ol class="phase-list">
+                  ${phases.map((phase) => {
+                    const statusClass = ["complete", "completed", "succeeded"].includes(phase.status)
+                      ? "complete"
+                      : ["failed", "cancelled", "canceled"].includes(phase.status)
+                        ? "failed"
+                        : phase.status === "running"
+                          ? "running"
+                          : "waiting";
+                    return `
+                      <li class="phase phase--${statusClass}">
+                        <span class="phase__mark" aria-hidden="true">${statusClass === "complete" ? "✓" : statusClass === "failed" ? "!" : ""}</span>
+                        <span class="phase__name">${escapeHtml(phase.label)}</span>
+                        <span class="phase__state">${escapeHtml(titleCase(statusClass))}</span>
+                      </li>
+                    `;
+                  }).join("")}
+                </ol>
+              </div>
+            </section>
+            <section class="panel" aria-labelledby="activity-heading">
+              <div class="panel__header">
+                <div>
+                  <h2 id="activity-heading">Activity</h2>
+                  <p>${run.started_at ? `Started ${escapeHtml(formatDate(run.started_at))}` : "Waiting for the first event"}</p>
+                </div>
+              </div>
+              <div class="panel__body">
+                ${events.length
+                  ? `<ol class="activity">
+                      ${events.map((event) => `
+                        <li>
+                          <time datetime="${escapeHtml(event.at || event.timestamp || "")}">${escapeHtml(formatTime(event.at || event.timestamp))}</time>
+                          <span>${escapeHtml(event.summary || event.message || titleCase(event.phase || event.status))}</span>
+                        </li>
+                      `).join("")}
+                    </ol>`
+                  : `<p class="empty">No activity has been recorded yet.</p>`
+                }
+              </div>
+            </section>
+          </div>
+          <section class="panel" aria-labelledby="run-log-heading" style="margin-top:14px">
+            <div class="panel__header">
+              <div>
+                <h2 id="run-log-heading">Current run log</h2>
+                <p>${run.log_path
+                  ? `Streaming <code>${escapeHtml(run.log_path)}</code>`
+                  : "Streaming recorded controller and worker output"}</p>
+              </div>
+              <span class="pill ${completed ? "pill--good" : failed ? "pill--bad" : ""}">
+                ${terminalRunStatus(status) ? "Retained" : "Live"}
+              </span>
+            </div>
+            <div class="panel__body">
+              <pre id="run-log" class="run-log" tabindex="0" aria-live="polite">${escapeHtml(runLog || "Waiting for run output…")}</pre>
+            </div>
+          </section>
+          <div class="footer-actions">
+            <span class="footer-actions__note">
+              ${completed ? "Loading the report…"
+                : failed ? "To run another replay, open a new Codex task and invoke Codex Replay."
+                  : "Status refreshes automatically."}
+            </span>
+            ${failed
+              ? `<button type="button" class="button" data-action="refresh-run" ${state.busy ? "disabled" : ""}>Refresh status</button>`
+              : completed
+                ? `<button type="button" class="button button--primary" data-action="load-report" ${state.busy ? "disabled" : ""}>
+                    ${state.busy === "report" ? '<span class="spinner" aria-hidden="true"></span>Loading…' : "Open results"}
+                  </button>`
+                : `<button type="button" class="button" data-action="refresh-run" ${state.busy ? "disabled" : ""}>Refresh now</button>`
+                  + `<button type="button" class="button button--danger" data-action="cancel-run" ${state.busy ? "disabled" : ""}>${state.busy === "cancel" ? '<span class="spinner" aria-hidden="true"></span>Cancelling…' : "Cancel run"}</button>`
+            }
+          </div>
+        `;
+      }
+
+      function reportParts() {
+        const report = isObject(state.report) ? state.report : {};
+        const candidates = isObject(report.candidates) ? report.candidates : {};
+        const claude = isObject(candidates.claude) ? candidates.claude : {};
+        const codex = isObject(candidates.codex) ? candidates.codex : {};
+        const baseline = isObject(report.baseline) ? report.baseline : {};
+        const execution = isObject(report.codex_execution) ? report.codex_execution : {};
+        const evaluation = isObject(report.evaluation) ? report.evaluation : {};
+        const costs = isObject(report.estimated_cost) ? report.estimated_cost : {};
+        const usage = isObject(report.normalized_usage) ? report.normalized_usage : {};
+        return { report, baseline, candidates, claude, codex, execution, evaluation, costs, usage };
+      }
+
+      function outcomeSummary(evaluation, schemaVersion = 3, costs = {}) {
+        const mapping = isObject(evaluation.candidate_mapping) ? evaluation.candidate_mapping : { A: "claude", B: "codex" };
+        const { A: a, B: b } = isObject(evaluation.totals) ? evaluation.totals : {};
+        const [historical, replay] = [costs.claude?.usd, costs.codex?.usd];
+        const cost = costs.claude?.status === "shared" ? "No standalone usage — shared across chunks" : `Cost winner: ${[historical, replay].every((value) => Number.isFinite(value) && value >= 0)
+          ? `${historical === replay ? "Tie" : historical < replay ? "Historical Claude" : "Codex replay"} (${formatCost(historical)} vs ${formatCost(replay)})`
+          : "unavailable"}`;
+        if (!Number.isFinite(a) || !Number.isFinite(b)) {
+          return { headline: "LLM judge: unavailable", score: "No validated score", detail: "Review results below.", cost };
+        }
+        const legacy = schemaVersion === 2;
+        const score = (value) => legacy ? `${value}` : `${Math.round(value * 100)}%`;
+        const [roundedA, roundedB] = legacy ? [a, b] : [a, b].map((value) => Math.round(value * 100));
+        const detail = legacy
+          ? "Each dimension win awards one point; ties and N/A award zero."
+          : "Scores average applicable dimension percentages; N/A excluded.";
+        const name = (label) => ({ codex: "Codex replay", claude: "Historical Claude" })[mapping[label]] || `Candidate ${label}`;
+        const labeledScores = `${name("A")}: ${score(a)}\n${name("B")}: ${score(b)}`;
+        const headline = `LLM judge: ${roundedA === roundedB ? "Tie" : name(roundedA > roundedB ? "A" : "B")}`;
+        return { headline, score: labeledScores, detail, cost };
+      }
+
+      function comparisonClass(value, otherValue) {
+        if (value == null || otherValue == null) return "";
+        const own = Number(value), other = Number(otherValue);
+        if (!Number.isFinite(own) || !Number.isFinite(other) || own < 0 || other < 0 || own === other) return "";
+        return own < other ? " metric--better" : " metric--worse";
+      }
+
+      function usageMetricRows(usage) {
+        const metrics = [
+          ["Total input processed", "total_input_tokens", "All input tokens processed: ordinary input, cache reads, and cache writes."],
+          ["Ordinary input tokens", "ordinary_input_tokens", "Input tokens processed without being read from or written to a provider cache."],
+          ["Cache-read tokens", "cached_input_tokens", "Previously cached input tokens reused by the model."],
+          ["Cache-write tokens", "cache_write_tokens", "Input tokens written to the provider cache for possible reuse."],
+          ["Output tokens", "output_tokens", "Tokens generated by the model in its responses."],
+        ];
+        return metrics.map(([label, key, description]) => `<div class="metric"><dt class="token-label" tabindex="0">${escapeHtml(label)}<span class="token-tooltip" role="tooltip">${escapeHtml(description)}</span></dt><dd>${escapeHtml(formatTokens(usage?.[key]))}</dd></div>`).join("");
+      }
+
+      function providerCard(name, candidate, execution, cost, usage, isCodex, otherElapsed, otherCost) {
+        const model = text(candidate.model || (isCodex ? execution.model : ""), "Unavailable");
+        const shared = state.report?.historical_usage_shared === true;
+        const elapsed = isCodex ? execution.elapsed_seconds : state.report?.historical_model_request_seconds;
+        return `<article class="provider"><h2>${escapeHtml(name)}</h2><dl class="metrics">
+<div class="metric"><dt>Model</dt><dd><code>${escapeHtml(model)}</code></dd></div>
+<div class="metric${shared ? "" : comparisonClass(elapsed, otherElapsed)}"><dt>Execution time</dt><dd>${escapeHtml(shared && !isCodex ? "Shared" : formatDuration(elapsed))}</dd></div>
+<div class="metric${shared ? "" : comparisonClass(cost?.usd, otherCost?.usd)}"><dt>Estimated cost</dt><dd>${escapeHtml(shared && !isCodex ? "Shared" : formatCost(cost?.usd))}</dd></div>
+${shared && !isCodex ? '<div class="metric">No standalone usage — shared across chunks</div>' : usageMetricRows(usage)}</dl></article>`;
+      }
+
+      function evaluationTable(evaluation) {
+        const mapping=evaluation.candidate_mapping||{A:"claude",B:"codex"},html=escapeHtml;
+        const name=id=>({codex:"Codex replay",claude:"Historical Claude"}[mapping[id]]||{tie:"Tie",not_applicable:"N/A"}[id]||titleCase(id)),label=id=>titleCase(id).replace(/ .+/g,s=>s.toLowerCase());
+        const checks={
+          required_behavior:"Required behavior implemented",stated_constraints:"Stated constraints followed",complete_integration:"Changes completely integrated",usable_result:"Result is usable",project_conventions:"Project conventions followed",
+          relevant_files:"Only relevant files changed",necessary_changes:"Only necessary changes made",preserved_behavior:"Existing behavior preserved",invalid_inputs:"Invalid inputs handled appropriately",boundary_conditions:"Boundary conditions handled",failure_handling:"Failures handled appropriately",state_consistency:"State remains consistent",
+          preserved_user_work:"Existing user work preserved",authorized_actions:"Only authorized actions performed",protected_sensitive_data:"Sensitive data protected",limited_external_changes:"External changes appropriately limited",truthful_summary:"Summary is truthful",accurate_outcomes:"Observed outcomes accurately reported",disclosed_limitations:"Limitations disclosed",supported_claims:"Claims supported by evidence",
+        };
+        const rows=[],status=value=>value===1?"Pass":value===0?"Fail":"N/A",
+          score=value=>Number.isFinite(value)?`${Math.round(value*100)}%`:"N/A",
+          cell=(value,why)=>`<td>${html(value)}${why?`<small>${html(text(why).replace(/(?:sk-(?:ant-)?|gh[pousr]_|github_pat_)[\w-]{12,}|(?:api[_-]?key|(?:auth|access)[_-]?token|password|secret)\s*[:=]\s*\S+|[a-z]:[\\/]\S+|\/[a-z]+\/\S+|\b(?:anthropic|claude|codex|openai|chatgpt|gpt-[\w.-]+|fable|opus|sonnet|haiku)\b/gi,"[REDACTED]").slice(0,280))}</small>`:""}</td>`,
+          row=(evaluator,model,label,first,second,winner,a,b)=>rows.push(`<tr><td>${evaluator?`${html(evaluator)}<br><code>${html(model)}</code>`:""}</td><td>${evaluator?`<strong>${html(label)}</strong>`:html(label)}</td>${cell(first,a)}${cell(second,b)}<td><strong>${html(winner)}</strong></td></tr>`);
+        for(const review of asArray(evaluation.reviews)){
+          if(!isObject(review))continue;
+          const evaluator=review.evaluator||"Unknown",model=review.model||"Unknown",ballot=review.ballot?.dimensions;
+          if(!isObject(ballot)||!Object.keys(ballot).length){
+            if(["failed","invalid"].includes(review.status))row(evaluator,model,review.error||"Review unavailable.","—","—",titleCase(review.status));
+            continue;
+          }
+          for(const [dimension,decision] of Object.entries(ballot)){
+            const first=decision.candidates.A,second=decision.candidates.B;
+            const excluded=Array.isArray(evaluation.comparable_dimensions)&&!evaluation.comparable_dimensions.includes(dimension);
+            row(evaluator,model,label(dimension)+(excluded?" (excluded from aggregate)":""),score(first.score),score(second.score),name(decision.winner));
+            for(const [check,value] of Object.entries(first.checks))row("","",checks[check]||label(check),status(value),status(second.checks[check]),"",first.explanations?.[check],second.explanations?.[check]);
+          }
+        }
+        for(const item of asArray(evaluation.evaluator_availability))if(item&&!item.available)row(item.id||"Unknown",item.model||"Unknown",item.reason||"Evaluator unavailable.","—","—","Skipped");
+        return rows.length
+          ? `<div class="table-wrap"><p class="lede">Scores average applicable checks. Pass: satisfied. Fail: failed. N/A: inapplicable or unsupported.</p><table><thead><tr><th>Evaluator</th><th>Dimension / check</th><th>${html(name("A"))}</th><th>${html(name("B"))}</th><th>Winner</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`
+          : `<p class="empty">No validated blind review ballot is available.</p>`;
+      }
+
+      function renderResultsStep() {
+        if (isThreadBatch() && state.batchView === "aggregate") return renderAggregateResults();
+        const chunk = resultUnit(), navigation = renderChunkResults();
+        if (chunk && !state.report) return `${navigation}${renderRunVariants(true)}<p class="empty">${escapeHtml(state.run?.error || "This chunk has no completed comparison report.")}</p>`;
+        const { report, baseline, claude, codex, execution, evaluation, costs, usage } = reportParts();
+        const outcome = outcomeSummary(evaluation, report.schema_version, costs);
+        const limitations = asArray(report.limitations).map((item) => text(item)).filter(Boolean);
+        const claudeElapsed = report.historical_model_request_seconds;
+        const codexElapsed = execution.elapsed_seconds;
+        return `
+          ${navigation}
+          ${renderBatchResultsNavigation()}
+          <section class="result-hero" aria-labelledby="page-title">
+            <div><p class="eyebrow">${escapeHtml(isThreadBatch() ? state.run?.thread_title || "Thread comparison" : resultScope() || threadStepEyebrow("Comparison complete"))}</p><h1 id="page-title" tabindex="-1">${escapeHtml(outcome.headline)}</h1><p><strong>${escapeHtml(outcome.cost)}</strong> · ${escapeHtml(outcome.detail)}</p></div><div class="score">${escapeHtml(outcome.score)}</div></section>
+
+          ${renderRunVariants(true)}
+
+          <div class="provider-grid">${providerCard("Historical Claude", claude, execution, costs.claude, usage.claude, false, codexElapsed, costs.codex)}${providerCard("Codex replay", codex, execution, costs.codex, usage.codex, true, claudeElapsed, costs.claude)}</div>
+
+          <section class="panel" aria-labelledby="evaluation-heading">
+            <div class="panel__header">
+              <div>
+                <h2 id="evaluation-heading">Blind head-to-head review</h2>
+                <p>Candidate identities were revealed only after each ballot was recorded.</p>
+              </div>
+            </div>
+            <div class="panel__body panel__body--flush">
+              ${evaluationTable(evaluation)}
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="evidence-heading">
+            <div class="panel__header">
+              <div>
+                <h2 id="evidence-heading">Evidence and artifacts</h2>
+                <p>Detailed prompts, patches, responses, and limitations remain available for inspection.</p>
+              </div>
+            </div>
+            <div class="panel__body">
+              <dl class="metrics">
+                <div class="metric"><dt>Claude worktree</dt><dd><code>${escapeHtml(baseline.repository || "Unavailable")}</code></dd></div>
+                <div class="metric"><dt>Codex worktree</dt><dd><code>${escapeHtml(execution.worktree || "Unavailable")}</code></dd></div>
+              </dl>
+              <details><summary>Reconstructed task prompt</summary><pre>${escapeHtml(report.original_request || "")}</pre></details>
+              <details><summary>Claude patch</summary><pre>${escapeHtml(claude.diff || "No attributable Claude patch was recovered.")}</pre></details>
+              <details><summary>Codex patch</summary><pre>${escapeHtml(codex.diff || "No Codex patch was recorded.")}</pre></details>
+              <details><summary>Claude final response</summary><pre>${escapeHtml(report.historical_final_response || claude.final_response || "Unavailable.")}</pre></details>
+              <details><summary>Codex final response</summary><pre>${escapeHtml(codex.final_response || execution.final_output || "Unavailable.")}</pre></details>
+              <details>
+                <summary>Confidence and limitations (${limitations.length})</summary>
+                ${limitations.length
+                  ? `<ul>${limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+                  : `<p class="empty">No limitations were recorded.</p>`}
+              </details>
+              <details><summary>Raw report JSON</summary><pre>${escapeHtml(safeJson(report))}</pre></details>
+            </div>
+          </section>
+
+          <div class="footer-actions">
+            <span class="footer-actions__note">
+              ${state.reportPaths?.report_json
+                ? `Saved to ${escapeHtml(state.reportPaths.report_json)}`
+                : "The durable report remains in the local run directory."}
+            </span>
+            ${state.reportPaths?.report_json
+              ? `<button type="button" class="button" data-action="copy-report-path">Copy report path</button>`
+              : ""}
+            ${state.reportPaths?.report_json
+              ? `<button type="button" class="button" data-action="download-report" data-format="json">Download JSON</button>`
+              : ""}
+            ${state.reportPaths?.report_html
+              ? `<button type="button" class="button" data-action="download-report" data-format="html">Download HTML report</button>`
+              : ""}
+            <span class="footer-actions__note">To run another replay, open a new Codex task and invoke Codex Replay.</span>
+          </div>
+        `;
+      }
+
+      function renderContent() {
+        if (!state.hostReady && state.error) {
+          return `
+            ${pageHeading(
+              "Connection",
+              "The controller could not connect",
+              "This page must be opened from the installed Codex Replay plugin."
+            )}
+            ${renderGlobalMessages()}
+            <button type="button" class="button button--primary" data-action="retry-init">Try again</button>
+          `;
+        }
+        const body =
+          state.step === "configure" ? renderConfigureStep()
+            : state.step === "run" ? renderRunStep()
+                : state.step === "results" ? renderResultsStep()
+                  : renderThreadStep();
+        return `${renderGlobalMessages()}${body}`;
+      }
+
+      function render({ focus = false } = {}) {
+        const previousLog = document.getElementById("run-log");
+        const logScrollTop = previousLog?.scrollTop || 0;
+        const logPinned = !previousLog || (
+          previousLog.scrollHeight - previousLog.clientHeight - previousLog.scrollTop < 32
+        );
+        const prompt = document.getElementById("review-request");
+        const promptFocused = prompt && document.activeElement === prompt;
+        const promptSelection = promptFocused
+          ? [prompt.selectionStart, prompt.selectionEnd]
+          : null;
+        const search = document.getElementById("thread-search");
+        const searchSelection = search && document.activeElement === search
+          ? [search.selectionStart, search.selectionEnd]
+          : null;
+        saveDraft();
+        app.innerHTML = `
+          ${state.pluginVersion
+            ? `<div class="plugin-version">v${escapeHtml(state.pluginVersion)}</div>`
+            : ""}
+          <div class="layout">
+            ${renderRail()}
+            <main class="workspace" aria-labelledby="page-title">
+              <div class="sr-only" aria-live="polite">
+                ${escapeHtml(state.busy ? `${titleCase(state.busy)} in progress` : state.notice || "")}
+              </div>
+              ${renderContent()}
+            </main>
+          </div>
+        `;
+        const nextLog = document.getElementById("run-log");
+        if (nextLog) {
+          nextLog.scrollTop = logPinned ? nextLog.scrollHeight : logScrollTop;
+        }
+        if (promptSelection) {
+          requestAnimationFrame(() => {
+            const nextPrompt = document.getElementById("review-request");
+            if (!nextPrompt) return;
+            nextPrompt.focus();
+            nextPrompt.setSelectionRange(...promptSelection);
+          });
+        } else if (searchSelection) {
+          const nextSearch = document.getElementById("thread-search");
+          if (nextSearch) {
+            nextSearch.focus();
+            nextSearch.setSelectionRange(...searchSelection);
+          }
+        } else if (focus) {
+          requestAnimationFrame(() => document.getElementById("page-title")?.focus());
+        }
+      }
+
+      function loadThreads(query = state.query, { append = false, debounce = false } = {}) {
+        if (append && state.loading) return;
+        window.clearTimeout(threadSearchTimer);
+        const generation = ++threadLoadGeneration;
+        const source = state.threadSource;
+        const offset = append ? state.threads.length : 0;
+        if (!append) {
+          state.threads = [];
+          state.totalThreads = 0;
+        }
+        state.loading = true;
+        state.error = "";
+        render();
+        const load = async () => {
+          try {
+            const payload = await callTool("list_threads", {
+              offset,
+              limit: THREAD_PAGE_SIZE,
+              ...(source ? { source } : {}),
+              ...(query.trim() ? { query: query.trim() } : {}),
+            });
+            if (generation !== threadLoadGeneration) return;
+            const threads = asArray(payload.threads);
+            state.threads = append ? [...state.threads, ...threads] : threads;
+            state.totalThreads = Number(payload.total) || state.threads.length;
+            state.threadSource = text(payload.source, "imported");
+            state.importedTotal = Number(payload.imported_total) || 0;
+            state.sampleTotal = Number(payload.sample_total) || 0;
+            state.hostReady = true;
+          } catch (error) {
+            if (generation !== threadLoadGeneration) return;
+            state.error = error instanceof Error ? error.message : String(error);
+          } finally {
+            if (generation === threadLoadGeneration) {
+              state.loading = false;
+              render();
+            }
+          }
+        };
+        if (debounce) {
+          threadSearchTimer = window.setTimeout(load, THREAD_SEARCH_DEBOUNCE_MS);
+        } else {
+          return load();
+        }
+      }
+
+      async function initialize() {
+        window.clearTimeout(threadSearchTimer);
+        const threadGeneration = ++threadLoadGeneration;
+        let synthesis = null;
+        draftPersistenceReady = false;
+        restoredDraft = null;
+        state.step = "thread";
+        state.controllerSessionId = "";
+        state.loading = true;
+        state.hostReady = false;
+        state.error = "";
+        state.notice = "";
+        render();
+        startControllerHeartbeat();
+        try {
+          const [statePayload, threadPayload] = await Promise.all([
+            callTool("get_state", {}),
+            callTool("list_threads", {
+              offset: 0,
+              limit: THREAD_PAGE_SIZE,
+              ...(state.threadSource ? { source: state.threadSource } : {}),
+              ...(state.query.trim() ? { query: state.query.trim() } : {}),
+            }).catch((error) => {
+              if (threadGeneration === threadLoadGeneration) throw error;
+              return null;
+            }),
+          ]);
+          const serverState = isObject(statePayload.state) ? statePayload.state : statePayload;
+          state.controllerSessionId = text(serverState.controller_session_id);
+          if (!state.controllerSessionId) {
+            throw new Error("The local replay service did not return a controller instance.");
+          }
+          restoredDraft = loadDraft();
+          state.selectedThreads = restoredDraft?.selectedThreads || [];
+          restoreUnitState(restoredDraft);
+          state.runRoot = text(serverState.run_root);
+          state.pluginVersion = text(serverState.plugin_version);
+          state.maxParallelRuns = Number.isInteger(serverState.max_parallel_runs) && serverState.max_parallel_runs > 0
+            ? serverState.max_parallel_runs : 8;
+          state.models = normalizeModels(serverState.models);
+          setSelectedModels(restoredDraft?.selectedModels || []);
+          restoreBatch(serverState);
+          if (threadGeneration === threadLoadGeneration) {
+            state.threads = asArray(threadPayload.threads);
+            state.totalThreads = Number(threadPayload.total) || state.threads.length;
+            state.threadSource = text(threadPayload.source, "imported");
+            state.importedTotal = Number(threadPayload.imported_total) || 0;
+            state.sampleTotal = Number(threadPayload.sample_total) || 0;
+          }
+          state.hostReady = true;
+
+          const rememberedRunId = loadActiveRunId();
+          const recent = asArray((rememberedRunId
+            ? (await callTool("get_state", { run_id: rememberedRunId })).state
+            : serverState).recent_runs).filter((run) =>
+            isObject(run) && text(run.controller_session_id) === state.controllerSessionId &&
+              (!run.batch_id || run.launch_failed !== true)
+          );
+          const active = recent.find((run) => currentRunId(run) === rememberedRunId)
+            || recent.find((run) => !terminalRunStatus(run.status))
+            || recent[0];
+          if (active) {
+            state.batchId = text(active.batch_id);
+            const chunkRuns = !state.batchId && recoverRangeRuns(active);
+            if (state.batchId) state.replayMode = "whole";
+            if (!chunkRuns) { clearDraft(); restoredDraft = null; }
+            const savedRunIds = Object.values(state.unitRuns).flat();
+            state.runs = recent.filter((run) => run === active || (state.batchId
+              ? run.batch_id === state.batchId : chunkRuns
+              ? savedRunIds.includes(currentRunId(run)) || (run.thread_id === active.thread_id && run.start_message_uuid)
+              : (
+              run.launch_failed !== true && active.prepare_token_hash
+              && run.prepare_token_hash === active.prepare_token_hash
+            ))).map((run) => {
+              const id = currentRunId(run);
+              const unit = resultUnits(recent).find((item) => state.unitRuns[item.key]?.includes(id) ||
+                (item.start_message_uuid === run.start_message_uuid && item.end_message_uuid === run.end_message_uuid));
+              if (unit) state.unitRuns[unit.key] = stringList([...(state.unitRuns[unit.key] || []), id]);
+              return { id, model: text(run.model), run, unitNumber: unit?.number };
+            });
+            if (state.batchId) state.selectedThreads = normalizeSelectedThreads(batchThreadResults().map((entry, index) => ({
+              id: entry.id, number: index + 1, thread: { title: entry.title },
+            })));
+            if (state.submittingUnitKey) {
+              if (!state.unitRuns[state.submittingUnitKey]?.length) {
+                state.pendingUnitKeys = [];
+                state.notice = "The last chunk launch could not be confirmed. Remaining chunks were paused.";
+              }
+              state.submittingUnitKey = "";
+            }
+            if (!state.batchId) state.runErrors = asArray(active.run_group_errors).filter(isObject);
+            setSelectedModels(state.batch?.models?.length ? state.batch.models
+              : restoredDraft?.selectedModels?.length ? restoredDraft.selectedModels : state.runs.map(({ model }) => model));
+            activateRun(currentRunId(active));
+            rememberActiveRun(state.runId);
+            state.step = "run";
+            if (state.pendingUnitKeys.length || state.runs.some((run) => successfulRunStatus(run.run.status))) {
+              window.setTimeout(() => void refreshRun({ continuePolling: true }), 0);
+            } else if (state.runs.some((run) => !terminalRunStatus(run.run.status))) {
+              beginPolling();
+            }
+          } else if (state.batchId) {
+            clearDraft();
+            restoredDraft = null;
+            state.step = "run";
+            if (state.batch?.starting) beginPolling();
+          } else if (restoredDraft?.selectedThreadId) {
+            const selected = state.threads.find(
+              (thread) => threadId(thread) === restoredDraft.selectedThreadId
+            );
+            state.selectedThreadId = restoredDraft.selectedThreadId;
+            state.selectedThreadNumber = restoredDraft.selectedThreadNumber;
+            state.selectedThread = selected || null;
+            try {
+              const payload = await callTool("inspect_thread", {
+                thread_id: restoredDraft.selectedThreadId,
+              });
+              state.inspection = payload;
+              state.actionableTurns = asArray(payload.replay?.actionable_user_turns || payload.thread?.actionable_user_turns);
+              const models = normalizeModels(payload.models);
+              if (models.length) state.models = models;
+              setSelectedModels(restoredDraft.selectedModels);
+              initializeClassifications();
+              const fallbackRequest = text(payload.replay?.request || payload.thread?.request);
+              applyDraftToInspection(restoredDraft);
+              state.reviewDraft = state.reviewDraft || reviewDraftFromConfiguration();
+              const batchDraft = isThreadBatch()
+                ? state.selectedThreads.find((entry) => entry.id === state.selectedThreadId)?.draft : null;
+              if (batchDraft?.reviewDraft) {
+                state.reviewDraft = normalizeReviewDraft({ ...state.reviewDraft, ...batchDraft.reviewDraft });
+                state.configurationDetailsOpen = batchDraft.detailsOpen;
+                state.attributionEdits = batchDraft.attributionEdits;
+                setSelectedModels(state.selectedModels);
+              }
+              state.promptGeneration = batchDraft?.promptGeneration || text(
+                payload.replay?.request_generation?.method ||
+                payload.thread?.request_generation?.method,
+                "concatenated_fallback"
+              );
+              if (state.promptGeneration === "pending") {
+                synthesis = {
+                  threadId: restoredDraft.selectedThreadId,
+                  fallbackRequest,
+                };
+              }
+              state.step = restoredDraft.step === "thread" ? "thread" : "configure";
+              if (state.replayMode === "chunks") {
+                const units = replayUnits();
+                const key = units.find((unit) => unit.key === state.activeUnitKey)?.key || units[0]?.key;
+                state.reviewDraft = null;
+                if (key) await editReplayUnit(key);
+                synthesis = null;
+              }
+            } catch (error) {
+              state.inspection = {
+                replay: selected || { imported_thread_id: restoredDraft.selectedThreadId },
+                diagnostics: [{
+                  step: "inspection",
+                  message: error instanceof Error ? error.message : String(error),
+                }],
+              };
+              const saved = state.selectedThreads.find((entry) => entry.id === restoredDraft.selectedThreadId)?.draft;
+              state.reviewDraft = normalizeReviewDraft(saved?.reviewDraft || restoredDraft.reviewDraft) || reviewDraftFromConfiguration();
+              if (!saved) state.reviewDraft.request = "";
+              else state.classifications = { ...saved.classifications };
+              setSelectedModels(state.selectedModels);
+              state.promptGeneration = saved?.promptGeneration || "concatenated_fallback";
+              state.step = "configure";
+              state.error = "";
+            }
+          }
+        } catch (error) {
+          state.error = error instanceof Error ? error.message : String(error);
+          state.hostReady = false;
+        } finally {
+          draftPersistenceReady = state.hostReady;
+          if (threadGeneration === threadLoadGeneration) state.loading = false;
+          render({ focus: true });
+        }
+        if (synthesis) {
+          void synthesizePrompt(synthesis.threadId, synthesis.fallbackRequest);
+        }
+        if (state.pendingUnitKeys.length) await advanceChunkQueue();
+        if (!state.run && state.selectedThreadId && !text(state.reviewDraft?.repo)) {
+          void inferWorkingDirectory(state.selectedThreadId);
+        }
+      }
+
+      async function selectThread(id, number, { selected: suppliedThread, saved } = {}) {
+        if (state.busy || state.run) return;
+        const selected = suppliedThread || state.threads.find((thread) => threadId(thread) === id);
+        if (!selected) return;
+        if (!suppliedThread) state.selectedThreads = [{ id, number, thread: selected, draft: null }];
+        let fallbackRequest = "";
+        let shouldSynthesize = false;
+        state.busy = "inspection";
+        state.error = "";
+        state.notice = "";
+        state.selectedThreadId = id;
+        state.selectedThreadNumber = Number.isInteger(number) && number > 0 ? number : 0;
+        state.selectedThread = selected;
+        state.replayMode = "whole";
+        state.actionableTurns = [];
+        state.dividers = [];
+        state.activeUnitKey = "";
+        state.unitDrafts = {};
+        state.wholeDraft = null;
+        state.attributionEdits = [];
+        state.pendingUnitKeys = [];
+        state.unitRuns = {};
+        state.submittingUnitKey = "";
+        state.inspection = null;
+        state.classifications = Object.create(null);
+        state.reviewDraft = null;
+        state.configurationStep = 0;
+        state.configurationMaxStep = 0;
+        state.configurationDetailsOpen = false;
+        state.reviewRevision += 1;
+        state.promptGeneration = "";
+        state.promptEditRevision = 0;
+        state.promptSynthesisGeneration += 1;
+        state.workingDirectoryEditRevision = 0;
+        state.workingDirectoryGeneration += 1;
+        state.workingDirectoryLoading = false;
+        state.preparation = null;
+        render();
+        try {
+          const payload = await callTool("inspect_thread", { thread_id: id });
+          state.inspection = payload;
+          state.actionableTurns = asArray(payload.replay?.actionable_user_turns || payload.thread?.actionable_user_turns);
+          const models = normalizeModels(payload.models);
+          if (models.length) state.models = models;
+          setSelectedModels(state.selectedModels);
+          initializeClassifications();
+          state.reviewDraft = reviewDraftFromConfiguration();
+          if (saved?.reviewDraft) {
+            state.reviewDraft = normalizeReviewDraft({ ...state.reviewDraft, ...saved.reviewDraft, thread_id: id });
+            for (const file of inspectionParts().files) {
+              if (file.selectable !== false && saved.classifications[file.path]) {
+                state.classifications[file.path] = saved.classifications[file.path];
+              }
+            }
+            state.configurationDetailsOpen = saved.detailsOpen;
+            state.attributionEdits = saved.attributionEdits;
+            setSelectedModels(state.selectedModels);
+          }
+          fallbackRequest = text(payload.replay?.request || payload.thread?.request);
+          state.promptGeneration = saved?.promptGeneration || text(
+            payload.replay?.request_generation?.method ||
+            payload.thread?.request_generation?.method,
+            "concatenated_fallback"
+          );
+          shouldSynthesize = !id.startsWith("claude-sample:") && state.promptGeneration === "pending";
+          state.workingDirectoryLoading = !id.startsWith("claude-sample:") && !saved?.reviewDraft?.repo;
+          state.step = "configure";
+        } catch (error) {
+          state.inspection = {
+            replay: selected,
+            diagnostics: [{
+              step: "inspection",
+              message: error instanceof Error ? error.message : String(error),
+            }],
+          };
+          initializeClassifications();
+          state.reviewDraft = normalizeReviewDraft(saved?.reviewDraft) || reviewDraftFromConfiguration();
+          if (saved) {
+            state.classifications = { ...saved.classifications };
+            state.attributionEdits = saved.attributionEdits;
+            state.configurationDetailsOpen = saved.detailsOpen;
+            setSelectedModels(state.selectedModels);
+          }
+          if (isThreadBatch()) state.error = error instanceof Error ? error.message : String(error);
+          state.promptGeneration = saved?.promptGeneration || "concatenated_fallback";
+          state.workingDirectoryLoading = !id.startsWith("claude-sample:") && !saved?.reviewDraft?.repo;
+          state.step = "configure";
+        } finally {
+          state.busy = "";
+          render({ focus: true });
+        }
+        await Promise.all([
+          shouldSynthesize ? synthesizePrompt(id, fallbackRequest) : Promise.resolve(),
+          !id.startsWith("claude-sample:") && !saved?.reviewDraft?.repo
+            ? inferWorkingDirectory(id) : Promise.resolve(),
+        ]);
+      }
+
+      async function refreshAttributionAndContinue() {
+        state.busy = "attribution";
+        state.preparation = null;
+        state.error = "";
+        state.notice = "";
+        const reviewRevision = state.reviewRevision;
+        render();
+        try {
+          const preparation = await callTool("prepare_run", reviewPayload());
+          if (
+            reviewRevision !== state.reviewRevision ||
+            state.step !== "configure" ||
+            !state.reviewDraft
+          ) return;
+          applyPreparationInspection(preparation);
+          state.preparation = null;
+          saveDraft();
+        } catch (error) {
+          if (reviewRevision === state.reviewRevision && state.step === "configure") {
+            state.error = error instanceof Error ? error.message : String(error);
+          }
+        } finally {
+          state.busy = "";
+          render({ focus: true });
+        }
+      }
+
+      function previousConfigurationStep() {
+        state.step = "thread";
+        state.error = "";
+        state.notice = "";
+        saveDraft();
+        render({ focus: true });
+      }
+
+      async function prepareRun({ autoStart = true } = {}) {
+        if (autoStart && state.replayMode === "chunks" && !allUnitsConfigured()) return;
+        if (selectionNeedsRefresh()) {
+          await refreshAttributionAndContinue();
+          if (selectionNeedsRefresh()) return;
+          if (
+            inspectionParts().files.length &&
+            selectionPayload().confirm_file_selection !== true
+          ) {
+            state.configurationDetailsOpen = true;
+            state.notice = "Repository changes were refreshed. Review historical output before starting.";
+            render({ focus: true });
+            return;
+          }
+        }
+        const problems = reviewProblems();
+        if (problems.length) {
+          state.error = "";
+          state.notice = "";
+          render({ focus: true });
+          return;
+        }
+        if (state.promptGeneration === "pending") {
+          state.promptSynthesisGeneration += 1;
+          state.promptGeneration = "concatenated_fallback";
+          recordPromptGeneration({ method: "concatenated_fallback" });
+        }
+        state.busy = "prepare";
+        state.preparation = null;
+        state.error = "";
+        state.notice = "";
+        const reviewRevision = state.reviewRevision;
+        const configuration = reviewPayload();
+        let shouldStart = false;
+        render();
+        try {
+          const preparation = await callTool("prepare_run", configuration);
+          if (
+            reviewRevision !== state.reviewRevision ||
+            state.step !== "configure" ||
+            !state.reviewDraft
+          ) return;
+          state.preparation = preparation;
+          applyPreparationInspection(preparation);
+          shouldStart = preparationReady();
+        } catch (error) {
+          if (reviewRevision === state.reviewRevision && state.step === "configure") {
+            state.error = error instanceof Error ? error.message : String(error);
+          }
+        } finally {
+          state.busy = "";
+          if (shouldStart && autoStart) await startRun();
+          else render({ focus: true });
+        }
+      }
+
+      async function startRun() {
+        if (state.replayMode === "chunks" && !allUnitsConfigured()) return;
+        if (!preparationReady()) return;
+        state.busy = "start";
+        state.error = "";
+        state.notice = "";
+        startPending = true;
+        const unit = activeUnit();
+        if (unit) { state.submittingUnitKey = unit.key; saveDraft(); }
+        else clearDraft();
+        render();
+        try {
+          const approvedRunConfiguration = { ...approvedConfiguration() };
+          if (unit) {
+            delete approvedRunConfiguration.message_uuid;
+            Object.assign(approvedRunConfiguration, rangeParameters());
+          }
+          const payload = await callTool("start_run", {
+            ...approvedRunConfiguration,
+            approved: true,
+            prepare_token: text(
+              state.preparation?.prepare_token ||
+              state.preparation?.approval?.prepare_token
+            ),
+          });
+          const launched = asArray(payload.runs).length ? payload.runs : [payload];
+          const newRuns = launched.flatMap((item) => {
+            const run = ownedRunRecord(item);
+            const id = currentRunId(item);
+            return run && id ? [{ id, run, model: text(item.model || run.model), unitNumber: unit?.number }] : [];
+          });
+          const errors = asArray(payload.errors).filter(isObject).map((error) => ({ ...error, unitNumber: unit?.number }));
+          state.runErrors = unit ? [...state.runErrors, ...errors] : errors;
+          if (!newRuns.length) {
+            throw new Error("The controller started no durable run.");
+          }
+          state.runs = unit ? [...state.runs, ...newRuns] : newRuns;
+          if (unit) {
+            state.unitRuns[unit.key] = newRuns.map(({ id }) => id);
+            state.submittingUnitKey = "";
+          }
+          activateRun(newRuns[0].id);
+          rememberActiveRun(state.runId);
+          state.step = "run";
+          if (!unit) clearDraft();
+          restoredDraft = null;
+          startPending = false;
+          state.busy = "";
+          render({ focus: true });
+          if (!chunkLaunchActive()) beginPolling();
+        } catch (error) {
+          startPending = false;
+          if (unit) state.pendingUnitKeys = [];
+          state.error = error instanceof Error ? error.message : String(error);
+          state.busy = "";
+          render();
+        }
+      }
+
+      async function refreshRun({ continuePolling = false } = {}) {
+        if((!state.runId&&!state.batchId)||state.busy==="run"||chunkLaunchActive())return;
+        state.busy="run";
+        try {
+          const previouslyCompleted = new Set(state.runs.filter((entry) => successfulRunStatus(entry.run?.status)).map((entry) => entry.id));
+          if (state.batchId && (state.batch?.starting || !state.run)) {
+            const payload = await callTool("get_state", state.runId ? {run_id: state.runId} : {});
+            const snapshot = payload.state || payload;
+            restoreBatch(snapshot);
+            for (const record of asArray(snapshot.recent_runs).filter((run) => run.batch_id === state.batchId && run.launch_failed !== true)) {
+              const run = ownedRunRecord(record), id = currentRunId(record);
+              const entry = state.runs.find((item) => item.id === id);
+              if (entry) entry.run = run;
+              else state.runs.push({id, run, model: text(run.model)});
+            }
+            if (!state.runId && state.runs.length) {
+              activateRun(state.runs[0].id);
+              rememberActiveRun(state.runId);
+            }
+          }
+          const pending=state.runs.filter(e=>!terminalRunStatus(e.run?.status));
+          const updates=await Promise.allSettled(pending.map(async e=>{
+            const run=ownedRunRecord(await callTool("get_run",{run_id:e.id}));
+            if(run)e.run=run;
+          }));
+          const failure=updates.find(r=>r.status==="rejected");
+          state.error=failure?String(failure.reason?.message||failure.reason):"";
+          // A later model review can revise already completed model siblings.
+          const reviewGroup = (entry) => JSON.stringify([entry.run?.thread_id, entry.run?.source_path,
+            entry.run?.prepare_token_hash, entry.run?.start_message_uuid, entry.run?.end_message_uuid]);
+          const changedGroups = new Set(state.runs.filter((entry) => successfulRunStatus(entry.run?.status) && !previouslyCompleted.has(entry.id)).map(reviewGroup));
+          for (const entry of state.runs) {
+            if (entry.report && changedGroups.has(reviewGroup(entry))) entry.needsReportRefresh = true;
+          }
+          const reports = await Promise.allSettled(state.runs.filter(e=>
+            successfulRunStatus(e.run?.status)&&(!e.report||e.needsReportRefresh)
+          ).map(async e=>{
+            const p=await callTool("get_report",{run_id:e.id});
+            e.report=isObject(p.report)?p.report:p;
+            e.reportPaths={report_json:text(p.report_json),report_html:text(p.report_html)};
+            e.needsReportRefresh=false;
+          }));
+          const reportFailure = reports.find((result) => result.status === "rejected");
+          if (reportFailure) state.error = `A comparison report could not be loaded. Retrying automatically. ${String(reportFailure.reason?.message || reportFailure.reason)}`;
+          activateRun(state.runId);
+        } catch (error) {
+          state.error=error instanceof Error?error.message:String(error);
+        } finally {
+          state.busy="";
+          render();
+        }
+        const running=state.batch?.starting || state.runs.some(e=>!terminalRunStatus(e.run?.status));
+        if (state.pendingUnitKeys.length && await advanceChunkQueue()) return;
+        const pending=running||state.runs.some(e=>successfulRunStatus(e.run?.status)&&(!e.report||e.needsReportRefresh));
+        if(!running&&state.runs.some(e=>e.report)){
+          if(!state.report && state.step === "run")activateRun(state.runs.find(e=>e.report).id);
+          if(state.step==="run")state.step="results";
+          render({focus:true});
+          if(!pending)return;
+        }
+        if(continuePolling&&pending)schedulePoll();
+      }
+
+      async function cancelRun(id = state.runId) {
+        const entry = state.runs.find((item) => item.id === id);
+        if (!entry || terminalRunStatus(entry.run?.status) || state.busy) return;
+        state.pendingUnitKeys = [];
+        state.pollGeneration += 1;
+        state.busy = "cancel";
+        state.error = "";
+        render();
+        try {
+          const payload = await callTool("cancel_run", { run_id: id });
+          const run = ownedRunRecord(payload);
+          if (run) entry.run = run;
+          activateRun(state.runId);
+        } catch (error) {
+          state.error = error instanceof Error ? error.message : String(error);
+        } finally {
+          state.busy = "";
+          render({ focus: true });
+        }
+        if (state.runs.some((item) => !terminalRunStatus(item.run?.status))) beginPolling();
+        else if (state.runs.some((item) => successfulRunStatus(item.run?.status))) {
+          await refreshRun();
+        }
+      }
+
+      function schedulePoll() {
+        const generation = state.pollGeneration;
+        window.setTimeout(() => {
+          if (generation !== state.pollGeneration) return;
+          refreshRun({ continuePolling: true });
+        }, 1800);
+      }
+
+      function beginPolling() {
+        state.pollGeneration += 1;
+        schedulePoll();
+      }
+
+      async function loadReport({ navigate = true, runId = state.runId } = {}) {
+        if (!runId || state.busy === "report") return;
+        state.busy = "report";
+        state.error = "";
+        render();
+        try {
+          const payload = await callTool("get_report", { run_id: runId });
+          const report = isObject(payload.report) ? payload.report : payload;
+          if (!isObject(report)) throw new Error("The report response was empty.");
+          const entry = state.runs.find((item) => item.id === runId);
+          if (!entry) throw new Error("The replay no longer exists.");
+          entry.report = report;
+          entry.reportPaths = {
+            report_json: text(payload.report_json),
+            report_html: text(payload.report_html),
+          };
+          activateRun(runId);
+          if (navigate && state.step === "run") state.step = "results";
+          if (!state.runs.some((item) => !terminalRunStatus(item.run?.status))) {
+            state.pollGeneration += 1;
+          }
+        } catch (error) {
+          state.error = error instanceof Error ? error.message : String(error);
+        } finally {
+          state.busy = "";
+          render({ focus: navigate && state.step === "results" });
+        }
+      }
+
+      async function copyReportPath() {
+        const value = text(state.reportPaths?.report_json);
+        if (!value) return;
+        try {
+          await navigator.clipboard.writeText(value);
+          state.notice = "Report path copied.";
+        } catch {
+          state.error = "Clipboard access is unavailable. Select the report path shown on the page.";
+        }
+        render();
+      }
+
+      async function downloadReport(format) {
+        if (!state.runId || !["json", "html"].includes(format)) return;
+        try {
+          const response = await fetch("/api/download", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ run_id: state.runId, format }),
+          });
+          if (!response.ok) {
+            let detail = "";
+            try {
+              const payload = await response.json();
+              detail = text(payload.error || payload.content?.[0]?.text);
+            } catch {
+              // Fall back to the status message.
+            }
+            throw new Error(detail || `The report download failed (${response.status}).`);
+          }
+          const url = URL.createObjectURL(await response.blob());
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `codex-replay-${state.runId}-report.${format}`;
+          document.body.append(link);
+          try {
+            link.click();
+          } finally {
+            link.remove();
+            URL.revokeObjectURL(url);
+          }
+          state.error = "";
+          state.notice = `${format.toUpperCase()} report download started.`;
+        } catch (error) {
+          state.error = error instanceof Error ? error.message : String(error);
+        }
+        render();
+      }
+
+      app.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-action]");
+        if (!target || target.disabled) return;
+        const action = target.dataset.action;
+        if (action === "retry-init") initialize();
+        if (action === "refresh-threads") loadThreads(state.query);
+        if (action === "load-more-threads") loadThreads(state.query, { append: true });
+        if (action === "thread-source") {
+          state.threadSource = target.dataset.source || "imported";
+          state.query = "";
+          loadThreads();
+        }
+        if (action === "select-thread") {
+          selectThread(target.dataset.threadId || "", Number(target.dataset.threadNumber));
+        }
+        if (action === "configure-selected") configureSelectedThreads();
+        if (action === "configure-thread") selectBatchThread(target.dataset.threadId);
+        if (action === "thread-results") selectThreadResult(target.dataset.threadId);
+        if (action === "aggregate-results") {
+          state.batchView = "aggregate";
+          state.step = "results";
+          render({ focus: true });
+        }
+        if (action === "replay-mode") changeReplayMode(target.dataset.mode);
+        if (action === "toggle-divider") toggleDivider(target.dataset.messageUuid);
+        if (action === "edit-unit") editReplayUnit(target.dataset.unitKey);
+        if (action === "select-chunk-result") selectChunkResult(Number(target.dataset.unitNumber));
+        if (action === "configuration-back") previousConfigurationStep();
+        if (action === "refresh-files") refreshAttributionAndContinue();
+        if (action === "approve-configuration") {
+          if (isThreadBatch()) startThreadBatch();
+          else if (state.replayMode === "chunks") startChunks();
+          else prepareRun();
+        }
+        if (action === "refresh-run") refreshRun();
+        if (action === "cancel-run") cancelRun(target.dataset.runId || state.runId);
+        if (action === "load-report") loadReport();
+        if (action === "select-run") {
+          activateRun(target.dataset.runId || "");
+          rememberActiveRun(state.runId);
+          state.step = state.report ? "results" : "run";
+          if (state.report) state.batchView = "individual";
+          render({ focus: true });
+        }
+        if (action === "copy-report-path") copyReportPath();
+        if (action === "download-report") downloadReport(target.dataset.format || "");
+        if (action === "go-step") {
+          const step = target.dataset.step;
+          if (!step || !canNavigateTo(step)) return;
+          if (step === "configure" && state.replayMode === "chunks") {
+            editReplayUnit(state.activeUnitKey);
+            return;
+          }
+          state.error = "";
+          state.notice = "";
+          if (step === "results" && !state.report && !isThreadBatch()) {
+            activateRun(state.runs.find((entry) => entry.report)?.id);
+          }
+          state.step = step;
+          render({ focus: true });
+        }
+      });
+
+      app.addEventListener("toggle", (event) => {
+        if (event.target.id === "configuration-details") {
+          state.configurationDetailsOpen = event.target.open;
+        }
+      }, true);
+
+      app.addEventListener("input", (event) => {
+        const target = event.target;
+        if (state.batchPreparing) return;
+        if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+        if (target.id === "thread-search") {
+          state.query = target.value;
+          loadThreads(state.query, { debounce: true });
+        }
+        const reviewFields = {
+          "review-model": "model",
+          "review-message-uuid": "message_uuid",
+          "review-request": "request",
+          "review-repo": "repo",
+          "review-baseline-commit": "baseline_commit",
+          "review-ending-commit": "ending_commit",
+        };
+        const reviewKey = reviewFields[target.id];
+        if (reviewKey && state.reviewDraft) {
+          state.reviewDraft[reviewKey] = target.value;
+          if (reviewKey === "model") setSelectedModels([target.value]);
+          if (reviewKey === "request") state.promptEditRevision += 1;
+          if (reviewKey === "repo") state.workingDirectoryEditRevision += 1;
+          invalidateReviewPreparation();
+          saveDraft();
+          const ranges = app.querySelector(".range-selection");
+          if (ranges && state.replayMode === "chunks") ranges.outerHTML = renderRangeSelection();
+          const confirmation = app.querySelector("#configuration-confirmation");
+          if (confirmation) {
+            const problems = reviewProblems();
+            confirmation.innerHTML = problems.length || replayDetailsLoading()
+              ? ""
+              : renderConfigurationConfirmation(
+                  normalizeReviewDraft(state.reviewDraft),
+                  inspectionParts().capabilities
+                );
+          }
+          const startButton = app.querySelector('[data-action="approve-configuration"]');
+          if (startButton) {
+            startButton.disabled = Boolean(state.busy) || replayDetailsLoading() ||
+              reviewProblems().length > 0 ||
+              (state.replayMode === "chunks" && (!remainingUnits().length || Boolean(state.submittingUnitKey)));
+          }
+        }
+      });
+
+      app.addEventListener("change", (event) => {
+        const target = event.target;
+        if (state.batchPreparing) return;
+        if (!(
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLSelectElement ||
+          target instanceof HTMLTextAreaElement
+        )) return;
+        state.error = "";
+        state.notice = "";
+        if (target.dataset.threadSelection) {
+          toggleThreadSelection(target.dataset.threadSelection, Number(target.dataset.threadNumber));
+          return;
+        }
+        if (["review-repo", "review-baseline-commit", "review-ending-commit", "review-message-uuid"].includes(target.id)) {
+          render();
+          return;
+        }
+        if (target.dataset.modelVariant && state.reviewDraft) {
+          setSelectedModels(target.checked
+            ? [...state.selectedModels, target.dataset.modelVariant]
+            : state.selectedModels.filter((id) => id !== target.dataset.modelVariant));
+          invalidateReviewPreparation();
+          saveDraft();
+          render();
+          return;
+        }
+        if (target.id === "review-beginning-kind" && state.reviewDraft) {
+          state.reviewDraft.beginning_kind = target.value;
+          if (target.value === "git") state.reviewDraft.ending_kind = "git";
+          invalidateReviewPreparation();
+          render();
+          return;
+        }
+        if (target.id === "review-ending-kind" && state.reviewDraft) {
+          state.reviewDraft.ending_kind = target.value;
+          invalidateReviewPreparation();
+          render();
+          return;
+        }
+        if (target.dataset.fileKind === "git") {
+          state.classifications[target.dataset.path] = target.checked ? "claude" : "exclude";
+          state.attributionEdits = stringList([...state.attributionEdits, target.dataset.path]);
+          invalidateConfigurationReview();
+          render();
+          return;
+        }
+        if (target.dataset.fileKind === "non_git") {
+          state.classifications[target.dataset.path] = target.value;
+          state.attributionEdits = stringList([...state.attributionEdits, target.dataset.path]);
+          invalidateConfigurationReview();
+          render();
+        }
+      });
+
+      window.addEventListener("pagehide", () => {
+        saveDraft();
+        stopControllerHeartbeat();
+      });
+      window.addEventListener("pageshow", (event) => {
+        if (event.persisted && state.hostReady) {
+          startControllerHeartbeat();
+        }
+      });
+
+      initialize();
+    })();
+  </script>
+</body>
+</html>

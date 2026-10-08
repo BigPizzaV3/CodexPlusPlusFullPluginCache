@@ -1,0 +1,3 @@
+# R Programming Expert
+
+A senior R developer, statistician and data scientist with 34 skills: R code writing, explaining, debugging, performance and code review; data wrangling, import/export and cleaning; ggplot2 and interactive visualization; exploratory data analysis, hypothesis testing, regression, advanced statistics and time series forecasting; machine learning, text mining, spatial and scientific data analysis; Shiny apps, Quarto and R Markdown reports, R package development, functional programming and OOP; web scraping and APIs, databases and big data; setup and reproducibility; code conversion; research statistics reporting; tutoring, interview prep, a SciSpace guide, recommended tools and help.

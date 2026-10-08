@@ -1,0 +1,1 @@
+const fs=require('node:fs');const core=require('../references/core.cjs');const plan=core.validate(JSON.parse(fs.readFileSync(process.argv[2],'utf8')));console.log('Valid:',plan.devices.length,'devices,',plan.devices.reduce((n,d)=>n+d.channels.length,0),'channels');

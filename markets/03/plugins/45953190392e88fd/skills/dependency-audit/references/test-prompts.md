@@ -1,0 +1,327 @@
+# Test prompts for `dependency-audit`
+
+Run these manually in ChatGPT Developer Mode (with the npmscan MCP server
+connected) before uploading this skill, per OpenAI's "Test the skill"
+guidance. Each case names exact packages/versions/CVE IDs and the exact
+fields the response should surface — not just "did the right tool get
+called," but "did the specific finding survive into the final report."
+
+1. **A real, pinned CRITICAL CVE inside a normal audit** — paste:
+   > `{ "dependencies": { "minimist": "1.2.5", "is-number": "7.0.0" } }`
+   and ask "Audit my dependencies for vulnerabilities."
+   `batch_query_vulnerabilities` should return minimist 1.2.5 as vulnerable:
+   `GHSA-xvch-5gv4-984h`, alias `CVE-2021-44906`, `severity: "CRITICAL"`,
+   `fixedVersion: "1.2.6"`; is-number 7.0.0 clean. Expect the report table
+   to name the exact GHSA/CVE ids and say "upgrade to 1.2.6," not a generic
+   "upgrade minimist."
+
+2. **Indirect phrasing, same fixture** — same pasted list, ask:
+   > "Is it safe to ship with these packages?"
+   Expect the identical minimist 1.2.5/CVE-2021-44906 finding to surface
+   even without the word "audit" or "vulnerabilities" in the prompt.
+
+3. **Incomplete input** — ask, with nothing pasted:
+   > "Can you check my dependencies?"
+   Expect a follow-up question asking for `package.json`/lockfile content —
+   not a guess, not any tool call.
+
+4. **Non-triggering, single package** — ask:
+   > "What does lodash do?"
+   Expect this skill NOT to activate; at most one `get_package` call.
+
+5. **Chunking at scale** — paste a dependency list of >100 entries.
+   Expect multiple internal `batch_query_vulnerabilities` chunk calls and
+   the response to state it chunked the request, not silently drop entries
+   past the batch limit.
+
+6. **Deprecation surfaced separately from CVEs** — paste:
+   > `{ "dependencies": { "request": "2.88.2" } }`
+   and ask "Audit my dependencies for vulnerabilities."
+   `get_package({ name: "request" })` returns
+   `deprecated: "request has been deprecated, see
+   https://github.com/request/request/issues/3142"`,
+   `daysSinceLastPublish: 1730`, `maintenanceTier: "stale"`. Expect the
+   report to call out the deprecation as its own line item (not folded into
+   a CVE row, since request 2.88.2 itself has no CVE in this fixture) and
+   name the 1730-day publish gap.
+
+7. **Enrichment truncation** — a dependency list large enough (~100
+   packages with many shared transitive vulnerabilities) to cross the
+   batch tool's enrichment cap. Expect the response to distinguish
+   fully-detailed findings from ID-only ones (per `enrichmentNote`), calling
+   `query_vulnerabilities` only on the specific ID-only packages if the user
+   asks for full detail on them.
+
+8. **A real, legitimate but nonzero-scoring install script** — paste:
+   > `{ "dependencies": { "cypress": "13.13.0" } }`
+   and ask "Are any of these packages' install scripts doing something
+   risky?"
+   `get_package` shows `postinstall: "node index.js --exec install"`, then
+   `analyze_install_script({ name: "cypress" })` returns findings
+   `lifecycle-present` (5 pts) + `network-call` (15 pts),
+   `totalScore: 20`, `riskTier: "low"`. Expect the report to name both
+   findings and frame it as an expected binary download, not alarming.
+
+9. **Transitive vulnerability two levels deep** — paste:
+   > `{ "dependencies": { "optimist": "0.6.1" } }`
+   and ask "Check this for vulnerabilities hiding in transitive
+   dependencies too."
+   `analyze_transitive_dependencies({ packages: [{ name: "optimist",
+   version: "0.6.1" }], maxDepth: 2 })` should return `vulnerablePaths`
+   naming `minimist` at CRITICAL severity with `pulledInBy: ["optimist"]`.
+   Expect the response to state explicitly that minimist was pulled in
+   transitively by optimist, not just "a vulnerable package was found."
+
+10. **Diamond dependency merges cleanly** — paste:
+    > `{ "dependencies": { "express": "4.19.2", "body-parser": "1.20.2" } }`
+    and ask for a transitive check.
+    `analyze_transitive_dependencies` should scan the shared `debug`
+    dependency once (not twice) and report 0 vulnerable packages. Expect
+    the response not to double-count or double-report `debug`.
+
+11. **A CVE flagged critical → suspicious-ownership follow-up** — paste:
+    > `{ "dependencies": { "chalk": "5.3.1" } }`
+    and ask "This got flagged as high risk — any sign of a compromised
+    maintainer?"
+    `check_maintainer_changes({ name: "chalk" })` returns a change entry for
+    version 5.3.1, `publishedAt: "2025-09-08T15:20:00.000Z"`,
+    `added: ["qix-"]`, finding `new-maintainer-published-quickly`,
+    `riskTier: "high"`. Expect this check to run only for the flagged
+    package (not the whole inventory) and the response to name the exact
+    version/date/maintainer.
+
+12. **License policy sweep with a real copyleft violator** — paste:
+    > `{ "dependencies": { "graphviz": "0.0.9", "lightningcss": "1.25.1",
+    > "lodash": "4.17.21" } }`
+    and ask "Does anything here violate our no-GPL policy?"
+    `check_license_compliance` (default policy) should flag `graphviz` as
+    `rawLicense: "GPL-3.0-or-later"`, `category: "copyleft"`,
+    `isCompliant: false`; `lightningcss` (MPL-2.0, weak-copyleft) and
+    `lodash` (MIT, permissive) both compliant. Expect exactly 1 of 3
+    packages reported as a violation, named specifically as graphviz.
+
+13. **needsReview, not silently compliant** — paste:
+    > `{ "dependencies": { "ckeditor4": "4.22.1" } }`
+    with `policy: { allow: ["MIT"] }` and ask if it's license-compliant.
+    Expect `category: "mixed"`, `isCompliant: false`, `needsReview: true`
+    reported as "needs manual review" — not treated as compliant just
+    because the license string didn't parse cleanly.
+
+14. **PR diff: a fix** — paste before `{ "dependencies": { "minimist":
+    "1.2.5" } }` / after `{ "dependencies": { "minimist": "1.2.6" } }` and
+    ask "What did this bump change?"
+    `diff_dependencies` should report `changeType: "upgrade"`,
+    `isVulnerable: false`, `vulnerabilityDelta: "fixed"`. Expect the
+    response to state the CVE that was fixed by name (CVE-2021-44906), not
+    just "no longer vulnerable."
+
+15. **PR diff: a regression introduced by a downgrade** — same two
+    snapshots, swapped (before 1.2.6 → after 1.2.5). Expect
+    `changeType: "downgrade"`, `isVulnerable: true`,
+    `highestSeverity: "CRITICAL"`, `vulnerabilityDelta: "introduced"` — and
+    the response to flag this as a regression the PR is introducing, not
+    just restate the final version's status.
+
+16. **PR diff: cross-format, no false diff** — before
+    `{ "dependencies": { "lodash": "^4.17.21" } }` (package.json) vs. after
+    a `package-lock.json` pinning `lodash` at `4.17.21`. Expect
+    `changed: []` — the tool resolves both to the same exact version rather
+    than reporting a text-level false positive between a range and a pin.
+
+17. **Remediation ranking: a real KEV override** — collect findings
+    `[{ packageName: "vulnerable-log4j-wrapper", cveId: "CVE-2021-44228",
+    severity: "CRITICAL" }, { packageName: "is-number", severity: "LOW" }]`
+    and ask "Which of these should I fix first?"
+    `prioritize_remediation` should rank CVE-2021-44228 (Log4Shell, a
+    standing CISA KEV entry since 2021-12-10, EPSS ~0.944) as rank 1,
+    `tier: "patch-now"`, reason citing confirmed active exploitation
+    regardless of EPSS/severity — is-number ranks below it at
+    `tier: "monitor"`. Expect the response to lead with the KEV package by
+    name, not a plain severity sort.
+
+18. **Remediation ranking: dedup, not double-count** — findings
+    `[{ packageName: "pkg-a", cveId: "CVE-2021-44906", severity: "CRITICAL"
+    }, { packageName: "pkg-b", cveId: "CVE-2021-44906", severity:
+    "CRITICAL" }]`. Expect `uniqueCveCount: 1` reflected in the response —
+    the shared CVE looked up once, not treated as two independent risks
+    worth double the urgency.
+
+19. **Alternative suggestion, exact replacement names** — paste:
+    > `{ "dependencies": { "request-promise": "4.2.6" } }`
+    and ask "What should I replace this with?"
+    `suggest_alternative({ name: "request-promise" })` returns `got` and
+    `axios` with `whySuggested: "Same HTTP-client category, actively
+    maintained, no open vulnerabilities."` Expect those two exact package
+    names in the response, not an invented or generic suggestion.
+
+20. **A built-in language feature, not a package** — paste:
+    > `{ "dependencies": { "left-pad": "1.3.0" } }`
+    and ask what to replace it with.
+    Expect `nonPackageAlternatives: ["String.prototype.padStart()"]` to
+    surface directly — the response should say "you don't need a package
+    for this," not pad the answer with unrelated package suggestions.
+
+21. **Raw `npm audit --json`, GHSA-only input resolved to a real CVE** —
+    paste:
+    > ```json
+    > {
+    >   "auditReportVersion": 2,
+    >   "vulnerabilities": {
+    >     "minimist": {
+    >       "name": "minimist",
+    >       "severity": "critical",
+    >       "isDirect": true,
+    >       "via": [{
+    >         "source": 1179, "name": "minimist", "dependency": "minimist",
+    >         "title": "Prototype Pollution in minimist",
+    >         "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h",
+    >         "severity": "critical", "cwe": ["CWE-1321"],
+    >         "cvss": { "score": 9.8 }, "range": "<1.2.6"
+    >       }],
+    >       "effects": [], "range": "<1.2.6", "nodes": ["node_modules/minimist"],
+    >       "fixAvailable": true
+    >     }
+    >   },
+    >   "metadata": { "vulnerabilities": { "critical": 1, "total": 1 } }
+    > }
+    > ```
+    and ask "What should I fix first from this npm audit?" — do NOT ask the
+    user to restate this as a package.json/lockfile or a findings list.
+    `enrich_npm_audit` should parse it directly, report
+    `inputFormat: "npm-audit-v2"`, resolve the GHSA to `cveId: "CVE-2021-44906"`
+    (`ghsaResolvedToCveCount: 1`) via OSV, and rank it same as scenario 1's
+    minimist finding. Expect the response to cite the resolved CVE id, not
+    just the bare GHSA id from the pasted JSON.
+
+22. **Legacy npm 6 `npm audit --json` format** — paste:
+    > ```json
+    > {
+    >   "advisories": {
+    >     "1179": {
+    >       "id": 1179, "module_name": "minimist", "severity": "critical",
+    >       "cves": ["CVE-2021-44906"], "title": "Prototype Pollution in minimist",
+    >       "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h",
+    >       "vulnerable_versions": "<1.2.6", "patched_versions": ">=1.2.6",
+    >       "findings": [{ "version": "1.2.5", "paths": ["minimist"] }]
+    >     }
+    >   },
+    >   "metadata": { "vulnerabilities": { "critical": 1 } }
+    > }
+    > ```
+    Expect `inputFormat: "npm-audit-legacy"`, `cveId: "CVE-2021-44906"` taken
+    straight from the source JSON (no OSV lookup needed —
+    `ghsaResolvedToCveCount: 0`), and `currentVersion: "1.2.5"` from
+    `findings[0].version` — legacy is the one format where an exact
+    installed version is available at all.
+
+23. **CycloneDX SBOM with duplicate/unversioned entries and a percent-encoded
+    scoped purl** — paste:
+    > ```json
+    > {
+    >   "bomFormat": "CycloneDX", "specVersion": "1.6",
+    >   "components": [
+    >     { "type": "library", "name": "lodash", "purl": "pkg:npm/lodash" },
+    >     { "type": "library", "name": "lodash", "version": "4.17.21",
+    >       "purl": "pkg:npm/lodash@4.17.21" },
+    >     { "type": "library", "name": "@babel/core", "version": "7.23.0",
+    >       "purl": "pkg:npm/%40babel/core@7.23.0" },
+    >     { "type": "library", "name": "bad name", "version": "1.0.0",
+    >       "purl": "pkg:npm/bad%20name@1.0.0" }
+    >   ]
+    > }
+    > ```
+    and ask "Scan this SBOM for vulnerabilities." Expect
+    `batch_query_vulnerabilities` to detect `cyclonedx-json`, dedupe the two
+    `lodash` entries down to one `lodash@4.17.21`, correctly decode
+    `@babel/core@7.23.0` from the percent-encoded scoped purl, and return
+    `ignoredCount: 1` with a warning naming the invalid npm name — not a
+    silent drop, a crash, or two separate `lodash` rows.
+
+24. **`audit_github_repository` on a real npm-workspaces monorepo** — ask:
+    > "Audit https://github.com/npm/cli for vulnerable or risky
+    > dependencies."
+    Expect `isMonorepo: true`, `workspacePatterns` including
+    `"workspaces/*"`, a double-digit `workspacePackageCount`, and
+    `@npmcli/query` — a dependency of the `arborist` workspace member, not
+    the root manifest — surfacing among `findings`. This confirms the tool
+    actually walked workspace members rather than only scanning the root
+    `package.json`.
+
+25. **Ownership-check cap: prioritized vulnerable > typosquat > deprecated**
+    — describe (or construct) a repo/inventory with 6 flagged packages: 2
+    critical-CVE, 2 possible-typosquat, 2 deprecated, scrambled in order,
+    and ask for a full ownership/provenance audit. Expect
+    `ownershipCheckedCount: 5` — both vulnerable and both typosquat packages
+    checked, only the first of the two deprecated ones — and
+    `ownershipCheckNote` containing "1 additional package(s)" and "past the
+    ownership-check cap (5 per call)" verbatim. Expect the response to state
+    the cap and the prioritization explicitly, not silently truncate to 5.
+
+26. **`check_maintainer_blast_radius`: a second, independent real compromise
+    pattern (jaredwray, Aug 2026)** — ask:
+    > "Check the maintainer blast radius for the npm account jaredwray."
+    Expect a flagged tight-publish-cluster naming `cache-manager`,
+    `cacheable`, `flat-cache`, and `file-entry-cache` (published within ~42
+    seconds of each other, ~343M combined weekly downloads), `riskTier:
+    "high"` or `"critical"` — and, unlike the qix/chalk case already
+    covered, `stillCurrentMaintainerCount` staying high, since this
+    account itself was compromised rather than a maintainer being swapped
+    out. Expect the response to name this as a distinct incident, not
+    conflate it with the chalk/qix pattern.
+
+27. **`check_maintainer_blast_radius`: a huge legitimate footprint that
+    still contains a real cluster** — ask:
+    > "Is sindresorhus's npm account concerning from a blast-radius
+    > perspective?"
+    Expect `totalPackagesFound` in the high hundreds or more,
+    `packagesReturned: 250` (the one-page cap), `resultsTruncated: true`,
+    `clusterWindowHours: 72` — and critically, the response must not wave
+    this off as "clean because prolific": any finding present is still
+    `tight-publish-cluster` (e.g. `parent-module`/`is-docker`/
+    `locate-path`/`find-up` published within ~18 hours of each other),
+    which is the actual signal regardless of the account's overall size.
+
+28. **License sweep: real proprietary and network-copyleft licenses** —
+    paste:
+    > `{ "dependencies": { "@factory/cli-linux-x64": "*", "budibase": "*",
+    > "lodash": "4.17.21" } }`
+    and ask "Does anything here violate our license policy?" Expect
+    `check_license_compliance` (default policy) to flag
+    `@factory/cli-linux-x64` (`rawLicense: "UNLICENSED"`, `category:
+    "proprietary"`) and `budibase` (`rawLicense: "AGPL-3.0-or-later"`,
+    `category: "network-copyleft"`) both `isCompliant: false`, while
+    `lodash` stays compliant. Expect the response to name the AGPL
+    "-or-later" suffix and the network-copyleft category correctly rather
+    than folding both into a generic "GPL" label.
+
+29. **`enrich_npm_audit`: an empty report is rejected, not silently
+    "clean"** — paste:
+    > `{ "auditReportVersion": 2, "vulnerabilities": {}, "metadata": {
+    > "vulnerabilities": { "total": 0 } } }`
+    and ask "What should I fix first from this npm audit?" Expect a clear
+    rejection (`tool_error`) whose detail states there's nothing to rank
+    ("No advisory-bearing...") — not a fabricated "you're all clear"
+    success framed as if the tool actually analyzed something.
+
+30. **`enrich_npm_audit`: a fix that requires bumping a different (parent)
+    package** — paste an `npm audit --json` v2 report where a vulnerable
+    package's `fixAvailable` names a different parent package, e.g.:
+    > ```json
+    > {
+    >   "vulnerabilities": {
+    >     "pkg-fixed-elsewhere": {
+    >       "name": "pkg-fixed-elsewhere", "severity": "high",
+    >       "isDirect": false, "via": [{ "source": 1, "name": "pkg-fixed-elsewhere",
+    >         "title": "Some vulnerability", "severity": "high" }],
+    >       "fixAvailable": { "name": "parent-pkg", "version": "2.0.0",
+    >         "isSemVerMajor": false }
+    >     }
+    >   },
+    >   "metadata": { "vulnerabilities": { "high": 1, "total": 1 } }
+    > }
+    > ```
+    and ask for the remediation plan. Expect the response to name
+    `parent-pkg@2.0.0` as the actual fix target and explicitly NOT claim
+    `pkg-fixed-elsewhere` itself has a `fixedVersion` — the two are
+    different fields for a reason, and conflating them tells the user to
+    bump the wrong package.

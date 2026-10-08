@@ -1,0 +1,435 @@
+# Technical Playbook
+
+Compressed reusable technical-analysis lessons. This reference is self-contained; private source paths, proprietary indicator names, and personal strategy labels are intentionally omitted.
+
+## 1. First Classify The Setup
+
+Before indicators, name the structure:
+
+- `强趋势延续`: price above key moving averages, pullbacks shallow, volume confirms advances.
+- `空中加油候选`: strong advance followed by high-level sideways/narrow consolidation; not valid until it avoids breakdown and breaks upward with volume.
+- `老鸭头候选`: short moving averages turn up through a longer average, then the pullback does not destroy the structure. When using this label, also name the stage: `鸭颈部`, `鸭头顶`, `鸭鼻孔`, or `鸭嘴`, and mark the current bias as `偏多`, `中性`, or `偏空`.
+- `回踩确认`: price pulls back to support, volume contracts on the pullback, rebounds with volume, and momentum does not deteriorate materially.
+- `冲高回落`: intraday high fails, price returns below pressure, volume is heavy but price no longer advances.
+- `高位分歧`: attention and volatility are high, leaders hesitate, followers weaken, or momentum diverges.
+- `破位反抽`: support is lost, rebound cannot reclaim the broken level with volume.
+- `突破回踩`: price breaks a channel, platform, or prior pressure zone, then pulls back without losing the breakout area; valid only after price holds or reclaims the breakout area with volume.
+- `均线支撑修复`: price tests a key average or neckline, avoids downside follow-through, then reclaims a short-term average.
+- `顶部回撤`: lower high, top fractal, repeated rejection, or momentum deterioration after a large rise.
+
+Do not call a move bullish just because it is green. A high green candle after an early spike may still be distribution if it cannot reclaim pressure with volume.
+
+## 2. Volume-Price Rules
+
+Volume is the cause, price is the result.
+
+- `放量上涨`: constructive when it breaks and stands above pressure.
+- `缩量上涨`: momentum may be insufficient, especially near pressure.
+- `放量不涨`: possible distribution or failed breakout.
+- `放量下跌`: real selling pressure, unless it is a panic low followed by immediate reclaim.
+- `缩量回踩`: can be healthy if support holds and the next rebound brings volume.
+
+Breakout rule:
+
+- A level is not truly broken by one wick.
+- Prefer a close above the level, especially on a 5-minute bar for intraday or daily close for swing.
+- Breakout should come with increased volume and better order-flow quality.
+- If price breaks above resistance then falls back quickly, treat it as an unconfirmed breakout.
+
+High-open rule:
+
+- A large high open needs follow-through.
+- If the open is more than 5% above the prior close and does not attract real buying, beware high-open fade.
+- If the stock rises alone while the sector or peers do not confirm, sustainability is weaker.
+
+Intraday timing cues:
+
+- Around 09:45, a very high volume ratio can mean real participation or early distribution; judge by whether price keeps advancing.
+- Around 13:15, the first afternoon lift should have volume; no volume often leads to pullback.
+- Around 14:50, a sudden late ramp can be fragile next day if unsupported by broader structure.
+
+Headline expectation gap:
+
+- For U.S. stocks with active news, compare `prior market expectation` versus `actual news`: expected outcome, actual outcome, whether it is above expectation, in line/landed, or below expectation. A positive headline can still pressure the stock if the market expected a larger number, faster timing, cleaner wording, or higher certainty.
+- If bullish news produces an early spike that fails below VWAP/short averages, loses the opening range, or prints lower highs with heavy volume, classify the setup as `sell-the-news / expectation gap` until the failed level is reclaimed with volume.
+- Apply the same framework to numeric and qualitative headlines. Numeric gaps include order size, guide, delivery pace, margins, and deal value. Qualitative gaps include management tone, regulatory language, approval certainty, timing, geopolitical wording, and whether the news solves the market's real concern.
+- Separate the fundamental read from the intraday tape: `positive for backlog/story` can coexist with `bearish intraday price action` when orders, deals, approvals, or political headlines do not immediately solve delivery, cash flow, margin, or execution concerns.
+
+## 3. Moving Averages And Vegas Framework
+
+Use multiple timeframes. Do not let a 1-minute chart overrule a damaged 5-minute or daily structure.
+
+Core moving average ideas:
+
+- 5-day line: short-term momentum. A quick reclaim after a break can be a washout; failure to reclaim is risk. Strong stocks often ride or quickly reclaim the 5-day line after shallow pullbacks.
+- 10-day line: healthy trend-pullback reference. A pullback to the 10-day line is usually higher quality than chasing an extended candle if volume does not expand on the decline.
+- 20-day line: institutional life line. Effective break plus failed reclaim implies trend damage.
+- 60-day line: medium-term structure. When it overlaps with a neckline, gap edge, or prior base, it becomes a major decision zone; a reclaim of the 5-day line after defending the 60-day line improves the repair signal.
+- Slope matters: the steeper the line after a large rise, the higher the reaction risk.
+- Support can become resistance after it is broken.
+
+Vegas-style channel framework:
+
+- `EMA144 / EMA169`: medium-term trend tunnel.
+- `EMA576 / EMA676`: long-term trend tunnel and major support/resistance.
+- `MA144 low` / `MA144L`: low-price support reference; treat it as a long-cycle support/resistance line, not a standalone signal.
+- `EMA5 / EMA21`: short-term momentum and pullback guide.
+
+Read:
+
+- Price above rising EMA144/169 and EMA576/676: trend is structurally strong.
+- EMA144 crossing above EMA169: medium-term bullish confirmation.
+- EMA144 crossing below EMA169: medium-term bearish warning.
+- Pullback to EMA144/169 that holds can be a setup; failure to reclaim it weakens the trend.
+
+EMA tunnel rebound-continuation setup:
+
+- Starts after a fast decline, rebound, and base-building phase around a medium-term EMA tunnel.
+- The useful signal is not the first bounce, but a later close back above the EMA144/169 area after the short-term averages compress.
+- Prefer to see two momentum confirmations: one near the initial low/rebound attempt and another near the later pullback or base tail. KDJ low-level crosses are useful here, especially if the second low is higher or selling volume contracts.
+- Treat the setup as continuation only after price reclaims the medium-term tunnel and holds; otherwise it is just a rebound inside a damaged trend.
+- Upside measurement can use the base width or prior pressure zones, but only after the breakout is confirmed.
+
+## 4. KDJ
+
+Base formula:
+
+- RSV uses close position inside recent high-low range.
+- K and D smooth RSV.
+- J = 3K - 2D.
+
+Use:
+
+- Low-level K crossing above D: possible rebound signal, stronger with support and volume.
+- High-level K crossing below D: short-term risk, especially after a big rise.
+- J below 10: extreme weakness/panic zone; look for reversal only after confirmation.
+- On 4-hour charts, J around `-12` to `-13` is an extreme oversold reference. It can justify stronger bottom-watch attention only when price defends support, selling weakens, or K/D starts turning up.
+- K above 90 and J above 100: overheated risk.
+- On 4-hour charts, J around `+110` to `+113` is an extreme overheated reference. Treat it as top-risk only when RSI is also overheated, MACD/price diverges, or price fails at resistance.
+- Price makes lower low while K makes higher low and K crosses D: bottom divergence candidate.
+- Price makes higher high while K makes lower high and D crosses above K: top divergence candidate.
+
+KDJ alone is not enough. In a strong trend it can stay high; in a weak trend it can keep failing.
+
+## 5. MACD
+
+Use MACD as trend and momentum confirmation.
+
+- DIF/DEA above zero and DIF crosses above DEA: stronger bullish signal.
+- DIF/DEA below zero and DIF crosses below DEA: stronger bearish signal.
+- Red bars turning smaller: upside momentum weakening.
+- Green bars turning smaller or flipping red: downside pressure easing.
+- Price makes a new high while MACD does not: top divergence risk.
+- Zero-axis context matters: a golden cross above zero is stronger than one below zero; a dead cross above zero can be only a pullback if key support holds.
+
+MACD-RSI-KDJ composite momentum check:
+
+- Bottom-risk/rebound area: MACD below zero, KDJ/J deeply depressed, and RSI low. This is not a buy signal by itself; require support defense, selling exhaustion, or a reclaim of a short-term average.
+- Strong rebound confirmation: MACD green bars shrink or flip, KDJ crosses up from low/mid levels, and RSI turns up from weak levels.
+- Top-risk area: MACD above zero, J above 80, RSI above 60-70, and K crossing below D after a sharp rise.
+- Trend exception: in a powerful trend, high RSI/KDJ can persist. Reduce exposure to oscillator-only conclusions unless price also fails at pressure, loses support, or prints momentum divergence.
+
+## 6. RSI
+
+RSI is a context indicator, not an automatic sell/buy switch.
+
+- RSI above 70 means overbought risk, but strong trends can stay overbought.
+- RSI below 30 means oversold, but weak stocks can stay weak.
+- Price new high with RSI not confirming is a warning.
+- Use RSI with moving averages, K-line structure, and volume.
+
+VWAP-based RSI:
+
+- Some chart setups use RSI calculated on VWAP rather than on raw close. Treat it as a measure of momentum relative to the market's volume-weighted trading center.
+- A practical default is length around 16, with roughly 18 as deeply oversold and 80 as overbought. These thresholds are references, not mechanical orders.
+- A cross back above the oversold line can mark selling exhaustion or a rebound attempt, especially if price defends support or reclaims VWAP/short averages.
+- A cross back below the overbought line can mark partial profit-taking or cooling after an extended move, especially if price also fails at resistance.
+- In a strong catalyst trend, VWAP-based RSI may stay high while price rides above VWAP. Do not treat overbought alone as bearish unless support conversion fails, volume-price stalls, or momentum diverges.
+- In a weak or falling trend, oversold rebounds are lower quality unless price reclaims VWAP and creates a higher low.
+
+## 7. Support And Resistance
+
+Support/resistance sources:
+
+- Prior high and prior low.
+- Intraday high/low after a large event.
+- VWAP and obvious volume-weighted areas.
+- 5/20-day moving averages.
+- Vegas EMA144/169 and EMA576/676.
+- Dense chip/volume areas.
+- Bollinger upper/lower bands if visible.
+
+Pressure rule:
+
+- Do not chase directly into major pressure.
+- A breakout needs volume and standing above the level.
+- A failed reclaim of prior support is resistance.
+
+Support rule:
+
+- A support is valid only if price reacts there and can reclaim short-term averages.
+- If support breaks with volume and cannot recover quickly, treat the trend as damaged.
+
+
+## 8. Price-Structure Scenario Library
+
+New-high healthy pullback:
+
+- Price has just broken to a new high.
+- The next candle is a small down candle or shallow pullback, but it does not lose the prior day open or the short moving-average cluster.
+- Volume does not show heavy selling.
+- Treat it as consolidation, not trend damage, until price loses the key average or quickly forms a lower high.
+
+Breakout-pullback:
+
+- Price first breaks a descending channel, platform upper edge, prior high, or daily channel boundary.
+- The first breakout is not the best proof; the pullback is the test.
+- A valid pullback holds the breakout area, 5-day/10-day line, prior neckline, or platform edge, then rebounds with volume.
+- If price falls back into the old platform or breaks the pullback low with volume, classify it as a failed breakout.
+
+60-day-line plus neckline support:
+
+- A test of the 60-day line is important when it overlaps with a prior neckline, gap edge, or base boundary.
+- This is a watch zone, not an automatic buy signal.
+- Confidence improves only if price avoids downside follow-through for several sessions and reclaims the 5-day line or VWAP/short averages intraday.
+- If the 60-day line breaks and a lower gap opens underneath, downside space can expand quickly.
+
+Top-pullback risk:
+
+- Lower highs after a large move show weakening rebound quality.
+- A top fractal, repeated upper shadows, MACD/KDJ deterioration, or a return into the prior box increases pullback risk.
+- Do not treat the first sharp drop as a bargain by default. Wait for support defense, bottom structure, shrinking selling volume, or a reclaim of short averages.
+
+Gap and neckline handling:
+
+- A gap is not automatically support or resistance. The useful question is whether price accepts or rejects the area after the first reaction.
+- A rising stock that refuses to fill an upside gap for several sessions may still be strong.
+- A broken neckline with an open gap below can turn a normal pullback into a deeper damage pattern.
+- A filled gap that immediately reclaims the gap edge is stronger than a fill that continues lower.
+
+Platform breakout target logic:
+
+- When price breaks a well-defined platform and then retests successfully, the first target can be prior pressure or a measured move using the platform height.
+- If price reaches the target or major pressure quickly, do not chase the last segment. Wait for a new pullback, retest, or higher-low structure.
+- A breakout that repeatedly moves up-down-up-down above the platform is usually healthier than a single spike that immediately falls back into the box.
+
+Execution realism:
+
+- Good trades have a clear structure, nearby invalidation, and enough room to the next pressure zone.
+- Let strong trend trades work longer, but keep invalidation shallow and explicit.
+- Size should follow clarity: unclear structures deserve small size or no trade; clear structures with nearby invalidation can justify more committed exposure.
+- Avoid using options or leveraged instruments to compensate emotionally for being under-positioned in the underlying. If options are illiquid, spreads are wide, IV is already inflated, or the chart is still unconfirmed, the underlying is usually cleaner than the option.
+
+## 9. 空中加油
+
+Definition:
+
+- A strong stock rises sharply, then consolidates at a high level instead of collapsing.
+- The consolidation is relatively narrow, volume does not show obvious distribution, and key support holds.
+- A renewed breakout must come with volume.
+
+Valid clues:
+
+- Price does not fall below the consolidation lower bound.
+- Pullback volume shrinks.
+- Rebound volume expands.
+- Moving averages remain in bullish order.
+- MACD/RSI do not clearly deteriorate.
+
+Invalid clues:
+
+- Long upper shadows keep appearing near the same pressure.
+- Volume rises but price cannot advance.
+- KDJ/MACD weaken while price holds only because of retail enthusiasm.
+- Key support breaks and cannot be reclaimed.
+
+## 10. 老鸭头
+
+Definition:
+
+- A trend-reversal or continuation shape that describes an uptrend, washout, and restart. The essence is: funds first lift price and build a bullish moving-average structure, then wash the trend without destroying the base, then start a second advance.
+- Use 5-day, 10-day, and 60-day moving averages as the default daily-chart frame. For intraday or weekly charts, map the same logic to comparable short/medium/long averages and state the timeframe.
+- Do not call the pattern complete from moving-average shape alone. It is only a candidate before the second advance confirms with price, volume, and support conversion.
+
+Stage map and bias:
+
+- `鸭颈部 / 主力建仓期`: 5-day and 10-day averages rise through the 60-day average with expanding or improving volume, and the averages begin a bullish order. Bias is `偏多观察`, but still unconfirmed if price has not broken a real pressure area.
+- `鸭头顶 / 震仓洗盘期`: after a fast advance, price pulls back from a local high and the 5-day average turns down through the 10-day average, forming a short-term dead cross. Bias is `中性偏弱` during the washout unless volume clearly contracts and price holds the 60-day/base area; if the pullback is heavy-volume and loses long-cycle support, downgrade to `偏空`.
+- `鸭鼻孔 / 洗盘结束信号`: after the 5-day/10-day dead cross, the 5-day average turns back up and crosses above the 10-day average again, forming a golden cross while price holds the base. Bias shifts to `中性偏多`; it is a setup signal, not a full breakout, unless price also reclaims the neckline/pressure area with volume.
+- `鸭嘴 / 主升浪开启期`: price restarts upward after the washout, the short averages lift away from the 60-day average, and price breaks or stands above the neckline/pressure area with volume. Bias is `偏多/多头确认`. If price spikes above pressure but cannot hold, keep it as `候选` rather than confirmed.
+
+Valid clues:
+
+- In `鸭颈部`, 5-day and 10-day averages cross above the 60-day average and all three begin to slope upward or at least flatten constructively.
+- In `鸭头顶`, pullback volume contracts, price does not lose the prior base, 60-day average, or key neckline area, and the decline looks like washout rather than trend destruction.
+- In `鸭鼻孔`, the 5-day average re-crosses above the 10-day average after the washout, and price starts to reclaim short-term resistance.
+- In `鸭嘴`, breakout over the neckline/pressure area comes with volume and then holds through a close, retest, or higher low.
+- KDJ bottom divergence, low-level KDJ cross, MACD green bars shrinking/flipping, or MACD golden cross can support the stage read, but price and moving-average structure still lead.
+
+Invalid clues:
+
+- The `鸭颈部` cross happens below a falling 60-day average and price cannot leave the old base; classify as `中性`, not a real old-duck-head setup.
+- During `鸭头顶`, pullback volume expands, price loses the 60-day/base/neckline support, or the rebound cannot reclaim the 10-day average; classify as `偏空/形态失败`.
+- The `鸭鼻孔` golden cross is only mechanical: price does not follow, volume is absent, or KDJ/MACD remain weak.
+- The `鸭嘴` breakout fails quickly, returns below the neckline, or leaves a long upper shadow with heavy volume and no follow-through.
+
+Reporting rule:
+
+- When this pattern is relevant, explicitly answer: `是否老鸭头`, `当前阶段`, `多空中性`, `确认条件`, and `失效条件`.
+- Prefer conservative language: `鸭颈部` and `鸭鼻孔` are candidates, `鸭头顶` is a washout/risk-control stage, and only a valid `鸭嘴` confirms the second-wave bullish structure.
+
+## 11. 回踩, 破位, And 破五反五
+
+Healthy pullback:
+
+- Pullback to support without heavy selling.
+- Rebound has volume.
+- 5-minute/daily moving average structure remains intact.
+- MACD/RSI are stable or improve.
+
+Breakdown:
+
+- Key support breaks and cannot quickly recover.
+- Selling volume expands.
+- MACD green bars expand or dead cross confirms.
+- Rebound fails at the broken support.
+
+破五反五:
+
+- A short break below the 5-day line is not fatal if price quickly reclaims the 5-day line.
+- Reclaim should ideally be supported by volume.
+- If price breaks but cannot stand back above the 5-day line, beware further selling.
+
+## 12. Candlestick Context
+
+Read candles in context, not as isolated names.
+
+- Long upper shadow after a large rise near resistance: supply appears.
+- Long lower shadow at support with volume: possible defense.
+- Big candle with high turnover after a long rise: can be climax or distribution.
+- Narrow high-level consolidation can be bullish only if support and volume behavior are healthy.
+- Repeated failed highs at the same level are pressure confirmation.
+
+## 13. A-Share Emotion Overlay
+
+For A-shares, combine technicals with the emotion cycle:
+
+- `冰点`: observe who resists.
+- `修复/潜伏`: small trial setups, look for early leaders.
+- `启动`: prefer front-row names.
+- `加速`: hold strength, avoid late random laggards.
+- `高潮`: do not chase heavily; take profit thinking matters.
+- `高位分歧/分化`: distinguish healthy turnover from emotional top.
+- `退潮`: reduce risk; failed rebounds are common.
+
+Technical signals near emotion climax need stricter confirmation. A breakout during early cycle can work with less perfection; a breakout after broad climax needs stronger volume and leadership confirmation.
+
+## 14. Intraday "Can It Reach X?" Framework
+
+When the user asks whether a stock can reach a target price today:
+
+1. Mark current price, target, day high, day low, open, previous close, and nearest pressure.
+2. Decide whether the target is below prior high, at prior high, or a new high.
+3. If target is near or above prior high, require a reclaim of the nearest pressure first.
+4. Check 1-minute and 5-minute charts:
+   - 1-minute: timing and immediate momentum.
+   - 5-minute: whether the move has structure.
+5. Check volume:
+   - Rising volume on attack is constructive.
+   - Shrinking volume on attack is fragile.
+   - Heavy volume but no progress is warning.
+6. Check KDJ/MACD:
+   - KDJ golden cross plus MACD improvement supports attack.
+   - KDJ dead cross plus weakening MACD argues for pullback first.
+7. Give a conditional probability:
+   - Before pressure is reclaimed: lower or neutral probability.
+   - After pressure is reclaimed and held with volume: probability improves.
+   - After key support breaks: probability falls sharply.
+
+Execution realism:
+
+- Distinguish `touching X` from `standing above X`. A fast wick through the target may not give the user a practical exit or entry.
+- For an exit target, treat the surrounding pressure band as the decision area. If price repeatedly touches the band and is immediately rejected, say that waiting for a clean hold above the exact level may reduce execution quality.
+- For a continuation target, require the level to become support: hold above it, retest without heavy selling, or print a higher low above the reclaimed level.
+- When a stock moves from rejected resistance back above the prior support and attacks again, do not over-penalize the first rejection. The support hold plus renewed attack can be the useful signal.
+
+Use exact levels from live data where possible. If the chart data is stale or visually uncertain, say so.
+
+## 15. Chart App Visual Workflow
+
+Use this when reading moomoo, Yahoo Finance charts, broker apps, or screenshots.
+
+Data-first rule for U.S. stocks and ETFs:
+
+- If moomoo OpenD is available, use direct `1m` K-line data before relying on screenshots for intraday U.S. stock/ETF reads.
+- Subscribe before fetching: call `subscribe([code], [SubType.K_1M])`, then `get_cur_kline(code, count, SubType.K_1M, AuType.QFQ)`.
+- This is a quote-data subscription through OpenD, not a trade/order action. It can still fail if the account lacks the market data permission, the symbol is unsupported, or OpenD does not provide the instrument type.
+- `.SPX`/index K-lines may be unsupported in OpenD; for SPX intraday chart structure, use `US.SPY` 1-minute data as the default proxy when suitable.
+- When using `US.SPY` as the SPX chart proxy, convert the SPY chart levels into SPX points before answering. Use the freshest available SPX anchor from a live quote, gamma run, or ES-to-SPX basis, paired with the current SPY price. A practical conversion is `SPX_level = SPX_anchor + (SPY_level - SPY_anchor) * (SPX_anchor / SPY_anchor)`. If no reliable SPX anchor is available, state that conversion is unavailable and keep levels labeled as SPY.
+- In the final answer, put converted SPX levels first and mention the SPY proxy only as source context, for example `SPX 7400-7405 area, converted from SPY 737.8-738.3`.
+- Some local setups may not have Japanese-stock or A-share OpenD permissions. When direct K-line data is unavailable, use the moomoo program chart or the user's screenshot and label the source as visual/screenshot-based.
+
+Before acting:
+
+- Confirm the ticker/name on screen. If the app is showing a different stock than the user asked about, switch or say so before analysis.
+- Confirm chart timeframes and whether the visible chart is live, delayed, or screenshot-based.
+- Prefer reading at least two timeframes:
+  - `1m/3m`: timing, immediate pressure, quick execution.
+  - `5m/15m`: intraday structure and whether a move is tradable.
+  - `1h`: whether intraday strength is aligned with a larger trend or already overextended.
+  - `Daily`: gap, prior highs/lows, longer pressure/support, and whether the move is a breakout or exhaustion.
+
+Chart elements to read:
+
+- Price: current price, day high/low, open, previous close, recent swing highs/lows, and the nearest exact pressure/support.
+- Volume: whether attack bars expand, pullback bars contract, and whether heavy volume fails to move price.
+- Moving averages/price bands: whether price is above/below the short average cluster, whether a reclaimed level becomes support, and whether price is stretched outside bands.
+- Momentum: KDJ, MACD, RSI, and VWAP-based RSI if visible. Treat high oscillators as heat warnings; do not override orderly higher lows in a strong trend.
+- News tape: for headline-driven U.S. stocks, compare the visible news with prior rumor/consensus and decide whether it is above expectation, in line/landed, or below expectation. Include qualitative tone and certainty, not only numbers. Note whether price accepts or rejects the news instead of assuming headline direction equals price direction.
+- Funding/order-flow panels: use large/small order flow, capital-flow charts, bid/ask quality, and sector/peer list as context, not as standalone proof.
+- Peer/sector watchlist: confirm whether same-theme leaders/followers are moving together or whether the stock is isolated.
+
+Visual-analysis discipline:
+
+- Do not infer precise numeric values from a chart if the labels are unreadable. Say the value is approximate or ask for a clearer view.
+- Treat one visible candle as provisional. For intraday confirmation, prefer a 5-minute close, a clean retest, or repeated support above the reclaimed level.
+- If the user changes timeframe, re-evaluate instead of carrying over the prior 1-minute conclusion.
+- When the app shows a popover/list instead of the chart, return to the main chart before analyzing.
+- If multiple charts are visible, specify which one drives the conclusion and which one is only supporting evidence.
+
+Output from chart-app analysis should include:
+
+- `当前读数`: price, timeframe, and whether the source is live/visual.
+- `结构`: trend, pressure/support, and whether the setup is confirmed or only a candidate.
+- `量价/动能`: volume and key indicator read.
+- `执行含义`: distinguish touch/break/tradable hold; separate intraday profit-taking from trend holding if both matter.
+- `下一验证点`: the exact level or candle behavior that would change the conclusion.
+
+## 16. Thesis-Aligned Entry, Invalidation, And Exit
+
+When the user asks for a complete trade plan, technical levels must serve a stated return thesis rather than replace it.
+
+- `Entry trigger`: the observable price/volume structure that makes the timing acceptable now.
+- `Execution invalidation`: a nearby level or failed pattern showing the entry timing is wrong. It protects capital before a slower thesis can be fully disproved.
+- `Thesis invalidation`: evidence that the underlying return source is wrong—systemic normalization failed, the catalyst failed, fair value fell, dividend coverage weakened, or growth milestones broke.
+- `Time stop`: the deadline after which absent follow-through weakens the setup. It is especially important for event and momentum trades.
+- `Exit`: the realization condition implied by the original thesis. Do not replace a failed event or swing thesis with an indefinite value thesis merely because price fell.
+
+Match the technical plan to the primary setup:
+
+- `Crisis-beta/index mean reversion`: require market-wide stress plus stabilization/reclaim; the panic low or renewed systemic deterioration invalidates; exit as volatility/trend normalizes.
+- `Core-quality swing`: add on supported pullbacks or breakout-retests; the tactical stop follows swing structure, while the core thesis requires separate fundamental evidence; trim the tactical sleeve near resistance/overextension.
+- `Dividend/income`: technical timing can improve entry, but dividend coverage, cash flow, leverage, and rate-relative valuation define thesis invalidation; high yield alone is not support.
+- `Event repricing`: compare expectation with the result and require price acceptance; event-level failure or a time stop invalidates; do not turn a failed event trade into a long-term hold.
+- `Quality value`: use technical stabilization to avoid catching a falling knife, but fair-value inputs and balance-sheet quality control thesis invalidation and exit near the evidence-based value range.
+- `Growth/optionality`: require milestone evidence plus price confirmation; smaller size and tighter execution discipline are appropriate when financing or valuation uncertainty is high; milestone failure is more important than a hoped-for multiple.
+
+Do not use average cost, already-realized gains, or `negative cost` framing as evidence that risk has disappeared. A position can still lose capital or opportunity value after earlier profits.
+
+## 17. Response Guardrails
+
+- Do not issue direct buy/sell commands.
+- State the data source and whether it is live, delayed, screenshot-based, or inferred.
+- Separate `already confirmed` from `candidate setup`.
+- Name the bullish trigger and bearish invalidation.
+- When uncertain, say what information would decide it: volume, 5-minute close, VWAP, peer confirmation, or order-flow quality.

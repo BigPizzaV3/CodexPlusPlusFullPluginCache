@@ -1,0 +1,101 @@
+<!--
+Retention chart template for wistia-engagement-tools Step 5.
+
+Fill in the placeholders below, then pass the whole thing as widget_code to
+visualize:show_widget (call visualize:read_me with modules:["chart"] first if
+you haven't loaded it this session). Do not repeat the chart's content in your
+prose response afterward — only narrate the recommendation and reasoning.
+
+Placeholders:
+  {{ENGAGEMENT_ARRAY}}   - the raw engagement_data array from show-media-engagement,
+                            as a JS array literal, e.g. [67,61,56,...]
+  {{DURATION_SECONDS}}   - video duration in seconds, e.g. 164.212
+  {{ARIA_LABEL}}         - one-sentence plain-language description of the curve
+                            for screen readers: overall shape, drop-off point,
+                            any re-watch zone, and the recommendation marker
+  {{FEATURE_LABEL}}      - "CTA" / "lead capture form" / "annotation link"
+  {{REC_TIME_LABEL}}     - recommended placement as mm:ss, e.g. "2:15"
+  {{REWATCH_ZONES_JS}}   - JS array of {start, end} second pairs for re-watched
+                            segments to shade, e.g. [{start:122,end:145}] or []
+                            if none were detected (omit the shading in that case)
+  {{REC_TIME_SECONDS}}   - recommended placement in seconds, e.g. 135 (omit the
+                            dashed marker entirely if there's no single
+                            confirmed placement yet, e.g. before Step 3 goal
+                            confirmation)
+
+Legend rows should only include zones that are actually present — drop the
+re-watch legend row if there were none, drop the recommendation row if no
+placement has been confirmed yet.
+-->
+<div style="position: relative; width: 100%; height: 280px;">
+  <canvas id="retentionChart" role="img" aria-label="{{ARIA_LABEL}}"></canvas>
+</div>
+<div style="display: flex; gap: 16px; margin-top: 12px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap;">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#2a78d6;"></span>Retention</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#f0997b;"></span>Re-watch zone</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#e34948;"></span>Recommended {{FEATURE_LABEL}} ({{REC_TIME_LABEL}})</span>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const engagement = {{ENGAGEMENT_ARRAY}};
+const duration = {{DURATION_SECONDS}};
+const n = engagement.length;
+const labels = engagement.map((_, i) => {
+  const t = i * duration / n;
+  const m = Math.floor(t / 60), s = Math.round(t % 60);
+  return m + ':' + String(s).padStart(2, '0');
+});
+const rewatchZones = {{REWATCH_ZONES_JS}};
+const recTime = {{REC_TIME_SECONDS}};
+
+const zonesPlugin = {
+  id: 'zonesPlugin',
+  beforeDatasetsDraw(chart) {
+    const { ctx, scales: { x, y } } = chart;
+    const xPix = t => x.getPixelForValue(t / duration * (n - 1));
+    ctx.save();
+    ctx.fillStyle = 'rgba(240,153,123,0.25)';
+    rewatchZones.forEach(z => {
+      ctx.fillRect(xPix(z.start), y.top, xPix(z.end) - xPix(z.start), y.bottom - y.top);
+    });
+    if (recTime !== null && recTime !== undefined) {
+      ctx.strokeStyle = '#e34948';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(xPix(recTime), y.top);
+      ctx.lineTo(xPix(recTime), y.bottom);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+};
+
+new Chart(document.getElementById('retentionChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      data: engagement,
+      borderColor: '#2a78d6',
+      backgroundColor: 'rgba(42,120,214,0.08)',
+      fill: true,
+      borderWidth: 2,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      pointBackgroundColor: '#2a78d6',
+      tension: 0.25
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { maxTicksLimit: 8, color: '#898781' }, grid: { display: false } },
+      y: { ticks: { color: '#898781', callback: v => v + '%' }, grid: { color: '#e1e0d9' }, title: { display: true, text: '% still watching', color: '#52514e' } }
+    }
+  },
+  plugins: [zonesPlugin]
+});
+</script>

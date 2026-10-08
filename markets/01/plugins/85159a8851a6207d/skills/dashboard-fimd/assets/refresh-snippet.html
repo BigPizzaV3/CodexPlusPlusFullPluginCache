@@ -1,0 +1,147 @@
+<!--
+  AS-OF DATE + RANGE CONTROL SNIPPET — embed in every generated dashboard.
+  (Replaces the old one-click "Refresh": the user picks an as-of date and a lookback range, or leaves
+  "Latest" ticked to resolve the latest served business date live.)
+
+  CONFIRMED WORKING in Claude Desktop: the artifact fetches the Anthropic Messages API with the
+  MSCI MCP attached as mcp_servers; the platform injects auth (NO API key, NO external server, NO
+  separate service), and the response carries mcp_tool_use + mcp_tool_result blocks from the live MCP.
+
+  Fill the placeholders:
+    CALLS             array of { key, tool, args } — one entry per MCP call.
+                      tool = "fetch_index_data" | "fetch_index_timeseries"; args = that tool's input object.
+                      In args, "<DATE>" and "<END>" are filled with the as-of date and "<START>" with the
+                      range start computed from it — so time-series calls follow the selected range.
+    __RENDER_FN__     the dashboard's re-render function; receives an object keyed by each call's `key`
+    __SNAPSHOT_DATE__ initial snapshot as-of date (YYYYMMDD)
+  Connector: MCP_URLS lists the connected MSCI MCP endpoints to try in order. In testing the one that
+  served these tools was "MSCI MCP" (https://mcp.msci.com/mcp/v1.0/mcp); the IndexAI Insights URL is a fallback.
+  Notes: parse mcp_tool_result blocks BY type, not position. Read {scalars, list_tables} (fetch_index_data)
+  or {table, list_tables} (fetch_index_timeseries), matching by datapoint_id. No localStorage. Build the
+  dashboard DATA-DRIVEN (a JS data object + render fn) so this handler can swap data and re-render in place.
+  Keep the build-time snapshot as the initial state. Latency can be high — allow 60–120s and re-pull only
+  what the view needs. Style with the MSCI tokens from references/brand.md.
+-->
+
+<div class="controls">
+  <label class="ctl"><input type="checkbox" id="asofLatest" checked> Latest</label>
+  <label class="ctl">As-of <input type="date" id="asofPick" class="ctl-in" disabled></label>
+  <label class="ctl">Range
+    <select id="rangePick" class="ctl-in">
+      <option value="1M">1M</option><option value="3M">3M</option><option value="6M">6M</option>
+      <option value="YTD">YTD</option><option value="1Y" selected>1Y</option>
+      <option value="3Y">3Y</option><option value="5Y">5Y</option><option value="MAX">Max</option>
+    </select>
+  </label>
+  <button id="refreshBtn" class="refresh-btn" type="button" onclick="refreshFromMCP()">
+    <span id="refreshLabel">&#8635; Update</span>
+    <span id="refreshSpin" class="spin" hidden>&#8635;</span>
+  </button>
+</div>
+<span id="asOf" class="as-of"></span>
+<div id="refreshErr" class="refresh-err" hidden></div>
+
+<style>
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ctl{display:inline-flex;align-items:center;gap:6px;font:400 11.5px var(--msci-font,Inter,sans-serif);color:#fff;opacity:.92}
+  .ctl-in{font:500 12px var(--msci-font,Inter,sans-serif);color:#011B2B;background:#fff;border:1px solid #E6E6E6;border-radius:8px;padding:5px 8px}
+  .ctl-in:disabled{opacity:.55}
+  .refresh-btn{font:600 13px var(--msci-font,Inter,sans-serif);color:#fff;background:var(--msci-turquoise,#00C4B3);
+    border:0;border-radius:24px;padding:9px 18px;cursor:pointer;}
+  .refresh-btn:disabled{opacity:.65;cursor:progress;}
+  .refresh-btn .spin{display:inline-block;animation:rot 1s linear infinite;margin-left:6px;}
+  @keyframes rot{to{transform:rotate(360deg);}}
+  .as-of{font:400 11px var(--msci-font,Inter,sans-serif);color:#E6E6E6;margin-left:10px;}
+  .refresh-err{font:400 12px var(--msci-font,Inter,sans-serif);color:#FFC6B5;margin-top:8px;}
+</style>
+
+<script>
+const MCP_URLS = [
+  "https://mcp.msci.com/mcp/v1.0/mcp",            // MSCI MCP — served the schema in testing
+  "https://mcp.msci.com/index/index-mcp/v1.0/mcp" // IndexAI Insights — fallback
+];
+const SNAPSHOT_DATE = "__SNAPSHOT_DATE__";
+// One entry per MCP call. tool = "fetch_index_data" | "fetch_index_timeseries"; args inline per entry.
+// Use "<DATE>"/"<END>" for the as-of date and "<START>" for the range start inside args.
+const CALLS = [
+  // { key:"world_perf", tool:"fetch_index_data",
+  //   args:{ codes:["990100"], date:"<DATE>", variant:"GRTR",
+  //          datapoints:["equity_index.performance.period_returns.period","equity_index.performance.period_returns.returns"], page_size:20 } },
+  // { key:"world_level", tool:"fetch_index_timeseries",
+  //   args:{ codes:["990100"], start_date:"<START>", end_date:"<END>", variant:"GRTR", frequency:"daily",
+  //          datapoints:["<index-level datapoint that supports range>"] } },
+];
+
+function computeStart(end, range){
+  if(range==='MAX') return '19700101';
+  if(range==='YTD') return end.slice(0,4)+'0101';
+  const dt=new Date(Date.UTC(+end.slice(0,4), +end.slice(4,6)-1, +end.slice(6,8)));
+  const mMap={'1M':-1,'3M':-3,'6M':-6}, yMap={'1Y':-1,'3Y':-3,'5Y':-5};
+  if(mMap[range]!==undefined) dt.setUTCMonth(dt.getUTCMonth()+mMap[range]);
+  else if(yMap[range]!==undefined) dt.setUTCFullYear(dt.getUTCFullYear()+yMap[range]);
+  const pad=n=>String(n).padStart(2,'0');
+  return ''+dt.getUTCFullYear()+pad(dt.getUTCMonth()+1)+pad(dt.getUTCDate());
+}
+
+async function bridge(prompt, url){
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:4000,
+      messages:[{ role:"user", content:prompt }],
+      mcp_servers:[{ type:"url", url:url, name:"index-mcp" }] })
+  });
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  const tr = (data.content||[]).filter(b=>b.type==="mcp_tool_result").map(b=>(b.content&&b.content[0]&&b.content[0].text)||"").filter(Boolean);
+  const tx = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text);
+  return (tr[0]||tx.join("\n")||"").replace(/```json|```/g,"").trim();
+}
+
+// Resolve the latest served business date (read fetched_date), used when "Latest" is ticked.
+async function resolveLatestDate(url){
+  try{
+    const probe = CALLS.find(e=>e.tool==="fetch_index_data" && e.args && e.args.codes && e.args.codes.length);
+    const code = probe ? probe.args.codes[0] : "990100";
+    const raw = await bridge(
+      "Call the fetch_index_data tool on the MSCI MCP with arguments " +
+      JSON.stringify({codes:[code], datapoints:["equity_index.performance.period_returns.period"], date:SNAPSHOT_DATE}) +
+      ". Reply with ONLY the value of the response's fetched_date field as 8 digits YYYYMMDD. Nothing else.", url);
+    const m = raw.match(/(\d{4})\D?(\d{2})\D?(\d{2})/); if(m) return m[1]+m[2]+m[3];
+  }catch(e){}
+  return SNAPSHOT_DATE;
+}
+
+async function refreshFromMCP() {
+  const btn=document.getElementById("refreshBtn"), spin=document.getElementById("refreshSpin"), err=document.getElementById("refreshErr");
+  const latest=document.getElementById("asofLatest"), pick=document.getElementById("asofPick");
+  const range=(document.getElementById("rangePick")||{}).value||"MAX";
+  btn.disabled=true; spin.hidden=false; err.hidden=true;
+  let lastErr;
+  for(const url of MCP_URLS){
+    try{
+      let date=(latest&&!latest.checked&&pick&&pick.value)? pick.value.replace(/-/g,"") : await resolveLatestDate(url);
+      const start=computeStart(date, range);
+      const out={};
+      for(const entry of CALLS){ // sequential; MCP round-trips are slow
+        const args=JSON.parse(JSON.stringify(entry.args||{}).replace(/<DATE>/g,date).replace(/<END>/g,date).replace(/<START>/g,start));
+        const prompt="Call the "+entry.tool+" tool on the MSCI MCP with exactly these arguments, then reply with ONLY the raw JSON object the tool returns — no prose, no fences.\n\narguments:\n"+JSON.stringify(args);
+        out[entry.key]=JSON.parse(await bridge(prompt, url));
+      }
+      __RENDER_FN__(out);
+      const d=date.slice(0,4)+"-"+date.slice(4,6)+"-"+date.slice(6,8);
+      document.getElementById("asOf").textContent="as-of "+d+" · "+range+" (live)";
+      btn.disabled=false; spin.hidden=true; return;
+    }catch(e){ lastErr=e; }
+  }
+  err.textContent="Update runs inside the claude.ai artifact runtime; here it could not reach the MCP — showing the last loaded data. ("+(lastErr&&lastErr.message?lastErr.message:lastErr)+")";
+  err.hidden=false; btn.disabled=false; spin.hidden=true;
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const el=document.getElementById("asOf");
+  if(el && !el.textContent) el.textContent="as-of __SNAPSHOT_DATE__ (snapshot)";
+  const latest=document.getElementById("asofLatest"), pick=document.getElementById("asofPick");
+  if(pick && /^\d{8}$/.test(SNAPSHOT_DATE)) pick.value=SNAPSHOT_DATE.slice(0,4)+"-"+SNAPSHOT_DATE.slice(4,6)+"-"+SNAPSHOT_DATE.slice(6,8);
+  if(latest && pick){ pick.disabled=latest.checked; latest.addEventListener("change", ()=>{ pick.disabled=latest.checked; }); }
+});
+</script>

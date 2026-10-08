@@ -1,0 +1,55 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+const root = fileURLToPath(new URL("..", import.meta.url));
+const manifest = JSON.parse(await readFile(join(root, "governance", "main-ruleset.proposed.json"), "utf8"));
+const ci = await readFile(join(root, ".github", "workflows", "ci.yml"), "utf8");
+const reviewWorkflow = await readFile(join(root, ".github", "workflows", "maintainer-review.yml"), "utf8");
+const status = await readFile(join(root, "docs", "CURRENT-STATUS.md"), "utf8");
+const readme = await readFile(join(root, "governance", "README.md"), "utf8");
+const codeowners = await readFile(join(root, ".github", "CODEOWNERS"), "utf8");
+const readBack = JSON.parse(await readFile(join(root, "governance", "provider-enforcement-readback.json"), "utf8"));
+function req(value, message) { if (!value) throw new Error(message); }
+function exact(actual, expected, message) { req(Array.isArray(actual), message); req(JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort()), message); }
+req(manifest.schemaVersion === "2.0.0", "schema drifted");
+req(manifest.proposalState === "ACTIVE", "provider protection must remain ACTIVE");
+req(manifest.repository?.name === "AyobamiH/opstruth-chatgpt-plugin" && manifest.repository?.repositoryId === 1345997124, "repository identity drifted");
+req(manifest.providerObservation?.mainProtection === "PROTECTED" && manifest.providerObservation?.requiredStatusEnforcement === "ON", "provider protection regressed");
+req(manifest.providerObservation?.activeRulesets === 1 && manifest.providerObservation?.rulesetId === 22247265, "active ruleset identity drifted");
+req(manifest.activation?.permitted === true && manifest.activation?.blockers?.length === 0, "active protection cannot retain blockers");
+req(manifest.stages?.mechanicalBaseline?.state === "ACTIVE" && manifest.stages.mechanicalBaseline.requiredApprovals === 0, "Stage 1 drifted");
+req(manifest.stages?.mechanicalBaseline?.requiresSecondHumanReviewer === false, "reviewer cannot block Stage 1");
+req(manifest.stages?.independentHumanReview?.state === "FOLLOW_ON" && manifest.stages.independentHumanReview.requiredApprovalsAfterActivation === 1, "Stage 2 drifted");
+req(manifest.stages?.independentHumanReview?.mustNotWeakenMechanicalBaseline === true, "Stage 2 cannot weaken Stage 1");
+req(manifest.ownership?.independentReviewer?.reviewer === null && manifest.ownership?.independentReviewer?.state === "UNNAMED", "do not invent reviewer");
+req(codeowners.includes("* @AyobamiH"), "CODEOWNERS drifted");
+exact(manifest.hostedChecks.filter(x => x.required).map(x => x.context), ["verify", "review"], "required checks drifted");
+req(manifest.hostedChecks.filter(x => x.required).every(x => x.integrationId === 15368), "required checks must be GitHub Actions");
+req(/^name: CI$/m.test(ci) && /^  pull_request:\s*$/m.test(ci) && /^  verify:\s*$/m.test(ci), "CI must emit verify");
+req(!/paths:|paths-ignore:|continue-on-error:/m.test(ci), "CI verify cannot be conditional");
+req(/^name: OpsTruth maintainer review$/m.test(reviewWorkflow) && /^  pull_request:/m.test(reviewWorkflow) && /^  review:\s*$/m.test(reviewWorkflow), "review workflow must emit review");
+req(!/paths:|paths-ignore:|continue-on-error:/m.test(reviewWorkflow), "review cannot be conditional");
+const ruleset = manifest.githubRuleset;
+req(ruleset?.target === "branch" && ruleset?.enforcement === "disabled", "checked-in ruleset must remain an import-safe disabled template");
+exact(ruleset?.conditions?.ref_name?.include, ["refs/heads/main"], "ruleset target drifted");
+exact(ruleset?.conditions?.ref_name?.exclude, [], "ruleset exclusions drifted");
+req(ruleset?.bypass_actors?.length === 1, "exactly one bypass required");
+const bypass = ruleset.bypass_actors[0];
+req(bypass.actor_id === 47716486 && bypass.actor_type === "User" && bypass.bypass_mode === "always", "owner bypass drifted");
+const rules = new Map(ruleset.rules.map(rule => [rule.type, rule]));
+for (const type of ["deletion", "non_fast_forward", "pull_request", "required_status_checks"]) req(rules.has(type), `missing ${type}`);
+const pr = rules.get("pull_request").parameters;
+req(pr.required_approving_review_count === 0 && pr.require_code_owner_review === false && pr.require_last_push_approval === false && pr.required_review_thread_resolution === true, "Stage 1 PR controls drifted");
+const checks = rules.get("required_status_checks").parameters;
+exact(checks.required_status_checks.map(x => x.context), ["verify", "review"], "ruleset checks drifted");
+req(checks.required_status_checks.every(x => x.integration_id === 15368) && checks.strict_required_status_checks_policy === true, "status policy drifted");
+req(manifest.activationReadBack?.state === "VERIFIED" && manifest.activationReadBack?.rulesetId === 22247265 && manifest.activationReadBack?.providerEnforcement === "active", "activation read-back drifted");
+req(readBack?.protected === true && readBack?.activeRuleset?.id === 22247265, "durable provider read-back drifted");
+exact(readBack.activeRuleset.requiredStatusChecks.map(x => x.context), ["verify", "review"], "durable read-back checks drifted");
+for (const copy of [status, readme]) {
+  req(/PROTECTED/.test(copy), "copy must state PROTECTED");
+  req(/22247265/.test(copy), "copy must record ruleset 22247265");
+  req(!/main` is currently unprotected/i.test(copy), "copy cannot claim unprotected");
+  req(!/Status: `BLOCKED_PROVIDER_ACTION`/.test(copy), "copy cannot claim blocked");
+}
+console.log("OpsTruth main governance: active provider protection verified");

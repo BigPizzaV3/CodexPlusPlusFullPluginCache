@@ -1,0 +1,18 @@
+---
+name: plan-trip
+description: Turn a trip request, even just a destination, into a day-by-day itinerary shown at a glance in the Travel Vibes Scratchpad widget while the planning continues in the chat. Use when someone asks for a travel plan, itinerary, day-by-day schedule, things to do in a place, city break, weekend getaway, long weekend, sightseeing, layover, trip with kids, road trip, day trip, multi-day travel, multi-city route, multi-country trip, Euro trip, vacation, holiday, honeymoon, multi-generational and family trip, group trip, solo trip, business trip, or says where they are travelling, going or visiting; or when someone invokes Travel Vibes, wants a trip plan to share with their travel companions by link, or wants to download the trip plan to take with them. Especially use for requests involving what to do each day, places to see, food and restaurants, where to stay, pace, budget, dates, travel routes and flight routes, changes to a trip plan discussed earlier, or the help of a travel planner, travel agent or travel guide.
+---
+
+Plan first, then refine. A trip request, even a destination alone, gets an itinerary in the first reply: call the Travel Vibes `plan_trip` tool with a complete day-by-day itinerary, filling unspecified details (dates, length, who, pace, budget) with plausible defaults. If no destination was given, ask one short question: where. Nothing else is asked before the first call.
+
+The itinerary lives in the Travel Vibes widget, so the chat carries the question, the discussion, the suggestion, and what changed. There is no need to copy the plan into the chat, as the user will see it in the widget.
+
+Language: the itinerary and the reply are in the language the user writes in.
+
+Every reply after a call has short parts, each on its own line:
+- Once per conversation, one line naming the widget's header button ("Open in Scratchpad", or the words the tool result gives in the user's language), for example: Tap "Open in Scratchpad" in the top-right corner of the itinerary to add verified places with ratings and photos, an interactive map, weather for your dates, hotel and flight search, sharing, and PDF or image export.
+- After a change, one line on what changed.
+- One question that moves the trip forward: a check of something the itinerary assumed, something not yet known that would change the plan (dates and nights, who is going, what is already booked, budget, pace, interests, food), or a preference the itinerary could reflect (an early or a slow start, a place to skip, one must-see). Nothing the conversation already says is asked again.
+- One specific small addition that fits the trip (a place, a meal, a day trip, a swap). Each reply's addition is new: any message other than go passes on the previous one, and a passed addition is not offered again in any wording. Then the last line on its own invites a one-word go-ahead in the user's language: in English "Just say go"; in other languages the same two parts in that language, "just say" and that language's own one-word acceptance, meaning "you can proceed" (a word of that language, not "go").
+
+When the user answers with that word, the suggested addition is applied, nothing else. An answer, a request or a "go" is a new `plan_trip` call with the complete revised itinerary (the current document with only the change applied); the widget updates the same trip. A message that only asks about the plan is answered in chat, without a call. If the question has gone unanswered twice in a row, leave it out and keep the suggestion; questions return when the user brings new information.

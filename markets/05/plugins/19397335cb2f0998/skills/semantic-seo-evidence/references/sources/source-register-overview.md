@@ -1,0 +1,130 @@
+# Bronnenregister
+
+Master v1.0 bevat 119 canonieke kernbronnen. SRC-067 is alias van SRC-044 en SRC-091 is alias van SRC-022.
+
+Gebruik per claim de bron die inhoudelijk, temporeel en contextueel past. Een bron kan voor de ene claim primair en voor een andere secundair zijn.
+
+## Bronnen
+- `SRC-001` — RDF 1.2 Concepts and Abstract Data Model — label A
+- `SRC-002` — Efficient index for low latency search of large graphs, US10102268B1 — label E
+- `SRC-003` — Generic Design of Web-Based Clinical Databases — label D
+- `SRC-004` — Understanding news topic authority — label B
+- `SRC-005` — Joint Modeling of Topics, Citations, and Topical Authority in Academic Corpora — label D
+- `SRC-006` — What is Topical Authority? How does Topical Authority Work? — label F
+- `SRC-007` — How does Google Rank Search Results: SEO Case Study for Ranking — label F
+- `SRC-008` — Semantic Search for Semantic SEO: Understanding the Verbs of Life — label F
+- `SRC-009` — How to Expand a Topical Map for Higher Topical Authority? — label F
+- `SRC-010` — United States of America et al. v. Google LLC, Document 1436 — label C
+- `SRC-011` — Information retrieval based on historical data, US7346839B2 — label E
+- `SRC-012` — Introduction to Information Retrieval — label D
+- `SRC-013` — Okapi BM25: a non-binary model — label D
+- `SRC-014` — Tf-idf weighting — label D
+- `SRC-015` — Efficient Estimation of Word Representations in Vector Space — label D
+- `SRC-016` — GloVe: Global Vectors for Word Representation — label D
+- `SRC-017` — Dense Passage Retrieval for Open-Domain Question Answering — label D
+- `SRC-018` — Dense Hierarchical Retrieval for Open-domain Question Answering — label D
+- `SRC-019` — Measuring similarity from embeddings — label B
+- `SRC-020` — Query ranking based on query clustering and categorization, US8775409B1 — label E
+- `SRC-021` — Clustering Query Refinements by User Intent — label D
+- `SRC-022` — A Guide to Google Search Ranking Systems — label B
+- `SRC-023` — Creating helpful, reliable, people-first content — label B
+- `SRC-024` — Google's Guide to Optimizing for Generative AI Features on Google Search — label B
+- `SRC-025` — Benchmarking the Extraction and Disambiguation of Named Entities on the Semantic Web — label D
+- `SRC-026` — Attention Is All You Need — label D
+- `SRC-027` — Longformer: The Long-Document Transformer — label D
+- `SRC-028` — Introduction to structured data markup in Google Search — label B
+- `SRC-029` — Term frequency and weighting — label D
+- `SRC-030` — Neural matching and language understanding in Google Search — label B
+- `SRC-031` — RDF 1.1 Concepts and Abstract Syntax — label A
+- `SRC-032` — Topical Authority Insights: Interview with Koray Tuğberk Gübür — label F
+- `SRC-033` — Clicks, impressions, position and click-through rate in Search Console — label B
+- `SRC-034` — User engagement — label B
+- `SRC-035` — Topical Relevance and Topical Authority in SEO — label G
+- `SRC-036` — The Query-flow Graph: Model and Applications — label D
+- `SRC-037` — How many relevances in Information Retrieval? — label D
+- `SRC-038` — TREC English Relevance Judgements — label D
+- `SRC-039` — Hybrid Hierarchical Retrieval for Open-Domain Question Answering — label D
+- `SRC-040` — QuDAR: Query-Wise Dual-Perspective Adaptive Retrieval — label D
+- `SRC-041` — Stochastic Retrieval-Conditioned Reranking — label D
+- `SRC-042` — Development and Application of a Metric on Semantic Nets — label D
+- `SRC-043` — Using Information Content to Evaluate Semantic Similarity in a Taxonomy — label D
+- `SRC-044` — SKOS Simple Knowledge Organization System Reference — label A
+- `SRC-045` — Canonicalizing Search Queries to Natural Language Questions, US11423068B2 — label E
+- `SRC-046` — Speech and Language Processing, 3rd edition draft — label D
+- `SRC-047` — SimLex-999: Evaluating Semantic Models With Genuine Similarity Estimation — label D
+- `SRC-048` — SentencePiece: A simple and language independent subword tokenizer and detokenizer for Neural Text Processing — label D
+- `SRC-049` — Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks — label D
+- `SRC-050` — Introduction to the CoNLL-2003 Shared Task: Language-Independent Named Entity Recognition — label D
+- `SRC-051` — End-to-End Neural Entity Linking — label D
+- `SRC-052` — Deep Joint Entity Disambiguation with Local Neural Attention — label D
+- `SRC-053` — End-to-end Neural Coreference Resolution — label D
+- `SRC-054` — SemEval-2010 Task 8: Multi-Way Classification of Semantic Relations between Pairs of Nominals — label D
+- `SRC-055` — Lost in the Middle: How Language Models Use Long Contexts — label D
+- `SRC-056` — HiChunk: Evaluating and Enhancing Retrieval Augmented Generation with Hierarchical Chunking — label D
+- `SRC-057` — Grounding Language Model with Chunking-Free In-Context Retrieval — label D
+- `SRC-058` — BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding — label D
+- `SRC-059` — Sequence to Sequence Learning with Neural Networks — label D
+- `SRC-060` — Long Short-Term Memory — label D
+- `SRC-061` — Analyzing Entities, Cloud Natural Language API — label B
+- `SRC-062` — Long context, Gemini Enterprise Agent Platform — label B
+- `SRC-063` — Lost in Decomposition: Analyzing and Mitigating the Limitations of Long Context Methods via Context Dependency — label D
+- `SRC-064` — Introducing the Knowledge Graph: things, not strings — label B
+- `SRC-065` — Google Knowledge Graph Search API — label B
+- `SRC-066` — OWL 2 Web Ontology Language Document Overview, Second Edition — label A
+- `SRC-068` — Link Best Practices for Google — label B
+- `SRC-069` — Spam Policies for Google Web Search — label B
+- `SRC-070` — What is Semantic Search? And why is it important? — label D
+- `SRC-071` — GUMsley: Evaluating Entity Salience in Summarization for 12 English Genres — label D
+- `SRC-072` — TextTiling: Segmenting Text into Multi-paragraph Subtopic Passages — label D
+- `SRC-073` — Learning to Rank Semantic Coherence for Topic Segmentation — label D
+- `SRC-074` — How We Used the Pillar-Cluster Model to Transform Our Blog — label F
+- `SRC-075` — Semantic SEO: How to Use It for Better Rankings — label F
+- `SRC-076` — Google Search Guidance on Third-Party SEO Tools and Advice — label B
+- `SRC-077` — PROV-DM: The PROV Data Model — label A
+- `SRC-078` — PROV-O: The PROV Ontology — label A
+- `SRC-079` — mainEntity — label A
+- `SRC-080` — A taxonomy of web search — label D
+- `SRC-081` — A New Taxonomy of Web Search: A User-Centered Framework for Search Intent in the AI Era — label D
+- `SRC-082` — Searching in the Context of a Task: A Review of Methods and Tools — label D
+- `SRC-083` — Understanding user behavior in naturalistic information search tasks — label D
+- `SRC-084` — Understanding and Using Context — label D
+- `SRC-085` — Word Sense Disambiguation: A Survey — label D
+- `SRC-086` — Get travel search results from Gmail — label B
+- `SRC-087` — Personalization & Google Search results — label B
+- `SRC-088` — Article structured data and author markup best practices — label B
+- `SRC-089` — General structured data guidelines — label B
+- `SRC-090` — Search Quality Evaluator Guidelines — label B
+- `SRC-092` — Google Search reviews system — label B
+- `SRC-093` — Write high quality reviews — label B
+- `SRC-094` — Data Quality Vocabulary — label A
+- `SRC-095` — Schema.org Version 30.0 — label A
+- `SRC-096` — Schema.org — label A
+- `SRC-097` — JSON-LD 1.1 — label A
+- `SRC-098` — Organization structured data — label B
+- `SRC-099` — Local business structured data — label B
+- `SRC-100` — Introduction to Product structured data — label B
+- `SRC-101` — Product variant structured data — label B
+- `SRC-102` — Person — label A
+- `SRC-103` — Offer — label A
+- `SRC-104` — What is URL canonicalization — label B
+- `SRC-105` — robots.txt specification — label B
+- `SRC-106` — Block Search indexing with noindex — label B
+- `SRC-107` — Robots meta tag, data-nosnippet and X-Robots-Tag specifications — label B
+- `SRC-108` — Build and submit a sitemap — label B
+- `SRC-109` — Understand the JavaScript SEO basics — label B
+- `SRC-110` — Overview of crawling and indexing topics — label B
+- `SRC-111` — Generative AI performance reports in Search Console — label B
+- `SRC-112` — Publishers and Developers FAQ — label B
+- `SRC-113` — ChatGPT Search — label B
+- `SRC-114` — Introducing AI Performance in Bing Webmaster Tools — label B
+- `SRC-115` — Does Anthropic crawl data from the web, and how can site owners block the crawler? — label B
+- `SRC-116` — Perplexity crawlers — label B
+- `SRC-117` — Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks — label D
+- `SRC-118` — HTML Living Standard, semantics, structure and APIs of HTML documents — label A
+- `SRC-119` — Multimodal Retrieval-Augmented Generation: A Survey — label E
+- `SRC-120` — A Survey of Entity Resolution and Record Linkage Methodologies — label D
+- `SRC-121` — CHIQ: Contextual History Enhancement for Improving Query Rewriting in Conversational Search — label D
+
+## Aliassen
+- `SRC-067` → `SRC-044`
+- `SRC-091` → `SRC-022`

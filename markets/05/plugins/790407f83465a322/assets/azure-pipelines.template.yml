@@ -1,0 +1,108 @@
+# Requires Power Platform Build Tools v2 and authorized service connections.
+# Reference: https://learn.microsoft.com/en-us/power-platform/alm/devops-build-tool-tasks
+trigger: none
+parameters:
+- name: devConnection
+  type: string
+- name: testConnection
+  type: string
+- name: deploymentEnvironment
+  type: string
+- name: blueprintPath
+  type: string
+  default: blueprint.json
+- name: pluginRoot
+  type: string
+  default: plugins/d365-dataverse-app-builder
+- name: deployTest
+  type: boolean
+  default: false
+pool:
+  vmImage: windows-latest
+variables:
+  solutionName: '__SOLUTION__'
+stages:
+- stage: Validate
+  jobs:
+  - job: quality
+    steps:
+    - checkout: self
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+    - pwsh: |
+        python "$env:PLUGIN_ROOT/scripts/validate_app_blueprint.py" "$env:BLUEPRINT" --json
+        exit $LASTEXITCODE
+      displayName: Validate blueprint
+      env:
+        PLUGIN_ROOT: ${{ parameters.pluginRoot }}
+        BLUEPRINT: ${{ parameters.blueprintPath }}
+    - task: PowerPlatformToolInstaller@2
+    - task: PowerPlatformExportSolution@2
+      inputs:
+        authenticationType: PowerPlatformSPN
+        PowerPlatformSPN: ${{ parameters.devConnection }}
+        SolutionName: $(solutionName)
+        SolutionOutputFile: $(Build.ArtifactStagingDirectory)/solution-unmanaged.zip
+        Managed: false
+        AsyncOperation: true
+        MaxAsyncWaitTime: '60'
+    - task: PowerPlatformUnpackSolution@2
+      inputs:
+        SolutionInputFile: $(Build.ArtifactStagingDirectory)/solution-unmanaged.zip
+        SolutionTargetFolder: $(Agent.TempDirectory)/solution-unpacked
+        SolutionType: Unmanaged
+    - pwsh: |
+        python "$env:PLUGIN_ROOT/scripts/validate_solution_against_blueprint.py" "$env:BLUEPRINT" "$env:UNPACKED" --json > "$env:EVIDENCE/comparison.json"
+        exit $LASTEXITCODE
+      displayName: Compare actual exported components
+      env:
+        PLUGIN_ROOT: ${{ parameters.pluginRoot }}
+        BLUEPRINT: ${{ parameters.blueprintPath }}
+        UNPACKED: $(Agent.TempDirectory)/solution-unpacked
+        EVIDENCE: $(Build.ArtifactStagingDirectory)
+    - task: PowerPlatformChecker@2
+      inputs:
+        PowerPlatformSPN: ${{ parameters.devConnection }}
+        FilesToAnalyze: $(Build.ArtifactStagingDirectory)/solution-unmanaged.zip
+        RuleSet: 0ad12346-e108-40b8-a956-9a8f95ea18c9
+        ErrorLevel: HighIssueCount
+        ErrorThreshold: '0'
+        FailOnPowerAppsCheckerAnalysisError: true
+    - task: PowerPlatformExportSolution@2
+      inputs:
+        authenticationType: PowerPlatformSPN
+        PowerPlatformSPN: ${{ parameters.devConnection }}
+        SolutionName: $(solutionName)
+        SolutionOutputFile: $(Build.ArtifactStagingDirectory)/solution-managed.zip
+        Managed: true
+        AsyncOperation: true
+        MaxAsyncWaitTime: '60'
+    - task: PublishPipelineArtifact@1
+      condition: succeededOrFailed()
+      inputs:
+        targetPath: $(Build.ArtifactStagingDirectory)
+        artifact: solution-evidence
+- ${{ if eq(parameters.deployTest, true) }}:
+  - stage: Deploy_Test
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+    - deployment: managed_import
+      environment: ${{ parameters.deploymentEnvironment }}
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - download: current
+              artifact: solution-evidence
+            - task: PowerPlatformToolInstaller@2
+            - task: PowerPlatformImportSolution@2
+              inputs:
+                authenticationType: PowerPlatformSPN
+                PowerPlatformSPN: ${{ parameters.testConnection }}
+                SolutionInputFile: $(Pipeline.Workspace)/solution-evidence/solution-managed.zip
+                AsyncOperation: true
+                MaxAsyncWaitTime: '60'
+                PublishWorkflows: true
+                OverwriteUnmanagedCustomizations: false

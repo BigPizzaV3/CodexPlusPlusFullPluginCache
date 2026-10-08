@@ -1,0 +1,384 @@
+# Journal-Bank Reconciliation Reference
+
+This reference documents the deterministic boundary for the plugin. Codex reads it only when a run needs more detail than the main skill.
+
+## Stable Columns
+
+Normalized bank and journal outputs use these canonical columns:
+
+- `side`
+- `transaction_id`
+- `transaction_date`
+- `amount_signed`
+- `amount_abs`
+- `description`
+- `beneficiary`
+- `reference`
+- `movement_number`
+- `account`
+- `currency`
+- `unit`
+- `entity_ref`
+- `party_ref`
+- `direction`
+- `source_file`
+- `source_sheet`
+- `source_row`
+
+`amount_signed`, `amount_abs`, `bank_amount`, `journal_amount`, and
+`amount_delta` are canonical non-exponent Decimal text. Binary floats are not
+used for reconciliation comparisons.
+
+Match outputs use:
+
+- `status`
+- `stage`
+- `bank_transaction_id`
+- `journal_transaction_id`
+- `bank_date`
+- `journal_date`
+- `date_diff_days`
+- `bank_amount`
+- `journal_amount`
+- `amount_delta`
+- `bank_description`
+- `journal_description`
+- `shared_references`
+- `review_note`
+
+Relationship-residual outputs use `side`, `record_ref`, `transaction_id`,
+`record_amount`, `allocated_amount`, `residual`, `currency`, `unit`,
+`entity_ref`, and `party_ref`. These are an exact projection of the allocation
+ledger; they do not classify, allocate, or force residuals to zero.
+
+## Header and Mapping Authority
+
+Automatic qualification is deliberately narrow: exactly one row in the first
+30 rows must contain an unambiguous set of exact, supported headers for date
+and either signed amount or debit/credit. A value-profiled date, fuzzy label,
+or numeric column position may be proposed in `suggested_recipe.json`, but it
+has no qualification authority and emits zero movements.
+
+For CSVs, `csv_field_delimiter` is transport syntax and is distinct from
+`decimal_separator` and `thousands_separator`. The bounded profile tests only
+comma, semicolon, tab, and pipe over at most 128 KiB and 100 non-empty records.
+A candidate is unique only when exactly one strict parse produces at least two
+constant-width records with more than one field. Only the uniquely profiled
+comma default may participate in the exact automatic contract. A non-default
+delimiter or an explicit delimiter that does not uniquely match the profile
+requires a current reviewed mapping receipt. Ambiguous delimiters return
+`needs_review`; unsupported delimiters return `unsupported_source_layout`.
+Both emit zero rows.
+
+LF, CRLF, and CR record terminators are mechanically normalized to LF through
+a chunked private transport copy before the full parse. A record terminator is
+not a mapping field and is distinct from both field and numeric separators.
+The full CSV parse is strict: errors are not ignored and ragged rows are not
+truncated, including malformed rows beyond the bounded profile.
+
+When the exact contract does not apply, Codex must review the physical header
+row, mapping, CSV field delimiter, and numeric separator convention. It then uses
+`build_mapping_review_receipt` to seal that content against the current
+content-addressed source artifact reference and adapter version. Hand-editing
+the mapping without a valid receipt does not qualify it. A changed source,
+mapping, header row, separator convention, or adapter makes the receipt stale.
+
+The v6 mapping receipt also binds `date_convention`. Native date/datetime
+cells, valid compact `YYYYMMDD`, valid year-first text, and integral
+spreadsheet serial dates in the bounded Excel range are mechanical.
+Day/month text is evaluated under both supported interpretations. If both are
+valid, the source emits zero rows until the reviewer seals exactly
+`day_first` or `month_first`; parser-list order has no authority. A populated
+invalid date fails the complete source even if the row has a stable reference.
+Only a truly blank date with a stable reference can be emitted as
+`emitted_reference_only`.
+
+The additive v7 mapping contract supports full Italian textual-month dates
+only after the reviewer seals `date_locale: it` against the current source.
+It accepts the exact full-month vocabulary and valid Gregorian dates; unknown,
+abbreviated, mixed-language, embedded, or invalid forms fail closed. A v7
+mapping receipt may also bind `non_movement_summary_labels`. An exact reviewed
+label excludes a monetary row only when its mapped date is blank and its
+explicit reference and movement-number fields contain no stable token. Labels
+never override an actual date or stable reference.
+
+Every reviewed path must declare `potential_monetary_columns` exactly as
+derived from the current parsed source and must provide
+`excluded_monetary_columns`, even when it is empty. Each potential monetary
+column must be mapped to `amount`, `debit`, or `credit`, or explicitly
+excluded. Incomplete, extra, or stale dispositions have no review authority
+and emit zero rows.
+
+## Mapping Fields
+
+Use `amount` when the file has a single signed amount column. Use `debit` and `credit` when the file splits debit and credit. The script calculates signed amount as debit minus credit.
+
+Reference fields can contain document numbers, CRO/TRN, invoice references,
+IBAN fragments, or other stable identifiers. Only explicit `reference` and
+`movement_number` fields participate in the reference stage. Descriptions and
+beneficiary names remain review context. Generic words such as `invoice`,
+`payment`, `document`, or `transfer` are not stable identifiers; reference
+tokens must contain a non-generic identifier with digits.
+
+`currency`, `unit`, `entity_ref`, `party_ref`, and `direction` define the
+relationship perimeter. Missing required values may be supplied only through a
+reviewed policy default.
+
+An explicit direction column may contain canonical `positive`, `negative`, and
+`zero` values directly. Other categorical values require a reviewed,
+source-bound `direction_value_mapping` that exactly covers the observed
+non-canonical vocabulary. The mapping translates each source label to one
+canonical direction and is sealed in the mapping receipt. No universal
+debit/credit polarity is assumed. A missing label mapping, an extra unobserved
+label, or disagreement between the mapped direction and exact signed amount
+withholds the complete source.
+
+## Reviewed Relationship Policy
+
+Every run requires a `journal_bank_relationship` reviewed decision receipt,
+sealed with `build_relationship_review_receipt` against the current bank and
+journal source artifact references. The supported relationship shapes are
+`one_to_one`, `one_to_many`, `many_to_one`, and `many_to_many`; evidence reuse
+is disabled, and currency and unit equality are mandatory. The policy also records:
+
+- whether entity and party must agree;
+- `absolute_amount`, `same_sign`, or `opposite_sign` direction treatment;
+- any currency, unit, entity, or party defaults;
+- exact amount tolerance;
+- date window in calendar days.
+
+Execution arguments must equal the reviewed tolerance and date window.
+Relationship tolerance accepts canonical decimal text, `Decimal`, or integer
+values and is persisted as canonical Decimal text. Floats, booleans,
+localized/noncanonical text, non-finite values, and negative values are
+rejected rather than guessed.
+The relationship adapter is `journal_bank.relationship.v3`, version `3`.
+Version 3 seals both batch-safe singleton allocation and conserved grouped
+reference allocation. Older relationship receipts are stale and must be
+reviewed again.
+
+## Matching Stages
+
+Each wave is computed from a snapshot of all currently unmatched rows. Only
+bank rows with exactly one eligible candidate whose target journal row is not
+also the singleton target of another bank row enter the batch. The complete
+batch is accepted together; source row order never breaks target collisions.
+
+1. `reference`: conflict-free singleton candidates with an explicit shared
+   reference or movement token and amount inside the exact tolerance. Date
+   evidence is optional for this explicit-identifier stage. Conflict-free
+   reference waves repeat until no further safe reference singleton remains.
+2. `reference_group`: one bank movement to many journal rows, or many bank
+   movements to one journal row, only when a shared stable reference or a
+   complete explicit identifier list defines the group. Lists come only from
+   the mapped reference field; whitespace, comma, semicolon and pipe separate
+   identifiers, while internal punctuation is preserved. Each identifier must
+   contain letters and digits. At most 100 distinct identifiers are admitted;
+   missing or duplicated opposite-side identifiers withhold the entire group.
+   The reviewed shape must permit it, every row must be inside the
+   reviewed perimeter, and exact Decimal group totals agree within tolerance.
+   Any row participating in more than one possible group keeps all overlapping
+   groups unmatched.
+3. `amount_date_unique`: the first conflict-free singleton amount/date batch
+   after reference matching is exhausted. Both rows require actual dates inside
+   the configured date window.
+4. `amount_date_single`: later conflict-free singleton waves containing only
+   candidates that became singleton after an earlier amount/date batch removed
+   other candidates. Later waves repeat until no safe singleton remains.
+
+Rows are not reused. Ambiguity stays unmatched.
+Multiple singleton bank rows targeting the same journal row remain ambiguous;
+none receives a row-order preference.
+Candidates outside the reviewed currency, unit, entity, party, or direction
+perimeter are never matched.
+
+## Codex-Only Residual Resolution Funnel
+
+After a qualified deterministic run, `semantic_review.py prepare` projects the
+unmatched partitions into a bounded candidate graph and records the user's
+required certainty threshold. Preparation first validates the current output
+receipts and material-value ledger replay.
+An edge exists only when the core candidate predicate accepts the exact amount
+and reviewed currency, unit, entity, party, and direction perimeter, and the
+pair also has either a shared stable explicit reference or two actual dates
+inside the reviewed date window. Description and beneficiary similarity cannot
+create an edge.
+
+The graph groups eligible rows into deterministic connected components. The
+preparer admits the complete residual only when every component fits one packet
+inside the fixed bank-row, journal-row, edge, component-count, graph-byte, and
+prompt-byte limits. It does not select a partial packet or automatically chunk
+the remainder. A one-bank/one-journal component that should already have been
+resolved by deterministic singleton matching, any over-cap component, or an
+over-cap complete residual defers the entire model step. The preparer reports
+`worker_required: false`, records the reason, and preserves every bank movement
+in the human-review queue.
+
+Packet projection happens after source-column mapping. The worker receives
+only populated canonical fields for unresolved bank rows and their
+hard-compatible candidates. Unmapped raw columns, empty canonical fields,
+physical source locators, and the mechanically derived absolute amount remain
+outside model context. The opaque transaction ID preserves local linkage and
+the signed amount remains available as evidence.
+
+Only the main Codex chat may orchestrate the optional model pass. It keeps its
+existing model and invokes `semantic_review.py run-worker`, which requests one
+separate ephemeral `gpt-5.6-luna` process at max reasoning for the complete
+selected packet. Never reconstruct or run the underlying `codex exec` command
+directly. The launcher is fail-closed to the pinned macOS build, Codex CLI and
+hash, Seatbelt and canary hashes, and deny-default profile hash. It uses a
+mode-`0700` capsule, prompt stdin, bounded parent capture, a read-only inner
+sandbox, ignored project rules, absent-or-empty global Codex instructions, and
+enumerated feature disables. Exact-read and outside-read-denial canaries run
+before the worker; the qualified boundary also denied the hidden `view_image`
+path access to an outside nonce image. Do not launch a worker per candidate,
+change the model of the current chat, or use Luna to run source qualification,
+matching, ledger replay, assurance, or final review.
+
+The boundary permits exact Codex authentication and installation-ID access and
+outbound network access, so the packet is transmitted to the OpenAI Codex
+service. The installation-ID file has the narrow write permission required by
+the pinned build but must remain byte-identical. The capsule is deleted after
+the turn. The response, JSONL, stderr, and content-bound launch receipt are
+published together only after packet, source, runtime-input, executable, and
+boundary checks replay successfully.
+
+Worker decisions are limited to `suggest_match`, `ambiguous`, `no_match`, and
+`needs_evidence`, plus a strongest supported resolution level and optional
+classification or identified counterparty. A suggested journal row must be an existing graph neighbor;
+other verdicts cannot name a journal row. Validation requires the current graph
+digest, exactly one review of every selected component and bank row, global
+non-reuse of journal evidence, bounded evidence and rationale fields, a strict
+thread/turn/item lifecycle, no JSONL-visible forbidden item, and equality
+between the final event message and retained response. Any violation rejects
+the entire response. JSONL visibility is incomplete and therefore cannot prove
+that no hidden tool path ran; the pinned outer filesystem boundary is the
+primary containment control. JSONL also does not attest the selected model or
+reasoning effort, so worker metadata records both as requested rather than
+observed and validation requires the launch receipt.
+
+Validated results live outside the canonical reconciliation directory in its
+real sibling named `semantic-review`. `run-all` launches at most one worker for
+the complete admitted residual. Raw Luna output remains advisory until
+validation. The validator then applies accepted decisions to
+`semantic_resolution_application.json`, `resolution_funnel.json`, and
+`human_review_queue.json`, and writes `operational_review_payload.json` as the
+bank-side human workbench input. Unmatched journal rows remain strict evidence
+and candidate context but are not standalone work items. The funnel levels are `classified`,
+`candidate_match`, `beneficiary_match`, `identifier_match`, and
+`perfect_match`; “at least” totals are cumulative even though each movement is
+assigned only its highest level. Levels express sufficiency, not the presence
+of every weaker evidence field. Only deterministic replay may assign
+`perfect_match`; Luna may clear operational review at a lower user-selected
+threshold but cannot alter native matches, ledgers, artifact receipts,
+assurance gates, or report readiness. If the current preparation closure remains valid,
+worker unavailability or invalid output is recorded as `worker_failed`; source
+or packet tampering instead fails without writing a falsely bound status. A
+validated generation remains terminal until a new preparation archives its
+fixed-name artifacts under `semantic-review/history/`. In every failure mode,
+the main Codex chat and deterministic reconciliation remain unchanged.
+
+## Source Qualification
+
+- Tabular files emit rows only after date and amount or debit/credit fields are
+  mapped and every populated mapped monetary cell parses exactly.
+- CSV field delimiter and date authority follow the bounded v6 contract above.
+  Non-default choices, profile mismatches, and full potential-monetary-column
+  dispositions are sealed in `journal_bank.tabular.v6` mapping receipts;
+  receipts from adapter v5 and earlier are stale.
+- Italian textual-month dates and exact reviewed blank-date summary labels use
+  the additive `journal_bank.tabular.v7` receipt. Adapter selection is explicit;
+  existing numeric-date v6 sources are not silently upgraded.
+- The strict full-file CSV parse follows bounded delimiter profiling. A
+  malformed or ragged record anywhere in the population is a parser failure
+  and emits zero rows; LF, CRLF, and CR differ only as transport syntax.
+- Dates accept the mechanical forms described above. Ambiguous day/month
+  values require reviewed source-bound authority; invalid populated values
+  fail the source and emit zero rows.
+- Non-canonical direction labels emit rows only after complete reviewed
+  source-value mapping.
+- Every monetary candidate receives a row disposition. An invalid monetary
+  value or a missing date without an explicit reference blocks the source and
+  emits zero rows. A missing date with a stable explicit identifier is emitted
+  as `emitted_reference_only` and can participate only in the reference stage.
+  A blank-date/no-reference row may instead be
+  `excluded_reviewed_summary` only through an exact receipt-bound v7 summary
+  label.
+- Ambiguous separator syntax such as `1.000` is rejected unless the recipe
+  explicitly declares the separator convention.
+- `journal_bank.pdf_table.v1` accepts ruled or positionally aligned text-PDF
+  tables only when they have an explicit date header and at least one monetary
+  header, every page repeats the same physical header, and a current
+  source-bound mapping receipt approves amount/debit/credit roles, signs, and
+  every excluded monetary column. Page/table/row coordinates remain lineage.
+- Generic PDF text, inconsistent page tables, and OCR-only input emit zero rows
+  with `unsupported_source_layout`. A date plus numeric tokens on a free-form
+  line is not a movement. Narrow balance, total, scalare, and conditions
+  classifications may still be retained as non-movement review evidence.
+- A supplied sample must contain movement identifiers and select journal rows.
+  Empty, invalid, or nonmatching samples block instead of falling back to the
+  full journal.
+- Parser failure is reported separately from a readable but unsupported layout;
+  available receipts, qualifications, gates, lineage, diagnostics, and audit
+  are still written before the run returns a block.
+
+## Assurance Artifacts
+
+Inspection and reconciliation bind source bytes to content-addressed
+`input_receipts.json` records and `source_qualifications.json`. Reviewed mapping
+and relationship decisions are collected in `reviewed_decisions.json`.
+`lineage.json` points every emitted transaction to the physical workbook sheet
+and row (or physical CSV row). `relationship_ledger.json` records exact
+non-reusing allocations and residuals, including permitted one-to-many and
+many-to-one reference groups. `relationship_residuals.csv` projects
+the record, allocated, and residual components for every bank and journal row.
+`material_value_ledger.json` freshly replays matching and the relationship
+ledger, then binds every declared match and residual field to the exact
+prepared row, CSV row/column, and XLSX cell. A blocked run still writes the
+complete reviewable native package, including an empty
+`relationship_residuals.csv` and an explicit blocked relationship ledger.
+Only `material_value_ledger.json` is absent when source qualification or
+relationship authority blocks, because material reconciliation never ran.
+
+The execution boundary closes an exact 24-file contract covering launcher
+configuration, UI assets, Python/Node code, and the shared assurance kernel.
+Supported Python entries validate the physical tree before local imports; MCP
+does so before manifest parsing and invokes Python with `-I -B`. Unowned
+bytecode caches and other physical entries therefore fail before execution.
+Those receipts establish consistency, not package-publisher or reviewer
+authentication.
+
+The assurance gates are independent:
+
+- source qualification;
+- preparation and sample perimeter;
+- exact reconciliation closure;
+- professional semantic review;
+- reporting integrity;
+- publication, which remains outside this component.
+
+Unmatched rows or residuals set reconciliation to `withheld`, even if a reviewer
+accepts every review item. Reporting becomes passed only after source,
+preparation, reconciliation, and semantic review are passed and artifact
+receipts validate. Authorized review edits are resealed; an unexpected changed
+output keeps its old failing receipt and blocks readiness.
+
+Blocked runs still write the available receipts, qualifications, lineage,
+gates, audit, and narrow PDF non-movement evidence before returning an error.
+
+## Codex Review Boundary
+
+Codex may:
+
+- decide whether a generated mapping is credible;
+- ask a targeted mapping question;
+- inspect source rows;
+- explain why unmatched rows need manual review;
+- propose deterministic improvements.
+
+Codex must not:
+
+- alter a match solely because it "looks right";
+- hide unresolved ambiguity;
+- make direct OpenAI API calls from helper scripts;
+- ask the user to operate CLI scripts directly.
