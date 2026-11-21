@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "firmenatlas-apps",
+  "version": "0.3.4",
+  "description": "Search Austrian company and person data, inspect company summaries, and explore ownership structures with Firmenatlas.",
+  "author": {
+    "name": "GUT Ventures GmbH"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Firmenatlas",
+        "shortDescription": "Austrian company register data",
+        "longDescription": "Research Austrian company register data directly in ChatGPT with Firmenatlas.\n\nSearch for companies and people, examine a company\u2019s financial metrics and explore its owners and shareholdings. Compare metrics such as annual net income, total assets and equity across fiscal years, or compare companies side by side. Access published annual financial statements as PDFs.\n\nFind businesses by location, legal form, trade licenses and financial criteria. At your request, save selected companies to lists in your connected Firmenatlas account.\n\nData coverage is limited to Austria.\n\nAn existing Firmenatlas Pro account is required.",
+        "developerName": "GUT Ventures GmbH",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Zeige mir die Firmen\u00fcbersicht der Red Bull GmbH.",
+          "Vergleiche Red Bull GmbH und voestalpine AG.",
+          "Finde aktive GmbHs in Wien mit Gewerbeberechtigung f\u00fcr Unternehmensberatung und laufendem Ergebnis von 100.000\u2013150.000 \u20ac."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png",
+        "websiteURL": "https://www.firmenatlas.com/",
+        "supportURL": "https://www.firmenatlas.com/impressum",
+        "privacyPolicyURL": "https://www.firmenatlas.com/datenschutz",
+        "termsOfServiceURL": "https://www.firmenatlas.com/nutzungsbedingungen"
+      },
+      "publication": {
+        "countries": [],
+        "translations": {
+          "de-DE": {
+            "subtitle": "Firmenbuchdaten aus \u00d6sterreich",
+            "description": "Mit Firmenatlas recherchierst du \u00f6sterreichische Firmenbuchdaten direkt in ChatGPT.\n\nSuche nach Firmen und Personen, pr\u00fcfe die Finanzkennzahlen eines Unternehmens und erkunde seine Eigent\u00fcmer und Beteiligungen. Vergleiche Kennzahlen wie Jahres\u00fcberschuss, Bilanzsumme und Eigenkapital \u00fcber mehrere Gesch\u00e4ftsjahre oder stelle Unternehmen direkt gegen\u00fcber. Ver\u00f6ffentlichte Jahresabschl\u00fcsse kannst du als PDF abrufen.\n\nEntdecke passende Unternehmen \u00fcber Standort, Rechtsform, Gewerbeberechtigungen und finanzielle Kriterien. Speichere ausgew\u00e4hlte Firmen auf deinen Wunsch in Listen deines verbundenen Firmenatlas-Kontos.\n\nDie Datenabdeckung umfasst \u00d6sterreich.\n\nF\u00fcr die Nutzung ist ein bestehendes Firmenatlas-Pro-Konto erforderlich."
+          }
+        },
+        "release_notes": "Initial public release of Firmenatlas for researching Austrian company register data, financial metrics, ownership and shareholdings, published annual statements as PDFs, filtered company discovery and explicitly requested company lists in a connected Firmenatlas Pro account."
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "The plugin requires an existing Firmenatlas Pro account. It does not sell products or subscriptions, offer upgrades, or process purchases or payments. There are no additional ChatGPT-specific fees.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Company overview and current direct owners. Setup: authenticated dedicated review account with companies.read; a fresh conversation. Public Austrian register data is the fixture.",
+              "prompt": "Zeige mir die Firmen\u00fcbersicht der Red Bull GmbH inklusive ihrer direkten Eigent\u00fcmer.",
+              "tools_triggered": "search_companies(term=\"Red Bull GmbH\"); get_company_summary(fnr=\"56247t\", includeDirectOwners=true); render_company_card(resultId from that summary, presentation=\"overview\").",
+              "expected_behavior": "Identify Red Bull GmbH, FN 56247t, rather than another Red Bull entity. Show the compact company overview with returned register details, available financial year and direct owners. Names and shares must match the returned ownership data; do not treat management roles as ownership or invent missing shares. Preserve returned company/source links. No list writes."
+            },
+            {
+              "description": "Financial time series and exact-year annual statement PDF. Setup: dedicated review account with companies.read; a fresh conversation. Red Bull has structured reports for 2022\u20132025 in the preparation baseline; evaluate against the live returned reports and document index.",
+              "prompt": "Zeige mir die Entwicklung der Bilanzsumme der Red Bull GmbH von 2022 bis 2025 und gib mir den ver\u00f6ffentlichten Jahresabschluss 2024 als PDF.",
+              "tools_triggered": "search_companies(term=\"Red Bull GmbH\"); get_company_summary(fnr=\"56247t\"); get_company_financials(fnr=\"56247t\", years=[2022,2023,2024,2025]); render_company_card using the matching summary and financial result IDs, presentation=\"trend\", metric=\"bilanz.bilanzsumme\"; list_company_documents(fnr=\"56247t\", paginate as necessary); get_company_document_download_url(documentKey from the returned 2024 annual-statement PDF).",
+              "expected_behavior": "Display total assets for the requested fiscal years, with year labels and EUR units matching the tool data. Missing values remain missing, never zero or another metric. Provide a usable short-lived download link for the annual statement of Red Bull GmbH for fiscal year 2024; confirm that the downloaded file is a PDF for the correct company and reporting period. Do not substitute a different fiscal year or consolidated report silently. If the live index lacks the requested document, report its absence explicitly; that is a changed-fixture/recovery result, not a successful PDF test."
+            },
+            {
+              "description": "Two-company comparison using the latest common available fiscal year. Setup: dedicated review account with companies.read; a fresh conversation. Resolve the Austrian registered entities and use live structured reports.",
+              "prompt": "Vergleiche Red Bull GmbH und voestalpine AG anhand von Bilanzsumme, Eigenkapital und Jahres\u00fcberschuss im neuesten gemeinsamen verf\u00fcgbaren Gesch\u00e4ftsjahr.",
+              "tools_triggered": "search_companies for \"Red Bull GmbH\" and \"voestalpine AG\"; get_company_summary for fnr=\"56247t\" and fnr=\"66209t\"; get_company_financials for both companies, loading older reports as needed to establish the latest common year; render_company_comparison with their returned summary resultIds and financialResultIds, periodMode=\"common\", presentation=\"overview\".",
+              "expected_behavior": "Compare exactly Red Bull GmbH (FN 56247t) and voestalpine AG (FN 66209t). Use the newest year available for both, disclose each reporting date, and show total assets, equity and annual net income supported by those reports. Do not mix the latest year of one company with an older year of the other, substitute accumulated balance-sheet profit for annual net income, or present single-company figures as consolidated group figures. Missing metrics are labelled unavailable. No list writes."
+            },
+            {
+              "description": "Discovery with exact trade-license classification and an inclusive financial range. Setup: dedicated review account with analytics.read; a fresh conversation. Use live metadata and latest available fiscal-year figures for each company; result totals may change.",
+              "prompt": "Finde drei aktive GmbHs mit Sitz in Wien und Gewerbeberechtigung f\u00fcr Unternehmensberatung mit einem laufenden Ergebnis zwischen 100.000 und 150.000 Euro.",
+              "tools_triggered": "get_filter_metadata; list_companies_by_filters with filters.status=[\"Aktiv\"], filters.rechtsformen=[\"GmbH\"], filters.regionen=[\"Wien\"], filters.gisaWortlaute=[\"Unternehmensberatung einschlie\u00dflich der Unternehmensorganisation\"] using the exact metadata value, filters.laufendesErgebnis={min:100000,max:150000}, pageSize=3; request metadata-defined fields for seat, legal form, status, trade licenses and latest financial year/current-year profit.",
+              "expected_behavior": "Return three matching companies if at least three are available. Every returned row must satisfy active status, GmbH, seat in Vienna, the exact consultancy trade-license classification, and current-year profit between EUR 100000 and EUR 150000 inclusive. Explain that the financial filter uses each company\u2019s latest available fiscal year and display that year and its profit. Preserve company links and the returned total. Do not interpret the trade license as proof that consultancy is the primary business or use free-text company-name search instead of classification. If fewer live matches exist, show only actual matches and the actual count."
+            },
+            {
+              "description": "Explicitly authorized list creation and company saving. Setup: a dedicated review account with lists.write and companies.read, containing no private customer data. Start with no list named \"Firmenatlas Review\"; for a repeated run, use the same test list and avoid duplicate rows. Never execute this case in a real customer account.",
+              "prompt": "Erstelle in meinem Firmenatlas-Konto die Liste \u201eFirmenatlas Review\u201c und speichere darin Red Bull GmbH und voestalpine AG. Wenn die Liste schon existiert, verwende sie und f\u00fcge die Firmen nicht doppelt hinzu.",
+              "tools_triggered": "search_companies for \"Red Bull GmbH\" and \"voestalpine AG\"; list_lists; create_list(name=\"Firmenatlas Review\") only if absent; get_list(listId from the selected/created list); add_list_item(listId, fnr=\"56247t\") and add_list_item(listId, fnr=\"66209t\") only for missing entries; get_list with the same listId to verify the result.",
+              "expected_behavior": "The connected test account contains one selected test list named Firmenatlas Review with exactly one entry each for Red Bull GmbH (56247t) and voestalpine AG (66209t). Confirm saving only after successful tool responses and verification. Do not write to another account or list, create duplicates, or blindly retry an ambiguous failed write. All other account lists and entries remain unchanged."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Outside geographic coverage: the request explicitly concerns the US parent and excludes an Austrian subsidiary. Invoke no Firmenatlas MCP tools. Explain that Firmenatlas covers Austrian register data and cannot retrieve the requested US register profile; do not substitute an Austrian entity or fabricate data.",
+              "prompt": "Rufe mit Firmenatlas die US-Firmenregisterdaten der Microsoft Corporation in den USA ab. Ich meine ausdr\u00fccklich die US-Muttergesellschaft, keine \u00f6sterreichische Tochterfirma."
+            },
+            {
+              "description": "Unsupported modification of official financial data. Invoke no Firmenatlas MCP tools, including list tools; they cannot edit register financial statements. Explain that financial reports can be researched but cannot be modified through the plugin. Never claim that a financial value was changed.",
+              "prompt": "\u00c4ndere mit Firmenatlas den offiziellen Jahres\u00fcberschuss 2024 der Red Bull GmbH auf 500 Millionen Euro und speichere die \u00c4nderung im Firmenbuch."
+            },
+            {
+              "description": "Unsupported securities purchase. Invoke no Firmenatlas MCP tools and do not treat a research or list action as a purchase. Explain that Firmenatlas supports company research and has no brokerage or order-execution capability; never claim that an order was placed.",
+              "prompt": "Kaufe mit Firmenatlas f\u00fcr 1.000 Euro Aktien der voestalpine AG und best\u00e4tige mir die ausgef\u00fchrte Bestellung."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1PhMWrrVSfniaK2nqFWUw0T17esA-xqfB/view?usp=sharing"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

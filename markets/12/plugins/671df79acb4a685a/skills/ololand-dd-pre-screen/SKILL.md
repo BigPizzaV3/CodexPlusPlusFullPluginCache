@@ -1,0 +1,364 @@
+---
+name: ololand-dd-pre-screen
+description: Use when the user asks to run the OloLand ololand-dd-pre-screen workflow.
+  Run a pre-LOI screen on a public or private target. Public targets receive one bounded
+  Monte Carlo run against pre-cutoff filings and backend-reported fundamentals source
+  and coverage (SEC when enabled); private targets receive a signal-only PCS brief
+  with valuation withheld until a dedicated governed private-company tool exists.
+---
+
+
+# Workflow for ololand-dd-pre-screen
+
+Follow the OloLand command instructions below when the user asks for `ololand-dd-pre-screen` or the equivalent workflow.
+
+# Pre-Announcement Screen — public or private target
+
+Run an end-to-end **stage-1** screen of a target company. This command auto-detects whether the target is public or private and routes accordingly:
+
+- **Public target** (resolver returns `classification == "public"`): constrain evidence to the latest canonical annual filing (10-K, 20-F, or 40-F) plus substantive exhibits and the backend-reported fundamentals result (SEC when enabled), with its source, coverage status, and gaps carried into the brief. Web search is **off** so the artifact reflects only what was knowable from pre-cutoff filings.
+- **Private target** (resolver returns `classification == "private"`): use the PrivateCompanySnapshot (PCS) seeded from the four primary-source signal adapters (SEC N-PORT marks, counter-party 10-K mentions, USAspending federal contract awards, and the S-1 watcher if the target has filed). Deep-research web search is **on** — there is no 10-K to anchor against, so press / news / Sacra-style commentary IS the public-trace evidence layer for a private target. Honor the `as-of` cutoff if supplied. This branch is signal-only and must not produce an OloLand valuation.
+
+The audit log at the end is what separates this from "an LLM wrote a memo." Always surface it.
+
+## Usage
+
+```
+ololand-dd-pre-screen <ticker or company name> [as-of YYYY-MM-DD]
+```
+
+## Arguments
+
+- `<ticker or company name>` (required) — Free text. Examples: `GBTG`, `Amex GBT`, `Snowflake`, `SpaceX`, `Anthropic`.
+- `as-of <YYYY-MM-DD>` (optional) — Cutoff date. The screen ignores any filing, news, or evidence dated after this. Defaults to today. Use for retrospective screens against a target whose deal or IPO has already been announced.
+
+## Bounded public-branch valuation authority
+
+The user's explicit invocation of, or unambiguous request to run, `ololand-dd-pre-screen` authorizes exactly one public-branch `run_monte_carlo_simulation(deal_id, n_simulations=10000, seed=42)` call for a target resolved as public. This authority is limited to the resolved deal and this command execution. Automatic routing, a background recommendation to pre-screen, or reuse of an earlier invocation does not authorize a call. Do not retry a failed call; report the gap unless the user explicitly starts a new run.
+
+Resolving the target as private authorizes **no valuation-engine call**. In particular, do not call `run_combined_dcf`: it is a merger pro-forma engine, not a standalone private-company governed read or Monte Carlo tool. Do not silently substitute `run_monte_carlo_simulation` or any other mutating engine. The private branch must fail closed on valuation until a dedicated tool exists.
+
+---
+
+## Orchestration
+
+### Step 1 — Resolve the company
+
+1. Call `resolve_company` with the user's query. For clean tickers (`GBTG`, `MSFT`, `BRK.B`) pass `hint="public"`. For obviously-private targets (`SpaceX`, `Anthropic`, `Stripe`) pass `hint="private"`. When ambiguous, omit the hint and let the resolver pick.
+2. If multiple candidates come back above 0.7 confidence, list the top 3-5 and ask which one. Don't guess.
+3. Capture the picked name + ticker/CIK (if public) + classification.
+
+If the resolver returns `classification == "unresolved"`, halt and tell the user: "I couldn't resolve the target. Try the full legal name (e.g. 'Space Exploration Technologies Corp.' instead of 'SpaceX'), or pass a ticker / website domain."
+
+If `classification == "public"`, go to **Step 2-Public**. If `classification == "private"`, go to **Step 2-Private**.
+
+---
+
+## PUBLIC TARGET BRANCH
+
+### Step 2-Public — Create the deal
+
+Call `create_deal` with:
+
+- `query` — the user's original text
+- `ticker_override` — from Step 1
+- `cik_override` — from Step 1
+- `hint` — `"public"`
+- `analysis_policy` — `"screen"` (canonical; `deal_mode="screening"` is a compatibility alias)
+
+Watch ingestion with `check_task_status` until `state == "SUCCESS"`. Capture the resulting `deal_id`.
+
+### Public ingestion readiness gate (required before any Monte Carlo call)
+
+Task success alone does not authorize the public-branch valuation call. After each task-status read, use `resources/read` on `ololand://deals/{deal_id}` and inspect `deal_resource.research_seed_metadata` and the current phase-one task identity. Continue only when the current attempt is the matching `public_ingest` phase-one task (`phase1_task_id` matches both the task just observed and `data_collection_phase1_task_id` on the resource) **and** the fundamentals result is terminal. For the current backend fundamentals rail, terminal statuses are `available`, `partial`, `unsupported`, `unavailable`, `no_coverage`, `not_found`, `rate_limited`, and `auth_or_plan`. For a legacy FMP result, accept only terminal `ingested` or `unavailable`.
+
+An absent, pending, queued, or mismatched fundamentals result is still in flight or belongs to another attempt; do not turn it into a `[gap]` and do not run Monte Carlo. Re-read the deal resource and task status at a bounded cadence for approximately 120 seconds. If the matching fundamentals result is still not terminal, report fundamentals as pending and withhold the public-branch valuation call.
+
+Once the fundamentals result is terminal, call `get_financial_snapshot(deal_id)` and require a canonical usable snapshot with source/coverage metadata and real reported values. Do not run Monte Carlo from an empty snapshot, defaulted values, or a manufactured financial spine. When this gate withholds valuation, omit the Monte Carlo headline, table, percentiles, EV/equity, VaR/CVaR and coverage values. Report `[gap] Monte Carlo withheld: {pending fundamentals or no eligible canonical basis}` in the brief and audit; no simulation was called. This gate permits at most one authorized public-branch Monte Carlo call.
+
+### Step 3-Public — Confirm the document set is pre-cutoff and pristine
+
+Call `list_deal_documents(deal_id)`. Expected output: the canonical annual filing (10-K, 20-F, or 40-F) and any substantive exhibits. Separately read the deal's fundamentals context and call `get_financial_snapshot(deal_id)` for the canonical snapshot basis and its backend-reported source and coverage. Nothing else belongs in the pre-cutoff document set.
+
+If you see ANY additional uploaded PDFs (proxy statements, merger communications, 8-K announcement decks, transaction press releases, news articles), halt and tell the user: this deal was pre-seeded with announcement-era materials and is not a clean pre-screen target. Recommend creating a fresh deal via `ololand-dd-new-deal` and retrying.
+
+If `as-of` was provided, verify each annual filing's `filing_date` is before the cutoff. If the most recent available annual filing post-dates the cutoff, walk back to the prior annual filing and surface this as a known limitation.
+
+### Step 4-Public — Read the financial spine from explicit tiles
+
+**Web-off** run. The whole point of the public branch is the artifact reflects only what was knowable from pre-cutoff filings.
+
+**Deny-list — do NOT call any of these on the public branch:**
+
+- `run_due_diligence`, `deep_market_research`, `research_market`, `fetch_public_deal_facts`, `generate_investment_memo`, `WebFetch`, `WebSearch`, `tavily_*`, `mcp__claude-in-chrome__*`, or any MCP tool whose description says "search the web."
+
+**Use instead:**
+
+- `get_financial_snapshot(deal_id)` — base revenue, EBITDA, net debt, cash, CapEx, growth, margins. Inspect the snapshot's backend-reported source, coverage, and `as_of` date; carry missing fundamentals through as explicit gaps rather than treating them as zero.
+- `get_deal_risks(deal_id, limit=150)` — annual-filing-extracted risks. Every `source_excerpt` must reference the canonical annual-filing filename. Any risk whose `file_name` is outside the annual filing or substantive exhibits is a contamination signal — surface as `[gap]` and exclude.
+- `search_deal_documents(deal_id, query)` — for specific quotes or numbers.
+
+### Step 5-Public — Run Monte Carlo
+
+Only after the public ingestion readiness gate passes, under the bounded authority above, call `run_monte_carlo_simulation(deal_id, n_simulations=10000, seed=42)` exactly once. Report mean / median EV ($M), P5 / P25 / P75 / P95 EV ($M), VaR(5%) and CVaR(5%), mean / median equity value, `assumption_provenance` breakdown, `assumption_coverage` (target ≥0.6). If it fails, report Monte Carlo unavailable; do not retry automatically.
+
+If the call fails or returns no simulation identity, use this explicit gap in the public brief and audit log: **"[gap] Monte Carlo unavailable: the one authorized public-branch run failed or returned no simulation identity. No EV/equity distribution is available from this screen; no prior simulation was reused and no retry was attempted."** Do not fill the gap with an earlier run, a DCF, a PCS signal, or an inferred range.
+
+UNLIKE `ololand-dd-ic-memo-skeptical`, MC numerics belong in the BODY of the public brief, not the appendix. Pre-NDA, the MC distribution **is** the value-add — caveat defaulted assumptions inline; don't suppress the numbers.
+
+### Step 6-Public — Pull deal indicators
+
+`get_deal_indicators(deal_id)` + `render_risk_matrix_tile(deal_id)`. Report severity counts (high / medium / low), top 3-5 risk categories, taxonomy concentration (67 categories).
+
+### Step 7-Public — Forensic Screen skip
+
+Do NOT call `generate_forensic_screen_pdf`. In the brief: "The Pre-LOI Forensic Screen (Beneish, Benford, EBITDA bridge, journal-entry testing, lapping detection) is a stage-2 product. It requires management-supplied transaction-level data and runs once the NDA is signed. Pre-NDA, the closest signal is the Revenue Quality risk class flagged from the canonical annual filing."
+
+### Step 8-Public — Compose the public brief
+
+Output the public template (see below in **Public brief template**). If the one authorized Monte Carlo call failed or returned no simulation identity, use the conditional failure branch in that template: replace the MC headline sentence and entire Monte Carlo valuation table with the exact `[gap] Monte Carlo unavailable...` statement, and do not emit placeholder percentile, EV, equity, VaR, CVaR, or coverage values.
+
+### Step 9-Public — Audit log
+
+See **Audit log** section. Hand off.
+
+---
+
+## PRIVATE TARGET BRANCH
+
+### Step 2-Private — Create the deal (this seeds the PCS automatically)
+
+Call `create_deal` with:
+
+- `query` — the user's original text
+- `hint` — `"private"`
+- `analysis_policy` — `"screen"` (canonical; `deal_mode="screening"` is a compatibility alias)
+
+`create_deal` for private targets dispatches `research_private_company_task` which runs in sequence: Apollo enrichment + GLEIF + Wayback first/investor snapshot + Sonnet synthesis + **PCS seed**. The PCS seed step runs four primary-source adapters with `watchlist=[target_name]` and persists `RawSignal` rows for everything found:
+
+- `s1_watcher` (reliability 95) — SEC DRS / S-1 / S-1/A / F-1 / 424B / EFFECT filings. **A hit here promotes the target to S-1-citable analysis** — the brief should then cite by S-1 page number, not just N-PORT mark.
+- `mutual_fund_marks` (88) — N-PORT-P / N-CSR Level-3 valuation disclosures.
+- `counter_party_10k` (80) — public filer 10-K / 10-Q mentions of the target.
+- `usaspending` (70) — federal contract awards.
+
+Poll `check_task_status(task_id)` until `state == "SUCCESS"`. Typical end-to-end: 30-90s.
+
+### Step 3-Private — Inspect the PCS + signal evidence
+
+```
+pcs = get_private_company_snapshot(deal_id)
+signals = list_pcs_signals(deal_id, limit=50)
+```
+
+The `signals.summary_by_source` map gives the headline number for the brief: "We found X mutual fund disclosures, Y counter-party 10-K mentions, Z federal contracts, and W S-1 filings."
+
+**If `signals.summary_by_source` totals zero across all sources, halt** and tell the user: "No public-trace evidence found for this target in the last 30 days across SEC N-PORT, counter-party 10-Ks, USAspending, or SEC IPO registrations. Pre-screen ends here. Either (a) the target is too obscure for these data sources, or (b) the target name didn't match the canonical form filers use — try the alternate legal name (e.g. 'Space Exploration Technologies Corp.' instead of 'SpaceX')."
+
+**If `signals.summary_by_source.s1_watcher > 0`**, this is the SpaceX-class case: the target just filed S-1. The brief should explicitly call this out in the headline (see template) and the recommendation should reflect that pre-screen has more rigor than usual because the S-1 fills in segment financials.
+
+### Step 4-Private — Deep research IS allowed (scoped)
+
+Unlike the public branch, web research is the public-trace layer for private targets — they don't file 10-Ks. The discipline is in WHAT you search for, not whether you search.
+
+**Allowed for the private branch:**
+
+- `deep_research(query, as_of=...)` — scoped to press, sell-side commentary, Sacra-style analyst notes, and S-1 mirror sites if S-1 ingestion hasn't completed yet.
+- `tavily_search` / `tavily_extract` / `tavily_research` — for citation density.
+- `search_deal_documents(deal_id, query)` — once S-1 has been ingested (look for it in `list_deal_documents` output), search inside it directly.
+
+**Honor the `as-of` cutoff strictly** — every web result must be dated before the cutoff. Discard anything newer.
+
+**Still off-limits even on the private branch:**
+
+- `mcp__claude-in-chrome__*` — too unbounded; the artifact must be replayable.
+- `generate_forensic_screen_pdf` — still stage-2 even for private targets with S-1.
+
+### Step 5-Private — Valuation unavailable (fail closed)
+
+There is no dedicated standalone private-company governed valuation read or Monte Carlo tool in this workflow. Regardless of whether `pcs.revenue_band.mid` is populated, do not call `run_combined_dcf`, `run_monte_carlo_simulation`, or another valuation engine. Do not calculate or present enterprise value, equity value, P5/P50/P95, SOTP, or a modeled valuation range from PCS fields in prose.
+
+Report the valuation status exactly: "Private-company valuation unavailable on this rail: OloLand does not yet expose a dedicated standalone governed private-company read/Monte Carlo tool. No valuation engine was called." A source-backed PCS revenue band or third-party fund mark may still be reported as evidence with its own citation, but label it as an observed input or external signal, never as an OloLand valuation or model output.
+
+### Step 6-Private — Pull what risks exist
+
+Call `get_deal_risks(deal_id, limit=50)`. Pre-NDA private targets typically have THIN risk extraction (no 10-K), so report counts but don't overstate. If `signals.summary_by_source.s1_watcher > 0` AND the S-1 has been ingested into `list_deal_documents`, expect 50-150 risks from the S-1 risk-factors section and treat as you would 10-K risks on the public branch.
+
+### Step 7-Private — Forensic Screen still skipped
+
+Same boundary as public: even when S-1 is filed, full Forensic QoE requires management transaction-level data (DRS / journals / detailed GL). The S-1's audited financials enable Beneish M-score and EBITDA bridge ONLY if the S-1 income statement extraction has completed — note as future-stage in the brief.
+
+### Step 8-Private — Compose the private brief
+
+Output the signal-only private template below. It must carry the valuation-unavailable statement and must not include SOTP, modeled EV/equity, or Monte Carlo percentiles.
+
+### Step 9-Private — Audit log
+
+Identical structure to the public branch. The signal counts + reliability scores are what differentiate this from "an LLM web-searched and made up numbers."
+
+---
+
+## Public brief template
+
+```
+# Pre-Announcement Public Screen — {Company Name} ({Ticker})
+
+**As-of:** {cutoff date or "today"}
+**Sources:** {annual_filing_type} dated {filing_date} (period: {period_of_report}) plus substantive exhibits + backend fundamentals result with its source and coverage status. No web search, no news, no transaction filings.
+**Deal ID:** {deal_id}
+**Run:** {ISO timestamp}
+
+## Headline
+{If the authorized Monte Carlo call succeeded with an exact simulation identity: one sentence stating the MC finding in terms the user asked about. If it failed or returned no identity, replace this headline with: "[gap] Monte Carlo unavailable: the one authorized public-branch run failed or returned no simulation identity. No EV/equity distribution is available from this screen; no prior simulation was reused and no retry was attempted."}
+
+## Financial spine
+| Metric | Value | Source |
+|---|---|---|
+| Revenue (reported period) | $X.XB | backend fundamentals ({source}) / {annual_filing_type} |
+| EBITDA (reported period) | $XM | backend fundamentals ({source}) / {annual_filing_type} |
+| EBITDA margin | X.X% | derived |
+| Net debt | $X.XB | balance sheet |
+| Revenue growth (5yr CAGR) | X.X% | historical |
+| CapEx % revenue | X.X% | backend fundamentals ({source}) |
+
+Use an LTM label only when the fundamentals receipt explicitly identifies a TTM/LTM period; otherwise label values with the reported annual or quarterly period.
+
+## Monte Carlo valuation (10,000 simulations — include only when the authorized call succeeded with an exact simulation identity)
+| Percentile | Enterprise Value | Equity Value |
+|---|---|---|
+| P5 | $XXX M | $XX M |
+| P25 | $XXX M | $XX M |
+| Median | $X.XB | $XX M |
+| Mean | $X.XB | $XXX M |
+| P75 | $X.XB | $XXX M |
+| P95 | $X.XB | $XXX M |
+
+VaR(5%): $XXX M | CVaR(5%): $XXX M | Assumption coverage: XX% (sourced) / XX% (defaulted)
+
+**Failure branch:** If the authorized call failed or returned no simulation identity, omit the table and this VaR/CVaR line entirely. Output only: "[gap] Monte Carlo unavailable: the one authorized public-branch run failed or returned no simulation identity. No EV/equity distribution is available from this screen; no prior simulation was reused and no retry was attempted." Do not use placeholders or substitute a prior run, DCF, PCS signal, or inferred range.
+
+## Risk concentration (X categorized risks from canonical annual filing and substantive exhibits only)
+| Severity | Count |
+|---|---|
+| High | X |
+| Medium | XX |
+| Low | XX |
+
+Top 5 risk clusters with one-line summaries and annual-filing page references.
+
+## Recommendation
+Exactly one of: Pass / Pursue to NDA / More public data needed.
+
+Deal summary: https://app.ololand.ai/deals/{deal_id}/summary
+```
+
+---
+
+## Private brief template
+
+```
+# Pre-Announcement Private Screen — {Company Name}
+
+**As-of:** {cutoff date or "today"}
+**Classification:** Private target
+**S-1 status:** {one of:
+  - "Public S-1 filed YYYY-MM-DD (accession ...). Brief cites by S-1 page where applicable."
+  - "DRS (confidential draft) detected YYYY-MM-DD. Content not yet public; form-level metadata only."
+  - "No SEC IPO registration on file."
+}
+**Signal evidence base:** {N S-1 events, M mutual fund marks, K counter-party 10-Ks, L federal contracts}
+**Web research:** {N press / Sacra / sell-side sources cited inline below, all dated ≤ as-of}
+**Valuation status:** Unavailable on this rail — no dedicated standalone governed private-company read/Monte Carlo tool exists, and no valuation engine was called.
+**Deal ID:** {deal_id}
+**Run:** {ISO timestamp}
+
+## Headline
+{One sentence. Examples:
+  - With S-1 ingested: "S-1 reveals $X.XB FY revenue, growing Y%, and N cited risk clusters; standalone private-company valuation remains unavailable on this rail."
+  - With PCS band but no S-1: "PCS revenue band $X.X-X.XB is anchored on N cited mutual-fund disclosures; it is an input signal, not an OloLand valuation."
+  - Signal-only (band NULL): "Signal-traced evidence: {N S-1, M N-PORT marks, K counter-party 10-Ks, L federal contracts}. Revenue band not yet derivable without management input or S-1 ingestion."
+}
+
+## Signal-traced evidence base
+| Source | Count | Reliability | Latest as-of |
+|---|---|---|---|
+| S-1 / DRS filings | X | 95 | YYYY-MM-DD |
+| Mutual fund N-PORT marks | XX | 88 | YYYY-MM-DD |
+| Counter-party 10-K mentions | XX | 80 | YYYY-MM-DD |
+| Federal contract awards (USAspending) | XX | 70 | YYYY-MM-DD |
+
+Every quantitative claim below uses inline `[N]` markers. `[S:N]` = ingested S-1 page reference, `[R:N]` = signal_observations row, `[W:N]` = web/press citation. Click-through opens the source.
+
+## Revenue band (if derivable)
+| Estimate | Value | Source |
+|---|---|---|
+| Low | $X.XB | {source — e.g. "USAspending floor"} |
+| Mid | $X.XB | {source — e.g. "mutual fund implied, Baillie Gifford Q1 2026"} confidence X.XX |
+| High | $X.XB | {source — e.g. "S-1 § Operations p.42"} |
+
+## External valuation signals (not an OloLand valuation)
+| Signal | Reported value | Source |
+|---|---|---|
+| Last financing / fund mark / disclosed IPO target | $X | {[S:N], [R:N], or [W:N]} |
+
+Report only directly sourced observed marks or asks. Do not average them, apply a multiple, derive EV/equity, or present a bear/base/bull range.
+
+## Optionality and dilution diligence (facts only)
+- **Termination clauses** in named contracts: report the cited clause and termination window; do not assign an option value.
+- **Acquisition options** disclosed: report cited strike and expiry terms without probability-weighting them.
+- **Milestone-vested compensation dilution**: report only directly disclosed terms and quantities.
+
+## Risks (from S-1 risk factors if ingested, else thin)
+Severity counts + top clusters with `[S:N]` page citations where available.
+
+## Where the private-target screen stops
+- Standalone private-company valuation: unavailable until a dedicated governed read/Monte Carlo tool exists; no substitute engine was called.
+- Audited financial statements pre-S-1: not available — wait for S-1 or NDA.
+- Cap-table waterfall under exit scenarios: needs NDA + waterfall doc.
+- Customer concentration top-N list: only aggregated >10% disclosures available pre-NDA.
+- Forensic QoE full battery: stage-2 even with S-1 (needs transaction-level data).
+
+## Recommendation
+Exactly one of: Pass / Pursue to NDA / Watch (set up signal alerting).
+
+If "Watch" — the OloLand signal pipeline will continue scanning; set the deal's `monitoring_enabled=true` and the agent will alert on the next material signal (especially an S-1 hit).
+
+Deal summary: https://app.ololand.ai/deals/{deal_id}/summary
+```
+
+---
+
+## Audit log (applies to both branches)
+
+After presenting the brief, output:
+
+- **Source set verified:** list of documents (public: 10-K/20-F/40-F plus substantive exhibits) plus backend fundamentals source and coverage; private: S-1 if any + PCS provenance + web sources cited
+- **Contamination check:** any document outside the expected set, with reasoning
+- **Valuation execution:** public branch — returned simulation identity plus sourced/defaulted assumption coverage; private branch — "withheld; no valuation engine called"
+- **Private signal coverage:** signal count by source when the private branch runs
+- **Forensic Screen:** correctly refused — confirmed stage-2 boundary
+- **Cutoff respected:** as-of date + filing dates / web result dates verified
+- **Reproducibility hook:** "Reproducible via `ololand-dd-inspect-run` on deal_id {deal_id}; submit corrections via `unsupported OpenAI claim-correction workflow (see unsupported-workflows.json)`."
+
+That last line is the moat. Always surface it.
+
+---
+
+## URL Conventions (STRICT)
+
+- Domain is `app.ololand.ai`. Not `.com`. Not any other TLD.
+- Deal summary: `https://app.ololand.ai/deals/{deal_id}/summary`
+- Risks view: `https://app.ololand.ai/deals/{deal_id}/risks`
+- Valuations: `https://app.ololand.ai/deals/{deal_id}/valuations`
+- Data room: `https://app.ololand.ai/deals/{deal_id}/dataroom`
+
+When a tool response includes a `view_url`, render verbatim — never construct a URL the tool didn't return.
+
+
+## OpenAI execution requirements
+
+Use the connected MCP server's current tool schemas. Do not invent tool arguments, job-status endpoints, inputs, or outputs. If a referenced tool is unavailable, explain the limitation and request the needed connection or data. Invoke writes only when the user has requested the corresponding action. Do not initiate purchases or payments. An unrun, unsupported, or unavailable procedure is a gap, never a passing result.
+
+
+OpenAI cannot execute local lifecycle hooks. Use the packaged explicit setup/review workflow when requested. Server-side MCP auditing remains authoritative; preserve evidence blockers and human-only approval gates.
+
+Claim-correction submission is unsupported in this OpenAI upload because the current handler records surface=cowork. Do not invoke submit_agent_claim_correction from OpenAI. Explain the limitation and retain proposed correction text for human review without claiming submission. See unsupported-workflows.json for the excluded canonical workflow.

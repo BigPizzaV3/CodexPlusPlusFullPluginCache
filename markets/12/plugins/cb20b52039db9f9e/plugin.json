@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tradermaths",
+  "version": "1.0.2",
+  "description": "Read-only access to your Tradermaths graduate application tracker, plus public programme listings and prep links.",
+  "author": {
+    "name": "Tradermaths",
+    "url": "https://tradermaths.com"
+  },
+  "homepage": "https://tradermaths.com",
+  "keywords": [
+    "graduate programmes",
+    "applications",
+    "trading",
+    "careers",
+    "interview prep"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Tradermaths",
+        "shortDescription": "Your graduate role tracker",
+        "longDescription": "Connect your Tradermaths account to see your graduate programme application tracker in ChatGPT. Review what you've saved, applied to, and where you have online tests, interviews or offers, browse open graduate programmes, and pull prep resources for a firm or stage. Access is read-only: the assistant can read your board but cannot change it.",
+        "developerName": "Tradermaths",
+        "category": "Productivity",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://www.tradermaths.com",
+        "privacyPolicyURL": "https://www.tradermaths.com/privacy-policy",
+        "termsOfServiceURL": "https://www.tradermaths.com/terms-conditions",
+        "defaultPrompt": [
+          "Give me a weekly review of my Tradermaths applications.",
+          "Which of my applications are at the online test stage, and what should I prep?",
+          "Show me open graduate trading programmes I haven't tracked yet."
+        ],
+        "brandColor": "#0D1321",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://www.tradermaths.com/contacts"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Review the signed-in user's application board and status counts. Setup: connect with the dedicated reviewer account seeded with at least two tracked roles in different statuses.",
+              "prompt": "Give me a weekly review of my tracked graduate applications, grouped by stage, and include the open and closed counts.",
+              "tools_triggered": "board_summary, list_board",
+              "expected_behavior": "Return status counts and the tracked roles for the connected account, following list_board.next_cursor when present to retrieve later pages. The per-status counts sum to total; open plus closed equals total. Group roles by their returned statuses and do not invent roles, dates, or next actions unsupported by the returned data."
+            },
+            {
+              "description": "Find online-test roles on the reviewer's board and provide the mapped preparation resources. Setup: the dedicated reviewer account has at least one tracked role with status Online test at a firm with a public guide, such as Citadel Securities.",
+              "prompt": "Which of my applications are at the online test stage, and what should I prep?",
+              "tools_triggered": "list_board with status=Online test (paginate with cursor when present), then get_prep_resources with role_ref copied from each returned role",
+              "expected_behavior": "Show only the reviewer's returned Online test roles. For each role, include only preparation resources returned for its role_ref, with the returned title and path. If there are no matching roles, say so and do not fabricate resources or test dates."
+            },
+            {
+              "description": "Open a tracked role's full record and status history. Setup: connect with the dedicated reviewer account seeded with at least one tracked role.",
+              "prompt": "Show me the full details and status history for my most recently updated tracked role.",
+              "tools_triggered": "list_board, then get_board_role with role_ref copied from the first role returned by list_board",
+              "expected_behavior": "Use a role_ref from the connected account's board. Return details and status_history for that same role, without mixing in data from another role or account. If the board is empty, explain that there is no tracked role to open."
+            },
+            {
+              "description": "Browse the public graduate-programme catalogue with an open-status filter and a bounded result count. Setup: the reviewer is signed in and the public catalogue endpoint is available.",
+              "prompt": "Show me up to ten graduate programmes that are currently open.",
+              "tools_triggered": "list_programmes with role_status=Open and limit=10",
+              "expected_behavior": "Return at most ten public programmes, all with role_status Open, and report total_matching and next_cursor when present. Do not claim that the plugin applied, saved, or returned job links for a programme. If no programmes match, say so."
+            },
+            {
+              "description": "Find public preparation resources for a firm and interview stage without requiring that the firm be on the user's board. Setup: the reviewer is signed in; the packaged public catalogue includes the Citadel Securities firm guide.",
+              "prompt": "What interview preparation resources do you have for Citadel Securities?",
+              "tools_triggered": "get_prep_resources with firm=citadel-securities and stage=Interview",
+              "expected_behavior": "Return the allow-listed public resources for Citadel Securities and the Interview stage, including the firm guide at /trading-firms-prep/citadel-securities. Show only paths returned by the tool and return no more than 15 resources."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin is read-only and cannot change application statuses. It should decline the requested write, make no MCP tool call, and direct the user to manage the role on tradermaths.com.",
+              "prompt": "Move my Optiver application to interview."
+            },
+            {
+              "description": "The plugin cannot submit applications or make decisions for the user. It should decline the requested action, make no MCP tool call, and explain that the user must apply through the relevant official site.",
+              "prompt": "Apply to the open Jane Street graduate programme for me."
+            },
+            {
+              "description": "The plugin can read only the connected user's board and has no tool for another person's account. It should not try to retrieve another user's records or call an MCP tool; it should explain that the other person must connect their own account and share information themselves.",
+              "prompt": "Show me my colleague's tracked applications and status history."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Added five positive and three negative MCP review cases covering the read-only application tracker, public programme catalogue, and preparation resources."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

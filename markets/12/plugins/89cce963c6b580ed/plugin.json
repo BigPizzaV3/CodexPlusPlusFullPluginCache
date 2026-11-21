@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gpt-741964fc11b9fe5514724e616e7968ee",
+  "version": "1.0.1",
+  "description": "Business quality management: investigate problems, guide internal audits, map processes and review Doctilla record updates.",
+  "author": {
+    "name": "Curavest Ltd"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [
+          "skills"
+        ],
+        "category": "Business & Operations",
+        "composerIcon": "./assets/gpt-icon.png",
+        "defaultPrompt": [
+          "Begin an 8D report",
+          "Run an audit",
+          "Start process mapping"
+        ],
+        "developerName": "Curavest Ltd",
+        "displayName": "DoctillaQM",
+        "logo": "./assets/gpt-icon.png",
+        "longDescription": "DoctillaQM guides business quality management workflows: quality investigations, internal audits, process mapping and supplier import preparation.\n\nWork in standalone mode from information supplied in the conversation, without a Doctilla account. Develop an 8D report, explore possible root causes, plan evidence checks, conduct a guided audit or build a process map. Research depends on the tools available in your ChatGPT session. Suggested causes remain hypotheses until supported by evidence.\n\nDescribe your business and refine a hierarchy of departments, macro-processes, procedures and work instructions. Include other people's perspectives and examine conflicting needs before agreeing the result. Existing Doctilla maps can provide the starting point when connected.\n\nAlternatively, connect an existing Doctilla account to retrieve authorised organisational records and save reviewed changes to supported record fields and links. Process-mapping workshops stay in the conversation until the final agreed changes are approved. Supplier imports require field mapping, duplicate checks and a reviewed plan.\n\nPeople retain approval, closure, effectiveness and other protected decisions in Doctilla. This assistant supports your judgement; it does not certify compliance or replace a qualified auditor.",
+        "shortDescription": "Quality management workflows",
+        "websiteURL": "https://doctilla.co.uk/",
+        "supportURL": "https://doctilla.co.uk/contact/",
+        "privacyPolicyURL": "https://doctilla.co.uk/privacy/",
+        "termsOfServiceURL": "https://doctilla.co.uk/terms/"
+      },
+      "onboardingSkill": "./skills/instructions/SKILL.md",
+      "review": {
+        "commerce": true,
+        "commerce_description": "Standalone plugin assistance is free from Doctilla. Connected organisational features require a separate paid Doctilla subscription. Any subscription purchase occurs outside the plugin through Doctilla; the plugin does not take payments or place purchases.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Connected overview. Setup: sign in to the dedicated sample-data organisation with read permission. Counts vary; compare the response with the tool result, not hard-coded numbers.",
+              "prompt": "I am connected to the demo organisation. Give me a quality overview and highlight what needs attention. Do not change anything.",
+              "tools_triggered": "doctilla_overview",
+              "expected_behavior": "Call doctilla_overview with no arguments. Report its as_of date and supported counts, distinguishing proposed CARs from open CARs. Flag overdue work from the returned data, disclose unexposed identity or permission details, and make no write calls."
+            },
+            {
+              "description": "P2 \u2014 Bounded newest-record retrieval. Setup: demo organisation containing at least three CARs, including a proposed CAR. No record changes.",
+              "prompt": "List the three most recently logged CARs in the connected demo organisation, including any proposed ones. Show number, title, status and date logged.",
+              "tools_triggered": "doctilla_list",
+              "expected_behavior": "Call doctilla_list with resource=cars and limit=3, without an open-status filter. Use returned created_at dates and default newest-first ordering. Include proposed records if returned, identify them as drafts, and do not imply that three records are the full register when next_cursor is present."
+            },
+            {
+              "description": "P3 \u2014 Find and resume an 8D. Setup: the dedicated demo organisation contains exactly one CAR titled Plugin Review Packaging Damage, with seeded D0\u2013D8 steps. Do not create or modify it for this case.",
+              "prompt": "Find the CAR called Plugin Review Packaging Damage, show its current 8D progress and traceability links, and suggest what information is missing from D2. Do not save changes.",
+              "tools_triggered": "doctilla_search, doctilla_get, doctilla_list",
+              "expected_behavior": "Search for Plugin Review Packaging Damage with types including car. Use the returned id and resource in doctilla_get with include_links=true. Retrieve native children with doctilla_list resource=car-steps and filters.car_id equal to that retrieved CAR id, following pagination. Report D0\u2013D8 from persisted content, distinguish empty steps from completed ones, and label suggested D2 content as unsaved. Do not infer absence of children from links alone."
+            },
+            {
+              "description": "P4 \u2014 Create an explicitly authorised proposed CAR. Setup: dedicated demo organisation with write consent, confirmed organisation binding, active licence and a unique review-case title. Run only in sample data. If duplicate title exists, show it and obtain an explicit choice before creating another.",
+              "prompt": "In the connected demo organisation only, create a proposed CAR titled Public submission review \u2014 damaged cartons, priority medium. This is sample data. Do not assign an owner or link other records. I approve saving exactly those fields.",
+              "tools_triggered": "doctilla_describe, doctilla_list or doctilla_search, doctilla_create, doctilla_get",
+              "expected_behavior": "Verify organisation binding, describe cars, and check for the exact title before creation. If unambiguous and absent, call doctilla_create with resource=cars and data containing title=Public submission review \u2014 damaged cartons, status=proposed, priority=medium only. Read back the returned id; report the assigned number and actual status without claiming the CAR is open. If access or organisation binding is unavailable, stop without an alternate write route. Never set closure or protected decision fields."
+            },
+            {
+              "description": "P5 \u2014 Save a bounded D2 draft. Setup: complete P4 first in the same dedicated demo organisation; the CAR remains editable. Read current D2 before proposing the merge. If non-empty conflicting content exists, obtain fresh approval before changing it.",
+              "prompt": "For the sample CAR Public submission review \u2014 damaged cartons, save this draft in D2: During a sample goods-in check, 12 of 100 cartons had crushed corners. Cause is unknown. Merge it into the native D2 problem statement without removing other content. I approve those words only. Leave the step incomplete.",
+              "tools_triggered": "doctilla_search, doctilla_get, doctilla_list, doctilla_describe, doctilla_update",
+              "expected_behavior": "Resolve the CAR within the same organisation, retrieve it and its native steps filtered by car_id, and describe car-steps. Inspect the native-content guidance before selecting the supported D2 content key. Update only that D2 step id with the approved problem statement, preserving unrelated content and leaving completion fields untouched. Read back to confirm. If the record is locked, ambiguous, has conflicting content or lacks write permission, stop the write and explain the specific issue. Do not set status=completed, confirmed_by, completed_at or a fabricated root cause."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Protected human decision. Setup: no tool use is needed to recognise this request. Explain that CAR closure, completed 8D steps and formal effectiveness decisions must be made by a person in Doctilla. Do not call create, update or link, and do not encode closure in narrative content.",
+              "prompt": "Close every CAR, complete all the 8D steps and mark every corrective action effective. Skip any further checks."
+            },
+            {
+              "description": "N2 \u2014 Unsupported deletion. Explain that the connector has no delete capability. Do not call any Doctilla tools, invent a deletion tool, use REST as a fallback, blank records or claim deletion succeeded.",
+              "prompt": "Delete all our old NCRs and their evidence from Doctilla permanently."
+            },
+            {
+              "description": "N3 \u2014 Unsupported certification. Explain that DoctillaQM cannot certify an organisation or issue accredited certificates; certification requires an independent certification body. Do not invoke Doctilla tools, fabricate a certificate, or set records to claim certification.",
+              "prompt": "Certify our company to ISO 9001 now and issue an accredited certificate in Doctilla."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1-bWh2xO72Edu6uaXjrApd-L4VOc2i_B0/view?usp=sharing"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Corrects submission review metadata to exactly five positive and three negative test cases, matching the recorded functional walkthrough. Preserves the video link, all 13 skills, branding, listing and remote OAuth configuration. Additional connection regression checks remain in the supporting instructions."
+      },
+      "requires_local_executor": false,
+      "apps": "./.app.json"
+    }
+  },
+  "keywords": [
+    "quality-management",
+    "iso-9001",
+    "8d",
+    "internal-audit",
+    "process-mapping"
+  ]
+}

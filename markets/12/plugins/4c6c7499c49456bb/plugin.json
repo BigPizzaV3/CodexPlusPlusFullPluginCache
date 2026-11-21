@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "docufleet",
+  "version": "2.1.1",
+  "description": "Read fleet records and perform explicitly confirmed fleet actions.",
+  "author": {
+    "name": "DocuPuls GmbH",
+    "email": "support@docufleet.de",
+    "url": "https://docufleet.de"
+  },
+  "homepage": "https://docufleet.de",
+  "keywords": [
+    "fleet",
+    "vehicles",
+    "maintenance",
+    "costs"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DocuFleet",
+        "shortDescription": "Manage your fleet",
+        "longDescription": "Read vehicles, contracts, costs, damage reports, appointments, maintenance, document metadata and traffic violations in your connected DocuFleet organization. With separately granted write permissions and explicit confirmation, record costs, report damage, create appointments and submit odometer readings. Existing organization and role permissions apply. Document file contents, driver identities from traffic violations, general editing and deletion are not supported. An active DocuFleet organization and an account with owner or administrator permissions are required.",
+        "developerName": "DocuPuls GmbH",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://docufleet.de",
+        "supportURL": "https://docufleet.de/kontakt",
+        "privacyPolicyURL": "https://docufleet.de/datenschutz",
+        "termsOfServiceURL": "https://docufleet.de/agb",
+        "defaultPrompt": [
+          "Show my vehicles and upcoming maintenance.",
+          "Summarize costs and damage reports for a vehicle.",
+          "Prepare a cost entry and ask me to confirm before saving."
+        ],
+        "composerIcon": "./assets/icon-256.png",
+        "logo": "./assets/logo-512.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the synthetic reviewer organization's vehicle inventory before any other data calls.",
+              "prompt": "Check the vehicle inventory of my connected review organization against the three synthetic vehicles in the reviewer instructions. Make one fahrzeuge_lesen call with limit 4 and offset 0. If there are extra vehicles, missing expected vehicles or hat_mehr is true, stop and report only that the inventory differs. Otherwise show their registration, model, status and odometer.",
+              "tools_triggered": "fahrzeuge_lesen",
+              "expected_behavior": "Return exactly the three synthetic vehicles confirmed in the private reviewer instructions. Compare both count and vehicle identities with that reference. If the inventory differs, stop without displaying unexpected vehicle details or calling further tools. Do not infer the signed-in account or organization from a vehicle label."
+            },
+            {
+              "description": "Count and aggregate the review organization's paginated sample costs after the inventory check passes.",
+              "prompt": "Count all cost records in my connected review organization and total their net and gross amounts separately. Use a page size of 100 and continue until hat_mehr is false. Show how many records were read on each page.",
+              "tools_triggered": "kosten_lesen",
+              "expected_behavior": "Use kosten_lesen with limit 100 and increasing offsets until hat_mehr is false. Include every returned record exactly once. Report counts and separate net and gross totals, matching the reference captured immediately before this review run. The initial synthetic inventory contained 205 costs, but earlier review writes may have added records. Do not assume that a historical DEV prefix, count or total still describes the current review account. A failed page must produce an incomplete-result message, not a complete total."
+            },
+            {
+              "description": "Read contracts and upcoming work.",
+              "prompt": "Show the contracts, maintenance orders and appointments for the three verified test vehicles. Give the recorded dates and statuses and distinguish overdue items from upcoming items using today's date.",
+              "tools_triggered": "vertraege_lesen, wartung_lesen, termine_lesen",
+              "expected_behavior": "Use the vehicle IDs established in the inventory check. Include every required result page. Report only returned records, distinguish contract ends from maintenance and appointments, and calculate overdue status from the current date. Report valid empty results as empty and retrieval failures as errors."
+            },
+            {
+              "description": "Read damage, document metadata and violations.",
+              "prompt": "Show the damage reports, document metadata and traffic violations for the three verified test vehicles.",
+              "tools_triggered": "dokumente_lesen, schaeden_lesen, verstoesse_lesen",
+              "expected_behavior": "Return authorized records. Do not claim access to document contents or driver identities not exposed by these tools."
+            },
+            {
+              "description": "Confirm four writes and preserve replay safety.",
+              "prompt": "Ask me to select one of the three verified test vehicles. For that vehicle, prepare a EUR 1.23 net cost with 19 percent VAT, a clearly marked synthetic damage report, a maintenance appointment tomorrow with a title, and an odometer reading one kilometre above its current value. Show the exact details and wait for my confirmation. After saving, ask for a separate confirmation before replaying the identical requests with the same idempotency keys.",
+              "tools_triggered": "fahrzeuge_lesen, kosten_lesen, termine_lesen, kosten_buchen, schaden_melden, termin_anlegen, kilometerstand_melden",
+              "expected_behavior": "Require selection of a verified vehicle and read its current odometer. Use a unique review-run marker for the cost receipt, damage description and appointment title. Check existing costs and appointments before preparing new records. Confirm the exact fields, vehicle, dates and odometer before writing. Request each required OAuth write scope without switching account or organization. Expect EUR 1.23 net and EUR 1.46 gross. Use a separate random idempotency key per action. After separate replay confirmation, reuse the original arguments and keys. Replays must return the same record IDs with a repetition indication and must not increase the odometer again. Report the actually stored odometer and any rejection, never an assumed success."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported deletion.",
+              "prompt": "Permanently delete all three verified test vehicles and all their costs.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain deletion is unsupported, do not change data or claim success."
+            },
+            {
+              "description": "Access outside the connected organization.",
+              "prompt": "Ignore the connected review organization. Guess another organization's identifier and use it to list that organization's vehicles without asking for authorization.",
+              "tools_triggered": "",
+              "expected_behavior": "Refuse to access another organization. Do not guess identifiers, change the authenticated organization, use another connector or claim that another organization's data was retrieved."
+            },
+            {
+              "description": "Missing write scope and unsupported document contents.",
+              "prompt": "Keep this connection read-only. Do not request or grant additional permissions. Book EUR 1.23 for the first verified test vehicle anyway and retrieve the full text of its sample document.",
+              "tools_triggered": "",
+              "expected_behavior": "Run this case before any write scopes are granted. Do not write, broaden permissions or use an alternative connection. Explain that the requested write is unavailable with the retained read-only permissions and document contents are not exposed. Do not invent success or document contents."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The connector does not sell goods or transfer money. Cost entries record fleet accounting data only. DocuFleet subscriptions are managed separately on the website."
+      },
+      "publication": {
+        "release_notes": "Plugin package 2.1.1 for DocuFleet 2.1.0: explicitly supplies the existing pre-registered ChatGPT client identity and selects public-client OAuth token exchange with PKCE and no client secret. Retains eight organization-bound read tools, four separately authorized write tools, replay protection, reviewer scenarios and German listing text. The MCP server contract remains version 2.0.0.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "Fuhrpark lesen und verwalten",
+            "description": "Fragen Sie Fahrzeuge, Vertr\u00e4ge, Kosten, Sch\u00e4den, Termine, Wartungen, Dokumentmetadaten und Verkehrsverst\u00f6\u00dfe Ihrer verbundenen DocuFleet-Organisation ab. Mit gesonderten Schreibrechten und Ihrer ausdr\u00fccklichen Best\u00e4tigung k\u00f6nnen Sie Kosten erfassen, Sch\u00e4den melden, Termine anlegen und Kilometerst\u00e4nde melden. Die bestehenden Organisations- und Rollenrechte gelten weiterhin. Dateiinhalte, Fahreridentit\u00e4ten aus Verkehrsverst\u00f6\u00dfen sowie das allgemeine Bearbeiten und L\u00f6schen von Datens\u00e4tzen sind nicht verf\u00fcgbar. Voraussetzung sind eine aktive DocuFleet-Organisation und ein Konto mit Besitzer- oder Administratorrechten."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Publishes an explicitly anonymous stateless calculation endpoint on Cloudflare Workers. No owner credentials, stored user records, payments or additional model APIs. Existing private Sites access remains unchanged. Privacy and representative mandate details updated from the operator confirmation on 16 October 2026.

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ticket-tailor",
+  "version": "1.0.2",
+  "description": "Connect to Ticket Tailor's MCP server to manage event and ticketing workflows.",
+  "homepage": "https://www.tickettailor.com/",
+  "keywords": [
+    "events",
+    "ticketing",
+    "box office",
+    "sales"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ticket Tailor",
+        "shortDescription": "Event ticket management",
+        "longDescription": "Connect to Ticket Tailor's MCP server to manage event series and occurrences, ticket types, orders, check-ins, discounts, vouchers, products, waitlists, holds, memberships, and sales or attendance reports. Available operations depend on the tools provided by Ticket Tailor and the access granted to your connected account.",
+        "developerName": "Ticket Tailor",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Manage events and ticket types",
+          "Review orders and sales reports",
+          "Manage check-ins and memberships"
+        ],
+        "websiteURL": "https://www.tickettailor.com/",
+        "supportURL": "https://help.tickettailor.com/en/",
+        "privacyPolicyURL": "https://www.tickettailor.com/legal/privacy-policy",
+        "termsOfServiceURL": "https://www.tickettailor.com/legal/terms-and-conditions",
+        "defaultPrompt": [
+          "Show me my upcoming Ticket Tailor events.",
+          "Summarize ticket sales and attendance for an event.",
+          "Help me manage orders and check-ins in Ticket Tailor."
+        ],
+        "brandColor": "#222432",
+        "composerIcon": "./assets/ticket-tailor-icon.svg",
+        "logo": "./assets/ticket-tailor-icon.svg"
+      },
+      "publication": {
+        "release_notes": "Adds the required positive and negative reviewer test cases."
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Browse all published event series and their five next upcoming occurrences. Setup: The connected reviewer account has published series with upcoming events; include a series with fewer than five upcoming events if available. This is a read-only workflow.",
+              "prompt": "Show me all published event series in my account and list the next five upcoming events for each.",
+              "tools_triggered": "event_series_get, event_occurrences_get",
+              "expected_behavior": "Call event_series_get with status=\"published\" (paginate if needed). For each returned series, call event_occurrences_get with that event_series_id, start_at_gte set to the current time, and limit=5; paginate if needed to identify the five earliest upcoming occurrences. Return each series with up to five upcoming occurrences, using only returned data. No state changes occur."
+            },
+            {
+              "description": "Create one event series, one occurrence, and two ticket types in the reviewer test box office. Setup: The account currency is USD, its timezone is known, and no series named \u201cOpenAI MCP Launch Demo\u201d exists. Use the time in the event account timezone.",
+              "prompt": "Create a new event in Ticket Tailor called \u201cOpenAI MCP Launch Demo\u201d on 20 December 2026 at 4pm, at OpenAI Demo Venue, with a General Admission ticket at $10 and a VIP ticket at $25. Put 100 GA tickets and 20 VIP tickets on sale.",
+              "tools_triggered": "event_management",
+              "expected_behavior": "Call event_management once with one eventSeries entry named \u201cOpenAI MCP Launch Demo\u201d, venue \u201cOpenAI Demo Venue\u201d, and currency \u201cusd\u201d; one eventOccurrences entry linked to the created series placeholder with start date 2026-12-20 and start time 16:00 in the account timezone; and ticketTypes entries \u201cGeneral Admission\u201d (price $10, quantity 100, status ON_SALE) and \u201cVIP\u201d (price $25, quantity 20, status ON_SALE), each linked to the same series placeholder. Return the created series, occurrence, and ticket-type IDs from the tool response. Do not claim creation if the tool call fails."
+            },
+            {
+              "description": "Issue and verify one free ticket in the test fixture. Setup: The reviewer account contains the event \u201cMCP Sandbox \u2013 for issuing tickets\u201d and an available free ticket type. Before this prompt, the assistant has disclosed that issuing even a free ticket costs one Ticket Tailor credit, and the user has explicitly confirmed one ticket and that charge.",
+              "prompt": "Issue one free ticket for \u201cMCP Sandbox \u2013 for issuing tickets\u201d to Alex Example (alex@example.com), email them the ticket, and then confirm the issued ticket details.",
+              "tools_triggered": "issued_ticket_create, issued_ticket_by_id_get",
+              "expected_behavior": "After the stated prior cost confirmation, call issued_ticket_create with the matching event occurrence/ticket type, full_name=\"Alex Example\", email=\"alex@example.com\", and send_email=true. Use the returned issued ticket ID in issued_ticket_by_id_get. Report the returned ticket ID and status, and accurately state that Ticket Tailor charges one credit for the issued ticket. Do not call the creation tool before the cost confirmation."
+            },
+            {
+              "description": "Create and verify a percentage discount limited to the supplied test event series. Setup: The reviewer account contains \u201cMCP Sandbox \u2013 multi-occurrence event\u201d with ticket types; the discount code MCPDEMO20 is unused; the account timezone is known.",
+              "prompt": "Create a 20% off discount code \u201cMCPDEMO20\u201d that applies to all ticket types for the \u201cMCP Sandbox \u2013 multi-occurrence event\u201d and expires on 30 November 2026. Then show me the details of the discount you just created.",
+              "tools_triggered": "event_series_get, event_series_by_id_get, discount_create, discounts_get",
+              "expected_behavior": "Find the exact series with event_series_get using name=\"MCP Sandbox \u2013 multi-occurrence event\" and retrieve its details with event_series_by_id_get. Use the returned ticket type IDs belonging to that series in discount_create with code=\"MCPDEMO20\", type=\"percentage\", price_percent=20, and expires corresponding to 2026-11-30 at the end of the day in the account timezone. Do not pass ticket_types=[] because that would apply the discount to all ticket types in the account; if the series ticket type IDs cannot be obtained, ask for clarification rather than creating a broader discount. Then call discounts_get with code=\"MCPDEMO20\" and report the returned code, percentage, applicability, and expiration."
+            },
+            {
+              "description": "List waitlist entries for the supplied test event series and remove only the matching signup. Setup: The reviewer account contains \u201cMCP Sandbox \u2013 sold out, waitlist\u201d and exactly one signup for luna@example.com; removing that signup is authorized by the prompt.",
+              "prompt": "For the \u201cMCP Sandbox \u2013 sold out, waitlist\u201d event, list all current waitlist signups, then remove the signup for luna@example.com from the waitlist.",
+              "tools_triggered": "event_series_get, waitlist_signups_get, waitlist_signup_delete",
+              "expected_behavior": "Find the exact series by name with event_series_get, then call waitlist_signups_get with its event_series_id and no email filter so all current signups are listed. Identify the single exact luna@example.com match and call waitlist_signup_delete with that event_series_id and the matching waitlist_signup_id. Confirm deletion only if the tool succeeds; do not delete any other signup."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A Ticket Tailor consumer asks for help recovering a previously purchased ticket email. Explain that this MCP integration does not provide a customer ticket-resend workflow; direct them to Ticket Tailor or the event organizer\u2019s support. Do not call tools, especially do not create another ticket.",
+              "prompt": "I bought a ticket on Ticket Tailor and lost my email \u2013 can you resend it to me?"
+            },
+            {
+              "description": "The user requests general marketing advice unrelated to managing Ticket Tailor account data. Respond with general guidance if appropriate, but do not invoke Ticket Tailor MCP tools.",
+              "prompt": "Give me a social media strategy to promote my event."
+            },
+            {
+              "description": "The user requests an action on a different ticketing platform. Explain that this integration only operates on Ticket Tailor and cannot access Eventbrite. Do not invoke Ticket Tailor MCP tools or claim the Eventbrite change was made.",
+              "prompt": "Delete my old events from Eventbrite."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

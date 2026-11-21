@@ -1,0 +1,88 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fgo-mcp",
+  "version": "1.3.9",
+  "description": "FGO transform\u0103 administrarea afacerii \u00eentr-o simpl\u0103 conversa\u021bie cu ChatGPT. Po\u021bi analiza datele companiei \u0219i po\u021bi executa ac\u021biuni esen\u021biale, precum emiterea, stornarea sau anularea facturilor, trimiterea lor pe email \u0219i transmiterea e-Facturilor \u00een SPV. Monitorizezi starea e-Factura, soldurile bancare, restan\u021bele clien\u021bilor, soldurile furnizorilor \u0219i rapoarte esen\u021biale, cum ar fi balan\u021bele contabile, evolu\u021bia lunar\u0103 a v\u00e2nz\u0103rilor \u0219i pozi\u021bia firmei \u00een indicatorii publici ANAF. Vezi ce declara\u021bii sunt de depus, ce a depus contabilul \u0219i ce taxe ai de pl\u0103tit. Este creat pentru antreprenorii care vor fluxuri de facturare mai rapide \u0219i informa\u021bii financiare la \u00eendem\u00e2n\u0103, direct \u00een ChatGPT.",
+  "author": {
+    "name": "i-Tom Solutions"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Finance",
+        "defaultPrompt": [
+          "F\u0103-mi un sumar financiar rapid: c\u00e2t am facturat \u00een ultimele 12 luni, soldurile bancare \u0219i facturile ne\u00eencasate.",
+          "Care sunt clien\u021bii cu facturi restante \u0219i c\u00e2t \u00eemi datoreaz\u0103 fiecare?",
+          "Ajut\u0103-m\u0103 s\u0103 emit o factur\u0103 pentru un client existent: verific\u0103 datele \u0219i cere-mi confirmarea \u00eenainte de creare."
+        ],
+        "developerName": "i-Tom Solutions",
+        "displayName": "FGO.ro",
+        "longDescription": "FGO transform\u0103 administrarea afacerii \u00eentr-o simpl\u0103 conversa\u021bie cu ChatGPT. Po\u021bi analiza datele companiei \u0219i po\u021bi executa ac\u021biuni esen\u021biale, precum emiterea, stornarea sau anularea facturilor, trimiterea lor pe email \u0219i transmiterea e-Facturilor \u00een SPV. Monitorizezi starea e-Factura, soldurile bancare, restan\u021bele clien\u021bilor, soldurile furnizorilor \u0219i rapoarte esen\u021biale, cum ar fi balan\u021bele contabile, evolu\u021bia lunar\u0103 a v\u00e2nz\u0103rilor \u0219i pozi\u021bia firmei \u00een indicatorii publici ANAF. Vezi ce declara\u021bii sunt de depus, ce a depus contabilul \u0219i ce taxe ai de pl\u0103tit. Este creat pentru antreprenorii care vor fluxuri de facturare mai rapide \u0219i informa\u021bii financiare la \u00eendem\u00e2n\u0103, direct \u00een ChatGPT.",
+        "privacyPolicyURL": "https://www.fgo.ro/termeni/confidentialitate",
+        "shortDescription": "Financials for entrepreneurs",
+        "supportURL": "https://www.fgo.ro/contact",
+        "termsOfServiceURL": "https://www.fgo.ro/termeni/",
+        "websiteURL": "https://www.fgo.ro",
+        "logo": "./assets/fgo.png",
+        "composerIcon": "./assets/fgo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://sources.fgo.ro/demo/demo.mp4",
+        "commerce": false,
+        "test_cases": {
+          "negative": [
+            {
+              "description": "Do not trigger for calendar scheduling requests. The app should not be invoked because calendar management is outside its supported workflows.",
+              "prompt": "Ce \u00eent\u00e2lniri am m\u00e2ine \u0219i po\u021bi s\u0103-mi programezi una la ora 10?"
+            },
+            {
+              "description": "Do not trigger for public exchange-rate lookups. The app should not be invoked because the BNR exchange rate is public information, not company data managed in FGO.",
+              "prompt": "Care este cursul BNR de azi pentru euro \u0219i dolar?"
+            },
+            {
+              "description": "Do not trigger for WhatsApp messaging requests. The app should not be invoked because WhatsApp messaging is outside its supported workflows.",
+              "prompt": "Trimite clientului un mesaj pe WhatsApp c\u0103 factura este restant\u0103."
+            }
+          ],
+          "positive": [
+            {
+              "description": "Read-only financial overview from sales, bank balances and receivables.",
+              "prompt": "F\u0103-mi un sumar financiar rapid: c\u00e2t am facturat \u00een ultimele 12 luni, soldurile bancare \u0219i facturile ne\u00eencasate.",
+              "tools_triggered": "list_authorized_companies, get_invoiced_sales_total, get_bank_balances, get_uncollected_invoices (get_current_account_info may also be called)",
+              "expected_behavior": "Reports the active company, the invoiced total for the last 12 months, the bank balances grouped by currency and the uncollected invoices with their remaining amounts. Does not modify any data. If a data set is empty, it says so explicitly instead of inventing values."
+            },
+            {
+              "description": "Identify overdue customers and drill into the one with the largest outstanding amount.",
+              "prompt": "Care sunt clien\u021bii cu facturi restante \u0219i c\u00e2t \u00eemi datoreaz\u0103 fiecare? Pentru clientul cu cea mai mare sum\u0103 restant\u0103, arat\u0103-mi facturile ne\u00eencasate.",
+              "tools_triggered": "get_overdue_customers, get_customer_outstanding_invoices (list_authorized_companies may be called first to resolve the company)",
+              "expected_behavior": "Lists the overdue customers with the overdue amount, number of invoices and days overdue, then lists the unpaid invoices (series, number, issue date, due date, remaining amount) of the customer with the highest overdue total."
+            },
+            {
+              "description": "Issue an invoice for an existing customer and return its PDF.",
+              "prompt": "Emite o factur\u0103 \u00een RON pentru clientul ABC 2 SRL, cu o linie \u201eServicii consultan\u021b\u0103\u201d, cantitate 1, pre\u021b 1.000 lei f\u0103r\u0103 TVA. Dup\u0103 ce o emi\u021bi, d\u0103-mi PDF-ul.",
+              "tools_triggered": "search_customers, create_invoice, download_invoice_pdf (list_authorized_companies may be called first to resolve the company)",
+              "expected_behavior": "Finds the customer ABC 2 SRL and creates the invoice (1.000 RON net, 21% VAT, 1.210 RON total), reports its series, number and date, and returns a short download link that serves the PDF of the newly issued invoice. If any required detail is missing or ambiguous, it asks the user before issuing."
+            },
+            {
+              "description": "Rank suppliers by expense and inspect the top supplier's details and unpaid invoices.",
+              "prompt": "Care sunt primii 5 furnizori dup\u0103 cheltuieli din ultimele 12 luni? Pentru primul din list\u0103, arat\u0103-mi datele salvate \u0219i facturile neachitate.",
+              "tools_triggered": "get_top_suppliers_by_expense, search_suppliers, get_supplier_details, get_supplier_outstanding_invoices (list_authorized_companies may be called first to resolve the company)",
+              "expected_behavior": "Returns the suppliers ranked by expense for the last 12 months (fewer than 5 if the account has fewer suppliers, stated explicitly), then the saved details of the first supplier (identification, contact, tax status, bank accounts) and its unpaid invoices with due dates and outstanding amounts."
+            },
+            {
+              "description": "Check archive limits, create a PDF invoice archive and report its status.",
+              "prompt": "Verific\u0103 \u00een FGO dac\u0103 pot genera o arhiv\u0103 PDF cu facturile emise \u00een octombrie 2026. Dac\u0103 da, creeaz\u0103 arhiva \u0219i spune-mi statusul ei.",
+              "tools_triggered": "check_invoice_archive_limits, create_invoice_pdf_archive (get_invoice_archive_status may also be called; list_authorized_companies may be called first to resolve the company)",
+              "expected_behavior": "Reports how many invoices were found for October 2026 and the remaining archive quota, creates the private archive job, then reports the job ID and its current status (for example \"in progress\" or \"ready\"). Does not return a download link unless the archive is already ready."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Updated the public plugin description in Romanian. MCP configuration, assets and review materials are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

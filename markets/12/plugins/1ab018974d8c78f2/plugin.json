@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reppy",
+  "version": "1.0.0",
+  "description": "Read your Reppy workout plans, routines, history and exercise stats, and create plans and routines from chat.",
+  "author": {
+    "name": "Seongha Moon",
+    "email": "reppy@moseoh.com",
+    "url": "https://reppy.moseoh.com"
+  },
+  "homepage": "https://reppy.moseoh.com",
+  "keywords": [
+    "workout",
+    "fitness",
+    "training",
+    "gym",
+    "routine"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reppy",
+        "shortDescription": "Your workout plans, in AI chat",
+        "longDescription": "Reppy is a workout log app for iPhone and Android. This app connects your Reppy account to ChatGPT so you can plan training by chatting.\n\nWhat it can read: your workout plans and routines, the routine you have selected to do next, your finished workouts (sets, reps, weight, notes, duration), and per-exercise stats (last performed, best set, volume).\n\nWhat it can write, only after you confirm in the chat: create a plan, create a routine in a plan, and replace the exercises of an existing routine. Everything it saves appears in the Reppy app signed in with the same account after the next sync.\n\nWhat it never does: delete plans, routines or workouts, log or edit finished workouts, change your selected routine, or touch Apple Health or Health Connect.\n\nWeights are always in kilograms; ChatGPT converts pounds for you. Exercises are matched to Reppy's exercise catalog by English name, whatever language you chat in. If a name does not match, nothing is saved and ChatGPT shows you close matches to choose from.\n\nYou sign in with Apple or Google on a Reppy page and review what the AI may read and write before you tap Allow. You can disconnect at any time at reppy-api.moseoh.com/connections or in ChatGPT. You must be 14 or older.\n\nExample requests: \"What did I lift last week?\", \"How is my bench press going?\", \"Make a 3-day routine for me and save it to a new plan.\"",
+        "developerName": "Seongha Moon",
+        "category": "Healthcare",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://reppy.moseoh.com",
+        "supportURL": "https://reppy.moseoh.com/en/assistant/",
+        "privacyPolicyURL": "https://reppy.moseoh.com/en/privacy/",
+        "termsOfServiceURL": "https://reppy.moseoh.com/en/terms/",
+        "defaultPrompt": [
+          "Show my latest workouts and tell me what I should do next.",
+          "How has my bench press progressed over the last two months?",
+          "Build me a 3-day push/pull/legs plan and save it to Reppy."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Recent history (read)",
+              "prompt": "What did I train in my last two workouts? Include my notes.",
+              "tools_triggered": "list_workouts, get_workout",
+              "expected_behavior": "Summarizes the two newest finished workouts (date, exercises, sets x reps x kg, duration) and the notes stored on the test account. Weights in kg. No write tool is called."
+            },
+            {
+              "description": "Exercise progress (read)",
+              "prompt": "How has my bench press progressed? What is my best set?",
+              "tools_triggered": "get_exercise_stats",
+              "expected_behavior": "Returns workout count, completed sets, volume, last performed date, best set and per-workout history for bench press, in kg. If the name does not match, up to five close names are offered and the user is asked to choose; nothing is guessed."
+            },
+            {
+              "description": "Plans and next routine (read)",
+              "prompt": "Show my plans and tell me which routine I will do next.",
+              "tools_triggered": "list_plans, get_current_selection, get_routine",
+              "expected_behavior": "Lists the test account's plans with routines and exercises and names the selected plan and routine. No write tool is called."
+            },
+            {
+              "description": "Create plan and routine (write, with confirmation)",
+              "prompt": "Create a plan called \"Push Pull\" and add a Push routine: bench press 3x8 at 60 kg, overhead press 3x10 at 30 kg, 90 seconds rest. Show me first, then save when I say yes.",
+              "tools_triggered": "create_plan, create_routine",
+              "expected_behavior": "In the first turn the assistant shows the plan name and the final routine and asks for confirmation without calling a write tool. After the user replies \"Yes, save it.\", create_plan and create_routine are each called once, and the answer lists the catalog exercise names saved and says they appear in the Reppy app after its next sync. Note for reviewers: the free plan allows 3 write calls per 24 hours; this case uses 2 (the next case uses 1), so run each write case once per day. Delete the plan in the Reppy app afterwards."
+            },
+            {
+              "description": "Replace a routine (write, destructive, with confirmation)",
+              "prompt": "Take my \"Push\" routine and swap the overhead press for lateral raises, 3x15 at 8 kg. Show me the result first.",
+              "tools_triggered": "list_plans, get_routine, update_routine",
+              "expected_behavior": "In the first turn the assistant reads the routine and shows the full new exercise list without calling update_routine. After the user replies \"Yes, go ahead.\", update_routine is called once with the whole exercise list and the answer lists the saved catalog names and notes that it syncs to the app later. Note for reviewers: the free plan allows 3 write calls per 24 hours; this case uses 1 (the previous case uses 2)."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General exercise knowledge. Reppy has no form or exercise-instruction content, so the app should not be called and ChatGPT answers directly.",
+              "prompt": "Explain how to do a proper barbell back squat and the most common form mistakes."
+            },
+            {
+              "description": "Unrelated topic. Nutrition and shopping are out of scope; Reppy handles workout plans and logs only, so the app should not be called.",
+              "prompt": "Plan a 7-day vegetarian meal prep with calorie counts and a shopping list."
+            },
+            {
+              "description": "Unsupported action. Reppy has no delete tools, cannot log or edit workouts, and does not touch Apple Health. Expected: the assistant says it cannot do this through Reppy and points to the Reppy app; no write tool is called.",
+              "prompt": "Delete all my workouts from last month and log a 5 km run for today in Apple Health."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/4ZAUVtkwufk",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial release: read workout plans, routines, finished workouts and exercise stats; create plans and routines after user confirmation."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

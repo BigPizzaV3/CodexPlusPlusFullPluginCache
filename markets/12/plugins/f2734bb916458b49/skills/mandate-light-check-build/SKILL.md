@@ -1,0 +1,14 @@
+---
+name: mandate-light-check-build
+description: Compare supplied build results or a demo with a public Mandate Light project's saved build brief.
+---
+
+Use the attached public project's frozen build brief and the evidence actually supplied. Match the build to its scopeId or recorded revision. If several briefs could apply, establish which one was built before judging it. If no brief is saved, compare against the approved requirements and say that no fixed build baseline exists. Do not invent a server reader.
+
+Compare agreed behaviour, expected outcomes, failure cases and saved visual boundaries with the supplied results. Later requirement changes do not rewrite an earlier brief: identify material differences separately. A build report is a claim, a screenshot can show appearance, and passing checks support only the behaviour they exercised. State what you observed, what was reported and what remains untested. A successful deployment is not proof of the user journey.
+
+For a bounded delivery, compare only its included requirements. Dependencies provide context and do not authorise implementation; exclusions stay outside the build. Use the saved verification record's exact requirements, selected standards, expected results and negative cases. An unassessed delivery scope is not a readiness assessment. Distinguish earlier expectations from the current approved design, including changed dependencies or standards.
+
+When the user asks to record or return the build, use record_claim with the matching scopeId and included decisionIds, then wait for its receipt before attaching record_evidence. For each observed result supply outcomeIds from that claim, result (passed, failed, blocked or unverified), expected, observed, sourceVersion, limitations and the reproducible reference. Leave unsupported checks unverified. Do not borrow evidence or pass results from another report. Record concrete record_journey steps only for behaviour actually exercised or supplied, with the same claim's evidence and requirement IDs. Receipts confirm a browser working-copy update; remind the user to Save a portable backup. Evidence review and acceptance remain separate human actions.
+
+If the user asks to exercise a supplied app, run the relevant checks with available tools within their authorized scope. If those tools are unavailable, say which behaviour remains untested. Return concise material findings with the affected requirement or expected outcome, evidence and the next useful check or correction. Do not invent defects or imply independent verification from the builder's report. Keep the assessment in chat. It neither accepts the build nor approves requirements, creates a new brief or grants deployment permission. Save proposed requirement changes only when requested, through the existing proposal tools and browser receipts; retain the current Save/Open backup route.

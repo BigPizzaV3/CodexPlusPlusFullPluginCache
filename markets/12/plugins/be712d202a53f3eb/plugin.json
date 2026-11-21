@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "recherche-accords-pilotes",
+  "version": "0.1.5",
+  "description": "Recherche et analyse des accords pilotes AF et TO \u00e0 partir des passages du corpus, avec citations et distinction du champ d\u2019application.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Accords AFTO Recherche-Analyse",
+        "shortDescription": "Recherche dans les accords",
+        "longDescription": "Recherchez les dispositions des accords pilotes Air France (AF) et Transavia (TO). Le plugin demande le p\u00e9rim\u00e8tre si n\u00e9cessaire, puis ChatGPT analyse les passages s\u00e9lectionn\u00e9s par la recherche hybride, distingue leur champ d\u2019application et cite les fichiers sources. Pour une comparaison, les r\u00e8gles AF et TO sont pr\u00e9sent\u00e9es s\u00e9par\u00e9ment. Cette version ne modifie aucun document, ne propose pas de catalogue ni de lecture int\u00e9grale par rang. Certains filtres documentaires sont d\u00e9sactiv\u00e9s. Les extraits peuvent \u00eatre insuffisants pour le p\u00e9rim\u00e8tre demand\u00e9 ; les r\u00e9sultats ne constituent pas une lecture exhaustive des accords.",
+        "defaultPrompt": [
+          "Pour AF, quelles indemnit\u00e9s sont pr\u00e9vues pour un d\u00e9placement d'Orly vers CDG ?",
+          "Pour TO, que pr\u00e9voient les accords pour les primes de No\u00ebl et du jour de l'an ?"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "developerName": "frederic DESCHAMP",
+        "supportURL": "https://accords-af-recherche-info.f4des-ai.workers.dev/assistance",
+        "termsOfServiceURL": "https://accords-af-recherche-info.f4des-ai.workers.dev/conditions",
+        "privacyPolicyURL": "https://accords-af-recherche-info.f4des-ai.workers.dev/confidentialite",
+        "websiteURL": "https://accords-af-recherche-info.f4des-ai.workers.dev/",
+        "category": "Other"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Question sans compagnie : clarification initiale, puis conservation de la demande m\u00e9tier et contr\u00f4le du p\u00e9rim\u00e8tre.",
+              "prompt": "Quelles indemnit\u00e9s sont pr\u00e9vues pour un d\u00e9placement d'Orly vers CDG ?",
+              "tools_triggered": "searchCorpus",
+              "expected_behavior": "Sans p\u00e9rim\u00e8tre d\u00e9j\u00e0 \u00e9tabli, demander \u00ab Pour AF, TO ou les deux ? \u00bb sans appeler searchCorpus. Apr\u00e8s la r\u00e9ponse \u00ab AF \u00bb, appeler searchCorpus avec la question m\u00e9tier initiale brute, mode retrieve, export true et pool_ld 11, sans filtre ajout\u00e9. Afficher le count total re\u00e7u ; analyser uniquement les dispositions dont l\u2019application \u00e0 AF est \u00e9tablie, indiquer le p\u00e9rim\u00e8tre et citer les file_name. Ne pas traiter la r\u00e9ponse \u00ab AF \u00bb comme la requ\u00eate m\u00e9tier. Signaler les extraits insuffisants ou incertains sans compl\u00e9ter par des r\u00e8gles TO."
+            },
+            {
+              "description": "P2 \u2014 P\u00e9rim\u00e8tre TO explicite et bornes temporelles ; aucune r\u00e8gle AF utilis\u00e9e pour compl\u00e9ter une r\u00e9ponse TO.",
+              "prompt": "Pour TO, entre 2001 et 2005 inclus, que disent les accords du corpus sur la stabilit\u00e9 du planning ?",
+              "tools_triggered": "searchCorpus",
+              "expected_behavior": "Rechercher directement sans redemander la compagnie, avec la question brute, from_date 2001-01-01, to_date 2005-12-31, mode retrieve, export true, pool_ld 11 ; omettre prefer_before et les filtres d\u00e9sactiv\u00e9s. V\u00e9rifier l\u2019application \u00e0 TO dans les extraits, y compris ceux hors des rep\u00e8res connus. Signaler toute insuffisance, sans conclure \u00e0 une absence de dispositions TO dans le corpus."
+            },
+            {
+              "description": "P3 \u2014 Comparaison AF et TO : s\u00e9paration des r\u00e8gles et borne annuelle exclusive, sans traitement AVANT/APRES.",
+              "prompt": "Pour AF et TO, jusqu\u2019\u00e0 1999, que pr\u00e9voient les accords du corpus sur la r\u00e9mun\u00e9ration en cas de modification de rotation ?",
+              "tools_triggered": "searchCorpus",
+              "expected_behavior": "Sans clarification inutile, rechercher la question brute avec to_date 1998-12-31, mode retrieve, export true et pool_ld 11. Ne jamais envoyer prefer_before ni exploiter les tags AVANT/APRES. Pr\u00e9senter s\u00e9par\u00e9ment AF et TO, citer les fichiers utilis\u00e9s, ne d\u00e9clarer une r\u00e8gle commune que si le texte l\u2019\u00e9tablit ; annoncer toute insuffisance pour une compagnie."
+            },
+            {
+              "description": "P4 \u2014 Recherche puis lecture de son export, dans la m\u00eame conversation. Aucun identifiant fixe ou expir\u00e9 n'est pr\u00e9requis.",
+              "prompt": "Pour AF, recherche les primes de No\u00ebl dans les accords du corpus, puis r\u00e9cup\u00e8re le JSON de l'export cr\u00e9\u00e9 par cette recherche.",
+              "tools_triggered": "searchCorpus, getExport",
+              "expected_behavior": "Appeler searchCorpus en mode retrieve avec export true et pool_ld 11, puis getExport avec le id r\u00e9ellement re\u00e7u. Ne pas inventer de lien de t\u00e9l\u00e9chargement. Si un 404 est re\u00e7u, expliquer que l'export est absent ou expir\u00e9 et proposer une nouvelle recherche. Le p\u00e9rim\u00e8tre AF est explicite : ne pas le redemander ; v\u00e9rifier l\u2019application des dispositions \u00e0 AF avant synth\u00e8se. Le JSON export\u00e9 conserve les candidats de la recherche, il ne constitue pas un export filtr\u00e9 AF."
+            },
+            {
+              "description": "P5 \u2014 Diagnostic technique explicite, sans analyse m\u00e9tier ni cr\u00e9ation inutile d\u2019export.",
+              "prompt": "V\u00e9rifie uniquement si le service de recherche des accords r\u00e9pond actuellement.",
+              "tools_triggered": "health",
+              "expected_behavior": "Appeler health, rapporter la r\u00e9ponse et pr\u00e9ciser qu\u2019elle ne v\u00e9rifie pas compl\u00e8tement les index ou la qualit\u00e9 de la recherche. Ne pas lancer searchCorpus."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 \u00c9criture non prise en charge : refuser de supprimer un document sans appeler d'outil.",
+              "prompt": "Supprime du corpus tous les accords concernant la pr\u00e9voyance."
+            },
+            {
+              "description": "N2 \u2014 Catalogue absent : expliquer que cette version ne peut pas lister exhaustivement les documents, sans lancer une recherche pr\u00e9sent\u00e9e comme un catalogue.",
+              "prompt": "Donne-moi le catalogue exhaustif de tous les documents du corpus, sans en oublier aucun."
+            },
+            {
+              "description": "N3 \u2014 Hors corpus : ne pas utiliser ces outils pour une question de m\u00e9t\u00e9o.",
+              "prompt": "Quel temps fera-t-il demain \u00e0 Paris ?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Le plugin est gratuit et ne propose aucun achat ni paiement.",
+        "demo_recording_url": "https://kdrive.infomaniak.com/app/share/1091924/be6a555b-41e6-4a5e-85c8-5a333a777b9d"
+      },
+      "publication": {
+        "release_notes": "Nouveau nom : Accords AFTO Recherche-Analyse. Clarification AF / TO si n\u00e9cessaire, maintien du choix dans la conversation et contr\u00f4le du champ d\u2019application des extraits avant synth\u00e8se. R\u00e8gles AF et TO s\u00e9par\u00e9es pour une comparaison. MCP et outils inchang\u00e9s.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "frederic DESCHAMP",
+    "email": "f4des.ai@gmail.com"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "veridion-markets",
+  "version": "1.0.2",
+  "description": "Search US congressional and executive-branch financial disclosures. Every result links to the government's own filing.",
+  "author": {
+    "name": "Veridion Markets LLC",
+    "email": "support@veridionmarkets.com",
+    "url": "https://www.veridionmarkets.com"
+  },
+  "homepage": "https://www.veridionmarkets.com/data-api",
+  "keywords": [
+    "congress",
+    "stock act",
+    "financial disclosures",
+    "senate",
+    "house",
+    "oge",
+    "public records"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Veridion Markets",
+        "shortDescription": "Government trade disclosures",
+        "longDescription": "Veridion Markets lets you search the financial disclosures that members of Congress and executive-branch officials file with the US government, and links every result to the original filing.\n\nWhat you can do:\n- Find disclosed trades by ticker, member, or chamber (House, Senate, or executive branch).\n- Look up a filer's official identity, including the Bioguide ID for members of Congress.\n- See when each trade happened, when it was filed, how many days the filing took, and whether it was filed within the 45-day STOCK Act window.\n- Read the full version history of a disclosure. Amendments are added as new versions; earlier versions are kept.\n- Check which government sources are covered and how current each one is.\n\nWhere the data comes from: Periodic Transaction Reports from the House Clerk, Senate eFD filings, and executive-branch disclosures published by the US Office of Government Ethics. Veridion collects these itself from the government systems of record. Each result includes a receipt link to the government's own document so you can verify it.\n\nLimits: Amounts are the ranges stated on the filing, not exact figures. Disclosures can be filed up to 45 days after a trade, so recent activity may not appear yet. When a source is behind, the status tool says so and explains why. Results are capped at 25 rows per request and 60 requests per hour. All tools are read-only. Veridion Markets does not place trades, hold accounts, or give investment advice.",
+        "developerName": "Veridion Markets LLC",
+        "category": "Finance",
+        "capabilities": [
+          "Search congressional and executive-branch trade disclosures",
+          "Look up filer identity and Bioguide IDs",
+          "Show filing delays against the STOCK Act window",
+          "Show amendment history for a disclosure",
+          "Report source coverage and data freshness"
+        ],
+        "websiteURL": "https://www.veridionmarkets.com",
+        "supportURL": "https://www.veridionmarkets.com/about#contact-heading",
+        "privacyPolicyURL": "https://www.veridionmarkets.com/privacy",
+        "termsOfServiceURL": "https://www.veridionmarkets.com/terms",
+        "defaultPrompt": [
+          "Which members of Congress disclosed NVDA trades? Link each filing.",
+          "Show Nancy Pelosi's most recent disclosed trades with the original filings.",
+          "Which recent House trade disclosures were filed after the 45-day deadline?"
+        ],
+        "brandColor": "#D4AF37",
+        "brandColorDark": "#F0C96A",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search disclosed trades by ticker",
+              "prompt": "Which members of Congress have disclosed trades in NVDA? Show the five most recent and link each filing.",
+              "tools_triggered": "search_disclosures",
+              "expected_behavior": "Calls search_disclosures with ticker NVDA and limit 5. Lists the rows returned, newest filing first, each with the filer's name and chamber, transaction type and date, filed date, and the amount range as disclosed, plus that row's receipt.url. House rows link the House Clerk PDF page; Senate rows link the Senate eFD report page, which the Senate site opens behind its own access agreement."
+            },
+            {
+              "description": "Look up a member and their recent trades",
+              "prompt": "What is Nancy Pelosi's Bioguide ID, and what are her most recent disclosed trades?",
+              "tools_triggered": "list_members, search_disclosures",
+              "expected_behavior": "Calls list_members (name pelosi) and returns Bioguide ID P000197 with member_id nancy-pelosi. Then calls search_disclosures with member_id nancy-pelosi and lists the returned rows, newest filing first, with transaction dates, filed dates, amount ranges as disclosed and the House Clerk receipt links. Rows can include options and private holdings exactly as filed."
+            },
+            {
+              "description": "Find filings submitted after the STOCK Act window",
+              "prompt": "Show recent House trade disclosures that were filed after the 45-day STOCK Act deadline.",
+              "tools_triggered": "search_disclosures",
+              "expected_behavior": "Calls search_disclosures with chamber house and within_statutory_window false. Every row returned shows delay_days greater than 45, the filer, the transaction and filed dates and the House Clerk receipt link, newest filing first. States what was filed and when, without attributing motive."
+            },
+            {
+              "description": "Show the version history of a disclosure",
+              "prompt": "Find the most recent House trade disclosure and tell me whether it has been amended.",
+              "tools_triggered": "search_disclosures, get_disclosure_history",
+              "expected_behavior": "Calls search_disclosures with chamber house (limit 1) to find the newest House filing, then get_disclosure_history with that row's disclosure_id. Reports how many versions are recorded, oldest first; with one version it says no amendment has been recorded. Links the House Clerk PDF receipt for the filing."
+            },
+            {
+              "description": "Report source coverage and freshness",
+              "prompt": "Which government sources does Veridion cover, and how current is each one right now?",
+              "tools_triggered": "get_coverage, get_status",
+              "expected_behavior": "Calls get_status (get_coverage is optional). Lists House Clerk, Senate eFD and Office of Government Ethics with each source's state and last_success_at, and notes that SEC EDGAR is reported as no_data (outside v1). If the status is degraded, names each check in degraded_reasons with its measurement instead of only saying degraded."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Trade execution is out of scope; the plugin is read-only and must not claim to place an order.",
+              "prompt": "Buy 10 shares of NVDA for me."
+            },
+            {
+              "description": "Live market prices are out of scope; the plugin covers government filings only and should not present any figure as a current quote.",
+              "prompt": "What is Apple's stock price right now?"
+            },
+            {
+              "description": "Personal investment advice is out of scope; the plugin may show disclosed filings but must not recommend buying or selling.",
+              "prompt": "Based on what senators are buying, which stock should I put my savings into?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://www.veridionmarkets.com/demo/veridion-mcp-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "1.0.2: test-case expectations restated to match the tools' documented output (row order, Senate eFD receipt access, status fields). Five read-only tools, unchanged: search_disclosures, get_disclosure_history, list_members, get_coverage and get_status."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

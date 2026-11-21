@@ -1,0 +1,86 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "paperclerk",
+  "version": "1.0.1",
+  "description": "PaperClerk helps you find saved templates in your connected workspace, inspect their fields, and generate filled documents without changing the original template. Supply values for individual fields or repeating sections, then preview the result and download its PDF. You can also find and reopen previously generated documents. Requires a connected PaperClerk account. PDF download links work without sign-in for about one hour, so share them only with intended recipients.",
+  "author": {
+    "name": "Nikola Mastilovic"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Find my saved document templates.",
+          "Help me fill a template and generate a PDF.",
+          "Find my latest generated document and give me its PDF download link."
+        ],
+        "developerName": "Nikola Mastilovic",
+        "displayName": "PaperClerk",
+        "longDescription": "PaperClerk helps you find saved templates in your connected workspace, inspect their fields, and generate filled documents without changing the original template. Supply values for individual fields or repeating sections, then preview the result and download its PDF. You can also find and reopen previously generated documents. Requires a connected PaperClerk account. PDF download links work without sign-in for about one hour, so share them only with intended recipients.",
+        "privacyPolicyURL": "https://usepaperclerk.com/privacy",
+        "shortDescription": "Generate PDFs from templates",
+        "supportURL": "https://usepaperclerk.com/support",
+        "termsOfServiceURL": "https://usepaperclerk.com/terms",
+        "websiteURL": "https://usepaperclerk.com",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find saved templates by title in the connected workspace.",
+              "prompt": "Find my saved PaperClerk templates with Review in the title.",
+              "expected_behavior": "Names the connected workspace (PaperClerk Review) and lists exactly two saved templates, Review Service Letter and Review Order Summary, each with its id. The unsaved Review Draft does not appear. No document is created.",
+              "tools_triggered": "list_templates"
+            },
+            {
+              "description": "Inspect a template's fields, types, defaults and repeating section before generating.",
+              "prompt": "Show the fields and defaults in my Review Order Summary template, including its repeating items. Do not generate a document.",
+              "expected_behavior": "Returns the template text and its fields: order_number (auto counter, REV-0001), generated_date (auto), order_date (08/27/2026 format), status and currency (defaults Draft, EUR), client, vendor, money and notes fields, and the line_items group: item, quantity, unit_price, amount. No document.",
+              "tools_triggered": "list_templates, get_template"
+            },
+            {
+              "description": "Generate a filled document with typed values, repeating rows, an explicit blank and defaults.",
+              "prompt": "Use Review Order Summary to generate a document titled Review Order - Acme: client name Acme Example Ltd, status Draft, order date January 5, 2027, lines: Setup, quantity 2, unit price 125; Support, quantity 1, unit price 80. Compute amounts and totals, clear the notes, keep other defaults.",
+              "expected_behavior": "One document, Review Order - Acme: P.O. number the next REV-nnnn and issued date today (automatic), order date 01/05/2027, Draft, EUR, Acme Example Ltd, lines Setup 2 x 125.00 = 250.00 and Support 1 x 80.00 = 80.00, total 330.00, notes blank. Preview, PaperClerk link, PDF link valid about an hour.",
+              "tools_triggered": "list_templates, get_template, generate_document"
+            },
+            {
+              "description": "Find a previously generated document and get a fresh PDF download link without generating again.",
+              "prompt": "Find the newest PaperClerk document named Review Seed Letter, open its preview, and give me a fresh PDF download link.",
+              "expected_behavior": "list_generations finds Review Seed Letter (from Review Service Letter, PDF ready). get_generation returns its text (Prepared for Northwind Example Ltd, service Document formatting), the preview with Download PDF and Open in PaperClerk, and a fresh PDF link valid about an hour. No new document.",
+              "tools_triggered": "list_generations, get_generation"
+            },
+            {
+              "description": "Retry an identical generation request and get the same document back instead of a duplicate.",
+              "prompt": "Turn 1: Generate Review Service Letter for Acme Example Ltd with the service Document formatting, titled Review Retry Letter. Turn 2, right after: call generate_document again with exactly the same template, title and values, changing nothing, and tell me whether the result was replayed.",
+              "expected_behavior": "The first call creates Review Retry Letter and returns its links. The identical second call within ten minutes returns the same document id with replayed: true, and no second document appears. Any difference in the second request, or a retry after ten minutes, creates a new document by design.",
+              "tools_triggered": "list_templates, get_template, generate_document (called twice with identical arguments)"
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not invoke PaperClerk for unrelated calendar actions.",
+              "prompt": "Schedule a meeting with my team tomorrow morning.",
+              "expected_behavior": "Does not invoke PaperClerk because its tools do not manage calendars."
+            },
+            {
+              "description": "Do not invoke PaperClerk for unsupported PDF editing.",
+              "prompt": "Edit the text directly in an existing PDF and add my electronic signature.",
+              "expected_behavior": "Explains that the PaperClerk connector cannot edit arbitrary PDFs or apply electronic signatures; no PaperClerk tool is called."
+            },
+            {
+              "description": "Do not invoke PaperClerk for general writing without a workspace workflow.",
+              "prompt": "Write a short thank-you note for a colleague. I do not need a template or a saved document.",
+              "expected_behavior": "Writes the note directly without invoking PaperClerk or storing a document."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

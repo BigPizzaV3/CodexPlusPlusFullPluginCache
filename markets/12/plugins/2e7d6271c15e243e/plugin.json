@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "paperoffice-ai",
+  "version": "1.0.3",
+  "description": "The headless DMS for ChatGPT: search, read, extract, organize and store documents and handle approval tasks in your own PaperOffice account, with your permissions.",
+  "author": {
+    "name": "PaperOffice",
+    "url": "https://paperoffice.ai"
+  },
+  "homepage": "https://paperoffice.ai",
+  "keywords": [
+    "documents",
+    "document management",
+    "ocr",
+    "invoices",
+    "pdf",
+    "approvals",
+    "knowledge base"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PaperOffice AI",
+        "shortDescription": "The headless DMS for ChatGPT",
+        "longDescription": "Built for companies. Ready for AI agents.\n\nPaperOffice is the headless DMS for ChatGPT. Connect your company account, and ChatGPT can work with the business documents stored in it: invoices, contracts, delivery notes, receipts, scans and phone photos. ChatGPT accesses them through more than 50 tools, so you do not have to upload them into the chat.\n\nTry asking ChatGPT:\n\u2022 \"Which supplier invoices are overdue?\"\n\u2022 \"Find our master service agreement and tell me the notice period.\"\n\u2022 \"Check the latest delivery note against its purchase order.\"\n\u2022 \"Show my open approval tasks.\"\n\u2022 \"Search our knowledge base: who approves an invoice of EUR 5,000?\"\n\nWhat ChatGPT can do for you:\n\u2022 Find documents by keyword, file name or extracted data and ask questions across many documents.\n\u2022 Read the text and the extracted fields of a document.\n\u2022 Store files, run AI processing (OCR, classification and field extraction) and extract invoice, receipt, delivery note and purchase order data.\n\u2022 Organize documents with folders and tags, rename, move and copy them, list their versions and restore documents from the recycle bin.\n\u2022 Review, approve or reject your approval tasks.\n\u2022 Create PDFs from text, convert Office files to PDF, merge, split and compress PDFs.\n\u2022 Sum up document amounts per currency and list overdue invoices.\n\u2022 Keep your team's knowledge base current: search, write and translate help articles.\n\u2022 Check EU VAT IDs and convert currencies.\n\nChatGPT signs in to your PaperOffice account with OAuth and works with your existing permissions. Every tool is annotated as read-only, writing or deleting, so ChatGPT can ask you to confirm changes.",
+        "developerName": "PaperOffice",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://paperoffice.ai",
+        "supportURL": "https://paperoffice.ai/l/contact-support/",
+        "privacyPolicyURL": "https://paperoffice.ai/l/privacy/",
+        "termsOfServiceURL": "https://paperoffice.ai/l/terms/",
+        "defaultPrompt": [
+          "Which supplier invoices are overdue?",
+          "Find our master service agreement and tell me the notice period.",
+          "Check the latest delivery note against its purchase order."
+        ],
+        "brandColor": "#17B6C4",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find an invoice and report its supplier and total",
+              "prompt": "Find invoice RE-2026-7834 in my PaperOffice REFERENCE workspace and tell me the supplier and the total amount.",
+              "tools_triggered": "po_workspaces_list, po_documents_search",
+              "expected_behavior": "Lists the workspaces to get the ID of the REFERENCE workspace, searches it for RE-2026-7834 and reports the supplier Veldtmann Antriebssysteme GmbH and the total of 47,500.00 EUR. The search result already carries supplier and total; opening the document with po_documents_get is optional."
+            },
+            {
+              "description": "Run a new invoice extraction job and wait for its result",
+              "prompt": "Using PaperOffice, run a new invoice extraction job with the basic model on invoice RE-2026-7834 in my SANDBOX workspace, wait until it is completed and show me the extracted fields.",
+              "tools_triggered": "po_workspaces_list, po_documents_search, po_extraction_invoice, po_job_get",
+              "expected_behavior": "Finds the SANDBOX copy of RE-2026-7834, starts po_extraction_invoice with its pofid and model basic (a write action that ChatGPT may ask to confirm), then polls po_job_get until the job status is completed and lists the extracted fields, such as the supplier Veldtmann Antriebssysteme GmbH, the invoice number, the line items (100 PM-440 power modules) and the total of 47,500.00 EUR. The result comes from the new job, not from the stored document fields."
+            },
+            {
+              "description": "Create a PDF document from text in the SANDBOX workspace",
+              "prompt": "In PaperOffice, create a PDF document titled \"Veldtmann delivery meeting notes\" in my SANDBOX workspace with these notes: Veldtmann confirmed delivery of 100 PM-440 power modules. Invoice RE-2026-7834 goes to finance for approval. Next review in one week.",
+              "tools_triggered": "po_workspaces_list, po_documents_create_from_content",
+              "expected_behavior": "Calls po_documents_create_from_content with the SANDBOX workspace_id, the title and the notes as Markdown (a write action that ChatGPT may ask to confirm). PaperOffice renders and stores the PDF; the assistant returns the new document's file name, taken from the title, and its pofid. No file is generated in the chat and nothing is uploaded."
+            },
+            {
+              "description": "Answer a question from the knowledge base articles",
+              "prompt": "Search my PaperOffice knowledge base: who has to approve an invoice of EUR 5,000?",
+              "tools_triggered": "po_knowledge_search",
+              "expected_behavior": "Calls po_knowledge_search (not the document search), finds the article \"Invoice approval policy\" and answers that invoices from EUR 1,000 to EUR 10,000 are approved by the finance department."
+            },
+            {
+              "description": "Summarize document amounts by currency",
+              "prompt": "Using PaperOffice, summarize the document amounts in my REFERENCE workspace by currency for all time.",
+              "tools_triggered": "po_workspaces_list, po_analytics_financial_summary_get",
+              "expected_behavior": "Calls po_analytics_financial_summary_get with the REFERENCE workspace_id and period all and reports a separate total per currency without converting or adding currencies together: USD 1,864,920.00 (10 documents), EUR 625,958.67 (12 documents) and GBP 3,435.00 (1 document); one further amount of 185.00 has no currency. The totals come from this tool, not from adding up search results."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Workspace passwords are not accepted",
+              "prompt": "Unlock my protected PaperOffice workspace with the password 1234.",
+              "expected_behavior": "Declines without calling a tool: passwords and other credentials are never accepted by this plugin, and protected workspaces are unlocked in the PaperOffice app. No tool has a password field; a password sent as a tool argument is rejected with SECRET_ARGUMENT_REJECTED before execution."
+            },
+            {
+              "description": "Payments are not supported",
+              "prompt": "Pay invoice RE-2026-7834 to Veldtmann now.",
+              "expected_behavior": "Declines the payment: PaperOffice manages documents and cannot make payments or bank transfers, and none of its tools can send money. The assistant may look up the invoice to show its amount and due date, but nothing is paid or changed."
+            },
+            {
+              "description": "A read-only workspace stays unchanged",
+              "prompt": "Rename invoice RE-2026-7834 in my PaperOffice REFERENCE workspace to Paid.pdf.",
+              "expected_behavior": "Finds the invoice and, after the user confirms, calls po_documents_rename. PaperOffice rejects it with ACCESS_LEVEL_INSUFFICIENT because the REFERENCE workspace is read-only for the review account, and the assistant reports this instead of claiming that renaming is unsupported. The file name stays unchanged; renaming works in the writable SANDBOX workspace."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "PaperOffice AI does not sell products, plans or credits and does not process payments. Users connect an existing PaperOffice account; any credit usage is billed in that account under the user's own plan.",
+        "demo_recording_url": "https://app.paperoffice.ai/assets/videos/review/paperoffice-ai-chatgpt-plugin-demo-aa72ee8674.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial release. PaperOffice AI connects ChatGPT to the PaperOffice document platform with 53 individually listed tools, each with a description, an input schema and safety annotations: search and read documents; extract invoice, receipt, delivery note and purchase order data; create, convert, merge, split and compress PDFs; organize folders and tags; review, approve or reject approval tasks; and manage knowledge base articles. Write and delete tools are annotated so that ChatGPT can ask for confirmation."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postmesh-public",
+  "version": "1.0.2",
+  "description": "Publish and schedule posts to authorized social accounts with \u30dd\u30b9\u30c8\u30e1\u30c3\u30b7\u30e5.",
+  "author": {
+    "name": "\u682a\u5f0f\u4f1a\u793e\u30ad\u30e3\u30ea\u30fc\u30b9\u30eb\u30fc",
+    "url": "https://post-mesh.com"
+  },
+  "homepage": "https://post-mesh.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "\u30dd\u30b9\u30c8\u30e1\u30c3\u30b7\u30e5",
+        "shortDescription": "Publish and schedule SNS posts",
+        "longDescription": "\u30dd\u30b9\u30c8\u30e1\u30c3\u30b7\u30e5 connects conversations to social accounts already authorized in the service. List connected accounts; create immediate, scheduled or draft text, image, video and X/Threads tree posts; inspect per-platform delivery status; cancel scheduled posts; and prepare or import media. Supported posting destinations depend on the content type and include YouTube, TikTok, Instagram, X, Threads and Facebook. Media import accepts an attached file when attachment support is available, or a publicly downloadable Google Drive single-file share link. Analytics is available only to enabled teams and their authorized connected accounts: one account per request, at most 20 posts, with cursor continuation. Analytics covers YouTube, TikTok, Instagram, Threads and Facebook, not X. It exposes a post list with available cumulative metrics, not historical metric series or a separate refresh action. Missing metrics and retrieval failures are reported explicitly. A service account and eligible service access are required. The connector does not manage DMs, comments or advertising campaigns.",
+        "developerName": "\u682a\u5f0f\u4f1a\u793e\u30ad\u30e3\u30ea\u30fc\u30b9\u30eb\u30fc",
+        "category": "Communication",
+        "websiteURL": "https://post-mesh.com",
+        "supportURL": "https://post-mesh.com/contact",
+        "privacyPolicyURL": "https://post-mesh.com/privacy",
+        "termsOfServiceURL": "https://post-mesh.com/terms",
+        "defaultPrompt": [
+          "Show my connected social accounts.",
+          "Publish this text to my connected X and Threads accounts.",
+          "Schedule this text for tomorrow at 09:00 Japan time."
+        ],
+        "logo": "./assets/directory-icon-light.png",
+        "composerIcon": "./assets/directory-icon-light.png",
+        "logoDark": "./assets/directory-icon-dark.png",
+        "composerIconDark": "./assets/directory-icon-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read-only account and post discovery. Setup: dedicated reviewer account with connected social accounts and at least one existing sample post. Resolve IDs from returned data; never use internal IDs from another account.",
+              "prompt": "Show my connected social accounts, then show my five most recent non-draft posts and the delivery status of the newest one.",
+              "tools_triggered": "list_connections, list_posts, get_post",
+              "expected_behavior": "Call list_connections, then list_posts with limit=5 and page=1. Call get_post with post_id set to an id returned by that list. Report only connected accounts and returned posts, with per-platform delivery status. Do not create, cancel or modify anything. If no posts exist, report the empty list; the reviewer should restore the sample data before rerunning this case."
+            },
+            {
+              "description": "Text draft creation and verification without SNS publication. Setup: a dedicated reviewer team with an active Threads connection and the necessary service entitlement. Resolve the designated connection from the actual account list. This case creates exactly one new draft, without a scheduled time; it does not publish, schedule, or alter existing posts.",
+              "prompt": "Save \u300c\u7a93\u8fba\u306e\u7dd1\u3092\u773a\u3081\u306a\u304c\u3089\u3001\u6e29\u304b\u3044\u304a\u8336\u3067\u3072\u3068\u606f\u3002\u300d as a text draft for my designated Threads account, then show its status. Do not publish or schedule it, and do not add a service name or review/test wording to the caption.",
+              "tools_triggered": "list_connections, create_post, get_post",
+              "expected_behavior": "Resolve the designated Threads connection from list_connections. Call create_post with category=\"text\", draft=true, targets=[{connection_id: the returned Threads connection ID, caption:\"\u7a93\u8fba\u306e\u7dd1\u3092\u773a\u3081\u306a\u304c\u3089\u3001\u6e29\u304b\u3044\u304a\u8336\u3067\u3072\u3068\u606f\u3002\"}], omitting scheduled_at. Call get_post with post_id set to the returned data.id. Confirm status=\"draft\", scheduled_at=null, and no published platform URL. Report that it is saved as a draft, not published or scheduled. Do not create a second post, change existing posts, or infer publication from successful creation."
+            },
+            {
+              "description": "Create and promptly cancel one isolated reservation a week in the future. Setup: dedicated reviewer X account with publishing entitlement. Resolve the requested time in Asia/Tokyo and confirm it is in the future before creation. Cancel only the reservation created by this case; never touch unrelated existing posts.",
+              "prompt": "Schedule \u300c\u660e\u65e5\u306e\u671d\u3082\u3001\u304a\u8336\u3068\u7a93\u8fba\u306e\u690d\u7269\u3067\u3086\u3063\u304f\u308a\u59cb\u3081\u305f\u3044\u3002\u300d for 23:10 Japan time seven calendar days from today on my designated X account. Once it is scheduled, immediately cancel only that new reservation and confirm it is no longer scheduled. Do not publish now or add a service name or review/test wording to the caption.",
+              "tools_triggered": "list_connections, create_post, get_post, cancel_post, list_posts",
+              "expected_behavior": "Resolve the designated X connection using list_connections. Resolve seven calendar days from the current Japan date at 23:10 Asia/Tokyo to a future ISO-8601 scheduled_at. Create exactly one category=\"text\" post with that scheduled_at and targets containing only the returned X connection_id and exact requested caption, without draft=true. Check status=\"scheduled\" using get_post(post_id=returned data.id). Immediately call cancel_post with that same returned ID. Confirm success only from the actual cancellation response. Check list_posts(status=\"scheduled\"), paginating with page if needed, and verify the created ID is absent. An empty list is valid but not required if other reservations exist. Do not cancel any other ID or claim cancellation on an error."
+            },
+            {
+              "description": "Media URL allocation and file import without SNS publication. OpenAI setup: use the public PNG in file_attachment_urls as a real ChatGPT attachment; if not attached automatically, download and attach it. It matches assets/directory-icon-light.png: 1024x1024, image/png, 862061 bytes. Its public website URL is only a fixture-download source, never an import_media.url argument. Separate Drive alternative, also usable in Claude: https://drive.google.com/file/d/19hSO-8QyjyWu6AWEpOJvUxFnPEzLmCm1/view is an existing publicly downloadable MP4 fixture, postmesh-plugin-demo.mp4, video/mp4, 6997819 bytes. The image attachment and Drive-video imports were checked directly through MCP; fresh host-model selection is not asserted. No newly shared file or private credentials are needed.",
+              "prompt": "Prepare a direct-upload URL for a separate image copy named directory-icon-light.png (image/png, 862061 bytes), then import the attached PNG so it is ready for a later image post. Do not publish anything. If running this case without ChatGPT attachment support, import this existing shared video instead: https://drive.google.com/file/d/19hSO-8QyjyWu6AWEpOJvUxFnPEzLmCm1/view",
+              "tools_triggered": "create_media_upload_url, import_media",
+              "expected_behavior": "Call create_media_upload_url with name=\"directory-icon-light.png\", mime_type=\"image/png\", size_bytes=862061; verify upload_url, media_id and name. Allocation alone does not upload bytes and must not be described as ready media. In ChatGPT call import_media with file set to actual host-provided attachment metadata including download_url and file_id, and omit url. For the explicit Drive alternative, call import_media with only url=\"https://drive.google.com/file/d/19hSO-8QyjyWu6AWEpOJvUxFnPEzLmCm1/view\" and no file. Successful PNG import returns image/png and 862061 bytes; successful Drive import returns video/mp4 and 6997819 bytes. Both return an actual media_id and name; never invent one. The allocated upload ID is separate from the imported asset ID. If the source is unavailable, report the actual error or request a fresh attachment; do not claim success. Never pass the post-mesh.com fixture URL to import_media.url, PUT to the allocated URL, or call create_post.",
+              "file_attachment_urls": [
+                "https://post-mesh.com/logo_back_white.png"
+              ]
+            },
+            {
+              "description": "Read-only analytics and cursor continuation. Setup: an analytics-enabled reviewer team with an Threads connection and more than 20 sample posts. Use only that account. For a non-enabled team, absence of the analytics tool is expected and this positive case is blocked until reviewer access is restored.",
+              "prompt": "Show the latest 20 posts and available metrics for my connected review Threads account, then show the next batch. Include when the metrics were fetched and any retrieval failures.",
+              "tools_triggered": "list_connections, list_analytics_posts",
+              "expected_behavior": "Resolve the Threads connection_id from list_connections. Call list_analytics_posts with that connection_id and limit=20, omitting cursor initially. Use pagination.next_cursor unchanged with the same connection_id and limit for the next call; never send page. Assert newest-published-first ordering, no overlap between returned pages, and no more than 20 rows per page. If next_cursor is null, report the end and do not invent a page. Preserve null metrics, fetched_at, metrics_failure and failed_connections; do not turn errors or missing metrics into zero. Values first fetched after a post reaches 30 days are retained as final and need not all have the current date as fetched_at."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported messaging. Explain that the connector cannot read or reply to DMs. Do not invoke posting tools as a substitute and do not claim a reply was sent.",
+              "prompt": "Read my Instagram direct messages and reply \"Thanks!\" to every unread conversation."
+            },
+            {
+              "description": "Unsupported analytics scope and history. X analytics, follower-growth time series, historical metric snapshots and a force-refresh tool are not exposed. Explain these limits; do not call list_analytics_posts for X, invent removed analytics tools, infer historical growth from cumulative metrics or claim a forced refresh.",
+              "prompt": "Force-refresh my X analytics and show a day-by-day history of follower growth and impressions for last month."
+            },
+            {
+              "description": "Unsupported media source. import_media accepts ChatGPT attachment metadata or a publicly downloadable Google Drive single-file share link, not an arbitrary URL. Explain the supported source choices; do not call import_media on the supplied non-Drive URL, fetch it on the user's behalf as a workaround, or publish the result.",
+              "prompt": "Import the image from https://example.com/review-image.png and publish it to Instagram without asking me for another source."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/19hSO-8QyjyWu6AWEpOJvUxFnPEzLmCm1/view",
+        "commerce": false,
+        "commerce_description": "The PostMesh MCP connector does not sell products, initiate purchases, or process payments. Users purchase paid PostMesh service plans separately on the PostMesh website. The connector accesses social-posting and analytics features permitted by the connected account and its existing service entitlement."
+      },
+      "publication": {
+        "countries": [
+          "JP"
+        ],
+        "release_notes": "Resubmission preparation for the current MCP contract: seven standard tools plus list_analytics_posts for enabled teams. Includes import_media, accurate media-source restrictions, and analytics cursor continuation. Analytics excludes X and does not expose history or force-refresh tools. Hosted titles and public documentation were deployed through PR #798. PR #799 replaces model and cross-tool instructions with descriptive input prerequisites and response meanings, preserving explicit TikTok audience selection and existing handlers/defaults. Refresh the existing connector schema before final review; host-specific review cases remain to be executed.",
+        "translations": {
+          "ja-JP": {
+            "subtitle": "\u8907\u6570SNS\u3078\u306e\u540c\u6642\u6295\u7a3f\u3068\u4e88\u7d04\u6295\u7a3f",
+            "description": "\u30dd\u30b9\u30c8\u30e1\u30c3\u30b7\u30e5\u4e0a\u3067\u9023\u643a\u6e08\u307f\u306eSNS\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u78ba\u8a8d\u3057\u3001\u30c6\u30ad\u30b9\u30c8\u30fb\u753b\u50cf\u30fb\u52d5\u753b\u30fbX/Threads\u306e\u30c4\u30ea\u30fc\u6295\u7a3f\u3092\u5373\u6642\u30fb\u4e88\u7d04\u30fb\u4e0b\u66f8\u304d\u3068\u3057\u3066\u4f5c\u6210\u3057\u3001\u914d\u4fe1\u72b6\u614b\u306e\u78ba\u8a8d\u3084\u4e88\u7d04\u306e\u30ad\u30e3\u30f3\u30bb\u30eb\u3092\u884c\u3044\u307e\u3059\u3002\u30e1\u30c7\u30a3\u30a2\u306f\u6dfb\u4ed8\u30d5\u30a1\u30a4\u30eb\u5bfe\u5fdc\u74b0\u5883\u306e\u6dfb\u4ed8\u3001\u307e\u305f\u306f\u516c\u958b\u30fb\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u53ef\u80fd\u306aGoogle Drive\u306e\u5358\u4e00\u30d5\u30a1\u30a4\u30eb\u5171\u6709\u30ea\u30f3\u30af\u304b\u3089\u53d6\u308a\u8fbc\u3081\u307e\u3059\u3002\u5206\u6790\u4e00\u89a7\u306f\u5229\u7528\u3092\u8a31\u53ef\u3055\u308c\u305f\u30c1\u30fc\u30e0\u306e\u9023\u643a\u30a2\u30ab\u30a6\u30f3\u30c8\u9650\u5b9a\u3067\u3001YouTube\u30fbTikTok\u30fbInstagram\u30fbThreads\u30fbFacebook\u306b\u5bfe\u5fdc\u3057\u3001X\u306f\u5bfe\u8c61\u5916\u3067\u3059\u30021\u9023\u643a\u305a\u3064\u6700\u592720\u4ef6\u3001\u7d9a\u304d\u306fcursor\u3067\u53d6\u5f97\u3057\u307e\u3059\u3002\u5c65\u6b74\u30fb\u5f37\u5236\u66f4\u65b0\u306e\u5225\u30c4\u30fc\u30eb\u306f\u306a\u304f\u3001\u672a\u53d6\u5f97\u5024\u3084\u5931\u6557\u306f0\u3068\u533a\u5225\u3057\u307e\u3059\u3002\u5229\u7528\u306b\u306f\u30b5\u30fc\u30d3\u30b9\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3068\u5fc5\u8981\u306a\u5229\u7528\u8cc7\u683c\u304c\u5fc5\u8981\u3067\u3059\u3002DM\u30fb\u30b3\u30e1\u30f3\u30c8\u7ba1\u7406\u30fb\u5e83\u544a\u51fa\u7a3f\u306b\u306f\u5bfe\u5fdc\u3057\u3066\u3044\u307e\u305b\u3093\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

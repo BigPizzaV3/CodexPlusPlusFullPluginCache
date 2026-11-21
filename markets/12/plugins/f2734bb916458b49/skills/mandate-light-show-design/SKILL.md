@@ -1,0 +1,14 @@
+---
+name: mandate-light-show-design
+description: Show a public Mandate Light design as a diagram or visual concept and save its source as a proposed visual reference.
+---
+
+Use the selected public project's attached approved requirements, existing visuals and selected standards. If absent, ask the user to open the project and use Project details → Use in chat. Do not use a private project reader.
+
+Choose a Mermaid diagram for precise relationships or flow. Use available image generation for a visual concept, or an editable prototype when behaviour needs exploring. Check whether the picture introduces features that have not been agreed. Keep those as questions or proposals, not approved scope.
+
+When asked to save, call propose_decision with the attached projectId/publicWorkspaceId, plain requirement meaning and its design object. Set schemaVersion to 1 and visual to {format: mermaid or image, source: exact source, role: explanation unless the person explicitly requests a different role}. Mermaid source is at most 16,000 characters. For a generated/uploaded ChatGPT image, use the optional top-level image file parameter with the real download_url and file_id supplied by the host (file_name/mime_type when known). Never invent a file reference, convert a sandbox path into a URL, or use an arbitrary external URL. The browser receipt downloads a selected file transiently through Mandate's host, validates it, and saves image bytes locally. PNG/JPEG/WebP files up to 20 MB are accepted; images above the saved 1 MB limit use an explicitly labelled fitted copy with filename, dimensions and original SHA-256 in source. Check readability before approval. Small images keep exact original bytes. Do not send base64 through chat when a real file parameter is available.
+
+If the host does not expose a downloadable generated image or screenshot, say so briefly. Ask the user to paste the screenshot into the requirement form, drop it in the image area, choose a local image, or use Choose from ChatGPT when offered. An inline picture that the model can see is not automatically a downloadable file. Preserve the draft if a file expires; reselect it or use a screenshot. Never claim an image was saved from a prepared action alone. Existing small data URLs remain supported. A saved image can be reused with source mandate-image:<existing requirement ID>. Preserve full saved design details when replacing a requirement. Use replacesId for an approved visual's next version. Put provenance in source, and link to governing approved requirement IDs through design.links with a clear relation such as explains.
+
+The browser receipt confirms local application. Only human approval in the panel establishes agreed intent. The public file stores source, provenance, links and earlier versions. Save project retains its existing backup route. A build brief freezes the approved version; later visual edits must not be described as changing that earlier brief.

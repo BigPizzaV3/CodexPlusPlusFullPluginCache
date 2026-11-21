@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "iarchi",
+  "version": "0.1.0",
+  "description": "Create and maintain ArchiMate architecture models, relationships and views with your agent.",
+  "author": {
+    "name": "\u53f6\u5149\u8000"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "iArchi",
+        "shortDescription": "Architecture for agents",
+        "longDescription": "Give your agent a business goal and develop an editable enterprise architecture model with iArchi. Create ArchiMate elements and explicit relationships, organize them into connected views, inspect existing models, and refine the design over time.\n\nOpen the interactive architecture canvas to inspect and edit the same cloud model. Reuse elements across views, arrange layouts, route connections, and check persisted geometry for overlaps and crossings. Import and export Archi XML; the canvas also supports PNG and SVG exports. File delivery and embedded UI availability depend on the host.\n\nAn iArchi account and OAuth authorization are required for cloud access. Tools can read, create, modify and delete content that your account is permitted to access. \n\niArchi does not deploy infrastructure, execute code on your computer, or connect directly to your production databases. Models express the information you provide and should be reviewed before implementation.",
+        "developerName": "\u53f6\u5149\u8000",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Model an order fulfillment system with business, application and technology views.",
+          "Review my architecture model and explain the dependencies in a selected view.",
+          "Check a view for overlaps and improve its layout."
+        ],
+        "websiteURL": "https://www.iarchi.cloud/product",
+        "supportURL": "https://app.iarchi.cloud/contact",
+        "privacyPolicyURL": "https://app.iarchi.cloud/privacy-policy",
+        "termsOfServiceURL": "https://app.iarchi.cloud/tos",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://app.iarchi.cloud/review/iarchi-review-demo-2026-10-18.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Read an existing architecture. Setup: use the dedicated review account and its Review - Order fulfillment model, seeded with the supplied review-model.xml fixture. Run independently from a fresh fixture. No model mutation is requested.",
+              "prompt": "Open my Review - Order fulfillment model. Show the Order overview view and explain how Order service supports Fulfill order, using the relationships saved in the model.",
+              "tools_triggered": "list_architecture_workspaces; listArchitectureViews; getArchitectureView; open_architecture_workspace or iarchi_thread_architecture when opening the canvas. queryArchitecture may be used for additional read-only inspection.",
+              "expected_behavior": "Resolve the authorized workspace and exact Order overview view by returned IDs. Read the persisted elements and relationships. Explain Order service -> Order API (RealizationRelationship) and Order API -> Fulfill order (ServingRelationship), matching the returned direction and names. Open the selected view where embedded UI is supported. Do not create, update or delete model content."
+            },
+            {
+              "description": "P2 \u2014 Create a model extension and a new view. Setup: start with a fresh review fixture in the dedicated account with at least one available view slot. The Fulfill order business process already exists; Inventory API does not.",
+              "prompt": "In Review - Order fulfillment, add an Inventory API application service that serves the existing Fulfill order process. Create an Inventory review view showing both and their serving relationship. Keep all existing elements and views.",
+              "tools_triggered": "list_architecture_workspaces; listArchitectureViews; getArchitectureView or queryArchitecture; createArchitectureElements; createArchitectureRelationships; createArchitectureView; upsertArchitectureViewNodes; upsertArchitectureViewConnections. applyArchitectureLayout and autoRouteArchitectureView may be used to arrange the new view.",
+              "expected_behavior": "Reuse the existing Fulfill order element ID. Create one ApplicationService named Inventory API, a ServingRelationship from it to the existing process, and one view named Inventory review. Use returned IDs when creating two view nodes and the relationship connection. All batch items must succeed; report any partial failure accurately. Re-read the new view and verify both elements, direction and persisted geometry. Existing content remains. An already-open canvas should follow the new view once the mutation refresh is received; verify that visual behavior separately."
+            },
+            {
+              "description": "P3 \u2014 Edit a shared model element without duplicating it. Setup: fresh review fixture; Order service is used by both Order overview and Application detail. No new element, relationship or view is needed.",
+              "prompt": "In Review - Order fulfillment, change the documentation of Order service to 'Owns order orchestration; payments remain a separate responsibility.' Keep its name and ID, then show that it is the same element in Order overview and Application detail.",
+              "tools_triggered": "list_architecture_workspaces; listArchitectureViews; getArchitectureView or queryArchitecture; updateArchitectureElements; getArchitectureView for both views after the update.",
+              "expected_behavior": "Identify one existing Order service ApplicationComponent. Update only its documentation to the requested text, preserving its ID, name, relationships and view-node IDs. Read both views and confirm that their nodes reference the same updated element ID. No duplicate element or view is created. Use current revision information when supplied; on conflict refresh and report or retry the intended edit without overwriting unrelated changes."
+            },
+            {
+              "description": "P4 \u2014 Diagnose and improve persisted view geometry. Setup: fresh review fixture deliberately overlaps the three nodes in Order overview. Record the first diagnosis before changing layout.",
+              "prompt": "Check Order overview in Review - Order fulfillment for overlapping shapes. Fix its layout and reroute the connections without changing the architecture, then check it again and tell me what remains.",
+              "tools_triggered": "list_architecture_workspaces; listArchitectureViews; getArchitectureView; diagnoseArchitectureViewGeometry; applyArchitectureLayout or moveArchitectureViewNodes; autoRouteArchitectureView; diagnoseArchitectureViewGeometry; getArchitectureView.",
+              "expected_behavior": "Run the first diagnosis against the exact existing view and report its actual NODE_OVERLAP findings. Persist a supported layout using applyArchitectureLayout (for example algorithm=archimate-tabular), or move the existing view nodes to explicit separated positions with moveArchitectureViewNodes, then reroute that view. Re-run diagnostics on the updated geometry. The final NODE_OVERLAP count should be zero for this fixture; report other remaining findings using returned evidence. Element, relationship, view, node and connection IDs and model counts remain unchanged. Do not claim that a geometry check certifies architectural correctness."
+            },
+            {
+              "description": "P5 \u2014 Export structured architecture data. Setup: fresh review fixture; export the existing Order overview view. This case tests the MCP XML output, independently of whether a host offers native file downloads.",
+              "prompt": "Export Order overview from Review - Order fulfillment as Archi XML so I can inspect the model and diagram in another modeling tool. Keep the model unchanged.",
+              "tools_triggered": "list_architecture_workspaces; listArchitectureViews; getArchitectureView; exportArchiXml.",
+              "expected_behavior": "Call exportArchiXml with the authorized workspaceId and the selected viewId. Return the XML provided by the tool, or a real host-supported file delivery of those bytes. The XML has a model root, named elements, explicit relationship endpoints and a diagram whose node references resolve to exported elements. Preserve IDs from the current model. Do not invent a download URL or claim a local file was saved if the host did not confirm delivery. No model changes occur."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Infrastructure deployment is outside this architecture service. Expected: explain that iArchi can model a design but cannot provision AWS resources or apply Terraform; optionally offer a modeling task. Prohibited: any iArchi tool call for this request, fabricated execution or claimed deployment.",
+              "prompt": "Use iArchi to deploy my order fulfillment system to AWS now and apply the Terraform changes to production. I am asking for deployment, not an architecture model."
+            },
+            {
+              "description": "N2 \u2014 The remote service cannot inspect the user's local filesystem. Expected: explain that source must be provided through an appropriate supported input or another tool before modeling. Prohibited: any iArchi tool call to read a local path, guessed repository content or a claim that local code was inspected.",
+              "prompt": "Use iArchi alone to open /Users/me/private-order-service on my laptop and list the API routes in its source files. Do not ask me to upload or paste anything."
+            },
+            {
+              "description": "N3 \u2014 Architecture SQL is not a general production-database connector. Expected: explain that iArchi queries saved architecture models and cannot connect to an external production database; ask for a non-sensitive schema if the user wants a model. Prohibited: any iArchi tool call, queryArchitecture against an external database, credential collection or fabricated customer totals.",
+              "prompt": "Connect iArchi directly to our live customer PostgreSQL database and run SELECT SUM(total) FROM orders for today's revenue. I need live business data, not an architecture diagram."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "iArchi offers optional Pro and Team subscriptions for its cloud architecture service. Checkout and billing management occur only at https://app.iarchi.cloud/pricing and its authenticated billing flow, using Paddle. The MCP tools do not accept payment details, place orders, or charge users. Free access has limits; review access must be provisioned separately without requiring a reviewer purchase."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission candidate for iArchi's remote architecture MCP service. Includes account-authorized ArchiMate modeling, shared elements across views, persisted layout and routing, geometry diagnostics, Archi XML import/export, and an interactive architecture canvas. Canvas exports support private temporary download links when the host lacks native file downloads. Host-specific visual and file-delivery checks are documented separately."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

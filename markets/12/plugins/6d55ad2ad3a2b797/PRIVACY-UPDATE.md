@@ -1,0 +1,1 @@
+Minimum task fields only. Current server input schema uses party.childAgeBands and constraints.shortWalks. It does not accept party.childrenAges or constraints.mobilitySensitive. Website sharing is an explicit separate action; no existing plan records were deleted. Privacy: https://bangkokgotme.com/privacy#trip-plans

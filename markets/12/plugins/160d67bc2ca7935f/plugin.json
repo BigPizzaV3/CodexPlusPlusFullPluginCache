@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "iuslink",
+  "version": "1.0.0",
+  "description": "Read-only access to Swiss federal statutes (Fedlex), cantonal legislation (LexFind) and court decisions (Entscheidsuche) from official sources.",
+  "author": {
+    "name": "JLMY AG",
+    "email": "info@jlmy.ch",
+    "url": "https://iuslink.ch"
+  },
+  "homepage": "https://iuslink.ch",
+  "keywords": [
+    "swiss law",
+    "fedlex",
+    "lexfind",
+    "entscheidsuche",
+    "legal research",
+    "case law"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "iusLink",
+        "shortDescription": "Swiss statutes and case law",
+        "longDescription": "iusLink connects the assistant to the official Swiss legal databases so that every statute, article and court decision is quoted from the current source text instead of from memory.\n\nWhat it covers\n- Fedlex: consolidated federal legislation (SR numbers, ELI URIs), article-level lookup, tables of contents and historical versions as of any date.\n- LexFind: full-text search across cantonal and federal enactments of all 26 cantons and the Confederation, with links to the official publications.\n- Entscheidsuche: court decisions from the Federal Supreme Court and the cantonal courts, including citation chains between decisions.\n\nHow it works\n- All tools are read-only and idempotent; nothing is written to any source.\n- Every result carries the official source link (fedlex.admin.ch, lexfind.ch, entscheidsuche.ch) so that quotations can be verified.\n- Sources are available in German, French and Italian as published by the authorities; ask in any language.\n\nGood to know\n- Results are legal information from official sources, not legal advice. For advice on a specific situation, consult a qualified lawyer.\n- An iusLink account is required; sign in with it when the assistant asks.\n- Requests are processed on Google Cloud in the Netherlands (europe-west4, EU). Details: https://iuslink.ch/legal/datenschutz.html\n\niusLink is operated by JLMY AG, Switzerland.",
+        "developerName": "JLMY AG",
+        "category": "Education & Research",
+        "capabilities": [
+          "Look up articles of Swiss federal statutes on Fedlex by SR number, abbreviation or ELI URI",
+          "Read historical versions of federal statutes as of a given date",
+          "Search cantonal and federal legislation on LexFind and open the official publication",
+          "Search Swiss court decisions on Entscheidsuche and read the decision text",
+          "Follow citation chains between court decisions"
+        ],
+        "websiteURL": "https://iuslink.ch",
+        "supportURL": "https://iuslink.ch/legal/impressum.html",
+        "privacyPolicyURL": "https://iuslink.ch/legal/datenschutz.html",
+        "termsOfServiceURL": "https://iuslink.ch/legal/agb.html",
+        "defaultPrompt": [
+          "Was sagt Art. 28 ZGB zum Persoenlichkeitsschutz? Zitiere den Gesetzestext.",
+          "Finde aktuelle Bundesgerichtsentscheide zur fristlosen Kuendigung nach Art. 337 OR.",
+          "Welche kantonalen Datenschutzgesetze gibt es in Zuerich und Bern?"
+        ],
+        "brandColor": "#283593",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "screenshots": [
+          "./assets/screenshot-1.png",
+          "./assets/screenshot-2.png",
+          "./assets/screenshot-3.png"
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://storage.googleapis.com/iuslink-assets/demo1.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Retrieve a current federal article. Setup: reviewer account with permanent access to all tools; live Fedlex data. Check the answer against the returned article text and source URL.",
+              "prompt": "Gib mir den Wortlaut von Art. 28 ZGB mit Quellenlink.",
+              "tools_triggered": "resolve_fedlex_statute, get_fedlex_article",
+              "expected_behavior": "Resolve ZGB, then retrieve article 28 in German using the returned statute identifier. Quote the retrieved wording and link to Fedlex. Do not substitute text from memory."
+            },
+            {
+              "description": "Retrieve a federal statute outline. Setup: reviewer account with permanent access; live Fedlex DSG record. The outline must match the tool response.",
+              "prompt": "Zeige mir die Gliederung des Schweizer Datenschutzgesetzes.",
+              "tools_triggered": "resolve_fedlex_statute, get_fedlex_outline",
+              "expected_behavior": "Resolve the federal DSG and retrieve its German outline. Show the returned headings and article references with a Fedlex source link; do not confuse it with cantonal legislation."
+            },
+            {
+              "description": "Retrieve historical wording. Setup: reviewer account with permanent access; live Fedlex OR record. Verify the selected version applies on 2015-12-31.",
+              "prompt": "Wie lautete Art. 336c OR am 31. Dezember 2015? Bitte mit Quelle und Stand.",
+              "tools_triggered": "resolve_fedlex_statute, get_fedlex_article; list_fedlex_versions if needed",
+              "expected_behavior": "Resolve OR and retrieve article 336c with as_of=2015-12-31, or use a matching version_uri discovered through list_fedlex_versions. Never send as_of and version_uri together. Return the historical wording, applicability date and source URL. If historical text is unavailable, explain that explicitly."
+            },
+            {
+              "description": "Search and read a court decision. Setup: reviewer account with permanent access; live Entscheidsuche results may vary. Check that the read document belongs to one returned search hit.",
+              "prompt": "Finde Bundesgerichtsentscheide zur fristlosen K\u00fcndigung aus 2023 und fasse einen mit Quellenlink zusammen.",
+              "tools_triggered": "search_entscheidsuche, get_entscheidsuche_document",
+              "expected_behavior": "Search for relevant Federal Supreme Court decisions within 2023. Read a returned decision using its signature before summarizing it. Include signature, decision date and source URL. If the search is empty, report that and do not invent a decision."
+            },
+            {
+              "description": "Search cantonal legislation and inspect metadata. Setup: reviewer account with permanent access; live LexFind ZH results may vary. Compare the answer with the returned jurisdiction and official publication link.",
+              "prompt": "Welche Z\u00fcrcher Erlasse regeln den Datenschutz? Zeige die amtlichen Fundstellen.",
+              "tools_triggered": "search_cantonal_law, get_cantonal_law",
+              "expected_behavior": "Search LexFind for Datenschutz with canton ZH, then inspect a relevant returned entry. Report titles, systematic numbers and official publication links from the response. Do not present metadata as retrieved full law text."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Foreign law is outside the Swiss databases. Explain the scope without calling iuslink tools or treating Swiss law as German law.",
+              "prompt": "Gib mir den aktuellen Wortlaut von \u00a7 622 des deutschen BGB."
+            },
+            {
+              "description": "The plugin cannot change legal publications. Explain that access is read-only; do not call tools to attempt a modification or claim success.",
+              "prompt": "\u00c4ndere Art. 1 OR auf Fedlex und ver\u00f6ffentliche meine neue Fassung."
+            },
+            {
+              "description": "The plugin cannot file legal documents or represent users. Explain this limit without invoking tools to file a case, sending data or claiming submission.",
+              "prompt": "Reiche f\u00fcr mich jetzt eine Klage beim Bezirksgericht Z\u00fcrich ein und bezahle den Kostenvorschuss."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial plugin package. Read-only Swiss legal research using Fedlex federal legislation and historical versions, LexFind cantonal legislation, and Entscheidsuche court decisions. Includes the Swiss law research skill and OAuth-protected remote MCP connection."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

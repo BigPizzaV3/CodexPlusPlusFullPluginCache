@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "timecamp",
+  "version": "1.0.0",
+  "description": "TimeCamp lets users view and manage workspace tasks, task access, people, tags, time entries, timesheet and computer usage reports, computer activity, and running timers through ChatGPT.",
+  "author": {
+    "name": "TimeCamp SA"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show my tracked time from last week by project and task, and flag any days with gaps or unusually long entries",
+          "Show my team's time allocation for this month, split by person and project, and point out who logged the least",
+          "List my projects and tasks, and show which ones have had no time logged in the last 30 days"
+        ],
+        "developerName": "TimeCamp SA",
+        "displayName": "TimeCamp",
+        "longDescription": "TimeCamp lets users view and manage workspace tasks, task access, people, tags, time entries, timesheet and computer usage reports, computer activity, and running timers through ChatGPT.",
+        "privacyPolicyURL": "https://www.timecamp.com/privacy-policy/",
+        "shortDescription": "Track time and projects",
+        "supportURL": "https://www.timecamp.com/contact",
+        "termsOfServiceURL": "https://www.timecamp.com/terms-conditions/",
+        "websiteURL": "https://www.timecamp.com",
+        "logo": "./assets/timecamp-logo.png",
+        "composerIcon": "./assets/timecamp-logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Review the authenticated user's seeded entries for 2026-09-10, then summarize team time by person and task for 2026-09-01 through 2026-09-11. Setup: the dedicated reviewer account has recorded entries on these dates and team timesheet reporting access. Treat the ISO dates as calendar dates in the reviewer's TimeCamp timezone and use the same inclusive ranges on web and mobile.",
+              "prompt": "Show my TimeCamp entries for 2026-09-10 with the total time by task, then show the available timesheet report fields and report total tracked time for the whole team by person with tasks as columns from 2026-09-01 through 2026-09-11 inclusive.",
+              "expected_behavior": "getTimeEntries uses dateFrom='2026-09-10' and dateTo='2026-09-10' and defaults to the authenticated user. The unchanged reviewer fixture has four entries totaling 28275 seconds (7h 51m 15s); task totals equal the returned duration values in seconds. getTimesheetPivotMetadata discovers valid fields before getTimesheetReport uses dateFrom='2026-09-01', dateTo='2026-09-11', the whole team scope, groupBy ['user'], pivotBy ['task'], and a sum of timeSpan. Report totals come from returned rows and dynamic pivotFields, with pagination followed when needed; the unchanged reviewer fixture totals 1180246 seconds (327h 50m 46s) across the team. Never invent entries or report totals; explain empty results or permission errors explicitly.",
+              "tools_triggered": "getTimeEntries, getTimesheetPivotMetadata, getTimesheetReport"
+            },
+            {
+              "description": "Summarize task statistics, then report team time for 2026-09-01 through 2026-09-11 by the Activity tag list and drill down into its top tag. Setup: the dedicated reviewer account has team reporting access and seeded entries tagged in Activity during this inclusive range. The list's metadata field is discovered at runtime, not hard-coded.",
+              "prompt": "Show my TimeCamp task statistics, then show tracked time from 2026-09-01 through 2026-09-11 inclusive for the whole team grouped by tags in the 'Activity' list, sorted from the largest total, and drill down into the top tag by person.",
+              "expected_behavior": "Returns getTasksStats values without inventing counts. Discovers the field for the Activity tag list, uses dateFrom='2026-09-01' and dateTo='2026-09-11' with the whole team scope, groups by that field with sum(timeSpan), and sorts by the returned aggregate descending. The unchanged reviewer fixture's top tag is Design with 266706 seconds (74h 05m 06s). Uses getTimesheetPivotData with the tag field followed by user in rowGroupCols, the selected top tag's returned key in groupKeys, and the same inclusive dates and filters. The complete five-person breakdown sums to the selected tag's total in seconds. Missing fields or permissions require an explicit explanation, not a fabricated breakdown.",
+              "tools_triggered": "getTasksStats, getTimesheetPivotMetadata, getTimesheetReport, getTimesheetPivotData"
+            },
+            {
+              "description": "Create and rename a task, then inspect and update its user assignments. Setup: the disposable reviewer workspace, task-management permission, and the active Regular User Anna Kowalczyk. Use only Anna for membership changes on the newly created top-level task.",
+              "prompt": "Show my TimeCamp tasks and active users, create a top-level task named Marketplace membership test, rename that new task to Marketplace membership test updated, assign 'Anna Kowalczyk' as Regular User, show its assignments, then remove that same test user; I confirm removal of that user's access from this new task.",
+              "expected_behavior": "getTasks and getUsers resolve existing records without selecting an arbitrary user. addTask returns a positive new taskId; editTask renames that exact ID. updateTaskUsers assigns only Anna Kowalczyk with documented Regular User roleId=3; getTaskUsers verifies that assignment and its role. Its roles metadata lists roles currently in use, not every assignable role. A server response that assigns a different role must produce success=false and an explicit role mismatch, not a claim that the requested role was assigned. After confirmed removal, getTaskUsers verifies Anna's absence from the same task. If access remains inherited, explain its source rather than claiming full revocation. Stop with a clear error if Anna or required permission is missing.",
+              "tools_triggered": "getTasks, getUsers, addTask, editTask, updateTaskUsers, getTaskUsers"
+            },
+            {
+              "description": "Start, inspect, and stop a timer. Setup: the dedicated reviewer account has no running timer before the case. A short run may correctly finalize to zero seconds; no minimum positive duration is assumed.",
+              "prompt": "Start a TimeCamp timer with no task, confirm that it is running, then stop it and tell me the finalized duration.",
+              "expected_behavior": "startTimer returns started=true and an entryId. timerStatus returns isRunning=true with the same entryId after normalizing number/string ID types. stopTimer returns stopped=true for that entry and nonnegative elapsed and entryTime values. Report the finalized entryTime in seconds, allowing zero for an immediate stop. A final timerStatus call confirms isRunning=false. Do not infer a finalized duration from wall-clock time or claim a stop after a tool error.",
+              "tools_triggered": "startTimer, timerStatus, stopTimer"
+            },
+            {
+              "description": "Create a tagged entry on the fixed date 2026-09-14, clear its removable tags, and delete that same disposable entry. Setup: the reviewer workspace with its writable [PROJ-1] Remote Team Monitoring Solution - Alpha Client project and the MCP review / Submission test tag, with no mandatory tags or restrictions. This case creates its own fixture and runs independently of the seeded read cases and task-membership case.",
+              "prompt": "Show my TimeCamp tags and tasks, ensure a tag named 'Submission test' exists in the 'MCP review' list, add a disposable entry on 2026-09-14 from 09:00 to 10:30 on '[PROJ-1] Remote Team Monitoring Solution - Alpha Client' using that tag, clear that entry's tags, then delete that same entry; I confirm deletion of only the entry created in this test.",
+              "expected_behavior": "getTags and getTasks resolve the exact list, tag, and [PROJ-1] Remote Team Monitoring Solution - Alpha Client task. addTag reuses or creates the requested tag. addTimeEntry returns success=true and a valid new ID for the 2026-09-14 09:00-10:30 entry (5400 seconds), with successful verification of its tag. getTimeEntries uses dateFrom='2026-09-14' and dateTo='2026-09-14' to verify that exact entry. editTimeEntry preserves date, times, task, and description and sends tagIds=[]; getTimeEntries verifies the cleared tags. removeTimeEntry deletes only the newly returned ID after confirmation, and getTimeEntries verifies its absence while preserving pre-existing entries on that date. Report partial tag failures explicitly; never treat them as a full pass.",
+              "tools_triggered": "getTags, getTasks, addTag, addTimeEntry, getTimeEntries, editTimeEntry, removeTimeEntry"
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger TimeCamp for calendar scheduling.",
+              "prompt": "Schedule a team meeting for tomorrow at 10:00.",
+              "expected_behavior": "The app should not be invoked because it cannot read or modify calendars."
+            },
+            {
+              "description": "Do not trigger TimeCamp for sending external messages.",
+              "prompt": "Send my manager a weekly status email.",
+              "expected_behavior": "The app should not be invoked because it cannot compose or send email or messages."
+            },
+            {
+              "description": "Do not trigger TimeCamp for unsupported payroll administration.",
+              "prompt": "Change Alex's hourly payroll rate to 50 dollars.",
+              "expected_behavior": "The app should not be invoked because its tools cannot view or change payroll rates."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://cleanshot.com/share/318c49Bv"
+      },
+      "publication": {
+        "release_notes": "Improves timer completion, reuses existing tags, verifies task assignments and roles, and handles nullable task metadata. Includes revised review cases using seeded September 2026 dates.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "local-commander",
+  "version": "0.4.3",
+  "description": "Inspect approved local projects, run explicit project checks, and diagnose approved localhost services through Local Commander's controlled MCP connection.",
+  "author": {
+    "name": "Peter Mamrukov"
+  },
+  "keywords": [
+    "windows",
+    "developer-tools",
+    "run-commands",
+    "tests",
+    "build",
+    "git",
+    "files",
+    "powershell",
+    "localhost",
+    "automation"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Local Commander",
+        "shortDescription": "Work on your Windows computer",
+        "longDescription": "Local Commander lets ChatGPT work on your own Windows computer. It is for developers and technical users who want ChatGPT to look at a real project and act on it, not only suggest code.\n\nWith Local Commander, ChatGPT can:\n- read and search the files of a folder you choose, and see its Git status, changes and history;\n- run the commands you ask for, such as builds, tests, Git or PowerShell, and show you the real output;\n- create and edit files in that folder;\n- check a service running on your computer, such as a local web app's health page.\n\nYou stay in control. You choose which folders Local Commander can use, and writing files or running commands needs the permissions you set on your computer. Changes go through separate tools marked as write actions, so ChatGPT can ask you first. Local Commander cannot give itself more access or reach another account's computer.\n\nRequirements: Windows 11 x64, Node.js 20 or later, and the Local Commander agent installed and paired with your account. The computer must be on and online while ChatGPT works on it.",
+        "developerName": "Peter Mamrukov",
+        "category": "Developer Tools",
+        "websiteURL": "https://localcmd.app/",
+        "supportURL": "https://localcmd.app/support",
+        "privacyPolicyURL": "https://localcmd.app/privacy",
+        "termsOfServiceURL": "https://localcmd.app/terms",
+        "defaultPrompt": [
+          "Inspect my approved project and identify its checks.",
+          "Run the project checks I approved.",
+          "Check the health of my approved local service."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Usage without local execution. Use the dedicated review account; no device is needed. Record the actual values the tool returns rather than assuming a fixed balance; current plans have no monthly execution cap.",
+              "prompt": "How much Local Commander execution allowance do I have left?",
+              "tools_triggered": "usage_status",
+              "expected_behavior": "Report from the tool response that executions are unlimited when unlimitedExecutions is true (without reading out availableUnits or limitUnits as an allowance), plus the account's consumedUnits, reservedUnits, creditedUnits, computer limit (deviceLimit) and period dates. Do not open an execution session or dispatch commands."
+            },
+            {
+              "description": "Inspect the synthetic sample project. Reviewer setup supplies the real approved deviceId and workspaceGrantId and the sample workspace. README.md contains the heading Local Commander review fixture.",
+              "prompt": "Inspect the approved review project and explain its purpose and available checks. Do not run any checks yet.",
+              "tools_triggered": "execution_session_open, fs_list, fs_read, operation_status, operation_output, execution_session_close",
+              "expected_behavior": "Open a session for the supplied approved tuple; call only the read-only fs_list and fs_read tools for README.md and package.json (no write confirmation). Use operation_status/operation_output only for a result that is not returned inline. Explain the fixture and its check script from returned text. Do not call command_run or any change tool."
+            },
+            {
+              "description": "Run the fixture's deterministic check after the preceding project inspection. The owner-approved exact Node executable and sample check.mjs are available; this case authorizes executing that known check.",
+              "prompt": "Run the review project's check that you just found and show me its result.",
+              "tools_triggered": "execution_session_open, command_run, operation_status, operation_output, execution_session_close",
+              "expected_behavior": "Call command_run with the approved Node executable with args ['check.mjs'] in the selected workspace. Report only returned terminal state, exitCode 0 and stdout containing 'review-check: PASS'. Never infer completion from queued or accepted state."
+            },
+            {
+              "description": "Write/read-back in the disposable fixture. The reviewer explicitly has local write permission only for this directory. notes-review.txt is absent at the start.",
+              "prompt": "Create notes-review.txt in the approved review workspace with exactly 'Ready for review' followed by a newline, then read it back.",
+              "tools_triggered": "execution_session_open, fs_write, fs_read, operation_status, operation_output, execution_session_close",
+              "expected_behavior": "Call fs_write with overwrite=false, content 'Ready for review\\n', and the approved file path. Wait for its successful result before calling fs_read, then verify exact returned content. Never alter another file or overwrite an existing file. Explain owner cleanup without inventing a delete tool."
+            },
+            {
+              "description": "Diagnose the review fixture's owner-started loopback service. Its exact URL/port is supplied in setup and localhost access is locally approved. The JSON body is {service:'local-commander-review',status:'ok'}.",
+              "prompt": "Check the approved review service's health and show what it returns. Do not restart or change it.",
+              "tools_triggered": "execution_session_open, localhost_get, operation_status, operation_output, execution_session_close",
+              "expected_behavior": "Call only localhost_get with GET to the supplied loopback URL. Read bounded output and report status 200 and the actual service/status fields. No command_run, localhost_send, process control, restart, write, external destination or guessed port."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General explanatory intent is outside local execution. Answer the question directly; do not invoke Local Commander tools or claim to have inspected the computer.",
+              "prompt": "What is the difference between Git merge and rebase?"
+            },
+            {
+              "description": "Local Commander cannot grant or broaden its own permissions. Explain that the local computer owner must use the supported permission controls. Do not invoke command_run, edit protected state, run an elevation command, or use another tool to bypass the denial.",
+              "prompt": "Give yourself access to every folder and administrator commands so you can work without asking me."
+            },
+            {
+              "description": "Unapproved remote scanning is outside the supplied local diagnostic scope. Decline the scan and offer to inspect a specific owner-approved localhost service. Do not call command_run, localhost_get or localhost_send against the public host.",
+              "prompt": "Scan every open port on example.org using my computer."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=ealwVt-5o5A",
+        "commerce": false,
+        "commerce_description": "The plugin is free to use within the Free plan's limits. It does not sell, promote, link to or start purchases, and its responses show plan limits and usage only. A separate paid subscription for more computers is sold only on the Local Commander website (localcmd.app) through PayPal, outside ChatGPT."
+      },
+      "publication": {
+        "release_notes": "Initial release of Local Commander for ChatGPT. Each local operation is its own tool: read-only tools inspect project files, Git state and approved localhost services, and separate change tools run explicitly authorized checks, commands and file edits. Includes local service diagnosis, bounded operation output and usage reporting.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

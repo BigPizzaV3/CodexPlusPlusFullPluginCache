@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "piiple-sourcing-unified",
+  "version": "0.1.9",
+  "description": "Run your Piiple sourcing conversation: prepare an ICP, answer follow-up questions, review criteria and explore matching candidates.",
+  "author": {
+    "name": "Lonca Bili\u015fim Teknolojileri A.\u015e."
+  },
+  "keywords": [
+    "recruiting",
+    "sourcing",
+    "candidates",
+    "icp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "interface": {
+        "capabilities": [
+          "Read",
+          "Write",
+          "Interactive"
+        ],
+        "category": "Business & Operations",
+        "composerIcon": "./assets/piiple-mark.png",
+        "defaultPrompt": [
+          "Find senior backend engineers with Go experience at software companies in Berlin.",
+          "Find product managers at B2B SaaS companies in New York.",
+          "Find data scientists with machine learning experience at fintech companies in Singapore."
+        ],
+        "developerName": "Lonca Bili\u015fim Teknolojileri A.\u015e.",
+        "displayName": "Piiple AI Recruiting Agent",
+        "logo": "./assets/piiple-mark.png",
+        "longDescription": "Piiple is an AI candidate sourcing and recruiting agent for recruiters, hiring managers, and talent acquisition teams. Find professional profiles across LinkedIn, recruitment platforms, and the open web, and evaluate them against your hiring criteria.\n\nStart with a description of who you want to hire. Specify job titles, locations, skills, target companies, industry, experience, and other requirements. Piiple asks follow-up questions to refine your ideal candidate profile, then presents it for review. Edit your criteria and approve the profile before the candidate search begins.\n\nRefine your talent pool using current and previous employers, past job titles, company industry and size, and experience requirements. Separate must-have qualifications from nice-to-have preferences, and specify exclusions to keep the search focused on your hiring needs.\n\nExplore candidate profiles with available work experience, education, skills, and profile links. Review match scores, evaluation reasons, and missing evidence to understand how each candidate compares with your requirements. Compare candidates in interactive card and table views, filter by match category, and use the findings to build your shortlist.\n\nGo beyond a list of names. Inspect the available evidence behind each assessment, including which requirements a profile meets, where it falls short, and what information is missing. Use these findings to prioritize candidates for your own review and make informed decisions about whom to contact.\n\nFollow sourcing progress and review a search report with candidate counts, outcomes, and any limitations. You can return to existing results without starting a new search, or request more candidates using the same criteria.\n\nRequires an existing Piiple account and sufficient workspace credits to run searches. Results depend on your criteria and available profile information. Piiple supports candidate discovery and evaluation; it does not send recruiting messages, conduct phone interviews, or process payments through this integration.",
+        "shortDescription": "Find and evaluate candidates",
+        "websiteURL": "https://piiplehub.com/",
+        "supportURL": "https://piiplehub.com/tr#faq",
+        "privacyPolicyURL": "https://piiplehub.com/privacy-policy",
+        "termsOfServiceURL": "https://piiplehub.com/terms-of-use"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Sign in with the dedicated reviewer account. List its accessible workspaces without creating a sourcing session. If there is one workspace, use it for the following cases; if there are several, select one from the returned list.",
+              "prompt": "Show my Piiple workspaces. Do not start a candidate search yet.",
+              "tools_triggered": "list_sourcing_workspaces",
+              "expected_behavior": "List only workspaces returned for the authenticated reviewer. Ask the user to choose if multiple workspaces are available; do not invent additional workspaces. Do not call start_sourcing or confirm_icp."
+            },
+            {
+              "description": "Use the workspace selected in case 1. Prepare the profile without initially specifying location or employer scope. If asked for location, reply: London, United Kingdom. If asked for specific companies or an employer boundary, reply: Target candidates currently working at software companies; no company size or funding stage restrictions. Answer any additional clarification explicitly. Do not approve the profile; stop at ICP review.",
+              "prompt": "Prepare hiring criteria for senior backend engineers with Go experience. Show me the candidate profile for review, and do not start the search until I approve it.",
+              "tools_triggered": "start_sourcing, get_sourcing_operation, get_sourcing_state, send_sourcing_message when clarification is answered, render_sourcing_icp",
+              "expected_behavior": "Use the selected workspace and preserve the senior backend engineering role and Go experience. Ask for missing information rather than inventing it. After the reviewer supplies London, United Kingdom and current employment at software companies, include those criteria without adding company size or funding stage restrictions. Display the authoritative ICP and review widget; await explicit approval. Do not call confirm_icp or start candidate sourcing."
+            },
+            {
+              "description": "Continue the same unapproved ICP from case 2 after London, United Kingdom has been set. Request a location change and inspect the new revision before approving anything.",
+              "prompt": "Change the location from London, United Kingdom to Berlin, Germany. Keep all other criteria the same and show the updated candidate profile. Do not start the search yet.",
+              "tools_triggered": "send_sourcing_message or update_sourcing_icp, get_sourcing_operation, get_sourcing_state, render_sourcing_icp",
+              "expected_behavior": "Update the existing session rather than creating a new one. Replace the location with Berlin, Germany; preserve the senior backend engineering role, Go experience, current employment at software companies and any other explicitly supplied criteria. Display the latest authoritative ICP revision. Do not confirm the profile or start candidate sourcing."
+            },
+            {
+              "description": "Use the reviewer-owned ICP prepared and edited in cases 2 and 3. This case requires sufficient workspace credits and separate authorization to run a real search. Approve only the displayed current revision, then follow the actual returned questions and status until completion.",
+              "prompt": "I approve the current candidate profile you just showed me. Start the search using those criteria and show the report when it is complete.",
+              "tools_triggered": "confirm_icp, get_sourcing_operation, get_sourcing_state, render_sourcing_report",
+              "expected_behavior": "Confirm exactly the reviewed session, iteration and revision once. Do not submit another confirmation if the widget already submitted it. Respect returned polling intervals and checkpoints. Display the persisted report, using actual returned candidate counts and limitations. Treat a completed search with zero matches truthfully; never invent candidates or guarantee a particular count."
+            },
+            {
+              "description": "Use an existing completed session accessible to the dedicated reviewer account. Prefer the session from case 4 if it contains candidates. To test populated table/card views, provide reviewer-accessible results before running this case. If the session is empty, verify the empty state and record populated-view coverage as blocked; do not start another search to manufacture the fixture.",
+              "prompt": "Show the existing candidates from this search in a table. Then switch to cards. Do not search for any new candidates.",
+              "tools_triggered": "render_sourcing_candidates or get_sourcing_candidates through the report widget",
+              "expected_behavior": "Display only persisted candidates from the active session and iteration. Table/card views and pack-wide counts must agree with the returned data. If no candidates exist, show an accurate empty state. Do not call start_sourcing, confirm_icp, retry_sourcing or find_more_candidates."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Continue a reviewer-owned completed sourcing conversation with an existing candidate list, such as the session from positive case 4. Candidate outreach is not supported by this sourcing plugin. Explain that limitation without sending messages or claiming that an invitation was sent. Do not invoke sourcing tools as a substitute for outreach.",
+              "prompt": "Email the candidates you found on my behalf and invite them to an interview."
+            },
+            {
+              "description": "Continue a reviewer-owned completed sourcing conversation with an existing candidate list, such as the session from positive case 4. The sourcing plugin cannot initiate or schedule phone screenings. Explain the limitation without placing calls, claiming interviews were scheduled, or starting a new candidate search.",
+              "prompt": "Start automated phone interviews with the candidates in this list."
+            },
+            {
+              "description": "The plugin cannot buy digital credits or initiate checkout. Explain the limitation neutrally without requesting payment details, initiating a purchase, promoting an upgrade, or starting sourcing with insufficient credits.",
+              "prompt": "Buy more Piiple credits for me and complete the payment."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Users access their existing Piiple workspace and credits. Billing and credit purchases are managed separately on Piiple. The plugin does not sell credits, process payments, initiate checkout, or promote upgrades.",
+        "demo_recording_url": "https://drive.google.com/file/d/1sPYljDS3BYLeC72IVY3sJZJ01Xur0JMp/view?usp=sharing"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public Piiple Sourcing package: production OAuth connection, workspace selection, ICP preparation and explicit approval, sourcing progress, localized result reports and candidate card/table views."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

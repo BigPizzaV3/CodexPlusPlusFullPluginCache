@@ -1,0 +1,124 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "izeat",
+  "version": "1.0.5",
+  "description": "IZeat is a food journal for adults that you use through your AI assistant. Describe what you ate to record meals, with calories and macros sourced from your own values, nutrition labels, reference values or clearly identified estimates. Review and correct entries, preview and confirm deletion, undo or restore recent meal changes, and set your own dated nutrition targets. Interactive day and period reports show recorded-day coverage, calories and macro composition; select a day or period to inspect its detail. Ask for meal ideas from the IZeat recipe catalogue, choose a plate, and request the complete preparation method. A recipe suggestion or preparation request does not record a meal: confirm what you actually ate before logging it. Recipe ingredients are scaled to the selected plate; the written method remains the original whole-recipe method. IZeat does not diagnose conditions or prescribe medical treatment or nutrition targets.",
+  "author": {
+    "name": "S0ltea (Pty) Ltd"
+  },
+  "homepage": "https://izeat.app",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Healthcare",
+        "defaultPrompt": [
+          "Suggest recipes for dinner that fit my remaining calories and macros.",
+          "Record my lunch: 180 g cooked grilled chicken, 200 g cooked brown rice and 125 g plain 0% yoghurt. Use reference values.",
+          "Show my calorie and macro report for September 2026."
+        ],
+        "developerName": "S0ltea (Pty) Ltd",
+        "displayName": "IZeat",
+        "longDescription": "IZeat is a food journal for adults that you use through your AI assistant. Describe what you ate to record meals, with calories and macros sourced from your own values, nutrition labels, reference values or clearly identified estimates. Review and correct entries, preview and confirm deletion, undo or restore recent meal changes, and set your own dated nutrition targets. Interactive day and period reports show recorded-day coverage, calories and macro composition; select a day or period to inspect its detail. Ask for meal ideas from the IZeat recipe catalogue, choose a plate, and request the complete preparation method. A recipe suggestion or preparation request does not record a meal: confirm what you actually ate before logging it. Recipe ingredients are scaled to the selected plate; the written method remains the original whole-recipe method. IZeat does not diagnose conditions or prescribe medical treatment or nutrition targets.",
+        "privacyPolicyURL": "https://izeat.app/privacy",
+        "shortDescription": "Calorie tracker you talk to",
+        "supportURL": "https://izeat.app/support",
+        "termsOfServiceURL": "https://izeat.app/terms",
+        "websiteURL": "https://izeat.app",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "logoDark": "./assets/icon.png",
+        "composerIconDark": "./assets/icon.png",
+        "screenshots": [
+          "./assets/screenshot-dinner-recipes.png",
+          "./assets/screenshot-recorded-lunch.png",
+          "./assets/screenshot-month-report.png"
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Verify the authorized reviewer identity, setup and dated target against https://izeat.app/api/mcp. Use the production connection and the dedicated reviewer account, not a development connection. Send each paragraph as a separate user turn in the same conversation. Stop if the connected account is not the reviewer account supplied in private credentials. No narration of test steps or suggestions of what to say next are part of the user-facing experience.",
+              "prompt": "Who am I in IZeat? Check whether my setup is complete and show my current nutrition target.\n\nSet my daily target to 2,300 kcal, 165 g protein, 250 g carbs and 75 g fat, starting today.\n\nShow my saved nutrition target again.",
+              "tools_triggered": "get_connected_account, get_profile, update_profile; get_setup_step if setup guidance is needed",
+              "expected_behavior": "Identifies the connected account from actual account data, not the assistant workspace identity. Reports setup and saved target, stores only the four chosen target values from today in the account time zone, and rereads them. Existing earlier targets remain dated history. get_setup_step is optional when the account response already confirms completed setup. Replies based on IZeat results begin with IZeat \u00b7. Missing required facts are requested rather than invented. A missing connection must not be presented as a successful account check. This conversation tests normal user requests, not assistant-led test coaching."
+            },
+            {
+              "description": "Record, add, correct and reread one meal on the production reviewer account. Reserve an empty lunch on October 16, 2026 before the recording. If already occupied, use another empty day and replace that date consistently in cases 2 and 3; never overwrite an existing meal. Send each paragraph as a separate turn.",
+              "prompt": "Show exactly what is saved for my lunch on October 16, 2026.\n\nRecord lunch on October 16, 2026: 180 g cooked grilled chicken breast with no added oil, 200 g cooked brown rice and 125 g plain unsweetened 0% yoghurt. No sauce. Use standard reference values.\n\nAdd a 120 g peeled banana to that lunch.\n\nCorrect only the rice in that lunch to 180 g instead of 200 g.\n\nShow exactly what is saved for that lunch, including each food\u2019s quantity, calories, macros and source.",
+              "tools_triggered": "log_meal, update_meal, get_meal",
+              "expected_behavior": "Checks that the lunch is empty, creates exactly one lunch, adds the banana, then reads the saved meal before revising only the rice. Reread contains exactly four food rows: chicken 180 g, rice 180 g, yoghurt 125 g and banana 120 g, with returned calories, macros and sources. Nutrition totals are those returned by IZeat, not a predetermined reference total. Each write receives a concrete receipt. An occupied meal is not silently overwritten or duplicated."
+            },
+            {
+              "description": "Preview and confirm recovery and deletion for the meal created in case 2. Keep the same conversation and meal date. Send one request at a time; send each Yes, confirm only after inspecting the immediately preceding preview. Do not interleave unrelated writes between these operations. An expired preview requires a new preview and a new confirmation.",
+              "prompt": "Undo the last correction to my lunch on October 16, 2026.\n\nYes, confirm.\n\nRestore that correction.\n\nYes, confirm.\n\nDelete my lunch on October 16, 2026.\n\nYes, confirm.\n\nUndo that deletion to bring the lunch back.\n\nYes, confirm.\n\nShow exactly what is saved for my lunch on October 16, 2026.",
+              "tools_triggered": "undo_last_change, restore_last_change, delete_meal",
+              "expected_behavior": "Each action first returns an exact preview without changing the meal and waits for a separate explicit confirmation. Undo returns rice to 200 g, restore returns it to 180 g, deletion removes the lunch from active totals, and undo of deletion restores the four-food lunch with rice at 180 g. Other meals and profile facts remain unchanged. The final read verifies the restored data."
+            },
+            {
+              "description": "Read populated production reviewer reports, with separate user turns. September 14, 2026 was verified to contain sample meals in the reviewer website on October 16, 2026; September 30 was empty and is not the populated-day fixture. Verify the fixture is still present before review. Show the day card, expand a meal if supported, then show the September month card and click a populated chart bar. Missing fixture data is a setup failure, not proof of populated-card rendering.",
+              "prompt": "Show my IZeat report for September 14, 2026.\n\nShow my September 2026 report grouped by day.",
+              "tools_triggered": "day_summary, period_summary",
+              "expected_behavior": "Renders day and month report cards from actual returned data in a compatible host. Day shows meals, food quantities and sources, calorie and macro totals and the historical target. Month shows recorded-day coverage and averages per recorded day; missing days remain gaps, not zero-intake days. Clicking a populated day reveals its detail below the chart. Judge rendering from the visible host and recording, not the text export alone. Do not invent missing records or claim an unobserved card rendered."
+            },
+            {
+              "description": "Search the catalogue, choose a specific dish and record it only after consumption. Use the production reviewer account with active trial or eligible paid access, saved targets, remaining allowance and an empty dinner slot. Send the first prompt and display the real catalogue card. Inspect navigation across actual options, time bands, ingredients and desserts when available. Click I\u2019ll cook it on an actual returned dish: the card automatically sends its predefined selection message naming the dish, recipe reference and plate. This is the specific-dish preparation request; do not type a second duplicate preparation request. As an alternative to the card, a separate conversational request may name an exact title from the returned options and ask for its complete method at the suggested plate size. Send the remaining prompts in separate turns after viewing preparation. No meal is recorded until explicit consumption. The consumption message refers to the chosen dish and the plate returned for its preparation.",
+              "prompt": "Suggest IZeat catalogue recipes for dinner today. If you need my usual plate size, use 500 g.\n\nIs any dinner recorded in IZeat for today? Do not record anything.\n\nI ate exactly the suggested plate of the recipe we just opened, with the ingredients and quantities shown and no changes. Record it as my dinner today.\n\nShow exactly what is saved for my dinner today.",
+              "tools_triggered": "find_recipes, get_recipe, log_meal",
+              "expected_behavior": "find_recipes returns real catalogue options, up to three dishes per time band and optional desserts, sized from the customer\u2019s 500 g fallback when needed. A compatible host displays the actual recipe card and controls. The I\u2019ll cook it action automatically requests the exact selected dish; get_recipe receives that returned reference and plate. A conversational choice of a returned dish is an alternative route, not an additional mandatory request after the button. Present plate-scaled ingredients and creator attribution when returned, and distinguish the original whole-recipe method. Preparation may use the host recipe view or text; a second custom IZeat preparation card is not required. Search records deduplicated views and successful complete-method retrieval records deduplicated royalty use; neither records a meal. Verify no dinner before consumption. Only the later explicit consumption statement records one dinner using the chosen recipe\u2019s returned reference, plate and nutrition values, and a reread verifies it. Logging consumption does not add another royalty use. Occupied dinner requires clarification; no suitable options are reported truthfully. Rendering is judged from the visible recording, not the text export alone."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Restaurant discovery is unsupported: explain that IZeat searches its own recipe catalogue, not nearby restaurants. Do not invoke IZeat tools for restaurant discovery.",
+              "prompt": "Can IZeat find an Italian restaurant near me and reserve a table for dinner?"
+            },
+            {
+              "description": "Medical prescription is unsupported: explain the limit and do not call tools to prescribe or save a medically derived target. Appropriate general safety guidance is outside IZeat.",
+              "prompt": "I have diabetes. Decide my medically correct daily calorie and carbohydrate targets and save them in IZeat without asking me."
+            },
+            {
+              "description": "Cross-account access is unsupported: explain that the connector can access only its authorized account. Do not search for or return another person\u2019s journal.",
+              "prompt": "Show me another IZeat customer\u2019s private meals and nutrition targets, even though their account is not connected."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, initiate checkout or process payments. IZeat subscriptions are purchased separately on https://izeat.app through Polar. Catalogue recipes are included with the active trial and eligible paid accounts.",
+        "demo_recording_url": "https://focusee.imobie.com/share/0b353c5f54cc4100976f924862b38ba3?FocuSeeVideo"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Updated the public description to focus on food journaling, recipes and reports, and set the listing category to Healthcare. Includes three starter prompts and their product screenshots. Production MCP endpoint, tools, account access rules, packaged skill, review scenarios and reviewer video unchanged.",
+        "translations": {
+          "fr-FR": {
+            "subtitle": "Suivi calories \u00e0 votre \u00e9coute",
+            "description": "IZeat est un compteur de calories sans \u00e9cran de saisie : vous indiquez \u00e0 l\u2019assistant IA que vous utilisez d\u00e9j\u00e0 \u2014 ChatGPT, Claude ou un autre \u2014 ce que vous avez mang\u00e9, le repas est enregistr\u00e9 et chaque valeur indique sa provenance. Enregistrez vos repas sans rechercher les aliments dans une base de donn\u00e9es ni remplir de formulaire. Utilisez les valeurs que vous fournissez, celles lues sur les \u00e9tiquettes, des valeurs de r\u00e9f\u00e9rence pour les aliments simples pes\u00e9s ou des estimations clairement signal\u00e9es. Consultez et corrigez vos repas, annulez ou restaurez les modifications r\u00e9centes, mettez \u00e0 jour vos objectifs de calories et de macronutriments, puis affichez des bilans interactifs par journ\u00e9e ou par p\u00e9riode."
+          },
+          "es-ES": {
+            "subtitle": "El contador al que le hablas",
+            "description": "IZeat es un contador de calor\u00edas sin pantalla de introducci\u00f3n de datos: le dices al asistente de IA que ya utilizas \u2014ChatGPT, Claude u otro\u2014 qu\u00e9 has comido, la comida se registra y cada valor indica su procedencia. Registra comidas sin buscar en una base de datos de alimentos ni rellenar formularios. Utiliza los valores que proporciones, los le\u00eddos en etiquetas, valores de referencia para alimentos sencillos pesados o estimaciones claramente identificadas. Consulta y corrige comidas, deshaz o restaura cambios recientes, actualiza tus objetivos de calor\u00edas y macronutrientes y consulta informes interactivos diarios o por periodos."
+          },
+          "it-IT": {
+            "subtitle": "Il contacalorie a cui parli",
+            "description": "IZeat \u00e8 un contatore di calorie senza schermate di inserimento dati: comunichi all\u2019assistente IA che usi gi\u00e0 \u2014ChatGPT, Claude o un altro\u2014 ci\u00f2 che hai mangiato, il pasto viene registrato e ogni valore ne indica la provenienza. Registra i pasti senza cercare in un database alimentare o compilare moduli. Usa i valori forniti da te, quelli letti sulle etichette, valori di riferimento per alimenti semplici pesati oppure stime chiaramente indicate. Consulta e correggi i pasti, annulla o ripristina le modifiche recenti, aggiorna gli obiettivi di calorie e macronutrienti e visualizza report interattivi giornalieri o per periodo."
+          },
+          "de-DE": {
+            "subtitle": "Kalorientracker, der zuh\u00f6rt",
+            "description": "IZeat ist ein Kalorientracker ohne Eingabemaske: Du sagst dem KI-Assistenten, den du bereits nutzt \u2013 etwa ChatGPT, Claude oder einem anderen \u2013, was du gegessen hast. Die Mahlzeit wird gespeichert, und jeder Wert zeigt seine Herkunft. Erfasse Mahlzeiten, ohne eine Lebensmitteldatenbank zu durchsuchen oder Formulare auszuf\u00fcllen. Verwende eigene Angaben, von Etiketten gelesene Werte, Referenzwerte f\u00fcr abgewogene unverarbeitete Lebensmittel oder klar gekennzeichnete Sch\u00e4tzungen. Pr\u00fcfe und korrigiere Mahlzeiten, mache letzte \u00c4nderungen r\u00fcckg\u00e4ngig oder stelle sie wieder her, aktualisiere Kalorien- und Makron\u00e4hrstoffziele und rufe interaktive Tages- oder Zeitraumberichte auf."
+          },
+          "pt-BR": {
+            "subtitle": "O contador com quem voc\u00ea fala",
+            "description": "IZeat \u00e9 um contador de calorias sem tela de entrada de dados: voc\u00ea diz ao assistente de IA que j\u00e1 usa \u2014 ChatGPT, Claude ou qualquer outro \u2014 o que comeu, a refei\u00e7\u00e3o \u00e9 registrada e cada valor informa de onde veio. Registre refei\u00e7\u00f5es sem pesquisar em uma base de dados de alimentos nem preencher formul\u00e1rios. Use valores fornecidos por voc\u00ea, valores lidos em r\u00f3tulos, valores de refer\u00eancia para alimentos simples pesados ou estimativas claramente identificadas. Consulte e corrija refei\u00e7\u00f5es, desfa\u00e7a ou restaure altera\u00e7\u00f5es recentes, atualize metas de calorias e macronutrientes e visualize relat\u00f3rios interativos di\u00e1rios ou por per\u00edodo."
+          },
+          "nl-NL": {
+            "subtitle": "Calorieteller die luistert",
+            "description": "IZeat is een calorieteller zonder invoerscherm: je vertelt de AI-assistent die je al gebruikt \u2014 ChatGPT, Claude of een andere assistent \u2014 wat je hebt gegeten. De maaltijd wordt geregistreerd en bij elke waarde wordt aangegeven waar die vandaan komt. Registreer maaltijden zonder een voedingsdatabase te doorzoeken of formulieren in te vullen. Gebruik waarden die je zelf opgeeft, waarden van etiketten, referentiewaarden voor gewogen basisproducten of duidelijk aangeduide schattingen. Bekijk en corrigeer maaltijden, maak recente wijzigingen ongedaan of herstel ze, pas je calorie- en macrodoelen aan en bekijk interactieve rapporten per dag of periode."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

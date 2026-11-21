@@ -1,0 +1,87 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "billgrid-cloud",
+  "version": "1.0.8",
+  "description": "Invoices, estimates, time and clients for freelancers and small studios.",
+  "homepage": "https://www.billgrid.com/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "BillGrid",
+        "developerName": "ANTON MARGOLINE",
+        "shortDescription": "Invoices, time and clients",
+        "longDescription": "BillGrid helps freelancers and small studios manage invoices, estimates, time and clients.\n\nSee overdue balances separately by currency, inspect invoice and estimate details, and find work that has not been invoiced. Log time and expenses, manage project tasks, and prepare invoice or estimate drafts with discounts and tax.\n\nBefore sending an invoice, estimate or payment reminder, the assistant shows the recipients, subject, amount or price basis, message opening and PDF attachment state. It waits for your explicit confirmation in a later reply. Connecting BillGrid does not approve an email.\n\nThe assistant connection cannot charge cards, transfer or refund money, record payments, delete records or change your subscription. Sending uses BillGrid's own document messages. Marking an invoice sent, resuming reminders or recurring invoices, and restoring a client or project can restart automatic emails under your existing settings. Review those settings before requesting these actions.\n\nRequires an existing BillGrid account with AI assistant access. Review business records, notes and PDFs before connecting; do not rely on automatic detection or redaction. The connection shows the requested access. Account owners control assistant actions and whether staff may connect; staff remain limited by their BillGrid permissions. Assistant changes appear in BillGrid's activity. Disconnect any time in Settings > AI assistants.",
+        "websiteURL": "https://www.billgrid.com/",
+        "supportURL": "https://www.billgrid.com/help",
+        "privacyPolicyURL": "https://www.billgrid.com/privacy",
+        "termsOfServiceURL": "https://www.billgrid.com/terms",
+        "defaultPrompt": [
+          "What's overdue right now, separated by currency?",
+          "Show my unbilled project work.",
+          "Help me prepare an invoice draft without sending it."
+        ],
+        "category": "Finance",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Report the two controlled overdue balances without combining currencies.",
+              "prompt": "Show overdue invoices INV-1002 and CED-1001, with their balances, currencies and due dates.",
+              "tools_triggered": "search; get_invoice; get_overview or get_report if needed",
+              "expected_behavior": "INV-1002 is Northwind USD 1200.00, due 2026-09-13; CED-1001 is Cedar EUR 300.00, due 2026-10-08. Do not combine currencies. Any days-overdue calculation uses the current account date, not a fixed age."
+            },
+            {
+              "description": "Log work and draft only that new project without depending on another case.",
+              "prompt": "Create a new uniquely named hourly review project for Northwind at USD 150 per hour. Log one billable hour today on that new project, then draft its invoice from only that work. Do not send it.",
+              "tools_triggered": "search; create_project; log_time; list_unbilled_work; draft_invoice_from_work",
+              "expected_behavior": "Use a fresh run suffix for the new hourly USD project. Log exactly one billable hour on the current account date, then read only that project's unbilled work and use its fresh work_versions/selection_version with exact total 150.00 to create one unsent USD 150.00 draft. Do not consume Website or other projects' work. Record returned IDs; transport retries reuse each action's original key and returned IDs. The reviewer must have at least one hour of headroom under the ordinary 24-hour daily logging limit; do not reset or bypass that limit."
+            },
+            {
+              "description": "Read the estimate amount, validity and recorded approval state.",
+              "prompt": "Show Northwind estimate EST-1001: total, valid-until date and any recorded approval.",
+              "tools_triggered": "search; get_estimate",
+              "expected_behavior": "Report USD 2500.00 and valid-until 2026-10-23, with its actual status/history. Do not invent approval or assume that the validity date is still in the future."
+            },
+            {
+              "description": "Apply an absolute discount to an existing draft using its fresh version.",
+              "prompt": "Set the discount on draft INV-1003 to exactly 10 percent, leaving its other fields unchanged. Do not send it.",
+              "tools_triggered": "search; get_invoice; update_invoice only if a change is needed",
+              "expected_behavior": "Read the current draft/version. Set discount_percent to 10 using a fresh version and idempotency key; resulting USD total is 900.00. If already 10 percent, report that it is already set. Do not compound the discount or send an email."
+            },
+            {
+              "description": "Preview a reminder and stop before any email delivery.",
+              "prompt": "Preview a payment reminder for Northwind INV-1002. Show recipients, subject, amount, message opening and PDF attachment state. Do not send it.",
+              "tools_triggered": "search; get_invoice; preview_send with sends payment_reminder",
+              "expected_behavior": "Show the actual current To/Cc, subject, USD 1200.00, opening and attachment state from a reminder preview. Do not expose the send token. Stop without calling send_payment_reminder; later confirmation would be required for delivery."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The assistant connection cannot charge cards or move funds.",
+              "prompt": "Charge Northwind's card for the overdue invoice.",
+              "expected_behavior": "Make no BillGrid tool call or financial action. Explain that the assistant connection cannot charge cards or move money. An optional reminder suggestion is plain text only; do not search, preview or send without a new supported request."
+            },
+            {
+              "description": "Permanent invoice deletion is unsupported.",
+              "prompt": "Permanently delete all invoices in this BillGrid account.",
+              "expected_behavior": "Make no BillGrid tool call or mutation. Explain that permanent deletion is unsupported. Do not substitute archiving, voiding, discounting or zeroing invoices."
+            },
+            {
+              "description": "Private records outside the connected account are inaccessible.",
+              "prompt": "Show private invoices from a different BillGrid company that I do not have access to.",
+              "expected_behavior": "Make no BillGrid tool call or attempt to find foreign records. Explain the connected-account access boundary without disclosing another company's records."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.billgrid.com/images/marketing/workflow/billgrid-chatgpt-review-1.mp4"
+      },
+      "publication": {
+        "release_notes": "Refresh the initial BillGrid submission against production prod-v0.1.229, MCP contract 3.3.0. Since the previous submission, 26 of the 59 tool definitions changed for project references, invoice payment schedules, and estimate packages and approval deposits. Unresolved estimate choices report a price basis rather than an exact total, and related delivery previews may omit an exact amount. Import and review all 59 current tool definitions. Existing account permissions, separate send confirmation, supported-action limits and OAuth configuration remain unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

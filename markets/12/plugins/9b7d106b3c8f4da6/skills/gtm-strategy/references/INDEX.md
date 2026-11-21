@@ -1,0 +1,318 @@
+# Índice: GTM-espanol.pdf
+
+291 páginas PDF. Citar número PDF, no asumir número impreso. Texto extraído de capa digital.
+
+## Bloques completos
+- [pages-001-015.md](pages-001-015.md)
+- [pages-016-030.md](pages-016-030.md)
+- [pages-031-045.md](pages-031-045.md)
+- [pages-046-060.md](pages-046-060.md)
+- [pages-061-075.md](pages-061-075.md)
+- [pages-076-090.md](pages-076-090.md)
+- [pages-091-105.md](pages-091-105.md)
+- [pages-106-120.md](pages-106-120.md)
+- [pages-121-135.md](pages-121-135.md)
+- [pages-136-150.md](pages-136-150.md)
+- [pages-151-165.md](pages-151-165.md)
+- [pages-166-180.md](pages-166-180.md)
+- [pages-181-195.md](pages-181-195.md)
+- [pages-196-210.md](pages-196-210.md)
+- [pages-211-225.md](pages-211-225.md)
+- [pages-226-240.md](pages-226-240.md)
+- [pages-241-255.md](pages-241-255.md)
+- [pages-256-270.md](pages-256-270.md)
+- [pages-271-285.md](pages-271-285.md)
+- [pages-286-291.md](pages-286-291.md)
+
+## Vista por página (primeras líneas; OCR puede contener ruido)
+- PDF 1: ESTRATEGA DE GO-TO-MARKET / Todo lo que necesitas para alcanzar el product-market fit / MAJA VOJE
+- PDF 2: Estratega de Go-To-Market / Todo lo que necesitas para alcanzar el product-market fit / Maja Voje
+- PDF 3: ESTRATEGA DE GO-TO-MARKET / Todo lo que necesitas para alcanzar el product-market fit / Copyright © 2023 Maja Voje
+- PDF 4: Índice / • / Estrategia Go-To-Market (GTM)
+- PDF 5: Estrategia Go-To-Market (GTM) / «Una estrategia Go-To-Market es la diferencia entre una esperanza y un plan». / J. P. Eggers, profesor asociado de la NYU Stern School of Business
+- PDF 6: • / El 34 % son conservadores, la mayoría tardía. No les gustan los / cambios y prefieren conformarse con la antigua manera de resolver
+- PDF 7: Trabaja con otros desarrolladores y diseñadores y cree que deben / prepararse para el lanzamiento una vez terminado el producto. / Para: Maja Voje (grow@majavoje.com)
+- PDF 8: que impulsará el crecimiento futuro. / 4. Precios: captura este valor con precios basados en el valor o / en una aproximación a él. Imagina el precio como una moneda de
+- PDF 9: • / ¿Qué canales funcionan mejor para tu producto y cómo los escalas? / Lo difícil es llevarlo a la práctica.
+- PDF 10: Piensa y actúa como las fuerzas de / operaciones especiales / «El éxito consiste en ir de fracaso en fracaso sin perder el entusiasmo».
+- PDF 11: Las estrategias ganadoras siempre están diseñadas para aprovechar / tus puntos fuertes y los puntos débiles de tu competidor. / Tú eres David. Puedes ser veloz, inteligente, subver
+- PDF 12: Etapa 1: planificación / La sencillez es el principio más importante y más difícil de seguir al / planificar. Elaborar un plan puede exigir mucha reflexión e
+- PDF 13: Después de presentar el concepto del libro a más de 50 personas, entiendo que las / fortalezas de nuestro enfoque GTM son que está desarrollado para empresas / autofinanciadas, res
+- PDF 14: delincuente». ¿Qué podría salir mal y qué probabilidad hay de que ocurra? Protege tu / operación frente a esos riesgos. Firmé acuerdos de confidencialidad con todos los / participa
+- PDF 15: planteamiento de aplicar el método científico a los negocios respaldan / claramente que la velocidad es esencial. Los tanques avanzan despacio / y con gran fuerza. Las unidades móv
+- PDF 16: Las metas y los objetivos son tu / brújula GTM / «Si no sabes adónde vas, ¿cómo sabrás que has llegado?»
+- PDF 17: tipo de brújula que nos guíe en el recorrido para aportar y capturar / valor de forma constante en el mercado objetivo. / Dos marcos de trabajo incorporan la naturaleza dinámica de
+- PDF 18: A veces resulta complicado decidir qué KPI elegir. Si trabajas en una / estrategia GTM para una red social, por ejemplo, naturalmente querrás / aumentar la base de usuarios. Sin em
+- PDF 19: WLU es un usuario activo que comparte un aprendizaje que al menos otras dos personas han consultado en los siete días anteriores. / Pero ¿por qué importa realmente elegir una NSM? 
+- PDF 20: Transacciones / Walmart / Airbnb
+- PDF 21: Es importante evitar las métricas de vanidad. Por ejemplo, el número / de seguidores de tu página en redes sociales puede parecerte atractivo, / pero, sin una estrategia clara sobr
+- PDF 22: What Matters. Empresas como Google, LinkedIn, Google, Netflix, Dell, / Amazon, Slack y otras adoptaron un sistema trimestral de OKR y / ajustaron sus evaluaciones de desempeño en t
+- PDF 23: publicaron en un grupo local de Facebook de ventas y marketing, con 9.000 miembros, una invitación para probar la beta. Solo con esa publicación / consiguieron 131 probadores del p
+- PDF 24: Doerr, que contribuyó significativamente a popularizar los OKR, ofrece una orientación útil si los elaboras por primera vez: «Los primeros OKR no / serán excelentes y habrá que sus
+- PDF 25: importante aprender de los KR, aunque los descartes. Entender qué los / hizo buenos, malos o inalcanzables es un potente motor de avance». / Así puedes empezar a establecer OKR:
+- PDF 26: los KR en una escala de 0,0 a 1,0, donde 0,0 significa un / incumplimiento absoluto y 1,0, un KR alcanzado. Si tu KR era conseguir / 10.000 seguidores y conseguiste 5.000, su puntu
+- PDF 27: La buena y la mala estrategia de GTM / «Los grandes productos sin grandes estrategias de Go-To-Market suelen morir en el / anonimato».
+- PDF 28: Si atiendes a todo el mundo, no haces un trabajo excelente para nadie. Las referencias / importan; la tracción inicial importa. Llegarás mucho más rápido y más lejos con tu GTM / s
+- PDF 29: elegirte frente a una alternativa? ¿Tiene el equipo pruebas de que tu solución es diez veces / mejor para resolver mi problema? / Growth: Como el fundador no quería encargarse de l
+- PDF 30: de sus competidores puede ser como buscar una aguja en un pajar. / 3. Escasa alineación entre departamentos: Los silos son tóxicos. / Pueden aparecer dentro de una empresa o entre 
+- PDF 31: producto y fijarme objetivos audaces como «pongámoslo delante de / 1.000 usuarios en la primera semana». / Aunque siempre elegía con cuidado los proyectos que aceptaba, nunca
+- PDF 32: El mercado se seleccionó a partir de datos reales para no poner en peligro el modelo de / negocio principal. La empresa probará una nueva oferta con un nuevo público. Se / comprobó
+- PDF 33: sus esfuerzos de SEO y marketing de contenidos e invertirán 10.000 / dólares en anuncios de Google, ya que existe un gran volumen de / búsquedas relacionadas con crear etiquetas.
+- PDF 34: la clave del juego. Adóptala como tu nuevo superpoder. / 5. Implementa ajustes. La estrategia de GTM cambiará / inevitablemente. Los hallazgos deben conducir a mejoras. Adapta con
+- PDF 35: • / La mayoría de las empresas tecnológicas coinciden en que los OKR / son el método más recomendable para fijar objetivos en empresas
+- PDF 36: Mercado / «Ningún plan de operaciones se extiende con certeza más allá del primer encuentro / con la fuerza principal del enemigo».
+- PDF 37: La estrategia de mercado de entrada, o Beachhead Strategy, recibe su / nombre de una de las batallas más decisivas de la Segunda Guerra / Mundial. Los Aliados atacaron con fuerza l
+- PDF 38: • / Harán muchos commits -subirán código a GitHub- y crearán / documentación en GitHub.
+- PDF 39: recuerda esto: / «No puedes hacer feliz a todo el mundo. No eres un tarro de Nutella». / 2. ¿Y si estoy dejando escapar ingresos? Una estrategia de mercado
+- PDF 40: Lo ideal es que estos segmentos estén algo interconectados, para que / sirvan como una excelente referencia entre sí. / Decidir a quién dirigirse es una decisión estratégica import
+- PDF 41: Planifica para ganar / «Si todos los demás parecen hacerlo de una manera, puede que haya más / oportunidades haciéndolo de otra».
+- PDF 42: • / Una disposición a pagar adecuada por la solución. ¿Ya existen / presupuestos destinados a resolver este problema? Si es así, ¿cuánto
+- PDF 43: • / La solución es valiosa para el público objetivo y se diferencia de las / ofertas de tus competidores.
+- PDF 44: Lanzo entre cinco y diez productos al año. Entre ellos hay cursos en / línea, talleres, marcos y programas por cohortes. El proceso de / concepción está ya tan optimizado que dedic
+- PDF 45: e intercambio de valor, creemos que nuestra mejor apuesta es un / programa por cohortes de ocho semanas para profesionales sobre cómo / desarrollar y hacer crecer su marca personal
+- PDF 46: ¿Qué ocurriría si estuvieras dispuesto a viajar cuatro horas por / carretera hasta otro aeropuerto? ¿Conseguirías una oferta mejor que / compensara también ese trayecto? Simon se d
+- PDF 47: (CAGR) del 21,4 % durante el periodo previsto -2022-2030-. / • / El mercado disponible al que se puede servir (SAM) se calcula a
+- PDF 48: Principales actores del mercado / Illumina, Thermo Fisher Scientific, / PacBio, Oxford Nanopore Technologies
+- PDF 49: Aunque no todo el mundo tiene acceso a informes de investigación de / mercado elaborados por las cuatro grandes consultoras o por Gartner, / hoy los datos se han democratizado enor
+- PDF 50: empresa decidió cerrar el proyecto porque había mejores / oportunidades que perseguir a partir de sus competencias / fundamentales y de los públicos a los que ya había vendido con 
+- PDF 51: Prueba de marketing con publicidad. Una conocida empresa de / hardware estaba investigando el potencial de mercado de los equipos / de gaming para mujeres. Estudió grupos de Discor
+- PDF 52: Existen dos posturas muy diferentes sobre si deberías prestar atención / a los competidores: / 1. No reinventar la rueda. Quienes creen que tiene valor aprender de
+- PDF 53: A estas alturas quizá pienses: «Un momento, ¿tengo 50 competidores? / Es imposible analizarlos y seguirlos a todos». Y tienes razón. Analizar / en exceso la competencia en un infor
+- PDF 54: del mercado. Si descubres que ciertas reseñas y observaciones se repiten, quizá exista una oportunidad para cubrir ese vacío. En B2B encontrarás / reseñas en G2, Software Advice, T
+- PDF 55: Mi empresa / Competidor 1 / Competidor 2
+- PDF 56: • / Otros expertos están tan obsesionados con sus competidores que, / cuando un rival envía una newsletter, la comparten en el canal de
+- PDF 57: • / ¿Tienes dificultades de flujo de caja? ¿Tienes deudas? / •
+- PDF 58: Oportunidades (continuación) / Amenazas (continuación) / como la IA y el aprendizaje automático.
+- PDF 59: Debilidades (continuación) / Estrategias DO (continuación) / Estrategias DA (continuación)
+- PDF 60: según la seguridad, la imagen, el diseño y la reputación de marca o, más probablemente, una combinación de todos estos factores. / Calidad percibida alta (arriba); calidad percibid
+- PDF 61: dispositivos de alta tecnología. Nadie había pensado antes en colocar una tableta de 32 pulgadas delante del conductor. Tesla compite con éxito / porque existe un vacío que les imp
+- PDF 62: Confort / Lujo / Calidad
+- PDF 63: algunos grupos pequeños de redes sociales simplemente para dar a / conocer la oferta. La oferta prácticamente se vendió sola. / Hay muchos más ejemplos de «ventaja» en la estrategi
+- PDF 64: Elegir el segmento de mercado / «El objetivo del marketing es conocer y comprender tan bien al cliente que el producto / o servicio encaje con él y se venda solo.»
+- PDF 65: • / Segmentación geográfica: divide a las personas según dónde / viven, trabajan o viajan. Puede realizarse por región, país, ciudad o
+- PDF 66: Utiliza datos demográficos únicamente cuando sean estrictamente relevantes. / La doctora Else van der Berg propone estas bases de segmentación en lugar de las convencionales cuando
+- PDF 67: Segmento / Descripción espontánea del segmento / Mejor definición (demográfica y
+- PDF 68: Segmento / Descripción espontánea del segmento / Mejor definición (demográfica y
+- PDF 69: Demasiado amplio: probar con demasiados segmentos de público objetivo divergentes impide reconocer patrones en los resultados. Punto óptimo: entre 3 y 5 segmentos. / Demasiado rest
+- PDF 70: Segmento / Posibilidades de / ganar
+- PDF 71: esencia, el modelo tiene dos dimensiones: / • / Entre 2 y 5 segmentos potenciales a los que podrías atender y los
+- PDF 72: como candidatos a los que dirigir tu estrategia GTM. Ahora / profundizaremos en quién es exactamente «el elegido» al que debes / dirigirte en tu GTM, mediante una investigación de 
+- PDF 73: • / Existen múltiples criterios para segmentar, pero se recomienda que / la mayoría de las empresas en fase GTM empiecen por los
+- PDF 74: Perfil de cliente inicial / «Es imposible serlo todo para todos; por eso, si identificas y comprendes las / necesidades de tu cliente ideal, puedes crear un producto o servicio que
+- PDF 75: No exactamente. / Si has seguido el proceso del libro, a estas alturas deberías tener entre / tres y cinco posibles segmentos de entrada. Ahora tu tarea es recopilar
+- PDF 76: Toma decisiones sobre tu ECP con confianza / «Investigar es lo que hago cuando no sé lo que estoy haciendo». / Wernher von Braun, ingeniero aeroespacial germanoestadounidense y pad
+- PDF 77: • / El tiempo que no se dedica a «trabajar» es tiempo perdido. / ¿Cómo defines trabajar? ¿Es programar, diseñar wireframes o
+- PDF 78: • / Orientarse: al investigar a los clientes y recopilar hallazgos y / comentarios, aprenderás más sobre el problema y comprobarás si la
+- PDF 79: • / ¿Qué tipos de equipos lo necesitan? / •
+- PDF 80: del Reino Unido para su herramienta de onboarding fácil de usar. Esta / era su hipótesis principal. Para validar estas hipótesis, Jasper se reunió / con su equipo e hicieron una ll
+- PDF 81: 2. Priorízalas y encuentra aquellas cuya validación es crucial. / 3. Empieza a validar. / Ahora, ¡empecemos a validar!
+- PDF 82: Herramientas para validar el ECP / «Una de las cosas que hacen que una empresa tenga éxito fue que comprendíamos al / cliente y atendíamos sus necesidades. Si no se vendía, daba ig
+- PDF 83: Else y yo creamos este marco a partir de nuestra experiencia trabajando con más de 600 empresas en GTM y seleccionamos los métodos de / validación que hemos visto funcionar muy bie
+- PDF 84: Método / C (1-5) / Descripción breve
+- PDF 85: Método / C (1-5) / Descripción breve
+- PDF 86: Método / C (1-5) / Descripción breve
+- PDF 87: Método / C (1-5) / Descripción breve
+- PDF 88: Método / C (1-5) / Descripción breve
+- PDF 89: Método / C (1-5) / Descripción breve
+- PDF 90: Método / C (1-5) / Descripción breve
+- PDF 91: de optimización de la tasa de conversión para más de 210 startups en / menos de 90 días. Su recomendación: «Aplicamos entre seis y nueve / métodos de investigación durante los prim
+- PDF 92: hipótesis desconocida y de alto riesgo sobre el ECP: que los fundadores sin conocimientos técnicos del Reino Unido conocen su problema de / onboarding y están preparados para actua
+- PDF 93: Creemos que / Con la participación de / Dará como resultado
+- PDF 94: La última idea que me gustaría dejarte es la opinión de mi colega Anuj / Adhiya: el número de aprendizajes es la métrica más importante / cuando estás empezando:
+- PDF 95: Perfil de cliente inicial (ECP) / «Solo puede quedar uno». / Kurgan, personaje de ficción de Highlander (1986)
+- PDF 96: dirigirte, atender y rentabilizar con éxito en el próximo trimestre o en / los dos próximos. Estas son brevemente las diferencias entre los / perfiles de cliente inicial e ideal.
+- PDF 97: Otros early adopters cuyas preferencias y necesidades pueden diferir / mucho de las de los mercados masivos adyacentes a los que te dirigirás / después son las madres jóvenes, los 
+- PDF 98: Estamos trabajando para aumentar la visibilidad de _____. Queremos estar presentes / en eventos importantes, publicar artículos en revistas relevantes, seguir determinados / canale
+- PDF 99: ECP con múltiples participantes / «Todos empezamos de cero. Tomamos la decisión correcta y nos convertimos en héroes». / Govinda, actor, humorista, bailarín y expolítico indio
+- PDF 100: una animada conversación sobre robots aspiradores. / liberar recursos de contabilidad para emitir la factura / más rápido.
+- PDF 101: Visualizar un ECP puede ser una herramienta poderosa para orientar / nuestras decisiones de GTM y ayudar a otras partes interesadas a / comprender y adoptar el segmento del mercado
+- PDF 102: 2. Adecuado para GTM. Según la estrategia del mercado de entrada, un buen segmento de clientes tiene un deseo intenso de resolver un / problema, es fácil de alcanzar y tiene un bue
+- PDF 103: Persona B2C / Persona B2B / Marcas que le gustan y en las que confía
+- PDF 104: Ingresos / 1-10 millones de USD / 10,01-50 millones de USD
+- PDF 105: Ingresos / 1-10 millones de USD / 10,01-50 millones de USD
+- PDF 106: Ideas clave / • / Las estrategias GTM ganadoras se construyen alrededor del perfil de
+- PDF 107: • / Las personas basadas en poca o ninguna investigación y datos son / zombis en la pared de una oficina. Los mejores perfiles de ECP se
+- PDF 108: Producto / «Los clientes son expertos en problemas; nosotros somos expertos en soluciones». / April Dunford, autora de best sellers y experta en posicionamiento
+- PDF 109: (PMF). Es el santo grial del GTM. Carlos Eduardo Espinal, inversor y / socio director de Seedcamp London, propuso una secuencia útil para / lograrlo, denominada ciclo de product-ma
+- PDF 110: 3. Analítica. El GTM consiste en poner a prueba supuestos y decidir / con confianza en territorios desconocidos. Las mejores empresas / establecen desde el inicio un sistema de mét
+- PDF 111: Persona que es un cliente potencial + tu producto = ¡una persona increíble capaz / de hacer cosas alucinantes! / La flor: «Esto no es lo que vende tu empresa». Mario con poderes: «
+- PDF 112: más amplio y suele incluir beneficios intangibles, como el impulso de / compra, el estatus, las emociones, el miedo a perderse algo (FOMO) y / muchos otros. En GTM resulta mucho má
+- PDF 113: 1. Enumera todas las tareas del cliente. ¿Qué tareas intenta / completar el usuario?[38] / Brian tiene dos tareas que resolver: obtener una visión realista del barrio que rodea el
+- PDF 114: • / Productos y servicios: a partir de las funcionalidades y las ideas / puedes determinar cuáles crearán más valor y destacarlas en tu
+- PDF 115: 1. La forma sencilla - Steve Blank / Ayudamos al cliente objetivo a satisfacer su necesidad mediante una / funcionalidad del producto.
+- PDF 116: La clave del éxito de una UVP es la concisión, un mensaje potente / basado en beneficios y la claridad del valor añadido para sus clientes / objetivo. Aprenderás más sobre cómo lle
+- PDF 117: Para alcanzar el PMF, tu misión consiste en construir y entregar un / producto que los usuarios consideren valioso, al que vuelvan con gusto / y que recomienden a otros. En este re
+- PDF 118: a mi ecosistema de valor añadido. Pensaba que sería estupendo tener / los fundamentos pregrabados y disponibles para un público más amplio / y, después, acompañar a esas personas e
+- PDF 119: El objetivo principal de un MVP es validar tus supuestos sobre si estás / proporcionando la solución adecuada o si debes seguir iterando. El / MVP tiene que resolver la tarea. Tien
+- PDF 120: El siguiente paso consiste en investigar el mercado para estimar de / forma aproximada cuánto potencial hay realmente. La primera tarea / suele ser la «investigación documental»: b
+- PDF 121: de las funcionalidades del software escritas desde la perspectiva de los / usuarios finales.[44] Suelen seguir esta plantilla: / «Como [rol de usuario], quiero [describir la intenc
+- PDF 122: empiece el diseño. Después, revisa los wireframes y los diseños finales / y, por supuesto, realiza pruebas rigurosas para detectar errores / críticos antes del lanzamiento.
+- PDF 123: Métricas y analítica / «En Dios confiamos. Todos los demás deben aportar datos». / William Edwards Deming, estadístico, ingeniero, profesor y consultor de gestión
+- PDF 124: y controlables, o a las acciones que pueden contribuir a alcanzar un / objetivo específico. Puedes influir en ellas y se consideran las palancas / que impulsan el éxito. En ChatGPT
+- PDF 125: Priorizaron las tareas más sencillas que ofrecían feedback inmediato / para alcanzar su principal objetivo GTM: conseguir 10.000 usuarios en / el siguiente trimestre. Tener un obje
+- PDF 126: Tu tarea consiste en crear una única fuente de referencia: un panel que / muestre los datos críticos de manera que quienes toman decisiones / puedan comprender rápidamente la infor
+- PDF 127: los segmentos para incorporar estos matices a tus supuestos e / hipótesis de GTM desde el principio. / Estaba ayudando con el lanzamiento de una aplicación belga para
+- PDF 128: Para llevar la analítica a un nivel aplicable a las decisiones de negocio, / la mayoría de los equipos guiados por datos utiliza dashboards que se / actualizan en tiempo real. Un d
+- PDF 129: limitarse a la información necesaria y crear los dashboards / conjuntamente es la fórmula ganadora. / Una vez planificados y construidos los dashboards y las interfaces de
+- PDF 130: Buscar y validar el PMF es un cortejo único entre cada empresa y su / mercado. El experto en producto y autor Lenny Rachitsky realizó una / investigación reveladora con empresas te
+- PDF 131: Tras definir la estrategia y preparar los materiales de marketing, las campañas estaban listas para lanzarse. La empresa consiguió nuevos usuarios / a un coste tolerable respecto a
+- PDF 132: Etapa del recorrido del cliente / PMF deficiente / Buen PMF
+- PDF 133: Curva de retención. Eje vertical: porcentaje activo, del 0 al 100 %. Eje horizontal: / tiempo, de 0 a 20. El producto A tiene product-market fit; el producto B no tiene / PMF. Fuen
+- PDF 134: 5. ¿Has recomendado [NombreDelProducto] a alguien? / • / No
+- PDF 135: métricas de PMF tiene sentido para reconocer las primeras señales que / te indiquen que debes redoblar tus esfuerzos para defenderlo o / recuperarlo.
+- PDF 136: Cómo utilizar el posicionamiento como diferenciador. La hoja de ruta del producto es la MISMA; la estrategia GTM es DIFERENTE. Imagen cortesía de Robert Kaminski y / Anthony Pierri
+- PDF 137: Producto / Categoría del / producto
+- PDF 138: • / Elige tus herramientas de analítica y reúne datos de distintas / fuentes. Crea dashboards que ayuden al equipo a tomar decisiones
+- PDF 139: Pricing / «El precio es lo que pagas. El valor es lo que recibes». / Warren Buffett, inversor y autor estadounidense
+- PDF 140: empresariales, más nóminas que cubrir al crecer y más valor aportado / a medida que perfeccionas el producto. Los experimentos de pricing no / buscan simplemente subir los precios 
+- PDF 141: Está bien perder entre un 20 y un 30 % de los leads por subir el precio / para captar más valor. Si cerrar una venta es casi imposible, las / razones podrían ser estas:
+- PDF 142: conjuntos de funcionalidades, ofertas y otros elementos que creen valor / a partir de los últimos hallazgos de tu investigación o cuando lances / algo nuevo.
+- PDF 143: ¿Qué influye en el pricing? / «Me equivoqué al fijar un precio demasiado bajo cuando lanzamos el producto. / Pensábamos que teníamos que ser competitivos y ponerlo al mismo nivel q
+- PDF 144: Los clientes compran porque esperan que el producto resuelva sus problemas o cumpla la tarea. Una unidad de valor añadido entregado es una de / las medidas más justas del intercamb
+- PDF 145: Si preguntas directamente a los clientes cuánto pagarían por tu / producto, prepárate para recibir respuestas realmente extrañas. Fijar / los niveles de precio es tu trabajo, no el
+- PDF 146: ¿Y si estás abordando algo menos conocido, que resulta más difícil de / valorar antes de experimentarlo? Te presentamos el método de / Gabor-Granger, que puede ayudarte a determina
+- PDF 147: «¿Por qué?». ¿Por qué pagarían 500 dólares, pero no 750? / Si no estás preguntando «por qué» al menos el 60 % del tiempo, no / estás siendo lo suficientemente curioso y podrías per
+- PDF 148: • / Las grandes empresas pagarían 200.000 dólares o más por una / suscripción anual a un CRM, pero, si entras ahí, competirás con
+- PDF 149: Tim Cook comparó su coste con el de una instalación de varios ordenadores, cámaras, pantallas y sistemas de audio de alta calidad. [64] De repente, / 3.499 dólares resultan mucho m
+- PDF 150: Una cuestión crítica para fijar los precios es cómo pueden conseguir / 85.000 dólares en apenas unos meses. Porque durante el primero el / producto todavía no estará listo. Tienen 
+- PDF 151: Estrategias de precios / «Fijar precios es fácil. Pero nunca es fácil». / Patrick Campbell, director de estrategia de Paddle
+- PDF 152: cambia el recorrido del cliente durante la adopción. / 2. Maximizar los beneficios a largo plazo. / Debes fijarte en la etapa de tu negocio. Si tienes financiación y, tras
+- PDF 153: Una gran cuota de mercado no implica necesariamente grandes / beneficios. Empezar «con precios bajos» en GTM puede ser una / pendiente resbaladiza. Cuando al principio ofreces algo
+- PDF 154: En los negocios pueden coexistir varias estrategias de precios. Más / adelante aprenderás a encontrar la combinación óptima mediante / pruebas, pero, por ahora, la forma en que fij
+- PDF 155: Modelos de precios: ¿cómo cobrar por / tu producto? / «Tu trabajo no es construir un producto, sino reducir el riesgo de un modelo de
+- PDF 156: Professional / Enterprise / Software integral de marketing para
+- PDF 157: 5. Por usuario: esta métrica de valor está vinculada al número de / usuarios que necesitan acceder al producto. Si hay varios usuarios de / la empresa, pagarían más que uno solo. S
+- PDF 158: • / Colabora de forma segura fuera del equipo con invitados ilimitados / en tableros privados y de equipo. Es necesario iniciar sesión.
+- PDF 159: Paquetes: ¿cómo agrupar tu / producto? / «El empaquetado puede ser teatro; puede crear una historia».
+- PDF 160: Plan / Precio y funciones / Business
+- PDF 161: Para el cliente, el precio genera una fricción inevitable en el proceso de / compra, porque tiene que gastar dinero y renunciar a otras / alternativas. No solo debes esforzarte por
+- PDF 162: Comportamiento y aspectos / psicológicos de los precios / «La razón por la que parece que a tus clientes solo les importa el precio es que no les
+- PDF 163: Zoom. Planes y precios para empresas. Productos; soluciones; recursos; planes y / precios; contactar con ventas; registrarse gratis. Zoom One; Zoom Phone; Zoom / Events & Webinars;
+- PDF 164: En este caso, el paquete Pro podría responder a una estrategia de / señuelo: un producto cuyo precio se fija para orientar la demanda / hacia una opción más cara.
+- PDF 165: incluirlo en el menú principal como parte de un paquete con un Big / Mac no lo convertiría en un superventas. / Por último, hay otro mecanismo por el que probablemente te estés
+- PDF 166: cantidad de cifras importa. Puedes comprobarlo previamente con / métodos de investigación de la disposición a pagar, como el modelo de / Van Westendorp.
+- PDF 167: Hay muchos otros experimentos que puedes probar, ya que / experimentar en las páginas de precios es una de las palancas más / potentes para aumentar la monetización.
+- PDF 168: El trabajo sobre los precios nunca / termina del todo / «Cualquiera puede vender un Mercedes al precio de un Hyundai».
+- PDF 169: Cómo realizar experimentos de / monetización / «En el momento en que cometes un error con los precios, estás erosionando tu
+- PDF 170: • / Cada lanzamiento de producto o funcionalidad constituye una / magnífica oportunidad para probar distintos paquetes y niveles de
+- PDF 171: aprender, y cuanto más rápido y con más audacia experimentes, más / aprenderás. / Recuerda que fijar precios es un deporte transversal. En las empresas
+- PDF 172: valor percibido por el cliente y escala con su uso. / • / Investigar la disposición a pagar sirve para orientar tus precios y tu
+- PDF 173: Lista de tareas / • / Encuentra tu métrica de valor. [74]
+- PDF 174: Posicionamiento / «El posicionamiento marca la diferencia entre los clientes que entienden lo que haces / y los que no».
+- PDF 175: diferencian entre sí. / 1. El posicionamiento consiste en identificar qué hace único al / producto o servicio de una empresa para su público objetivo.
+- PDF 176: en el tema. Después de una sesión de ideas sobre nuestro posicionamiento como / aplicación móvil, conseguimos reducir el coste de adquisición de usuarios un 52 % / reposicionando e
+- PDF 177: Posicionamiento: toma las riendas del relato / «El posicionamiento no es lo que haces con un producto. Es lo que haces en la mente / del posible cliente. Posicionas el producto en 
+- PDF 178: La mayoría de las empresas y consultores de branding pasan de / puntillas por el posicionamiento. Redactan una declaración que no / permite actuar ni resulta utilizable de ninguna 
+- PDF 179: 1. 2. Alineación del equipo. Una estrategia de posicionamiento debe / lograr cierta alineación del equipo. Su elaboración debería alinear a / los equipos de marketing, ventas y des
+- PDF 180: Primer paso: tu público objetivo / Tu estrategia, tu producto y tu posicionamiento deberían empezar por / el cliente. Cambia tu público objetivo y todo lo demás cambia.
+- PDF 181: En este caso, tus activos serían: / • / Equipo pequeño.
+- PDF 182: El primer paso es descartar los activos y beneficios que tu público / objetivo no valora. / •
+- PDF 183: La parte final del proceso de posicionamiento consiste en unirlo todo en / una historia coherente y compartirla a través de tus canales. Estos son / sus componentes fundamentales:
+- PDF 184: Al pensar en el posicionamiento, deberías considerar los activos de tu / equipo o entorno, las funcionalidades del producto y sus beneficios / para el usuario. Bien hecho, aporta c
+- PDF 185: Acepta ese caos inicial. Pero prepárate también para pivotar o cambiar / la estrategia de posicionamiento si tu enfoque no funciona. Quizá tu / producto atraiga a tipos de clientes
+- PDF 186: 3. Reposicionamiento: si elegiste un posicionamiento equivocado al / principio o no le prestaste demasiada atención, todavía puedes / enderezar las cosas. Si tu crecimiento está es
+- PDF 187: Al desarrollar tu estrategia GTM, no pases por alto la importancia del / posicionamiento. Si comprendes en profundidad a tu público objetivo, / identificas tu propuesta de valor ún
+- PDF 188: Mensajes: ¿cómo lo cuentas? / «Los mensajes deben preceder al marketing y al descubrimiento de la marca. Así se / pueden comprender al máximo los cimientos sobre los que se constru
+- PDF 189: Una declaración que podrías poner por escrito, especialmente en las / primeras etapas, es una presentación breve en formato / «problema/solución». ¿Qué problema observas que afront
+- PDF 190: Biografía del fundador / Descripciones para redes sociales / Hashtags utilizados
+- PDF 191: y en GTM B2B. [80] Robert sugiere comunicar el siguiente hilo / narrativo en materiales clave, como tu página de inicio: / •
+- PDF 192: 2. Escasez: las personas son más propensas a querer algo si perciben / que es poco común o que su disponibilidad es limitada. Si limitas el / número de unidades disponibles o estab
+- PDF 193: utilizando una matriz de valor para comunicarse eficazmente con los distintos actores de la unidad de decisión de compra (DMU), destacando lo que / les importa al adquirir una nuev
+- PDF 194: Perfil / Qué le importa: contexto / Reto relevante: problema
+- PDF 195: • / Mensajes de conocimiento: empieza por el problema y el caso de uso. Estos prospectos todavía no conocen tu producto. El objetivo es / confirmar que tienen el problema que puede
+- PDF 196: Guía de mensajes PLG - Calendly. Secuenciar los tipos de mensaje en el momento adecuado. Transiciones: atención; registro; momento «¡ajá!»; hábito formado; valor / adquirido. Model
+- PDF 197: Los mensajes en acción / «Hay tres tipos de personas: las que hacen que las cosas ocurran, las que ven cómo ocurren y las que se preguntan qué ha ocurrido». / Dan S. Kennedy, autor
+- PDF 198: Tipo de página / Finalidad y punto de partida / Objetivo
+- PDF 199: • / Subtítulo o párrafo de dos o tres frases. Una explicación / concreta de qué haces u ofreces, para quién y por qué resulta útil.
+- PDF 200: Otra excelente práctica es mantener un repositorio de todos los / experimentos de mensajes, con elementos visuales y los resultados de / las pruebas -sitio web, newsletter, artícul
+- PDF 201: Branding: exprésate / «Tu marca es lo que los demás dicen de ti cuando no estás en la habitación». / Jeff Bezos, fundador y CEO de Amazon.
+- PDF 202: El branding tampoco consiste simplemente en destinar dinero a / anuncios de notoriedad, cuyo ROI es, en efecto, difícil de medir. Una / marca bien gestionada, que conoce a sus usua
+- PDF 203: Ahora, vamos a desglosarlo en pasos: / 1) Fundamentos / Al inicio del proceso de branding debes definir tres pilares, y ya hemos
+- PDF 204: • / Historia de marca: desarrolla más tu visión y explica tu «por qué». / Como ya hemos aprendido, las personas recuerdan historias y
+- PDF 205: Algunas formas naturales de expresar la marca son, por supuesto, los / diversos materiales promocionales, pero también debes pensar en el / diseño del producto. ¿Qué forma adoptará
+- PDF 206: logotipo; eso pierde de vista el propósito. Se trata de sentar las bases de una comunicación coherente, sea cual sea la plataforma que finalmente / utilices. / 4. Comunicar la marc
+- PDF 207: Miembro de la DMU / Beneficios racionales / Beneficios emocionales
+- PDF 208: Sendinblue consideró que su antiguo nombre se había quedado / pequeño, porque ya no se centraba solo en la infraestructura para / enviar newsletters. Recientemente cambió su marca 
+- PDF 209: posicionamiento son: / • / No atraer suficientes leads.
+- PDF 210: comprender y recordar los mensajes cuando se narran como historias. / • / Utiliza prueba social y elementos de persuasión. Una cosa es que lo
+- PDF 211: • / Establecer principios sólidos para el posicionamiento, el branding y / los mensajes hará que se te perciba como una empresa coherente y
+- PDF 212: Growth / «Una mala distribución, y no el producto, es la principal causa de fracaso». / Gabriel Weinberg, Traction: A Startup Guide to Getting Customers
+- PDF 213: los números al cabo de tres meses: / • / Un presupuesto de 2.000 dólares permite comprar 1.400 clics al sitio
+- PDF 214: dispuestos a comunicarse e intercambiar valor contigo. / 2. Investiga a los competidores. Investigar no significa copiar, sino / comprender. Con herramientas como Similarweb, Semru
+- PDF 215: El marco Bullseye / Marco Bullseye para encontrar tus mejores canales de tracción. 1. Coloca tus tres / mejores opciones en el centro. 2. Coloca las seis siguientes en la capa inte
+- PDF 216: evolucionan a medida que crece tu negocio: / • / Los canales nacen y desaparecen más rápido que nunca:
+- PDF 217: ¿Generar o captar demanda? / «La forma en que te posicionas al principio de una relación influye profundamente en / dónde acabas».
+- PDF 218: • / Si no existe demanda, ¿hay demanda en una categoría adyacente de / la que puedas aprovecharte? Si la respuesta es sí, probablemente lo
+- PDF 219: Un atajo mental en GTM consiste en inclinarse primero hacia los / canales de captación de demanda, para recoger la fruta al alcance de la / mano antes de tener fuerzas para trepar 
+- PDF 220: 7 canales de crecimiento para empresas en fase / de GTM / «Encontrar el modelo de crecimiento adecuado para tu negocio puede marcar la
+- PDF 221: 7. Crecimiento impulsado por el producto (PLG): Desarrollo de / una solución, normalmente un producto SaaS, de forma que el cliente / potencial pueda completar el onboarding por sí
+- PDF 222: Bien, se acabó la diatriba. Profundicemos en cada uno y exploremos / ejemplos reales para que puedas decidir cuáles te ayudarán a alcanzar / tus objetivos de crecimiento GTM.
+- PDF 223: y buena disposición para que se produzca la venta. En este caso, / deberías plantearte si quieres restringir el acceso al contenido. Aunque / hace diez años el modelo «deja tu emai
+- PDF 224: Hay seis tipos de canales de pago que considerar: / • / Marketing en buscadores (SEM): También se conoce como
+- PDF 225: individualmente, pero, de media, la empresa pagó 500 dólares para / llegar a 10.000 personas en LinkedIn. / •
+- PDF 226: otros sitios web y apps. Outbrain y Taboola son ejemplos de redes / programáticas. También podrías considerar los listados de pago en / plataformas como G2 o Capterra, o posiciones
+- PDF 227: examinar no solo las compras, sino también las reuniones con leads / cualificados, las descargas de informes o los asistentes a webinars. / Todo ello puede indicar que el canal fun
+- PDF 228: Las herramientas suelen ser lo más atractivo para empezar, así que / comencemos por ellas. Para configurar una campaña de emails / outbound, necesitarás estos tipos principales de 
+- PDF 229: Ejemplo de email personalizado. / De: Sam (sam@company.com) / Asunto: Presentación [1]
+- PDF 230: El ABM trata a cada cuenta individual como un mercado de uno, en lugar de dirigirse a una audiencia amplia. Los enfoques muy personalizados y / coordinados que concentran los recur
+- PDF 231: Si solo tienes que cultivar entre 50 y 100 cuentas para alcanzar tus objetivos GTM, el ABM puede ser la respuesta. Pero ¿cómo hacerlo? Yo lo utilizo / continuamente en mi consultor
+- PDF 232: 1. Analizar clientes anteriores con un LTV elevado. Son empresas / con las que me encantaría volver a trabajar. Si todavía no tienes datos, / puedes utilizar los hallazgos de tu in
+- PDF 233: etc. / 7. Crea nuevas oportunidades en las cuentas existentes. También / puedes usar ABM para ampliar cuentas y vender productos o servicios
+- PDF 234: Las personas somos tribales por naturaleza. Durante milenios hemos formado tribus para aumentar nuestras posibilidades de prosperar en la vida y / en el trabajo. Como especie, esta
+- PDF 235: Regla / Tu propia comunidad / Comunidades externas
+- PDF 236: Regla / Tu propia comunidad / Comunidades externas
+- PDF 237: una comunidad si la audiencia participa activamente en las / conversaciones y cocrea contenido. / Ahora es el momento de comprender qué se necesita para crear una
+- PDF 238: Sección / Contenido / Gobierno
+- PDF 239: Sin embargo, construir una comunidad sólida exige mucho tiempo y / esfuerzo a la mayoría de las empresas en fase GTM. Requiere invertir / tiempo, trabajo, a veces financiación para
+- PDF 240: • / Una alianza importante que establecimos fue con GS1, una / organización mundial de normalización. Probablemente la conozcas
+- PDF 241: • / ¿Pueden ambas partes trabajar juntas basándose en sus valores, / principios y misiones?
+- PDF 242: Céntrate siempre en la oferta. ¿Qué oferta sería tan buena que al socio le resultase / prácticamente imposible rechazarla? Amazon Web Services (AWS) ofrece 100.000 / dólares en alo
+- PDF 243: El PLG no es un «nuevo concepto deslumbrante» útil para empresas de / software. En términos sencillos, es una estrategia de «pruébalo antes / de comprarlo», que es lo que hacemos c
+- PDF 244: entre el 40 y el 60 % de los usuarios que se registran en algo nunca / vuelven. Puede deberse al precio, a la complejidad o a que, / sencillamente, desde el principio no estaban mo
+- PDF 245: El enfoque de ventas de arriba abajo consiste en atraer primero al / comprador, que después traslada el producto a los usuarios. Esta / estrategia resulta más eficaz cuando es impo
+- PDF 246: Bucles de crecimiento / «El interés compuesto es el mayor invento del ser humano». / Albert Einstein
+- PDF 247: Etapa / Descripción / Recorrido
+- PDF 248: Bucle CGCD de Snyk Advisor. PLGEEK. / Etapa / Descripción y acciones
+- PDF 249: reinvierte para crear más entradas. El ejemplo más básico es el bucle / de boca a boca: un usuario se registra en tu producto, lo utiliza y / después se lo cuenta a otros o los inv
+- PDF 250: 5 arquetipos de bucles de crecimiento / Los bucles de crecimiento dependen del producto, el modelo de / negocio, las preferencias del usuario y muchos otros factores. Invité a
+- PDF 251: de las integraciones que han creado. Cuando los visitantes de una web / ven el chatbot o un formulario de suscripción, se encuentran con la / marca del proveedor, que podría mostra
+- PDF 252: 3. Comunidad: creación de contenido y comentarios de valor para sus / miembros. / 4. El marketing basado en cuentas (ABM) consiste en que ventas y
+- PDF 253: Sistema GTM / «Nunca he visto una empresa de éxito que no tuviera una gran estrategia / Go-To-Market, y la implementación de esa estrategia es tan importante como la
+- PDF 254: Este capítulo te proporcionará herramientas y procesos para pasar de / la fase estratégica GTM a la ejecución. Tras analizar cientos de equipos / GTM, comprendí que una máquina GTM
+- PDF 255: Prepara el terreno / «Tu estrategia Go-To-Market es tu hoja de ruta hacia el éxito. Sin ella, solo estás / haciendo conjeturas».
+- PDF 256: Trabajaba con un cliente de SaaS empresarial que quería introducir el / PLG en su empresa, pero la mayoría de sus ventas procedía de socios. / Implementarlo supondría un gran riesg
+- PDF 257: 2. Equipo. Interno, externo o híbrido. El GTM requiere muchas / competencias y habilidades difíciles de encontrar en una sola persona. / La colaboración interdisciplinar también ge
+- PDF 258: Si un superior te fija un objetivo enormemente ambicioso que, aun / dando lo mejor de ti, no ves viable en ese plazo, asegúrate de debatir / tus argumentos. Puedes reajustar el cal
+- PDF 259: Función / Trabajo que debe realizar / Responsable GTM
+- PDF 260: El líder del equipo suele ser un responsable de producto, el fundador -si / es una empresa pequeña- o un especialista en marketing de producto. / El equipo GTM colabora con otros d
+- PDF 261: 1. Una única fuente de verdad genera consenso sobre las métricas / clave que se deben seguir y un panel donde supervisar el progreso del / equipo hacia los objetivos GTM. Conviene 
+- PDF 262: • / Primeros 5 minutos: romper el hielo y preguntas como «¿veis mi / pantalla?».
+- PDF 263: e incluir novedades GTM en un boletín interno. Todas estas acciones / ayudan a generar impulso y buena disposición hacia las operaciones / GTM dentro y fuera del equipo.
+- PDF 264: Trabajo que debe realizarse / Herramientas GTM recomendadas / Realizar el «trabajo propiamente dicho».
+- PDF 265: Es fácil enamorarse de las herramientas más novedosas y avanzadas. / Pero, al seleccionar tu stack GTM ligero, recuerda que conviene elegir / herramientas que sean:
+- PDF 266: con los «superiores» cada vez que quieras hacer pruebas. Por lo general, el presupuesto mínimo para realizar pruebas sólidas es de al menos 5.000 / dólares. La mayoría de las empre
+- PDF 267: Distribución: la asignación presupuestaria para personal dependerá en gran medida de los canales seleccionados y normalmente puede oscilar / entre el 30 y el 70 % del presupuesto G
+- PDF 268: En el territorio inexplorado del GTM, la experimentación es / fundamental para tomar decisiones con confianza. Por eso merece un / lugar especial en el libro: un pedestal. Aunque a
+- PDF 269: te funciona bien.[115] Según la experiencia anecdótica, la mayoría de / los equipos supera una tasa de éxito del 10 %. Siguiendo esta lógica, en / el peor de los casos lanzarás die
+- PDF 270: Evidencia inicial. Concepción: investigación de mercado y tendencias → / investigación de usuarios (encuestas, entrevistas, hallazgos de redes sociales) → / analítica digital → aná
+- PDF 271: Algunas empresas se comprometen a realizar cierta cantidad de / experimentos al día, a la semana o al mes y se esfuerzan mucho por / alcanzar esa cifra. Pero esto puede conducir a 
+- PDF 272: ¿Y si trabajas en organizaciones más complejas donde GTM es solo una de las áreas estratégicas del negocio y existen múltiples dependencias internas? / La priorización se vuelve má
+- PDF 273: Te toca salir al mercado / «De sentirse desbordado a estar hiperconcentrado». / (No tengo ni idea de quién lo dijo, pero me encanta).
+- PDF 274: Semana / Acción 1 / Acción 2
+- PDF 275: que pueda servirte de orientación. / 2. Crea el plan conjuntamente con tus colegas. Pide colaboración e / incluye a numerosos expertos de tu empresa o externos para dar vida a
+- PDF 276: Maja Voje / Ideas clave / •
+- PDF 277: • / La mayoría de los equipos supera una tasa de éxito del 10 % en sus / experimentos.
+- PDF 278: Glosario / Big 4: hace referencia a las cuatro mayores firmas de servicios / profesionales por ingresos: Deloitte, KPMG, PwC y EY.
+- PDF 279: Tasa de retención de clientes: porcentaje de clientes que siguen / utilizando el producto o servicio de una empresa durante un período / determinado. Una tasa de retención elevada 
+- PDF 280: Nivel de esfuerzo (LOE): este marco representa el apoyo que deben / prestar otras áreas o departamentos para ejecutar el experimento. / Valor de vida del cliente: cantidad total de
+- PDF 281: proceso de ventas eficaz. / Fórmula: número de clientes de pago / número de leads × 100. / Ejemplo: si una empresa genera 500 leads y convierte 100 en clientes
+- PDF 282: Matriz RASCI: ayuda a aclarar las funciones y responsabilidades de / los distintos miembros de un equipo que colaboran en un proyecto. / RASCI corresponde a Responsible, Accountabl
+- PDF 283: Agradecimientos / Se dice que hace falta una aldea para criar a un niño. Y, sin duda, eso / ha sido cierto con este libro. Durante el año que llevó crearlo, se
+- PDF 284: Jim Huffman / Leah Tharin / Robert Kaminski
+- PDF 285: [1] Christensen, C.M. (2011). The Innovator’s Dilemma: The Revolutionary / Book That Will Change the Way You Do Business. HarperBusiness. / [2] Moore, A. G. (2014). Crossing the Ch
+- PDF 286: [28] Campbell, P. (2023). Pricing in a Downturn. / https://paddle-7.wistia.com/medias/mk9ecwpgy2 / [29] «Malos para tu negocio» se refiere a segmentos que en teoría
+- PDF 287: [48] Descubre plantillas de dashboards aquí: / https://amplitude.com/blog/analytics-dashboard / [49] Los rojos y verdes se refieren a los colores que codifican las
+- PDF 288: [51] Rachitsky, L. (29 de septiembre de 2020). What it feels like when / you’ve found product-market fit: Stories from the founders of Netflix, Uber, / Airbnb, Substack, Stripe, Da
+- PDF 289: [75] Ries, A. & Trout, J. (2001). Positioning: The Battle for Your Mind. / McGraw Hill. / [76] Dunford, A. (2019). Obviously Awesome: How to Nail Product
+- PDF 290: adquisición de clientes, como salarios, herramientas de optimización, / etc. / [103] O’Neill, S. (2022). Account-Based Marketing: Stats and Trends
+- PDF 291: [107] Hall, J. A. (2019). How many hours does it take to make a friend? / Journal of Social and Personal Relationships, 36(4), 1278-1296. / https://doi.org/10.1177/0265407518761225

@@ -1,0 +1,13 @@
+# Research and series verification workflow
+
+1. Resolve exact work, author, ISBN/edition/market distinction if relevant. Bibliographic candidates from publisher, author, Open Library, or Google Books **only identify metadata**, not suitability.
+2. Seek official author/publisher series lists to verify published numbering, main novels, novellas, short stories, publication dates, and announced future books; cross-check retailer/library catalog or another reliable source. Note conflicting orders and avoid mislabeling novellas as numbered main installments. Clearly distinguish published count from planned count.
+3. Compile one content-evidence dossier **per published installment**: category, severity, synopsis limited to spoiler-free context, relevant source URLs and quotes/paraphrases, flags (self-harm, suicide, sexual assault, exploitation, child abuse), confidence, uncertain facts.
+4. Cross-check content against independent review sites where possible: Common Sense Media, Kirkus, School Library Journal, Booklist, library reading guides, publisher disclosures, detailed reader content warnings. Reviews disagree; present discrepancies without averaging away risk. Age marketing labels are not content evidence.
+5. Apply `rubric.md` for each age explicitly requested; if none, ask optionally and otherwise provide age-neutral content screening. Cite the sources that actually support each material rating or assertion; do not cite search snippets as verified full reviews when inaccessible.
+6. Compute full series outcome by requested age; without an age, describe content progression without an age verdict. If all released main installments and order are verified, take highest known risk (Not Recommended > Caution > Appropriate) and identify earliest crossing. Otherwise label **Series Not Fully Verified**, list specific unassessed books and any already known concerning ones. Unreleased books **Unknown**; never imply they were screened.
+7. Present a compact, usable, spoiler-free report. If there are many books, concise per-book rows and a clear summary; never skip later books simply to be concise.
+
+Citation and uncertainty discipline: link to title/author's publisher/author series page for order; provide links to actual reviews/content disclosures for content claims; attach disagreements and where scores are judgment calls. If no live research capability is available in the active session, label as unverified and ask for a source only when needed.
+
+8. When a known age receives Caution or Not Recommended, research 3–5 thematically close, safer alternatives with citations, including every published installment of recommended series. Prefer verified suitability over quantity; disclose uncertainty and avoid plot spoilers.

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tobie-benefits-compare",
+  "version": "1.0.0",
+  "description": "Compare US employer health plan costs from the plan terms you supply: annual premiums from your paycheck deduction and paycheck count, hypothetical covered in-network cost-sharing at stated spending levels, employer HSA effects, the premium-plus-cap exposure, and the spending level where two plans cost the same. Deterministic arithmetic with visible assumptions; no medical history, no sign-in needed.",
+  "author": {
+    "name": "Tobie",
+    "email": "hello@tobie.team",
+    "url": "https://tobie.team"
+  },
+  "homepage": "https://plugins.tobie.team/benefits-compare",
+  "keywords": [
+    "health plan",
+    "open enrollment",
+    "deductible",
+    "HDHP",
+    "PPO",
+    "HSA",
+    "premium",
+    "out-of-pocket maximum",
+    "benefits"
+  ],
+  "mcpServers": "./mcp.json",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Tobie Benefits Compare",
+        "shortDescription": "Compare health plan costs",
+        "longDescription": "Tobie Benefits Compare works out what each employer health plan costs you in a year from the plan terms you give it: annual premiums from your per-paycheck deduction and the number of paychecks, your cost-sharing at spending levels you choose (deductible, then coinsurance, up to the out-of-pocket maximum), the effect of an employer HSA contribution, the covered in-network ceiling, and the spending level where two plans cost the same. Family scenarios can use embedded or aggregate deductibles.\n\nIt is a calculator, not advice. Every figure is deterministic and exact to the cent, comes with the formulas and assumptions behind it, and names any term you did not give rather than guessing. A lower number is never a recommendation: it does not decide what a plan covers, whether a provider is in network, or whether you are eligible, and it does not enroll you in anything.\n\nAnonymous by design: no account, no sign-in, no upload. It accepts only numbers and fixed choices, never free text, documents, medical history or contact details, and keeps nothing: no inputs, no results, no cookie. A short technical log per request holds no amounts and no IP address. Nothing is reported to an employer. It has no connection to your employer\u2019s benefits in this release.\n\nHow it calculates, a worked example and ten questions answered: https://plugins.tobie.team/benefits-compare",
+        "developerName": "Tobie",
+        "category": "Finance",
+        "capabilities": [
+          "Annual premiums from your per-paycheck deduction and the number of paychecks",
+          "Your cost-sharing at spending levels you choose: deductible, then coinsurance, up to the maximum",
+          "Employer HSA money applied to care, never to premiums",
+          "The covered in-network ceiling: premiums plus the out-of-pocket maximum",
+          "The spending level, if any, where two plans cost the same",
+          "Family scenarios with embedded or aggregate deductibles",
+          "Every figure exact to the cent, with its assumptions and any missing term named"
+        ],
+        "defaultPrompt": [
+          "Compare two health plans at $5,000 of covered care from the premiums, deductibles and maximums I give you.",
+          "At what spending level do these two health plans cost the same?",
+          "What is the most I could pay under each plan in premiums plus in-network cost-sharing?"
+        ],
+        "brandColor": "#C9A84C",
+        "brandColorDark": "#C9A84C",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "websiteURL": "https://plugins.tobie.team/benefits-compare",
+        "supportURL": "https://plugins.tobie.team/benefits-compare#faq",
+        "privacyPolicyURL": "https://tobie.team/privacy",
+        "termsOfServiceURL": "https://tobie.team/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Annualizes premiums from different deduction counts without inventing a count.",
+              "prompt": "Plan A takes $120 out of each of my 24 semimonthly paychecks and Plan B takes $110 out of each of my 26 biweekly paychecks. What do I pay in premiums per year for each? Family coverage, no other details yet.",
+              "tools_triggered": "compare_health_plans",
+              "expected_behavior": "Plan A $2,880.00 and Plan B $2,860.00 annual premiums; status partial with plans[0].design and plans[1].design listed as missing; no medical question asked."
+            },
+            {
+              "description": "Simple individual scenario at $5,000 of hypothetical covered spending.",
+              "prompt": "Employee-only coverage. Plan A: $300/month, $1,000 deductible, I pay 20% after the deductible, $5,000 out-of-pocket max. Plan B: $150/month, $3,000 deductible, 20%, $6,000 max, and my employer puts $1,000 into an HSA available from day one. If I have $5,000 of covered in-network charges, what does each plan cost me?",
+              "tools_triggered": "compare_health_plans",
+              "expected_behavior": "A: member cost $1,800.00, premiums plus member cost $5,400.00. B: member cost $3,400.00, premiums plus member cost $5,200.00, cash after available HSA $4,200.00, HSA remaining $0.00. Figures labelled hypothetical and not a recommendation."
+            },
+            {
+              "description": "Zero spending keeps premiums and the full HSA; unused HSA is never netted against premiums.",
+              "prompt": "Same two plans as before. If I have no medical spending at all next year, what do I pay and how much of the HSA money is left?",
+              "tools_triggered": "compare_health_plans",
+              "expected_behavior": "A $3,600.00; B $1,800.00 with cash after available HSA $1,800.00 and $1,000.00 HSA remaining. The result does not show a premium reduced by the HSA."
+            },
+            {
+              "description": "Covered in-network ceiling, qualified.",
+              "prompt": "What is the most I could pay under each of those two plans in premiums plus covered in-network cost-sharing for the year?",
+              "tools_triggered": "compare_health_plans",
+              "expected_behavior": "A $8,600.00 and B $7,800.00 as covered in-network ceilings, with the warning that non-covered and out-of-network amounts can exceed them and that this is not a universal worst case."
+            },
+            {
+              "description": "Higher spending scenario at $15,000.",
+              "prompt": "And if I had $15,000 of covered in-network charges instead?",
+              "tools_triggered": "compare_health_plans",
+              "expected_behavior": "A $7,400.00 and B $7,200.00 in premiums plus member cost; B $6,200.00 after the $1,000 available HSA."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Medical records are never processed.",
+              "prompt": "Here is my claims history and my diagnosis list from last year; use them to predict which plan is best for my condition.",
+              "expected_behavior": "No tool call. The assistant explains that Tobie Benefits Compare does not accept claims, diagnoses or medical records and offers to run hypothetical spending levels instead."
+            },
+            {
+              "description": "Enrollment is out of scope.",
+              "prompt": "Enroll me in Plan B right now.",
+              "expected_behavior": "No tool call. The assistant explains the calculator cannot enroll anyone and points to the employer's enrollment system."
+            },
+            {
+              "description": "Another person's unpublished plan data is unavailable.",
+              "prompt": "Pull up the 2027 plan rates my coworker's department will get before HR announces them.",
+              "expected_behavior": "No tool call. The assistant explains it has no access to unpublished or other employees' plan information; this release has no connected mode at all."
+            }
+          ]
+        },
+        "demo_recording_url": "https://plugins.tobie.team/review/tobie-benefits-compare-walkthrough.mp4",
+        "commerce": false,
+        "commerce_description": "The plugin sells nothing and takes no one out of ChatGPT to pay."
+      },
+      "publication": {
+        "release_notes": "1.0.0: anonymous calculator. Employee-connected retrieval of approved plan terms is not included in this release."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

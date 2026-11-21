@@ -1,0 +1,870 @@
+<!--
+  ASBUILT PROGRAMME — SELF-CONTAINED GANTT TEMPLATE (maintainer note)
+  ====================================================================
+  This file ships inside the Gather plugin. At runtime, the model that
+  generates a report replaces ONLY the data object below and writes the
+  result out as a new .html file for the user — nothing else in this
+  file should need to change between runs.
+
+  REPLACEMENT CONTRACT
+  ---------------------
+  Search the script for the line beginning "const DATA =". The JSON
+  object literal on that line is wrapped by two HTML/JS block-comment
+  marker tokens — an opening one right before the "{" and a closing one
+  right after the matching "}". Each marker appears EXACTLY ONCE in this
+  file. A runtime string-replace should locate the opening marker and
+  the closing marker and substitute everything between them with a
+  freshly JSON.stringify-d data object matching the schema below. Do not
+  rename, duplicate, or reformat the markers themselves.
+
+  DATA SCHEMA
+  -----------
+  {
+    project, ref, periodStart, periodEnd, generated, dataCutoff: strings
+      (dates are "YYYY-MM-DD"),
+    summary: one-sentence executive summary string,
+    confidenceNote: string | null — shown as an amber banner when present,
+    caveats: array of strings,
+    activities: array of {
+      name, unit: string,
+      cumActual: number, cumPlanned: number | null,
+      status: "complete" | "ongoing",
+      start: "YYYY-MM-DD", finish: "YYYY-MM-DD" | null,
+      segments: array of
+        { type: "work", start, end } |
+        { type: "dormant", start, end, workingDays: number, flag: number,
+          coincidesWith: array of { date, evidence, confidence: "H"|"M"|"L" } }
+    }
+  }
+
+  Everything on the page — header, KPIs, the SVG Gantt, both tables, the
+  legend, and the footer — is generated from this object by the inline
+  script below. There is no other place in the file that needs editing.
+  All data strings are inserted via textContent (never innerHTML), so
+  narrative text containing HTML-special characters renders safely.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>As-Built Programme</title>
+<style>
+  :root{
+    --page:#f9f9f7;
+    --surface:#fcfcfb;
+    --ink:#0b0b0b;
+    --ink-2:#52514e;
+    --muted:#898781;
+    --hair:#e1e0d9;
+    --hair-strong:#cfcdc4;
+    --work:#2f6fab;
+    --dormant:#d03b3b;
+    --dormant-dark:#7a1f1f;
+    --dormant-light:#f3caca;
+    --good:#0ca30c;
+    --amber-bg:#fdf3d9;
+    --amber-bd:#c9971f;
+    --amber-ink:#5c4300;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--page);
+    color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:14px;
+    line-height:1.45;
+  }
+  .page{max-width:1200px;margin:0 auto;padding:32px 40px 60px;}
+  .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;}
+  h1.title{font-size:26px;margin:2px 0 0;font-weight:700;}
+  h2{font-size:16px;margin:0 0 10px;font-weight:700;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--ink-2);font-size:13px;margin-top:10px;}
+  .meta-row b{color:var(--ink);}
+  .banner-amber{margin-top:14px;padding:10px 14px;background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber-ink);border-radius:6px;font-size:13px;}
+  .summary{margin:22px 0;font-size:15px;max-width:900px;}
+  .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:20px 0 32px;}
+  .kpi-tile{background:var(--surface);border:1px solid var(--hair);border-radius:8px;padding:14px 16px;}
+  .kpi-num{font-size:26px;font-weight:700;}
+  .kpi-label{font-size:11.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.02em;}
+  .kpi-sub{font-size:12px;color:var(--ink-2);margin-top:6px;}
+  section{margin:30px 0;}
+  .chart-wrap{background:var(--surface);border:1px solid var(--hair);border-radius:8px;padding:16px;overflow-x:auto;}
+  svg.gantt{width:100%;height:auto;display:block;}
+  .grid-line{stroke:var(--hair);stroke-width:1;}
+  .grid-line-strong{stroke:var(--hair-strong);stroke-width:1;}
+  .grid-baseline{stroke:var(--hair-strong);stroke-width:1;}
+  .month-label{font-size:11px;fill:var(--ink-2);font-weight:600;}
+  .row-band{fill:transparent;}
+  .row:hover .row-band{fill:#eef1f4;}
+  .seg-work{fill:var(--work);}
+  .seg-dormant{fill:url(#dormantHatch);stroke:var(--dormant-dark);stroke-width:.75;}
+  .hatch-bg{fill:var(--dormant-light);}
+  .hatch-line{stroke:var(--dormant-dark);stroke-width:3;}
+  .flag-badge circle{fill:var(--dormant);stroke:#fff;stroke-width:1;}
+  .flag-badge text{fill:#fff;font-size:9px;font-weight:700;}
+  .milestone-dot{fill:var(--ink);stroke:var(--surface);stroke-width:2;}
+  .cutoff-line{stroke:var(--ink-2);stroke-width:1.4;stroke-dasharray:4 3;}
+  .cutoff-label{font-size:10.5px;fill:var(--ink-2);}
+  .act-label{display:flex;align-items:center;gap:6px;height:100%;overflow:hidden;padding-right:6px;}
+  .act-label-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1 1 auto;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border-radius:9px;white-space:nowrap;}
+  .chip-complete{background:#e6f7e6;border:1px solid #b9e6b9;color:#0b6b0b;}
+  .chip-ongoing{background:transparent;border:1px solid var(--muted);color:var(--ink-2);}
+  .chip-icon{font-weight:700;}
+  .finish-text{margin-left:6px;font-size:13px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top;}
+  th{color:var(--ink-2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.02em;}
+  .flag-chip{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--dormant);color:#fff;font-size:11px;font-weight:700;}
+  .pill{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;padding:1px 6px;border-radius:9px;border:1px solid;white-space:nowrap;}
+  .pill-H{background:#fdecec;border-color:#f0b8b8;color:#8a1f1f;}
+  .pill-M{background:#fff6e0;border-color:#e9cf8a;color:#6b4a00;}
+  .pill-L{background:#eef1f4;border-color:#c7ccd1;color:#3d4247;}
+  .pill-U{background:#eef1f4;border-color:#c7ccd1;color:#3d4247;}
+  .coincide-list{margin:0;padding-left:16px;}
+  .coincide-list li{margin-bottom:4px;}
+  .empty-note{color:var(--ink-2);font-style:italic;}
+  .legend{display:flex;flex-wrap:wrap;gap:22px;align-items:center;margin:26px 0;padding:14px 16px;background:var(--surface);border:1px solid var(--hair);border-radius:8px;font-size:12.5px;}
+  .legend-item{display:flex;align-items:center;gap:8px;}
+  .legend-icon{display:block;}
+  .legend-work-swatch{fill:var(--work);}
+  .legend-dormant-swatch{fill:url(#dormantHatchLegend);stroke:var(--dormant-dark);stroke-width:.75;}
+  footer{margin-top:30px;font-size:12px;color:var(--ink-2);}
+  footer ul{padding-left:18px;}
+  footer .tagline{margin-top:14px;color:var(--muted);font-style:italic;}
+  .fatal-error{background:#fdecec;color:#8a1f1f;padding:12px 16px;border:1px solid #f0b8b8;margin:16px;border-radius:6px;}
+  .tooltip{position:fixed;left:-9999px;top:-9999px;display:none;max-width:280px;background:var(--ink);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.22);z-index:50;pointer-events:none;}
+  .tooltip.visible{display:block;}
+  .tooltip .tt-title{font-weight:700;margin-bottom:3px;}
+  .tooltip .tt-dates{color:#d8d8d8;margin-bottom:3px;}
+  .tooltip .tt-wd{margin-bottom:4px;}
+  .tooltip .tt-list{margin:0;padding-left:16px;}
+  .tooltip .tt-list li{margin-bottom:3px;}
+  .tooltip .tt-none{font-style:italic;color:#d8d8d8;}
+
+  @media print{
+    @page{size:A4 landscape;margin:12mm;}
+    body{background:#fff;}
+    .page{max-width:none;padding:0;}
+    #tooltip{display:none!important;}
+    .chart-wrap{overflow:visible;border:none;}
+    section,.kpi-strip,.legend,table{page-break-inside:avoid;}
+    tr{page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="eyebrow">As-Built Programme</div>
+    <h1 id="hProject" class="title"></h1>
+    <div class="meta-row">
+      <span>Ref: <b id="hRef"></b></span>
+      <span>Period: <b id="hPeriod"></b></span>
+      <span>Generated: <b id="hGenerated"></b></span>
+      <span>Data cut-off: <b id="hCutoff"></b></span>
+    </div>
+    <div id="confBanner" class="banner-amber" style="display:none;"></div>
+  </header>
+
+  <p id="hSummary" class="summary"></p>
+
+  <section id="kpiStrip" class="kpi-strip" aria-label="Key metrics"></section>
+
+  <section class="gantt-section" aria-label="Programme timeline">
+    <h2>Programme Timeline</h2>
+    <div id="chartWrap" class="chart-wrap"></div>
+  </section>
+
+  <section id="dormancySection" aria-label="Dormancy findings">
+    <h2>Dormancy Findings</h2>
+    <div id="dormancyWrap"></div>
+  </section>
+
+  <section id="activitySection" aria-label="As-built activity table">
+    <h2>As-Built Activity Table</h2>
+    <div id="activityWrap"></div>
+  </section>
+
+  <section id="legendWrap" class="legend" aria-label="Legend"></section>
+
+  <footer id="footerWrap"></footer>
+
+</div>
+
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/*
+ * Everything below is pure vanilla JS. It reads the DATA object once and
+ * builds the entire page (header text, KPI tiles, the SVG Gantt, both
+ * tables, the legend, and the footer) from it. No DOM node in the markup
+ * above carries any of the demo content — swap DATA and the whole page
+ * follows.
+ */
+
+// DATA — replaced wholesale at runtime between the two marker comments.
+const DATA = /*__ASBUILT_DATA__*/{
+  "project": "Riverside Bridge Crossing",
+  "ref": "AB-001",
+  "periodStart": "2026-01-01",
+  "periodEnd": "2026-01-31",
+  "generated": "2026-01-31",
+  "dataCutoff": "2026-01-31",
+  "summary": "The as-built programme for Riverside Bridge Crossing covers 2 activities across 01 Jan 2026 to 31 Jan 2026 — 1 complete, 1 ongoing at the data cut-off, with a 10 working-day dormant window on Deck Steel Fixing coinciding with a design query, heavy rain, and a late possession handover.",
+  "confidenceNote": null,
+  "caveats": [
+    "Recorded output is not the same as all work done — mobilisation, setup, and snagging are rarely captured as measured output, so as-built starts may in reality be earlier and finishes later than the reconstructed dates suggest.",
+    "This is a reconstruction from progress records, not a contemporaneous planner's programme. It shows actual timing only — there are no logic links and no critical path in this analysis."
+  ],
+  "activities": [
+    {
+      "name": "Pier Construction (Piers 3-5)",
+      "unit": "m3",
+      "cumActual": 210.6,
+      "cumPlanned": 210.0,
+      "status": "complete",
+      "start": "2026-01-05",
+      "finish": "2026-01-30",
+      "segments": [
+        { "type": "work", "start": "2026-01-05", "end": "2026-01-30" }
+      ]
+    },
+    {
+      "name": "Deck Steel Fixing",
+      "unit": "t",
+      "cumActual": 36.4,
+      "cumPlanned": 40.0,
+      "status": "ongoing",
+      "start": "2026-01-05",
+      "finish": null,
+      "segments": [
+        { "type": "work", "start": "2026-01-05", "end": "2026-01-09" },
+        {
+          "type": "dormant",
+          "start": "2026-01-10",
+          "end": "2026-01-25",
+          "workingDays": 10,
+          "flag": 1,
+          "coincidesWith": [
+            { "date": "2026-01-12", "evidence": "Standing time awaiting design answer", "confidence": "M" },
+            { "date": "2026-01-15", "evidence": "Heavy rain", "confidence": "M" },
+            { "date": "2026-01-20", "evidence": "Late possession handover", "confidence": "M" }
+          ]
+        },
+        { "type": "work", "start": "2026-01-26", "end": "2026-01-30" }
+      ]
+    }
+  ]
+}/*__END_ASBUILT_DATA__*/;
+
+// Constants & small helpers
+const ONE_DAY = 86400000;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SVGNS = 'http://www.w3.org/2000/svg';
+const XHTMLNS = 'http://www.w3.org/1999/xhtml';
+
+function parseISO(s){
+  if(!s || typeof s !== 'string') return null;
+  const parts = s.split('-');
+  if(parts.length !== 3) return null;
+  const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+  if(!isFinite(y) || !isFinite(m) || !isFinite(d)) return null;
+  return Date.UTC(y, m - 1, d);
+}
+function fmtDate(s){
+  const v = parseISO(s);
+  if(v === null) return '—';
+  const d = new Date(v);
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return day + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+function daysBetweenInclusive(startS, endS){
+  const a = parseISO(startS), b = parseISO(endS);
+  if(a === null || b === null) return 0;
+  return Math.max(Math.round((b - a) / ONE_DAY) + 1, 0);
+}
+function confidenceWord(letter){
+  return letter === 'H' ? 'High' : letter === 'M' ? 'Medium' : letter === 'L' ? 'Low' : 'Unknown';
+}
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+function createEl(tag, ns){
+  return ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+}
+function svgEl(tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  if(attrs){
+    for(const k in attrs){
+      if(Object.prototype.hasOwnProperty.call(attrs, k)) e.setAttribute(k, attrs[k]);
+    }
+  }
+  return e;
+}
+function setText(id, text){
+  const node = document.getElementById(id);
+  if(node) node.textContent = text;
+}
+function buildStatusChip(status, ns){
+  const span = createEl('span', ns);
+  span.setAttribute('class', status === 'complete' ? 'chip chip-complete' : 'chip chip-ongoing');
+  if(status === 'complete'){
+    const icon = createEl('span', ns);
+    icon.textContent = '✓';
+    icon.setAttribute('class', 'chip-icon');
+    const label = createEl('span', ns);
+    label.textContent = 'Complete';
+    span.appendChild(icon);
+    span.appendChild(label);
+  } else {
+    span.textContent = 'Ongoing at cut-off';
+  }
+  return span;
+}
+function buildDormantPattern(id){
+  const pattern = svgEl('pattern', { id: id, patternUnits: 'userSpaceOnUse', width: 8, height: 8, patternTransform: 'rotate(45)' });
+  pattern.appendChild(svgEl('rect', { width: 8, height: 8, class: 'hatch-bg' }));
+  pattern.appendChild(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 8, class: 'hatch-line' }));
+  return pattern;
+}
+
+// Stats
+function computeStats(data){
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  let complete = 0, ongoing = 0, dormantTotal = 0, longest = null;
+  activities.forEach(function(act){
+    if(act.status === 'complete') complete++; else ongoing++;
+    (act.segments || []).forEach(function(seg){
+      if(seg.type === 'dormant'){
+        const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+        dormantTotal += wd;
+        if(!longest || wd > longest.workingDays){
+          longest = { activity: act.name, start: seg.start, end: seg.end, workingDays: wd };
+        }
+      }
+    });
+  });
+  return { count: activities.length, complete: complete, ongoing: ongoing, dormantTotal: dormantTotal, longest: longest };
+}
+
+// Header / meta / summary
+function renderHeader(data){
+  document.title = 'As-Built Programme — ' + (data.project || 'Untitled Project');
+  setText('hProject', data.project || 'Untitled Project');
+  setText('hRef', data.ref || '—');
+  setText('hPeriod', fmtDate(data.periodStart) + ' to ' + fmtDate(data.periodEnd));
+  setText('hGenerated', fmtDate(data.generated));
+  setText('hCutoff', fmtDate(data.dataCutoff));
+  setText('hSummary', data.summary || '');
+  const banner = document.getElementById('confBanner');
+  if(data.confidenceNote){
+    banner.textContent = data.confidenceNote;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// KPI strip
+function renderKPIs(data, stats){
+  const wrap = document.getElementById('kpiStrip');
+  wrap.textContent = '';
+  const tiles = [
+    { num: stats.count, label: 'Activities' },
+    { num: stats.complete, label: 'Complete' },
+    { num: stats.ongoing, label: 'Ongoing' },
+    { num: stats.dormantTotal, label: 'Total Dormant Working Days' }
+  ];
+  if(stats.longest){
+    tiles.push({ num: stats.longest.workingDays, label: 'Longest Gap — ' + stats.longest.activity, sub: fmtDate(stats.longest.start) + ' – ' + fmtDate(stats.longest.end) });
+  } else {
+    tiles.push({ num: 0, label: 'Longest Gap', sub: 'None recorded' });
+  }
+  tiles.forEach(function(t){
+    const tile = document.createElement('div');
+    tile.className = 'kpi-tile';
+    tile.appendChild(el('div', 'kpi-num', String(t.num)));
+    tile.appendChild(el('div', 'kpi-label', t.label));
+    if(t.sub) tile.appendChild(el('div', 'kpi-sub', t.sub));
+    wrap.appendChild(tile);
+  });
+}
+
+// The Gantt (SVG, geometry fully computed from DATA)
+function buildSegmentTitleText(act, seg){
+  let s = (seg.type === 'dormant' ? 'Dormant' : 'Work') + ' — ' + (act.name || '') +
+    '\n' + fmtDate(seg.start) + ' to ' + fmtDate(seg.end || seg.start);
+  if(seg.type === 'dormant'){
+    const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    s += '\n' + wd + ' working days dormant';
+    const list = seg.coincidesWith;
+    if(list && list.length){
+      list.forEach(function(item){
+        s += '\n• ' + (item.date ? fmtDate(item.date) + ' — ' : '') + (item.evidence || '') + ' [' + confidenceWord(item.confidence) + ']';
+      });
+    } else {
+      s += '\nNo recorded explanation.';
+    }
+  }
+  return s;
+}
+
+function renderChart(data){
+  const wrap = document.getElementById('chartWrap');
+  wrap.textContent = '';
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  if(activities.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No activities to display for this period.'));
+    return;
+  }
+
+  const rows = activities.map(function(act, idx){ return { act: act, idx: idx }; });
+  rows.sort(function(a, b){
+    const av = parseISO(a.act.start), bv = parseISO(b.act.start);
+    if(av === null) return 1;
+    if(bv === null) return -1;
+    return av - bv;
+  });
+
+  // Period bounds, with a fallback derived from the data itself if the
+  // period fields are missing or unparseable.
+  let startVal = parseISO(data.periodStart);
+  let endVal = parseISO(data.periodEnd);
+  if(startVal === null || endVal === null){
+    const allDates = [];
+    activities.forEach(function(act){
+      if(act.start) allDates.push(parseISO(act.start));
+      if(act.finish) allDates.push(parseISO(act.finish));
+      (act.segments || []).forEach(function(seg){
+        if(seg.start) allDates.push(parseISO(seg.start));
+        if(seg.end) allDates.push(parseISO(seg.end));
+      });
+    });
+    const valid = allDates.filter(function(v){ return v !== null; });
+    if(startVal === null) startVal = valid.length ? Math.min.apply(null, valid) : Date.UTC(2000, 0, 1);
+    if(endVal === null) endVal = valid.length ? Math.max.apply(null, valid) : startVal + ONE_DAY;
+  }
+  const scaleStart = startVal;
+  let scaleEnd = endVal + ONE_DAY; // treat the period end date as inclusive
+  if(scaleEnd <= scaleStart) scaleEnd = scaleStart + ONE_DAY;
+  const totalSpan = scaleEnd - scaleStart;
+
+  const GUTTER = 230, PAD_RIGHT = 20, ROW_H = 44, BAR_H = 20, BAR_INSET = (ROW_H - BAR_H) / 2;
+  const AXIS_H = 46, PAD_BOTTOM = 14, TOTAL_W = 1180;
+  const plotW = Math.max(TOTAL_W - GUTTER - PAD_RIGHT, 100);
+  const totalH = AXIS_H + rows.length * ROW_H + PAD_BOTTOM;
+
+  function xScale(val){
+    let x = GUTTER + ((val - scaleStart) / totalSpan) * plotW;
+    if(x < GUTTER) x = GUTTER;
+    if(x > GUTTER + plotW) x = GUTTER + plotW;
+    return x;
+  }
+
+  const svg = svgEl('svg', { viewBox: '0 0 ' + TOTAL_W + ' ' + totalH, class: 'gantt', role: 'img', 'aria-label': 'As-built programme timeline' });
+
+  const defs = svgEl('defs');
+  defs.appendChild(buildDormantPattern('dormantHatch'));
+  svg.appendChild(defs);
+
+  // Grid lines: weekly hairlines (every 2nd week once the range exceeds
+  // 26 weeks), plus a stronger line + label at each month boundary.
+  const gridGroup = svgEl('g', { class: 'grid-group' });
+  const weeks = totalSpan / ONE_DAY / 7;
+  const monthOnly = weeks > 26;
+  const weekStepMs = (monthOnly ? 2 : 1) * 7 * ONE_DAY;
+  for(let cursor = scaleStart; cursor <= scaleEnd; cursor += weekStepMs){
+    const x = xScale(cursor);
+    gridGroup.appendChild(svgEl('line', { x1: x, y1: AXIS_H, x2: x, y2: totalH - PAD_BOTTOM, class: 'grid-line' }));
+  }
+
+  const axisLabelGroup = svgEl('g', { class: 'axis-label-group' });
+  {
+    let cy = new Date(scaleStart).getUTCFullYear();
+    let cm = new Date(scaleStart).getUTCMonth();
+    let guard = 0;
+    while(guard < 400){
+      guard++;
+      const monthStart = Date.UTC(cy, cm, 1);
+      const monthEnd = Date.UTC(cy, cm + 1, 1);
+      if(monthStart >= scaleEnd) break;
+      const visStart = Math.max(monthStart, scaleStart);
+      const visEnd = Math.min(monthEnd, scaleEnd);
+      if(visEnd > visStart){
+        const midX = xScale((visStart + visEnd) / 2);
+        const labelText = svgEl('text', { x: midX, y: AXIS_H - 10, class: 'month-label', 'text-anchor': 'middle' });
+        labelText.textContent = MONTHS[cm] + ' ' + cy;
+        axisLabelGroup.appendChild(labelText);
+        if(monthStart > scaleStart){
+          const bx = xScale(monthStart);
+          gridGroup.appendChild(svgEl('line', { x1: bx, y1: AXIS_H, x2: bx, y2: totalH - PAD_BOTTOM, class: 'grid-line-strong' }));
+        }
+      }
+      cm++;
+      if(cm > 11){ cm = 0; cy++; }
+    }
+  }
+  gridGroup.appendChild(svgEl('line', { x1: GUTTER, y1: AXIS_H, x2: GUTTER + plotW, y2: AXIS_H, class: 'grid-baseline' }));
+  svg.appendChild(gridGroup);
+  svg.appendChild(axisLabelGroup);
+
+  // Rows: one per activity, ordered by as-built start.
+  const rowsGroup = svgEl('g', { class: 'rows-group' });
+  let fallbackFlag = 0;
+  rows.forEach(function(r, i){
+    const act = r.act, ai = r.idx;
+    const rowY = AXIS_H + i * ROW_H;
+    const rowG = svgEl('g', { class: 'row' });
+    rowG.appendChild(svgEl('rect', { x: 0, y: rowY, width: TOTAL_W, height: ROW_H, class: 'row-band' }));
+
+    const fo = svgEl('foreignObject', { x: 4, y: rowY, width: GUTTER - 14, height: ROW_H });
+    const labelDiv = createEl('div', XHTMLNS);
+    labelDiv.setAttribute('class', 'act-label');
+    labelDiv.setAttribute('title', act.name || '(unnamed activity)');
+    const nameSpan = createEl('span', XHTMLNS);
+    nameSpan.setAttribute('class', 'act-label-name');
+    nameSpan.textContent = act.name || '(unnamed activity)';
+    labelDiv.appendChild(nameSpan);
+    labelDiv.appendChild(buildStatusChip(act.status, XHTMLNS));
+    fo.appendChild(labelDiv);
+    rowG.appendChild(fo);
+
+    (act.segments || []).forEach(function(seg, si){
+      const s = parseISO(seg.start);
+      if(s === null) return;
+      const e = parseISO(seg.end || seg.start);
+      let x1 = xScale(s);
+      let x2 = xScale((e === null ? s : e) + ONE_DAY);
+      if(x2 - x1 < 3) x2 = x1 + 3;
+      let ix1 = x1, ix2 = x2;
+      if(x2 - x1 > 2){ ix1 = x1 + 1; ix2 = x2 - 1; }
+      const rect = svgEl('rect', {
+        x: ix1, y: rowY + BAR_INSET, width: Math.max(ix2 - ix1, 1), height: BAR_H, rx: 4, ry: 4,
+        class: seg.type === 'dormant' ? 'seg seg-dormant' : 'seg seg-work'
+      });
+      rect.dataset.ai = String(ai);
+      rect.dataset.si = String(si);
+      const title = svgEl('title');
+      title.textContent = buildSegmentTitleText(act, seg);
+      rect.appendChild(title);
+      rect.addEventListener('mouseenter', onSegHover);
+      rect.addEventListener('mousemove', onSegMove);
+      rect.addEventListener('mouseleave', onSegLeave);
+      rowG.appendChild(rect);
+
+      if(seg.type === 'dormant'){
+        const flagNum = (typeof seg.flag === 'number') ? seg.flag : (++fallbackFlag);
+        const fx = (ix1 + ix2) / 2, fy = rowY + BAR_INSET - 6;
+        const badge = svgEl('g', { class: 'flag-badge' });
+        badge.appendChild(svgEl('circle', { cx: fx, cy: fy, r: 7 }));
+        const t = svgEl('text', { x: fx, y: fy + 3, 'text-anchor': 'middle' });
+        t.textContent = String(flagNum);
+        badge.appendChild(t);
+        rowG.appendChild(badge);
+      }
+    });
+
+    if(act.status === 'complete' && act.finish){
+      const fv = parseISO(act.finish);
+      if(fv !== null){
+        const mx = xScale(fv + ONE_DAY);
+        const my = rowY + ROW_H / 2;
+        const dot = svgEl('circle', { cx: mx, cy: my, r: 5, class: 'milestone-dot' });
+        const dt = svgEl('title');
+        dt.textContent = 'Completed ' + fmtDate(act.finish);
+        dot.appendChild(dt);
+        rowG.appendChild(dot);
+      }
+    }
+
+    rowsGroup.appendChild(rowG);
+  });
+  svg.appendChild(rowsGroup);
+
+  // Data cut-off line, drawn last so it reads clearly over the bars.
+  const cutoffVal = parseISO(data.dataCutoff);
+  if(cutoffVal !== null && cutoffVal >= scaleStart && cutoffVal <= scaleEnd){
+    const cx = xScale(cutoffVal);
+    const cutGroup = svgEl('g', { class: 'cutoff-group' });
+    cutGroup.appendChild(svgEl('line', { x1: cx, y1: AXIS_H - 8, x2: cx, y2: totalH - 2, class: 'cutoff-line' }));
+    // Label at the BOTTOM of the line (the axis band at the top is occupied by
+    // month/week labels, so a top label collides whenever the cut-off is late in
+    // the range — the common case). Anchor away from the nearest edge so it
+    // never clips: end-anchored to the left of the line in the right quarter.
+    const nearRightEdge = cx > GUTTER + plotW * 0.75;
+    const label = svgEl('text', {
+      x: nearRightEdge ? cx - 5 : cx + 5,
+      y: totalH - 6,
+      class: 'cutoff-label',
+      'text-anchor': nearRightEdge ? 'end' : 'start',
+    });
+    label.textContent = 'Data cut-off — ' + fmtDate(data.dataCutoff);
+    cutGroup.appendChild(label);
+    svg.appendChild(cutGroup);
+  }
+
+  wrap.appendChild(svg);
+}
+
+// Hover tooltip (pure vanilla JS; SVG <title> is the no-JS fallback)
+let tooltipEl = null;
+function initTooltip(){
+  tooltipEl = document.getElementById('tooltip');
+}
+function onSegHover(evt){
+  const rect = evt.currentTarget;
+  const ai = Number(rect.dataset.ai), si = Number(rect.dataset.si);
+  const act = DATA.activities && DATA.activities[ai];
+  const seg = act && act.segments ? act.segments[si] : null;
+  if(!act || !seg || !tooltipEl) return;
+  tooltipEl.textContent = '';
+  tooltipEl.appendChild(el('div', 'tt-title', (seg.type === 'dormant' ? 'Dormant' : 'Work') + ' — ' + (act.name || '')));
+  tooltipEl.appendChild(el('div', 'tt-dates', fmtDate(seg.start) + ' → ' + fmtDate(seg.end || seg.start)));
+  if(seg.type === 'dormant'){
+    const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    tooltipEl.appendChild(el('div', 'tt-wd', wd + ' working days dormant'));
+    const list = seg.coincidesWith;
+    if(list && list.length){
+      const ul = document.createElement('ul');
+      ul.className = 'tt-list';
+      list.forEach(function(item){
+        const li = document.createElement('li');
+        li.textContent = (item.date ? fmtDate(item.date) + ' — ' : '') + (item.evidence || '(no evidence text)') + '  [' + confidenceWord(item.confidence) + ']';
+        ul.appendChild(li);
+      });
+      tooltipEl.appendChild(ul);
+    } else {
+      tooltipEl.appendChild(el('div', 'tt-none', 'No recorded explanation.'));
+    }
+  }
+  tooltipEl.classList.add('visible');
+  positionTooltip(evt);
+}
+function onSegMove(evt){ positionTooltip(evt); }
+function onSegLeave(){ if(tooltipEl) tooltipEl.classList.remove('visible'); }
+function positionTooltip(evt){
+  if(!tooltipEl) return;
+  const pad = 14;
+  let left = evt.clientX + pad;
+  let top = evt.clientY + pad;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const tw = tooltipEl.offsetWidth || 220, th = tooltipEl.offsetHeight || 80;
+  if(left + tw > vw - 8) left = evt.clientX - tw - pad;
+  if(top + th > vh - 8) top = evt.clientY - th - pad;
+  tooltipEl.style.left = left + 'px';
+  tooltipEl.style.top = top + 'px';
+}
+
+// Dormancy Findings table
+function buildConfidencePill(letter){
+  const span = document.createElement('span');
+  const cls = (letter === 'H' || letter === 'M' || letter === 'L') ? letter : 'U';
+  span.className = 'pill pill-' + cls;
+  span.textContent = (letter || '?') + ' · ' + confidenceWord(letter);
+  return span;
+}
+function renderDormancyTable(data){
+  const wrap = document.getElementById('dormancyWrap');
+  wrap.textContent = '';
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  const findings = [];
+  activities.forEach(function(act){
+    (act.segments || []).forEach(function(seg){
+      if(seg.type === 'dormant') findings.push({ act: act, seg: seg });
+    });
+  });
+  if(findings.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No dormant windows were recorded across any activity in this period.'));
+    return;
+  }
+  let fallbackFlag = 0;
+  const table = document.createElement('table');
+  table.className = 'dormancy-table';
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  ['#', 'Activity', 'Window', 'Working Days', 'Coincides With'].forEach(function(h){ htr.appendChild(el('th', null, h)); });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  findings.forEach(function(f){
+    const seg = f.seg, act = f.act;
+    const tr = document.createElement('tr');
+    const flagNum = (typeof seg.flag === 'number') ? seg.flag : (++fallbackFlag);
+    const tdFlag = document.createElement('td');
+    tdFlag.appendChild(el('span', 'flag-chip', String(flagNum)));
+    tr.appendChild(tdFlag);
+    tr.appendChild(el('td', null, act.name || '(unnamed activity)'));
+    tr.appendChild(el('td', null, fmtDate(seg.start) + ' – ' + fmtDate(seg.end || seg.start)));
+    const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    tr.appendChild(el('td', null, String(wd)));
+    const tdCoincide = document.createElement('td');
+    const list = seg.coincidesWith;
+    if(list && list.length){
+      const ul = document.createElement('ul');
+      ul.className = 'coincide-list';
+      list.forEach(function(item){
+        const li = document.createElement('li');
+        li.appendChild(document.createTextNode((item.date ? fmtDate(item.date) + ' — ' : '') + (item.evidence || '(no evidence text)') + ' '));
+        li.appendChild(buildConfidencePill(item.confidence));
+        ul.appendChild(li);
+      });
+      tdCoincide.appendChild(ul);
+    } else {
+      tdCoincide.textContent = 'No recorded explanation.';
+    }
+    tr.appendChild(tdCoincide);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+// As-Built Activity table
+function renderActivityTable(data){
+  const wrap = document.getElementById('activityWrap');
+  wrap.textContent = '';
+  const activities = Array.isArray(data.activities) ? data.activities.slice() : [];
+  if(activities.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No activities recorded for this period.'));
+    return;
+  }
+  activities.sort(function(a, b){
+    const av = parseISO(a.start), bv = parseISO(b.start);
+    if(av === null) return 1;
+    if(bv === null) return -1;
+    return av - bv;
+  });
+  const table = document.createElement('table');
+  table.className = 'activity-table';
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  ['Activity', 'Unit', 'Cum. Actual', 'Cum. Planned', 'Start', 'Finish / Status', 'Active vs Dormant Days'].forEach(function(h){ htr.appendChild(el('th', null, h)); });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  activities.forEach(function(act){
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, act.name || '(unnamed activity)'));
+    tr.appendChild(el('td', null, act.unit || '—'));
+    tr.appendChild(el('td', null, (typeof act.cumActual === 'number') ? String(act.cumActual) : '—'));
+    tr.appendChild(el('td', null, (typeof act.cumPlanned === 'number') ? String(act.cumPlanned) : 'n/a'));
+    tr.appendChild(el('td', null, fmtDate(act.start)));
+    const tdFinish = document.createElement('td');
+    tdFinish.appendChild(buildStatusChip(act.status));
+    if(act.status === 'complete'){
+      tdFinish.appendChild(el('span', 'finish-text', ' ' + fmtDate(act.finish)));
+    }
+    tr.appendChild(tdFinish);
+    let activeDays = 0, dormantDays = 0;
+    (act.segments || []).forEach(function(seg){
+      if(seg.type === 'work') activeDays += daysBetweenInclusive(seg.start, seg.end || seg.start);
+      else if(seg.type === 'dormant') dormantDays += (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    });
+    tr.appendChild(el('td', null, activeDays + ' active / ' + dormantDays + ' dormant'));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+// Legend
+function buildLegendItem(iconNode, label){
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.appendChild(iconNode);
+  item.appendChild(el('span', null, label));
+  return item;
+}
+function buildWorkSwatch(){
+  const svg = svgEl('svg', { width: 28, height: 16, viewBox: '0 0 28 16', class: 'legend-icon' });
+  svg.appendChild(svgEl('rect', { x: 1, y: 1, width: 26, height: 14, rx: 3, class: 'legend-work-swatch' }));
+  return svg;
+}
+function buildDormantSwatch(){
+  const svg = svgEl('svg', { width: 28, height: 16, viewBox: '0 0 28 16', class: 'legend-icon' });
+  const defs = svgEl('defs');
+  defs.appendChild(buildDormantPattern('dormantHatchLegend'));
+  svg.appendChild(defs);
+  svg.appendChild(svgEl('rect', { x: 1, y: 1, width: 26, height: 14, rx: 3, class: 'legend-dormant-swatch' }));
+  return svg;
+}
+function buildMilestoneIcon(){
+  const svg = svgEl('svg', { width: 20, height: 20, viewBox: '0 0 20 20', class: 'legend-icon' });
+  svg.appendChild(svgEl('circle', { cx: 10, cy: 10, r: 5, class: 'milestone-dot' }));
+  return svg;
+}
+function buildCutoffIcon(){
+  const svg = svgEl('svg', { width: 32, height: 20, viewBox: '0 0 32 20', class: 'legend-icon' });
+  svg.appendChild(svgEl('line', { x1: 16, y1: 2, x2: 16, y2: 18, class: 'cutoff-line' }));
+  return svg;
+}
+function buildFlagIcon(){
+  const svg = svgEl('svg', { width: 20, height: 20, viewBox: '0 0 20 20', class: 'legend-icon' });
+  const g = svgEl('g', { class: 'flag-badge' });
+  g.appendChild(svgEl('circle', { cx: 10, cy: 10, r: 7 }));
+  const t = svgEl('text', { x: 10, y: 13, 'text-anchor': 'middle' });
+  t.textContent = '1';
+  g.appendChild(t);
+  svg.appendChild(g);
+  return svg;
+}
+function renderLegend(){
+  const wrap = document.getElementById('legendWrap');
+  wrap.textContent = '';
+  wrap.appendChild(buildLegendItem(buildWorkSwatch(), 'Work (active output recorded)'));
+  wrap.appendChild(buildLegendItem(buildDormantSwatch(), 'Dormant (gap beyond threshold, hatched)'));
+  wrap.appendChild(buildLegendItem(buildMilestoneIcon(), 'Completion milestone'));
+  wrap.appendChild(buildLegendItem(buildCutoffIcon(), 'Data cut-off'));
+  wrap.appendChild(buildLegendItem(buildFlagIcon(), 'Numbered flag = dormancy finding # (see table below)'));
+}
+
+// Footer / caveats
+function renderFooter(data){
+  const wrap = document.getElementById('footerWrap');
+  wrap.textContent = '';
+  const caveats = Array.isArray(data.caveats) ? data.caveats : [];
+  if(caveats.length){
+    wrap.appendChild(el('h2', null, 'Caveats'));
+    const ul = document.createElement('ul');
+    ul.className = 'caveats-list';
+    caveats.forEach(function(c){ ul.appendChild(el('li', null, c)); });
+    wrap.appendChild(ul);
+  }
+  wrap.appendChild(el('p', 'tagline', 'Prepared with AI assistance (Gather plugin) — /gather:asbuilt-programme — timing evidence, not a critical-path programme.'));
+}
+
+// Init
+function renderFatalError(err){
+  const div = document.createElement('div');
+  div.className = 'fatal-error';
+  div.textContent = 'This Gantt template could not render its data: ' + (err && err.message ? err.message : String(err));
+  document.body.insertBefore(div, document.body.firstChild);
+}
+function render(){
+  try{
+    const data = DATA || {};
+    const stats = computeStats(data);
+    renderHeader(data);
+    renderKPIs(data, stats);
+    renderChart(data);
+    renderDormancyTable(data);
+    renderActivityTable(data);
+    renderLegend();
+    renderFooter(data);
+    initTooltip();
+  } catch(err){
+    renderFatalError(err);
+  }
+}
+render();
+</script>
+</body>
+</html>

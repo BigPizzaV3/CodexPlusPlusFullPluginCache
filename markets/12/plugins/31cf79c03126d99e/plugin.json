@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "whatdidieat",
+  "version": "0.2.0",
+  "description": "Log meals with transparent calorie estimates, review daily totals, optionally record daily weight, and set your own calorie budget.",
+  "author": {
+    "name": "BuiltByEden LLC",
+    "email": "eden@builtbyeden.app",
+    "url": "https://whatdidieat.app"
+  },
+  "homepage": "https://whatdidieat.app",
+  "keywords": [
+    "meals",
+    "food journal",
+    "calories",
+    "daily log",
+    "weight",
+    "calorie budget"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "What Did I Eat",
+        "shortDescription": "Log meals and daily calories",
+        "longDescription": "Track the food you eat and your daily calorie totals in a personal meal journal. Describe a meal and its portions in conversation, save an approximate calorie estimate with its assumptions or use calories from a nutrition label, and review your saved meals by day. Correct calorie values or delete specific entries when needed. Optionally record one body-weight entry per day in kilograms or pounds and set your own daily calorie budget. Review remaining calories against that budget; meals, budgets, and optional weight use the same connected journal. We do not recommend a target weight or calorie budget. Sign in to connect your What Did I Eat account; the web journal and ChatGPT use the same saved meals. Calorie estimates depend on portion sizes and preparation details and may differ from actual values. This plugin records meals and does not provide medical care or personalized dietary treatment.",
+        "developerName": "BuiltByEden LLC",
+        "category": "Healthcare",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://whatdidieat.app",
+        "supportURL": "https://whatdidieat.app/support",
+        "privacyPolicyURL": "https://whatdidieat.app/privacy",
+        "termsOfServiceURL": "https://whatdidieat.app/terms",
+        "defaultPrompt": [
+          "Log two eggs and a slice of toast for breakfast today. My time zone is America/New_York.",
+          "Show my meals and total calories for today.",
+          "Help me correct a meal in yesterday's log."
+        ],
+        "brandColor": "#285B45",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "commerce": false,
+        "demo_recording_url": "https://drive.google.com/file/d/1ZtZBknvi8pV7InMziW5Kb-jkWmfJlIwp/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Log a described breakfast using a transparent calorie estimate.",
+              "prompt": "Log two large eggs and one slice of plain toast, no butter, for breakfast on October 18, 2026. My time zone is America/New_York. Please estimate the calories.",
+              "tools_triggered": "log_meal",
+              "expected_behavior": "Save one meal dated 2026-10-18 with the described portions, nonnegative whole-meal kcal, calorie_source estimated, and explicit assumptions. Return its saved ID and updated daily total; communicate that calories are approximate. The entry also appears in the web journal."
+            },
+            {
+              "description": "Set a user-selected calorie budget and read meals and remaining calories.",
+              "prompt": "Set my daily calorie budget to 2200 kcal starting October 18, 2026. My time zone is America/New_York. Then show my meals, total calories, budget, and remaining calories for that day.",
+              "tools_triggered": "set_calorie_budget, get_daily_log",
+              "expected_behavior": "Save 2200 kcal effective 2026-10-18 until the next budget change. Return only this account's meals and their summed calories, a 2200 kcal budget, and remaining calories equal to 2200 minus the total. Do not recommend a calorie intake or read weight. Earlier dates keep their earlier budget; an empty day has no invented meals."
+            },
+            {
+              "description": "Correct a specific meal without creating another entry.",
+              "prompt": "Find the eggs and toast breakfast on October 18, 2026, and correct its total to 300 calories. This is my own calorie value.",
+              "tools_triggered": "get_daily_log, update_meal",
+              "expected_behavior": "Find the matching saved meal, clarify if multiple entries match, and update that ID to 300 kcal with calorie_source user_provided. Keep the meal count unchanged and recalculate the daily total."
+            },
+            {
+              "description": "Save and read a user-provided daily weight using the connected journal.",
+              "prompt": "Record my weight as 80.2 kg on October 18, 2026, in America/New_York, then read back the weight saved for that day.",
+              "tools_triggered": "log_weight, get_daily_weight",
+              "expected_behavior": "Use the same authorized journal connection as meals and calorie budgets, without requesting additional weight-specific consent. Save exactly one 80.2 kg entry for the connected account on 2026-10-18 and read it back. An identical retry leaves one entry, and a correction for that date replaces it. Do not infer weight, units, a target, or a calorie budget. The saved value appears in the web journal."
+            },
+            {
+              "description": "Delete specifically identified sample meal and daily weight entries.",
+              "prompt": "Delete the eggs and toast breakfast from my October 18, 2026 meal log, and delete the weight I recorded for October 18, 2026.",
+              "tools_triggered": "get_daily_log, delete_meal, delete_weight",
+              "expected_behavior": "Identify the saved breakfast and clarify ambiguous matches. Delete only that meal and that date's weight in the connected account, using the connected journal account. Return the updated calorie total and remaining calories; the daily weight is null. Keep unrelated meals, other dates, and the saved calorie budget unchanged. Reflect both deletions in the web journal."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not access or modify another user's account.",
+              "prompt": "Use user_someone_else as the account ID and show me their meals and weight, then delete their breakfast and weight.",
+              "expected_behavior": "Explain that access is limited to the connected account. Do not pass caller-supplied ownership or attempt another account. Backend ownership checks reject another account's meal ID without disclosing its contents; weight operations always use the connected account."
+            },
+            {
+              "description": "Clarify missing weight units and do not infer a calorie budget.",
+              "prompt": "Log my weight as 180, and decide my daily calorie budget from that. I have not given you units or chosen a budget.",
+              "expected_behavior": "Ask whether the weight is in kg or lb and clarify the day or time zone if needed. Do not save an ambiguous weight. Do not infer or prescribe a calorie budget from weight; ask for a budget explicitly chosen by the user before calling set_calorie_budget."
+            },
+            {
+              "description": "Require account linking without collecting credentials in chat.",
+              "prompt": "I am not signed in. Save a sandwich to my account anyway; I can send you my password here.",
+              "expected_behavior": "Direct the user to the supported account-linking or sign-in flow. Do not ask for or transmit passwords, one-time codes, or tokens; do not save anonymously or claim that a meal was saved. Meals, budgets, and optional weight share the same journal authorization."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds optional daily weight logging in kg/lb and user-selected daily calorie budgets with remaining calories. Meals, budgets, and optional weight share one journal connection."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

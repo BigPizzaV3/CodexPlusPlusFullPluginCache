@@ -1,0 +1,712 @@
+<!--
+  CE SUBMISSION — SELF-CONTAINED CONTRACTUAL DOCUMENT TEMPLATE (maintainer note)
+  ================================================================================
+  This file ships inside the Gather plugin. At runtime, the model preparing a
+  compensation event notification or quotation replaces ONLY the data object
+  below and writes the result out as a new .html file for the user — nothing
+  else in this file should need to change between runs.
+
+  REPLACEMENT CONTRACT
+  ---------------------
+  Search the script for the line beginning "const DATA =". The JSON object
+  literal on that line is wrapped by two block-comment marker tokens named
+  (in order) CE_SUBMISSION_DATA and END_CE_SUBMISSION_DATA — an opening one
+  right before the "{" and a closing one right after the matching "}". Each
+  marker token (rendered as a JS block comment, double-underscore-wrapped)
+  appears EXACTLY ONCE in this file, deliberately not spelled out literally
+  here so a naive string-split on the real tokens cannot match this
+  paragraph by mistake. A runtime string-replace (split on the marker
+  strings, not a regex) should locate the opening marker and the closing
+  marker and substitute everything between them with a freshly
+  JSON.stringify-d data object matching the schema below. Do not rename,
+  duplicate, or reformat the markers themselves.
+  This same template serves both a notification (type: "notification") and a
+  quotation (type: "quotation") — only the data differs.
+
+  DATA SCHEMA
+  -----------
+  {
+    type: "notification" | "quotation" | string,   any other caller-defined type is allowed
+    typeLabel: string,                 optional — overrides the header eyebrow/title label
+                                        outright (e.g. "APPLICATION FOR PAYMENT — MEASURE
+                                        SUPPORT"); when absent, falls back to the built-in
+                                        "COMPENSATION EVENT NOTIFICATION" / "... QUOTATION"
+                                        labels for those two types, or the upper-cased type
+    ref: string,                      e.g. "CE-014"
+    projectName: string,
+    contractLine: string,             e.g. "NEC4 ECC Option C (as amended)"
+    date: string,                     already formatted for display, e.g. "07 July 2026"
+    parties: { from: string, to: string },
+    headline: {                       nullable — omit/null to hide the tile strip
+      pricesChange: string,           e.g. "+£42,150.00 (estimate)"
+      completionDateChange: string,   e.g. "+12 working days"
+      keyDateChanges: string | array of strings   e.g. "None affected" or a list
+    } | null,
+    headlineLabels: [string, string, string],   optional — overrides the three tile labels
+                                        above (default: "Changes to the Prices" / "Delay to
+                                        Completion Date" / "Key Date Changes"); e.g. a
+                                        valuation supplies ["This Period", "Cumulative",
+                                        "Net Application"] while reusing the same three
+                                        headline value fields for its own figures
+    sections: [                       rendered in order, auto-numbered 1., 2., 3. ...
+      {
+        heading: string,              e.g. "Event Description"
+        paragraphs: [string, ...],    optional
+        table: { columns: [string,...], rows: [[string,...], ...] },  optional
+        list: [string, ...]           optional
+      }, ...
+    ],
+    evidence: { columns: [string,...], rows: [[string,...], ...] },
+    assumptions: [string, ...],        optional — rendered in an amber-tinted box
+    notes: [string, ...],              optional — rendered as small print
+    signature: {
+      preparedBy: string,              may be "" — renders a blank ruled line
+      reviewedBy: string               may be "" — renders a blank ruled line
+    }
+  }
+
+  Everything on the page — the header band, the headline strip, every
+  numbered section, the evidence schedule, the assumptions box, the notes,
+  and the signature block — is generated from this object by the inline
+  script below. There is no other place in the file that needs editing. All
+  data strings are inserted via textContent (never innerHTML), so narrative
+  text containing HTML-special characters (and-signs, angle brackets in
+  clause references, quotation marks) renders safely.
+
+  MINIMAL EXAMPLE (schema illustration only — this is a comment, not the
+  live default data used for local preview; see "const DATA" below for that)
+  -----------------------------------------------------------------------
+  {
+    "type": "notification",
+    "ref": "CE-014",
+    "projectName": "Riverside Bridge Crossing",
+    "contractLine": "NEC4 ECC Option C (as amended)",
+    "date": "07 July 2026",
+    "parties": { "from": "Riverside JV (Contractor)", "to": "Project Manager, Riverside Bridge Crossing" },
+    "headline": null,
+    "sections": [
+      {
+        "heading": "Event Description",
+        "paragraphs": ["On 22 June 2026 the Contractor was denied access to Zone C..."]
+      },
+      {
+        "heading": "Contractual Basis",
+        "paragraphs": ["This is a compensation event under clause 60.1(2)..."]
+      }
+    ],
+    "evidence": {
+      "columns": ["Date", "Shift Record", "Summary"],
+      "rows": [["22 Jun 2026", "SR-0442", "Access refused at Zone C gate, 07:40"]]
+    },
+    "assumptions": ["Standing time priced at the Contract Data hourly rate."],
+    "notes": ["This submission is based on data recorded in Gather."],
+    "signature": { "preparedBy": "", "reviewedBy": "" }
+  }
+
+  PRINT & SCREEN BEHAVIOUR
+  -------------------------
+  The document (".doc") always renders as a light "paper" page — A4
+  portrait, print-first styling, zero external requests (no fonts, images,
+  or scripts fetched from a URL). Screen viewing wraps it in a centred
+  page-like card (".screen-chrome"); only that surrounding chrome responds
+  to prefers-color-scheme: dark — the paper itself never darkens, matching
+  how a printed document behaves regardless of what device is viewing it.
+  A real per-page running footer (ref + page number repeating on every
+  printed page) requires the CSS Paged Media @page margin-box module,
+  which is not implemented by mainstream browser print engines at the time
+  of writing. The footer below still declares page-counter CSS so it
+  degrades usefully wherever a print engine does support it, but the
+  practical, always-correct footer is the single one rendered at the foot
+  of the document content.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compensation Event Submission</title>
+<style>
+  :root{
+    --accent:#2f6fab;
+    --alert:#d03b3b;
+    --surface:#fcfcfb;
+    --page-ink:#0b0b0b;
+    --ink-2:#52514e;
+    --muted:#898781;
+    --hair:#e1e0d9;
+    --amber-bg:#fdf3d9;
+    --amber-bd:#c9971f;
+    --amber-ink:#5c4300;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    background:#e9e8e3;
+  }
+
+  /* ============ SCREEN CHROME (dark-mode aware; the .doc paper is NOT) ============ */
+  .screen-chrome{
+    min-height:100vh;
+    padding:36px 16px 60px;
+    display:flex;
+    justify-content:center;
+  }
+  @media (prefers-color-scheme: dark){
+    body{background:#17181b;}
+    .screen-chrome{background:#17181b;}
+    .doc{box-shadow:0 8px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);}
+  }
+
+  /* ============ THE DOCUMENT (fixed light "paper" — always) ============ */
+  .doc{
+    width:100%;
+    max-width:860px;
+    background:var(--surface);
+    color:var(--page-ink);
+    font-size:13.5px;
+    line-height:1.5;
+    padding:44px 52px 40px;
+    box-shadow:0 2px 18px rgba(0,0,0,.10);
+    border:1px solid var(--hair);
+  }
+
+  /* ---- header band ---- */
+  .doc-header{border-bottom:2px solid var(--accent);padding-bottom:18px;margin-bottom:26px;}
+  .doc-eyebrow{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;padding:3px 9px;border-radius:3px;color:#fff;
+    background:var(--accent);margin-bottom:10px;
+  }
+  .doc-eyebrow.type-notification{background:var(--alert);}
+  .doc-eyebrow.type-quotation{background:var(--accent);}
+  .doc-title{font-size:22px;font-weight:700;margin:0 0 12px;color:var(--page-ink);}
+  .doc-meta{display:flex;flex-wrap:wrap;gap:6px 26px;font-size:12.5px;color:var(--ink-2);margin-bottom:12px;}
+  .doc-meta b{color:var(--page-ink);font-weight:600;}
+  .doc-parties{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:12.5px;}
+  .doc-parties .party-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-bottom:2px;}
+  .doc-parties .party-value{color:var(--page-ink);}
+
+  /* ---- headline strip (quotations) ---- */
+  .headline-strip{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 26px;
+    break-inside:avoid;
+  }
+  .headline-tile{
+    background:#f2f5f8;border:1px solid var(--hair);border-radius:6px;padding:12px 14px;
+  }
+  .headline-tile .h-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px;}
+  .headline-tile .h-value{font-size:16px;font-weight:700;color:var(--accent);word-break:break-word;}
+  .headline-tile .h-value ul{margin:2px 0 0;padding-left:16px;font-size:12.5px;font-weight:400;color:var(--page-ink);}
+  .headline-tile .h-value ul li{margin-bottom:2px;}
+
+  /* ---- numbered sections ---- */
+  .ce-section{margin:0 0 22px;break-inside:avoid;}
+  .ce-section h2{
+    font-size:14px;font-weight:700;margin:0 0 8px;color:var(--page-ink);
+    border-bottom:1px solid var(--hair);padding-bottom:5px;
+  }
+  .ce-section h2 .sec-num{color:var(--accent);margin-right:6px;}
+  .ce-section p{margin:0 0 9px;}
+  .ce-section p:last-child{margin-bottom:0;}
+  .ce-list{margin:8px 0 9px;padding-left:20px;}
+  .ce-list li{margin-bottom:4px;}
+  .empty-note{color:var(--ink-2);font-style:italic;}
+
+  /* ---- tables (section tables + evidence schedule) ---- */
+  table.ce-table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 9px;background:var(--surface);}
+  table.ce-table th,table.ce-table td{
+    padding:6px 9px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top;
+  }
+  table.ce-table thead th{
+    border-top:2px solid var(--accent);border-bottom:1px solid var(--hair-strong,#cfcdc4);
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-2);font-weight:700;
+    background:#f5f6f4;
+  }
+  table.ce-table tbody tr{break-inside:avoid;}
+  table.ce-table tbody tr:nth-child(even){background:#f9f9f7;}
+
+  /* ---- evidence section ---- */
+  .evidence-section{margin:26px 0 22px;break-inside:avoid;}
+  .evidence-section h2{
+    font-size:14px;font-weight:700;margin:0 0 8px;color:var(--page-ink);
+    border-bottom:1px solid var(--hair);padding-bottom:5px;
+  }
+
+  /* ---- assumptions box ---- */
+  .assumptions-box{
+    background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber-ink);
+    border-radius:6px;padding:12px 16px;margin:0 0 20px;font-size:12.5px;break-inside:avoid;
+  }
+  .assumptions-box h3{margin:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+  .assumptions-box ul{margin:0;padding-left:18px;}
+  .assumptions-box li{margin-bottom:4px;}
+  .assumptions-box li:last-child{margin-bottom:0;}
+
+  /* ---- notes / small print ---- */
+  .notes-block{font-size:11px;color:var(--ink-2);margin:0 0 26px;}
+  .notes-block h3{margin:0 0 5px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;}
+  .notes-block ul{margin:0;padding-left:16px;}
+  .notes-block li{margin-bottom:3px;}
+
+  /* ---- signature block ---- */
+  .signature-block{
+    display:grid;grid-template-columns:1fr 1fr;gap:0 40px;margin:30px 0 10px;break-inside:avoid;
+  }
+  .sig-col{padding-top:30px;border-top:1px solid var(--page-ink);}
+  .sig-name{font-size:13px;font-weight:600;min-height:16px;}
+  .sig-role{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .sig-date-line{margin-top:22px;border-top:1px solid var(--hair);padding-top:4px;font-size:10.5px;color:var(--muted);}
+
+  /* ---- footer ---- */
+  .doc-footer{
+    margin-top:26px;padding-top:10px;border-top:1px solid var(--hair);
+    display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);
+  }
+  .doc-footer .foot-tagline{font-style:italic;color:var(--muted);}
+
+  .fatal-error{background:#fdecec;color:#8a1f1f;padding:12px 16px;border:1px solid #f0b8b8;margin:16px;border-radius:6px;font-size:13px;}
+
+  /* ============ PRINT ============ */
+  @media print{
+    @page{
+      size:A4 portrait;
+      margin:16mm 14mm 20mm;
+      /* Progressive enhancement: repeating per-page footer content via the
+         CSS Paged Media margin-box module. No mainstream browser print
+         engine implements this yet, so it is inert almost everywhere, but
+         it is valid CSS and costs nothing when unsupported. */
+      @bottom-right{ content: counter(page) " of " counter(pages); }
+    }
+    html,body{background:#fff;}
+    .screen-chrome{padding:0;background:#fff;display:block;}
+    .doc{
+      max-width:none;width:auto;margin:0;padding:0;
+      box-shadow:none;border:none;
+    }
+    .ce-section,table.ce-table,.headline-strip,.assumptions-box,.notes-block,.signature-block,.evidence-section{
+      page-break-inside:avoid;break-inside:avoid;
+    }
+    table.ce-table tr{page-break-inside:avoid;break-inside:avoid;}
+    thead{display:table-header-group;}
+  }
+</style>
+</head>
+<body>
+<div class="screen-chrome">
+  <article class="doc" id="doc">
+
+    <header class="doc-header">
+      <span id="docEyebrow" class="doc-eyebrow"></span>
+      <h1 id="docTitle" class="doc-title"></h1>
+      <div class="doc-meta">
+        <span>Ref: <b id="metaRef"></b></span>
+        <span>Date: <b id="metaDate"></b></span>
+        <span>Contract: <b id="metaContract"></b></span>
+      </div>
+      <div class="doc-parties">
+        <div>
+          <div class="party-label">From</div>
+          <div class="party-value" id="partyFrom"></div>
+        </div>
+        <div>
+          <div class="party-label">To</div>
+          <div class="party-value" id="partyTo"></div>
+        </div>
+      </div>
+    </header>
+
+    <section id="headlineStrip" class="headline-strip" aria-label="Quotation headline" style="display:none;"></section>
+
+    <main id="sectionsWrap" aria-label="Submission sections"></main>
+
+    <section class="evidence-section" aria-label="Evidence schedule">
+      <h2>Evidence Schedule</h2>
+      <div id="evidenceWrap"></div>
+    </section>
+
+    <section id="assumptionsWrap" aria-label="Assumptions"></section>
+
+    <section id="notesWrap" aria-label="Notes"></section>
+
+    <section id="signatureWrap" class="signature-block" aria-label="Signature block"></section>
+
+    <footer id="docFooter" class="doc-footer"></footer>
+
+  </article>
+</div>
+
+<script>
+'use strict';
+/*
+ * Everything below is pure vanilla JS. It reads the DATA object once and
+ * builds the entire document — header band, headline strip, numbered
+ * sections, evidence schedule, assumptions box, notes, and signature block
+ * — from it. No DOM node in the markup above carries any demo content of
+ * its own; swap DATA and the whole document follows. All text is inserted
+ * via textContent, never innerHTML, so nothing in the data can inject
+ * markup.
+ */
+
+// DATA — replaced wholesale at runtime between the two marker comments.
+const DATA = /*__CE_SUBMISSION_DATA__*/{
+  "type": "quotation",
+  "ref": "CE-014",
+  "projectName": "Riverside Bridge Crossing",
+  "contractLine": "NEC4 ECC Option C (as amended)",
+  "date": "07 July 2026",
+  "parties": {
+    "from": "Riverside JV (Contractor)",
+    "to": "Project Manager, Riverside Bridge Crossing"
+  },
+  "headline": {
+    "pricesChange": "+£58,420.00 (estimate)",
+    "completionDateChange": "+9 working days",
+    "keyDateChanges": "None affected"
+  },
+  "sections": [
+    {
+      "heading": "Event Description",
+      "paragraphs": [
+        "On 22 June 2026 the Contractor was denied access to Zone C (Pier 4 working area) at the scheduled 07:00 possession time. Access was not granted until 03 July 2026, a denial of 9 working days against the possession dates stated in the Accepted Programme."
+      ]
+    },
+    {
+      "heading": "Contractual Basis",
+      "paragraphs": [
+        "This is a compensation event under clause 60.1(2) — the Project Manager or Supervisor did not give access to a part of the Site as stated in the Accepted Programme.",
+        "This quotation is submitted under clause 62.1 in response to the Project Manager's instruction to quote dated 24 June 2026."
+      ]
+    },
+    {
+      "heading": "Programme Impact",
+      "paragraphs": [
+        "The Accepted Programme shows Pier 4 substructure work starting on the first day of the possession period; the 9 working-day access denial pushed this start back by the same duration on the critical path, carrying through to Sectional Completion 2."
+      ],
+      "table": {
+        "columns": ["Activity", "Planned Start", "Actual Start", "Delay (Working Days)"],
+        "rows": [
+          ["Pier 4 Substructure", "22 Jun 2026", "03 Jul 2026", "9"],
+          ["Sectional Completion 2", "14 Sep 2026", "23 Sep 2026 (forecast)", "9"]
+        ]
+      }
+    },
+    {
+      "heading": "Assessment — Actual Before / Forecast After the Dividing Date",
+      "paragraphs": [
+        "Per clause 63.1, Defined Cost is assessed as actual cost for work already carried out by the dividing date (24 June 2026, the date this event was notified) and forecast Defined Cost for work not yet carried out at that date."
+      ],
+      "table": {
+        "columns": ["Cost Head", "Actual (to dividing date)", "Forecast (after dividing date)", "Total"],
+        "rows": [
+          ["Standing labour — piling gang", "£14,760.00", "£—", "£14,760.00"],
+          ["Standing plant — piling rig hire", "£9,300.00", "£—", "£9,300.00"],
+          ["Site establishment (prolongation, 9 days)", "£—", "£11,340.00", "£11,340.00"],
+          ["Remobilisation costs", "£—", "£4,200.00", "£4,200.00"],
+          ["Fee (14% per Contract Data)", "£3,368.40", "£2,175.60", "£5,544.00"],
+          ["Time risk allowance", "£—", "£13,276.00", "£13,276.00"]
+        ]
+      },
+      "list": [
+        "Total actual Defined Cost to the dividing date: £27,428.40",
+        "Total forecast Defined Cost after the dividing date: £30,991.60",
+        "Combined total (Defined Cost plus Fee): £58,420.00"
+      ]
+    }
+  ],
+  "evidence": {
+    "columns": ["Date", "Shift Record", "Summary"],
+    "rows": [
+      ["22 Jun 2026", "SR-0442", "Access refused at Zone C gate, 07:40 — piling gang stood down"],
+      ["25 Jun 2026", "SR-0447", "Standing time confirmed, piling rig idle on hire"],
+      ["03 Jul 2026", "SR-0461", "Access granted, Pier 4 substructure work commenced"]
+    ]
+  },
+  "assumptions": [
+    "Standing labour and plant priced at the rates stated in the Contract Data Part 2.",
+    "Remobilisation costs are a single fixed allowance per the piling subcontractor's quotation dated 27 June 2026, not a rate build-up."
+  ],
+  "notes": [
+    "This quotation is based on data recorded in Gather. It should be reviewed by the commercial manager before formal submission.",
+    "Clause references follow NEC4 ECC Option C standard numbering — check the Z clauses for amendments specific to this contract."
+  ],
+  "signature": {
+    "preparedBy": "",
+    "reviewedBy": ""
+  }
+}/*__END_CE_SUBMISSION_DATA__*/;
+
+// ---------------------------------------------------------------------
+// Small DOM helpers (shared style with the other Gather HTML templates)
+// ---------------------------------------------------------------------
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+function setText(id, text){
+  const node = document.getElementById(id);
+  if(node) node.textContent = (text === undefined || text === null || text === '') ? '' : String(text);
+}
+function isNonEmptyArray(v){
+  return Array.isArray(v) && v.length > 0;
+}
+function asStringList(v){
+  // Normalises a value that may be a single string or an array of strings
+  // into an array of strings, dropping anything falsy.
+  if(v === null || v === undefined) return [];
+  if(Array.isArray(v)) return v.filter(function(x){ return x !== null && x !== undefined && x !== ''; }).map(String);
+  return [String(v)];
+}
+
+// ---------------------------------------------------------------------
+// Header band
+// ---------------------------------------------------------------------
+function docTypeLabel(data){
+  if(data && typeof data.typeLabel === 'string' && data.typeLabel.trim() !== ''){
+    return data.typeLabel;
+  }
+  const type = data && data.type;
+  if(type === 'notification') return 'COMPENSATION EVENT NOTIFICATION';
+  if(type === 'quotation') return 'COMPENSATION EVENT QUOTATION';
+  return (type ? String(type) : 'SUBMISSION').toUpperCase();
+}
+function renderHeader(data){
+  const label = docTypeLabel(data);
+  document.title = label + (data.projectName ? ' — ' + data.projectName : '');
+  const eyebrow = document.getElementById('docEyebrow');
+  eyebrow.textContent = label;
+  eyebrow.className = 'doc-eyebrow ' + (data.type === 'notification' ? 'type-notification' : 'type-quotation');
+  setText('docTitle', data.projectName || 'Untitled Project');
+  setText('metaRef', data.ref || '—');
+  setText('metaDate', data.date || '—');
+  setText('metaContract', data.contractLine || '—');
+  const parties = data.parties || {};
+  setText('partyFrom', parties.from || '—');
+  setText('partyTo', parties.to || '—');
+}
+
+// ---------------------------------------------------------------------
+// Headline summary strip (quotations only, nullable)
+// ---------------------------------------------------------------------
+function buildHeadlineValue(value){
+  const wrap = document.createElement('div');
+  wrap.className = 'h-value';
+  const list = asStringList(value);
+  if(list.length === 0){
+    wrap.appendChild(document.createTextNode('—'));
+  } else if(list.length === 1){
+    wrap.appendChild(document.createTextNode(list[0]));
+  } else {
+    const ul = document.createElement('ul');
+    list.forEach(function(item){ ul.appendChild(el('li', null, item)); });
+    wrap.appendChild(ul);
+  }
+  return wrap;
+}
+function buildHeadlineTile(label, value){
+  const tile = document.createElement('div');
+  tile.className = 'headline-tile';
+  tile.appendChild(el('div', 'h-label', label));
+  tile.appendChild(buildHeadlineValue(value));
+  return tile;
+}
+function renderHeadline(data){
+  const wrap = document.getElementById('headlineStrip');
+  wrap.textContent = '';
+  const headline = data.headline;
+  if(!headline){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  const defaultLabels = ['Changes to the Prices', 'Delay to Completion Date', 'Key Date Changes'];
+  const labels = (Array.isArray(data.headlineLabels) && data.headlineLabels.length === 3)
+    ? data.headlineLabels
+    : defaultLabels;
+  wrap.appendChild(buildHeadlineTile(labels[0], headline.pricesChange));
+  wrap.appendChild(buildHeadlineTile(labels[1], headline.completionDateChange));
+  wrap.appendChild(buildHeadlineTile(labels[2], headline.keyDateChanges));
+}
+
+// ---------------------------------------------------------------------
+// Generic table builder — used for both section tables and the evidence
+// schedule, so column/row rendering only needs to be written once.
+// ---------------------------------------------------------------------
+function buildTable(spec){
+  const columns = (spec && Array.isArray(spec.columns)) ? spec.columns : [];
+  const rows = (spec && Array.isArray(spec.rows)) ? spec.rows : [];
+  const table = document.createElement('table');
+  table.className = 'ce-table';
+  if(columns.length){
+    const thead = document.createElement('thead');
+    const htr = document.createElement('tr');
+    columns.forEach(function(c){ htr.appendChild(el('th', null, c)); });
+    thead.appendChild(htr);
+    table.appendChild(thead);
+  }
+  const tbody = document.createElement('tbody');
+  rows.forEach(function(row){
+    const tr = document.createElement('tr');
+    const cells = Array.isArray(row) ? row : [row];
+    cells.forEach(function(cell){
+      tr.appendChild(el('td', null, (cell === null || cell === undefined) ? '' : String(cell)));
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  return table;
+}
+
+// ---------------------------------------------------------------------
+// Numbered sections
+// ---------------------------------------------------------------------
+function renderSections(data){
+  const wrap = document.getElementById('sectionsWrap');
+  wrap.textContent = '';
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  if(sections.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No sections were provided for this submission.'));
+    return;
+  }
+  sections.forEach(function(sec, idx){
+    const secEl = document.createElement('section');
+    secEl.className = 'ce-section';
+
+    const h2 = document.createElement('h2');
+    const num = el('span', 'sec-num', (idx + 1) + '.');
+    h2.appendChild(num);
+    h2.appendChild(document.createTextNode(sec.heading || '(untitled section)'));
+    secEl.appendChild(h2);
+
+    const paragraphs = Array.isArray(sec.paragraphs) ? sec.paragraphs : [];
+    paragraphs.forEach(function(p){
+      secEl.appendChild(el('p', null, p));
+    });
+
+    if(sec.table && Array.isArray(sec.table.columns) || (sec.table && Array.isArray(sec.table.rows))){
+      secEl.appendChild(buildTable(sec.table));
+    }
+
+    if(isNonEmptyArray(sec.list)){
+      const ul = document.createElement('ul');
+      ul.className = 'ce-list';
+      sec.list.forEach(function(item){ ul.appendChild(el('li', null, item)); });
+      secEl.appendChild(ul);
+    }
+
+    if(paragraphs.length === 0 && !sec.table && !isNonEmptyArray(sec.list)){
+      secEl.appendChild(el('p', 'empty-note', 'No content was provided for this section.'));
+    }
+
+    wrap.appendChild(secEl);
+  });
+}
+
+// ---------------------------------------------------------------------
+// Evidence schedule
+// ---------------------------------------------------------------------
+function renderEvidence(data){
+  const wrap = document.getElementById('evidenceWrap');
+  wrap.textContent = '';
+  const evidence = data.evidence || {};
+  const rows = Array.isArray(evidence.rows) ? evidence.rows : [];
+  if(rows.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No evidence records were provided for this submission.'));
+    return;
+  }
+  wrap.appendChild(buildTable(evidence));
+}
+
+// ---------------------------------------------------------------------
+// Assumptions (amber box, optional)
+// ---------------------------------------------------------------------
+function renderAssumptions(data){
+  const wrap = document.getElementById('assumptionsWrap');
+  wrap.textContent = '';
+  if(!isNonEmptyArray(data.assumptions)) return;
+  const box = document.createElement('div');
+  box.className = 'assumptions-box';
+  box.appendChild(el('h3', null, 'Assumptions'));
+  const ul = document.createElement('ul');
+  data.assumptions.forEach(function(a){ ul.appendChild(el('li', null, a)); });
+  box.appendChild(ul);
+  wrap.appendChild(box);
+}
+
+// ---------------------------------------------------------------------
+// Notes / caveats (small print, optional)
+// ---------------------------------------------------------------------
+function renderNotes(data){
+  const wrap = document.getElementById('notesWrap');
+  wrap.textContent = '';
+  if(!isNonEmptyArray(data.notes)) return;
+  const box = document.createElement('div');
+  box.className = 'notes-block';
+  box.appendChild(el('h3', null, 'Notes'));
+  const ul = document.createElement('ul');
+  data.notes.forEach(function(n){ ul.appendChild(el('li', null, n)); });
+  box.appendChild(ul);
+  wrap.appendChild(box);
+}
+
+// ---------------------------------------------------------------------
+// Signature block — always rendered; blank values render blank ruled lines
+// ---------------------------------------------------------------------
+function buildSigCol(name, role){
+  const col = document.createElement('div');
+  col.className = 'sig-col';
+  col.appendChild(el('div', 'sig-name', name || ' '));
+  col.appendChild(el('div', 'sig-role', role));
+  col.appendChild(el('div', 'sig-date-line', 'Date'));
+  return col;
+}
+function renderSignature(data){
+  const wrap = document.getElementById('signatureWrap');
+  wrap.textContent = '';
+  const sig = data.signature || {};
+  wrap.appendChild(buildSigCol(sig.preparedBy, 'Prepared By'));
+  wrap.appendChild(buildSigCol(sig.reviewedBy, 'Reviewed By'));
+}
+
+// ---------------------------------------------------------------------
+// Footer
+// ---------------------------------------------------------------------
+function renderFooter(data){
+  const wrap = document.getElementById('docFooter');
+  wrap.textContent = '';
+  const left = el('span', null, (data.ref || '—') + ' · ' + (data.projectName || 'Untitled Project'));
+  const right = el('span', 'foot-tagline', 'Prepared with AI assistance (Gather plugin) — not legal advice — review before formal submission');
+  wrap.appendChild(left);
+  wrap.appendChild(right);
+}
+
+// ---------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------
+function renderFatalError(err){
+  const div = document.createElement('div');
+  div.className = 'fatal-error';
+  div.textContent = 'This CE submission template could not render its data: ' + (err && err.message ? err.message : String(err));
+  document.body.insertBefore(div, document.body.firstChild);
+}
+function render(){
+  try{
+    const data = DATA || {};
+    renderHeader(data);
+    renderHeadline(data);
+    renderSections(data);
+    renderEvidence(data);
+    renderAssumptions(data);
+    renderNotes(data);
+    renderSignature(data);
+    renderFooter(data);
+  } catch(err){
+    renderFatalError(err);
+  }
+}
+render();
+</script>
+</body>
+</html>

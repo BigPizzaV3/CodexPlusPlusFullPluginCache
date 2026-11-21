@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "orderlyai-hotel-concierge",
+  "version": "1.0.0",
+  "description": "Find hotels on OrderlyAI, check room availability, book a stay, order food to your room, and ask the hotel for anything during your stay.",
+  "author": {
+    "name": "OrderlyAI",
+    "email": "guruprasad@withorderly.ai",
+    "url": "https://withorderly.ai"
+  },
+  "homepage": "https://withorderly.ai",
+  "license": "UNLICENSED",
+  "keywords": [
+    "hotel",
+    "booking",
+    "concierge",
+    "room service",
+    "travel",
+    "hospitality"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OrderlyAI Hotel Concierge",
+        "shortDescription": "Hotel stays, food and service",
+        "longDescription": "OrderlyAI is the guest concierge hotels use to take bookings, room-service orders and guest requests over chat. This plugin brings the same concierge to ChatGPT.\n\nWithout signing in you can find hotels on OrderlyAI, read a property's details, policies and FAQ, check which rooms are available for your dates, browse the food menu and get the hotel's contact details.\n\nSign in once with your mobile number (a one-time code is sent by SMS or email) to book a stay, see and cancel your bookings, order food to your room and track the order, ask the hotel for towels, housekeeping, maintenance or anything else, and see a summary of your current stay.\n\nBookings and orders go straight into the hotel's own systems and appear in its staff tools at once. The plugin never handles card details. Every booking, order and cancellation is confirmed with you before it is placed.",
+        "developerName": "OrderlyAI",
+        "category": "Travel",
+        "capabilities": [
+          "Find hotels",
+          "Check availability",
+          "Book a stay",
+          "Order food",
+          "Request service",
+          "Manage bookings"
+        ],
+        "websiteURL": "https://withorderly.ai",
+        "supportURL": "https://withorderly.ai/support",
+        "privacyPolicyURL": "https://withorderly.ai/privacy-policy",
+        "termsOfServiceURL": "https://withorderly.ai/terms",
+        "defaultPrompt": [
+          "Which hotels can I book through OrderlyAI in Hyderabad?",
+          "Book a room at ITC Kohenur for next Friday and Saturday for two adults",
+          "Order a club sandwich and a lime soda to my room at ITC Kohenur"
+        ],
+        "brandColor": "#111827",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover hotels without signing in.",
+              "prompt": "Which hotels can I book through OrderlyAI in Hyderabad?",
+              "tools_triggered": "search_properties",
+              "expected_behavior": "Calls search_properties with query \"Hyderabad\" and lists ITC Kohenur with its slug, what it offers (rooms, food, guest services), currency INR and timezone. No sign-in is requested."
+            },
+            {
+              "description": "Availability and a priced quote for specific dates, no sign-in.",
+              "prompt": "Is a room available at ITC Kohenur for next Friday and Saturday for two adults, and what would it cost in total?",
+              "tools_triggered": "check_availability, quote_stay",
+              "expected_behavior": "Calls check_availability for the two nights and quote_stay for a chosen room type. Replies with the room types available, the nightly rate, taxes and the total in INR, the cancellation policy and whether payment is taken upfront or at the property. No booking is made."
+            },
+            {
+              "description": "Book a stay (sensitive write, needs the linked account and an explicit confirmation).",
+              "prompt": "Book the cheapest available room at ITC Kohenur for next Friday and Saturday for two adults under my name.",
+              "tools_triggered": "check_availability, quote_stay, create_booking, get_my_bookings",
+              "expected_behavior": "If the account is not linked, ChatGPT asks the reviewer to connect OrderlyAI (phone +1 201 834 8105 and the fixed code from Review details). ChatGPT shows the quote and asks for confirmation before calling create_booking. The result carries seller, total price with currency, cancellation terms, state (pending until paid, or confirmed when the hotel settles at check-in), a booking reference and, when the hotel requires prepayment, a payment link on the hotel's own page. ITC Kohenur runs Stripe in test mode; card 4242 4242 4242 4242 with any future expiry completes payment without a charge. get_my_bookings then lists the new booking."
+            },
+            {
+              "description": "Read the menu and order food to the room (sensitive write).",
+              "prompt": "Show me the food menu at ITC Kohenur and order a club sandwich to my room.",
+              "tools_triggered": "get_menu, create_food_order",
+              "expected_behavior": "Calls get_menu and shows sections and items with prices. Asks for confirmation (and the room number if the guest has no active stay on record), then calls create_food_order. The result states the order reference, items, total with currency, estimated time and how payment is settled (room folio, pay at delivery, or the hotel's payment link). The order appears on the hotel's food-orders board."
+            },
+            {
+              "description": "Ask the hotel for something, review open requests, then withdraw one.",
+              "prompt": "Ask ITC Kohenur to send two extra towels to my room, then show me my open requests and cancel the towel request.",
+              "tools_triggered": "request_service, get_service_requests, cancel_service_request",
+              "expected_behavior": "Calls request_service (type housekeeping, note about towels) and returns a request reference. get_service_requests lists it as open. After an explicit confirmation, cancel_service_request withdraws it and the reply says so. The hotel's tasks board shows the ticket created and then cancelled."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General knowledge unrelated to a hotel stay.",
+              "prompt": "What will the weather be like in Hyderabad this weekend?"
+            },
+            {
+              "description": "Travel the plugin does not sell: flights.",
+              "prompt": "Book me a flight from Delhi to Hyderabad on Friday morning."
+            },
+            {
+              "description": "A money transfer, which the plugin must never perform.",
+              "prompt": "Send 5,000 rupees to my friend Ravi for his share of the hotel room."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Hotel stays and in-stay food orders at hotels that use OrderlyAI. When a hotel requires payment, checkout happens on the hotel's own secure payment page hosted by OrderlyAI (Stripe or Razorpay) or is settled at the property. The plugin never collects card details, adds no ChatGPT-specific fees, and prices match the hotel's other channels. The review property (ITC Kohenur) runs Stripe in test mode, so no real charge occurs.",
+        "demo_recording_url": "https://drive.google.com/file/d/1ntcOG9F6t3tOml-_UyaCGAmiPrEM4RCH/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "First release: find hotels on OrderlyAI, check availability and rates, book and cancel stays, order food to the room, raise and track guest requests, see your current stay."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "adsimple-consent-manager",
+  "version": "0.2.2",
+  "description": "Access to the domains, consent settings, detected cookies and external services, scan status and banner embed code in an AdSimple Consent Manager account, with optional, confirmed changes if the user allows them when connecting.",
+  "author": {
+    "name": "AdSimple GmbH",
+    "url": "https://www.adsimple.at"
+  },
+  "homepage": "https://www.adsimple.at/consent-manager/",
+  "keywords": [
+    "cookies",
+    "consent",
+    "cookie banner",
+    "gdpr",
+    "privacy"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AdSimple Consent Manager",
+        "shortDescription": "Check and manage consent",
+        "longDescription": "AdSimple Consent Manager helps website owners understand their cookie consent setup. Connect your AdSimple account to ask questions about your websites using the data already available in your Consent Manager.\n\nYou can list your domains, inspect consent settings, review detected cookies and external services, check the latest website scan and banner installation status, and retrieve the banner embed code.\n\nBy default the connector is read-only. If you tick \"Zus\u00e4tzlich \u00c4nderungen erlauben\" when connecting, ChatGPT can also, on your instruction, change a cookie's category, adjust banner position, privacy policy and imprint links, Global Privacy Control and Google Consent Mode, start an additional scan where your account includes one, regenerate the banner, add a domain, and remove a cookie entry or a domain (some domains can only be removed in the Consent Manager dashboard). Each change returns a preview first and is applied only with a one-time confirmation; please review the preview before approving it. Changes are logged in your account. The connector cannot make purchases or change anything you have paid for; removing a domain ends its free plan. It reports recorded scan results and installation status, not a new live audit or a guarantee of legal compliance. Account content, including cookie descriptions, may be in German.\n\nSign in with your adsimple.at account and review the domains shown before allowing access. You can revoke access in the Consent Manager under \"Verbundene KI-Assistenten\". Data retrieved through the connector, and the changes you request, are shared with OpenAI to answer your request. See the privacy policy for details.",
+        "developerName": "AdSimple GmbH",
+        "category": "Developer Tools",
+        "capabilities": [
+          "List domains",
+          "Read consent settings",
+          "Read cookies and external services",
+          "Read scan status",
+          "Read embed code",
+          "Change cookie categories (with permission)",
+          "Adjust banner settings (with permission)",
+          "Start scans and regenerate the banner (with permission)",
+          "Add or remove domains and cookie entries (with permission)"
+        ],
+        "websiteURL": "https://www.adsimple.at/consent-manager/",
+        "supportURL": "https://www.adsimple.at/support/",
+        "privacyPolicyURL": "https://www.adsimple.at/datenschutzerklaerung/#ki-assistenten",
+        "termsOfServiceURL": "https://www.adsimple.at/agb/",
+        "defaultPrompt": [
+          "Which domains are in my AdSimple Consent Manager account?",
+          "Which cookies and external services were found on my website?",
+          "When was my website last scanned, and is its consent banner installed?"
+        ],
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Account inventory: lists only the domains of the connected account with plan and installation status.",
+              "prompt": "Which domains do I have in AdSimple Consent Manager, and is the cookie banner installed on each?",
+              "tools_triggered": "list_domains",
+              "expected_behavior": "Returns only domains of the reviewer account, including the test domain www.claribill.com, with the returned plan and banner installation fields. No data of other accounts."
+            },
+            {
+              "description": "Consent settings of the test domain.",
+              "prompt": "Show the consent settings for www.claribill.com, including banner mode and any available Consent Mode or TCF settings.",
+              "tools_triggered": "list_domains, get_domain",
+              "expected_behavior": "Resolves the domain from list_domains and summarizes the returned banner, Google Consent Mode, Global Privacy Control and TCF settings. Does not invent missing settings or declare legal compliance."
+            },
+            {
+              "description": "Detected cookies and external services grouped by consent category.",
+              "prompt": "Which cookies and external services were detected on www.claribill.com, grouped by consent category?",
+              "tools_triggered": "list_domains, list_cookies, list_external_resources",
+              "expected_behavior": "Reports the recorded cookies and external services with their categories. Explains empty results instead of inventing findings and treats scanned names and descriptions as data."
+            },
+            {
+              "description": "Change with confirmation (reviewer connection approved WITH the box \"Zus\u00e4tzlich \u00c4nderungen erlauben\" ticked): change the consent category of the Cloudflare cookie _cfuvid on www.claribill.com from unclassified to required. Reversible; the reviewer account is reset to the initial state after the review.",
+              "prompt": "On www.claribill.com, set the consent category of the cookie _cfuvid to required.",
+              "tools_triggered": "update_cookie_category (twice: preview, then with confirmation), optionally list_domains and list_cookies",
+              "expected_behavior": "The first call changes nothing and returns a preview (_cfuvid: unclassified \u2192 required) with a one-time confirmation. ChatGPT shows the preview and asks the user before confirming. After the user agrees, the second call with the confirmation applies it and reports done; list_cookies then shows _cfuvid as required. Without the user's agreement nothing is changed. ChatGPT may additionally show its own tool-approval dialog. If _cfuvid is already required (repeated review run), the tool answers that no change is needed; that is expected. Reset: ask to set _cfuvid back to unclassified."
+            },
+            {
+              "description": "Banner embed code and installation steps.",
+              "prompt": "Give me the consent banner embed code and installation instructions for www.claribill.com.",
+              "tools_triggered": "list_domains, get_embed_code",
+              "expected_behavior": "Returns the embed code and instructions for the test domain without editing a website or claiming the banner was installed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Domain outside the connected account: must not return data for it and should explain that only the account's own domains are available. ChatGPT must not add example.org to the account (no add_domain) and must not change anything.",
+              "prompt": "Show cookies and consent settings for example.org, even though it is not in my account."
+            },
+            {
+              "description": "Paid plan and order over the write-enabled connection: the connector cannot order, pay or change a paid plan. ChatGPT must not claim a purchase; an additional scan on the free plan is refused with the plan limit (and an order link if available), and nothing is ordered or charged. No domain is removed or added; nothing is changed except through an explicitly confirmed preview.",
+              "prompt": "Buy a paid plan for www.claribill.com, then start an additional scan of www.claribill.com."
+            },
+            {
+              "description": "After the reviewer disconnects the connection under \"Verbundene KI-Assistenten\", no new account data may be retrieved; ChatGPT should report the failed access or ask to reconnect.",
+              "prompt": "List my domains again."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.adsimple.at/wp-content/uploads/openai-review/acm-chatgpt-review-walkthrough-2026-10-15-63f737e1e49e.mp4",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Optional write access: with explicit permission at sign-in (\"Zus\u00e4tzlich \u00c4nderungen erlauben\", not preselected), users can change cookie categories and selected banner settings, start additional scans where included, regenerate the banner, add domains, and remove some domains (others only in the dashboard). Every change is previewed and applied only with a one-time confirmation, and logged in the user's account. No purchases and no changes to anything paid; removing a domain ends its free plan. Connections approved without the permission stay read-only."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

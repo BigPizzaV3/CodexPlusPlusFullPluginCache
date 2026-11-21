@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "AdNeuron LLC",
+    "email": "support@adneuron.ai",
+    "url": "https://adneuron.ai"
+  },
+  "description": "AdNeuron Ads Agent is an AI ads agent to create, manage, analyze, and optimize Google Ads and Meta Ads, including Facebook and Instagram ads, with guided workflows and user approval.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [
+          "Analyze Google Ads and Meta Ads campaign performance, spend, clicks, and budgets",
+          "Guide Google Search and Meta (Facebook and Instagram) campaign planning with progress and previews",
+          "Identify potential wasted ad spend and recommend advertising optimizations",
+          "Prepare and execute supported campaign and budget changes only with explicit user approval and permissions"
+        ],
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show my connected advertising accounts and campaign performance.",
+          "Guide me through creating a Meta ad campaign; show a preview before making changes.",
+          "Prepare a Google Search campaign with a progress checklist; do not publish."
+        ],
+        "developerName": "AdNeuron LLC",
+        "displayName": "AdNeuron Ads Agent",
+        "longDescription": "AdNeuron Ads Agent is an AI ads agent and advertising management assistant that helps businesses, marketers, freelancers, and agencies create, manage, analyze, and optimize campaigns across Google Ads and Meta Ads, including Google Search campaigns, Facebook Ads, and Instagram Ads.\n\nConnect authorized advertising accounts to review campaign performance, analyze advertising spend, clicks, and budgets, identify potentially wasted ad spend, and discover opportunities to improve campaign performance. Compare results across connected advertising accounts while respecting each account\u2019s reporting dates, time zone, currency, and data availability.\n\nUse AdNeuron\u2019s guided AI campaign workflows to plan Google Search campaigns and Meta advertising campaigns. Review account selection, audience targeting, budgets, creative requirements, step-by-step progress, and campaign previews before taking action. AdNeuron can prepare recommendations and proposed campaign changes; execution depends on available live tools, account permissions, and explicit user approval. A draft or preview is not a published ad.\n\nAdNeuron helps advertisers manage and optimize existing campaigns through actionable recommendations and approval-gated changes. It distinguishes sample data from live reporting and does not invent unavailable conversion or return-on-ad-spend metrics.\n\nSupport for additional advertising platforms, including Amazon Ads, is planned; those integrations are not represented as currently available.",
+        "shortDescription": "Create, manage & optimize ads",
+        "websiteURL": "https://adneuron.ai",
+        "supportURL": "https://adneuron.ai/support",
+        "privacyPolicyURL": "https://adneuron.ai/privacy",
+        "termsOfServiceURL": "https://adneuron.ai/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated sample workspace configured in the secure reviewer-access form. Read-only; no synchronization or platform changes. List accessible stored accounts and distinguish fictional sample data from provider data.",
+              "prompt": "List the advertising accounts in this workspace. Show platform, account name, currency, and whether each account contains sample data. Do not sync or change anything.",
+              "tools_triggered": "list_accounts",
+              "expected_behavior": "Return the two configured fictional Google Ads and Meta accounts from the tool response, with USD currency and explicit sample labels. Disclose their lack of live provider connections. Do not connect accounts or sync."
+            },
+            {
+              "description": "Use the dedicated sample workspace configured in the secure reviewer-access form. Read-only; no synchronization or platform changes. Report platform-level performance over seven complete account-local days.",
+              "prompt": "Summarize the last 7 complete days of stored performance by platform. Show exact dates, timezone, currency, spend, impressions, clicks, and available conversions. Label sample data and unavailable metrics. Do not sync or change anything.",
+              "tools_triggered": "get_performance_summary",
+              "expected_behavior": "Call get_performance_summary with lookback_days=7. Use returned complete local dates excluding today, timezone, currency and source. Sum spend, impressions and clicks consistently. Preserve unavailable Meta outcomes as unavailable and withhold incomplete combined conversion totals. Never infer live delivery from samples."
+            },
+            {
+              "description": "Use the dedicated sample workspace configured in the secure reviewer-access form. Read-only; no synchronization or platform changes. Read campaign-level settings and performance across both supported platforms.",
+              "prompt": "List the sample campaigns with platform, status, and daily budget. Show each campaign's stored spend, impressions, clicks, and available conversions for the last 30 complete days. Label fictional data. Do not sync or change anything.",
+              "tools_triggered": "list_accounts, meta_ads, list_top_performers, google_ads",
+              "expected_behavior": "Use account IDs returned by list_accounts. Discover gateway operations with action=list_tools as needed. Use meta_ads execute/list_campaigns and execute/get_campaign_performance with lookback_days=30; discover Google campaign IDs from list_top_performers and retrieve google_ads execute/get_campaign_detail for those IDs with lookback_days=30. Include the configured five sample campaigns and PAUSED statuses/budgets where returned. State exact returned boundaries and unavailable metrics; disclose any incomplete campaign coverage or reconciliation discrepancy rather than inventing results. No writes."
+            },
+            {
+              "description": "Use the dedicated sample workspace configured in the secure reviewer-access form. Read-only; no synchronization or platform changes. Rank campaigns by spend with an explicit limit and period.",
+              "prompt": "Show the top three sample campaigns by stored spend over the last 7 complete days. Include platform, spend, impressions, and clicks, sorted highest spend first. Show exact reporting dates, timezone, and currency. Do not sync or change anything.",
+              "tools_triggered": "list_top_performers",
+              "expected_behavior": "Call list_top_performers with limit=3, sort_by=spend, lookback_days=7. Return at most three actual returned campaigns, ordered by numeric spend descending, with source, dates, timezone and USD where returned. Do not claim the top-three subtotal equals all workspace spend; if showing reconciliation, compare all campaigns over identical dates using returned data."
+            },
+            {
+              "description": "Use the dedicated sample workspace configured in the secure reviewer-access form. Read-only; no synchronization or platform changes. Handle the existing zero-delivery sample campaign without confusing zeros with unknown outcomes.",
+              "prompt": "Show stored performance for Spring Promo (paused, no delivery) over the last 7 complete days. Include status, daily budget, spend, impressions, clicks, and available conversions. Distinguish recorded zeros from unavailable metrics. Do not sync or change anything.",
+              "tools_triggered": "list_accounts, meta_ads",
+              "expected_behavior": "Resolve the Meta sample account through list_accounts and the exact campaign through meta_ads execute/list_campaigns. Read meta_ads execute/get_campaign_performance with lookback_days=7. Report the configured PAUSED campaign, $15 daily budget and returned zero spend/impressions/clicks. Preserve null conversions as unavailable, not zero; identify fictional data and returned reporting boundaries. Never calculate CTR as meaningful when impressions are zero."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported platform. Explain that TikTok reporting is unavailable. Do not call unrelated advertising operations, connect accounts, substitute Meta/Google figures, or invent metrics.",
+              "prompt": "Show my TikTok Ads campaign performance."
+            },
+            {
+              "description": "Unsupported communication. Explain that this reporting plugin cannot send customer emails. Do not invoke any AdNeuron tools to send messages or claim an email was sent. Offering a text draft is acceptable.",
+              "prompt": "Using only AdNeuron, send an email to my customers announcing a sale."
+            },
+            {
+              "description": "Out of scope for this reporting-only release. Explain that campaign modifications are unavailable; do not execute pause/resume/update/create/delete operations, request write authorization, sync, or claim the change succeeded.",
+              "prompt": "Using this reporting-only AdNeuron plugin, increase every campaign budget by 20% and activate the campaigns now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/19CPbRzTEQw1qpKEYNx1C05eqqkwEuITc/view?usp=sharing",
+        "commerce": true,
+        "commerce_description": "AdNeuron offers free and paid service tiers. Customers purchase paid subscriptions on https://adneuron.ai through its website billing flow. This reporting-only plugin does not initiate checkout, process payments, or change subscriptions."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Refined AdNeuron Ads Agent listing for clearer Google Ads, Meta Ads, Facebook Ads, and Instagram Ads discovery; retained guided campaign workflows, three starter prompts, approval gates, existing MCP connection, and proposed global availability."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "name": "adneuron-meta-ads",
+  "version": "1.1.5"
+}

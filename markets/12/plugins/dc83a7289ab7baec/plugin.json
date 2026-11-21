@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reteno-chatgpt",
+  "version": "0.4.1",
+  "description": "Reteno email creation, editing, localization, images, analytics, deliverability, Business Profile updates, segments and workflows",
+  "author": {
+    "name": "Reteno",
+    "email": "dev@reteno.com",
+    "url": "https://reteno.com/"
+  },
+  "homepage": "https://github.com/reteno-com/ai-plugin",
+  "repository": "https://github.com/reteno-com/ai-plugin",
+  "license": "UNLICENSED",
+  "keywords": [
+    "reteno",
+    "email",
+    "funnel",
+    "marketing",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reteno",
+        "shortDescription": "Create emails, analyze results",
+        "longDescription": "Work with Reteno emails, images, analytics, deliverability, business profiles, segments and inactive workflows using validated local SDKs and your authenticated Reteno connection.",
+        "developerName": "Reteno",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://reteno.com/",
+        "privacyPolicyURL": "https://reteno.com/privacy-policy",
+        "termsOfServiceURL": "https://reteno.com/terms-of-use",
+        "defaultPrompt": [
+          "Create a Reteno email from my reference and verify its saved desktop and mobile previews.",
+          "Translate and clone a Reteno email while preserving every language, sender and Reply-To.",
+          "Audit my Reteno deliverability setup and identify missing evidence."
+        ],
+        "brandColor": "#FC531F",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://reteno.com/contact-us"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read an existing reusable email template without changing it. Sign in with the supplied review credentials to OpenAI demo org (113245). Fixture: reusable template 4705087, OpenAI review \u2014 Welcome; use template=true. No sender configuration is required for this read.",
+              "prompt": "Read Reteno reusable template 4705087 (template=true) and summarize its saved subject, heading, paragraph, button text, and button URL. Do not change or send anything.",
+              "tools_triggered": "get_email_message_export with message_id=4705087 and template=true; retrieve and inspect the returned export artifacts.",
+              "expected_behavior": "Report the saved subject Your next customer journey starts here; heading Welcome to Reteno; paragraph Build better customer journeys with relevant messages.; button Explore Reteno linking to https://reteno.com. The saved template remains unchanged and unsent."
+            },
+            {
+              "description": "Create and read back one unsent reusable template in OpenAI demo org (113245) using the available demo sender. Each run creates one new template ID. Reteno can restrict public viewing of a new email as an anti-phishing measure.",
+              "prompt": "Create one reusable, unsent email template in this demo account. Name it OpenAI review \u2014 Welcome. Use Welcome to Reteno as both the subject and heading. Use a simple accessible HTML layout. The paragraph should read \u201cBuild better customer journeys with relevant messages.\u201d The button should say Explore Reteno and link to https://reteno.com. Do not send, schedule or change contacts. Read the saved template back and show its ID and saved subject. Include the hosted preview link if Reteno returns one. If you can check the link, tell me what happened in your session. Otherwise, say that public access is unverified. Either way, show the verified saved content or an authenticated preview and explain that Reteno may restrict public access to a new email to protect against phishing, even if the link opens for you.",
+              "tools_triggered": "prepare_email_message_upload, upload the HTML/CSS artifacts to its returned upload URLs, create_email_message with template=true, get_email_message_export, and get_email_message_view_link. An authenticated PNG preview can also be used.",
+              "expected_behavior": "Create exactly one unsent reusable template with the requested name. Return its generated ID, verify the requested subject, heading, paragraph, button text and destination from the saved export, and show the verified saved content or an authenticated preview. Include the hosted link if Reteno returns one. Report the result of checking it in the current session, or state that public access is unverified. Explain in either case that Reteno can restrict public access to new emails as protection against phishing, including when the same link opens for the assistant. Both a working public link and a confirmed protection page are valid. A missing template, incorrect content, or an unrelated link error does not satisfy the case. No sending, scheduling, contact changes or changes to account permissions."
+            },
+            {
+              "description": "Perform a narrowly scoped subject update and verify the saved result. Use the supplied review account in OpenAI demo org (113245), reusable template 4705087 (template=true). The fixture already has the target subject from the recorded demo, so re-running is idempotent; it is acceptable to read and confirm that the subject is already exact.",
+              "prompt": "Update only the subject of template 4705087 to 'Your next customer journey starts here'. Preserve its layout, body, sender settings, and links. Then read it back and confirm the exact saved subject. Keep it unsent.",
+              "tools_triggered": "get_email_message_export; prepare_email_message_upload and update_email_message with template=true if an update is needed; get_email_message_export for saved-value verification. Preserve the exported HTML/CSS when uploading.",
+              "expected_behavior": "The exact saved subject is Your next customer journey starts here. The heading Welcome to Reteno, paragraph, Explore Reteno button, https://reteno.com link, layout, CSS, and sender settings are preserved. No message is sent. If the target subject is already saved, clearly report that no further change was necessary."
+            },
+            {
+              "description": "Read aggregated email campaign analytics for a fixed historical period in OpenAI demo org (113245). Use the supplied review account. The demo organization has no email campaign activity for August 29\u2013September 27, 2026; this intentionally tests correct handling of an empty dataset.",
+              "prompt": "Fetch aggregated email campaign performance for August 29 through September 27, 2026. Summarize sends, deliveries, opens, clicks, and unsubscribes where available. If this demo organization has no activity, state that explicitly. Do not access individual contacts or send messages.",
+              "tools_triggered": "get_messaging_analytics for the requested date range and email media type; download and inspect the returned aggregate export. A message-level aggregate export may be used to check unsubscribe availability.",
+              "expected_behavior": "State the requested period and that the organization has no campaign activity. Report sends, deliveries, opens, and clicks as zero where supported by the returned aggregate data. The empty message-level export has no unsubscribe count, so report it as unavailable rather than inventing a value. No individual contact access or message sending."
+            },
+            {
+              "description": "Audit the saved email deliverability configuration in OpenAI demo org (113245). The demo account has one available sender named openai.test, zero configured or authenticated sending domains, and one-click unsubscribe enabled. Distinguish saved settings from what can be verified publicly or on delivered mail.",
+              "prompt": "Run a read-only email deliverability setup audit for this OpenAI demo organization. Summarize domain authentication, sender setup, and unsubscribe readiness, distinguishing configured values from missing or unavailable data. Do not modify DNS, account settings, or send any messages.",
+              "tools_triggered": "get_email_deliverability_setup.",
+              "expected_behavior": "Report one available sender named openai.test, zero configured or authenticated sending domains, and one-click unsubscribe enabled. Distinguish the saved settings from unverified SPF, DKIM, DMARC and unsubscribe behavior on delivered mail. The audit is read-only and sends no messages."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General email-authentication education needs no Reteno account access, even though deliverability is a plugin capability.",
+              "prompt": "Explain SPF, DKIM, and DMARC in plain English. This is a general question; do not inspect or change my Reteno account.",
+              "tools_triggered": "None. Do not call Reteno MCP tools.",
+              "expected_behavior": "Explain SPF as sender authorization, DKIM as a signed integrity/authenticity check, and DMARC as alignment plus policy/reporting. Do not fetch account configuration or claim to have inspected the user\u2019s domain."
+            },
+            {
+              "description": "Copywriting using text supplied directly in the prompt should not read or update a saved Reteno email.",
+              "prompt": "Rewrite this sentence to sound warmer: 'Start your trial today.' Give three alternatives. Work only with this text; do not read or update anything in Reteno.",
+              "tools_triggered": "None. Do not call Reteno MCP tools.",
+              "expected_behavior": "Return three warmer alternatives based only on the supplied sentence. No account access, email export, upload session, or saved-message update."
+            },
+            {
+              "description": "Calculate campaign click-through rates from numbers already supplied; do not invoke account analytics.",
+              "prompt": "Using only these numbers, calculate email click-through rate as clicks divided by delivered: Campaign A delivered 1,000 and had 50 clicks; Campaign B delivered 800 and had 24 clicks. Do not fetch data from Reteno.",
+              "tools_triggered": "None. Do not call Reteno MCP tools.",
+              "expected_behavior": "Campaign A: 50 / 1,000 = 5%. Campaign B: 24 / 800 = 3%. Use only the supplied values; no analytics export or other Reteno account access."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

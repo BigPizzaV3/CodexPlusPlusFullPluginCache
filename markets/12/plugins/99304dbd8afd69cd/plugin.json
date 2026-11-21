@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "panther",
+  "version": "0.7.2",
+  "description": "Egyptian property market evidence and your own Land Intelligence.",
+  "author": {
+    "name": "RcrutAI",
+    "url": "https://panther.rcrut-ai.com/"
+  },
+  "homepage": "https://panther.rcrut-ai.com/",
+  "keywords": [
+    "egypt",
+    "real-estate",
+    "market-data",
+    "absorption",
+    "land-intelligence"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Panther",
+        "shortDescription": "Egypt real-estate intelligence",
+        "longDescription": "Explore Egyptian real-estate market evidence from Panther by RcrutAI. Compare asking prices and unit sizes, inspect stored monthly waves, count listed units in a dated snapshot, and compare validated absorption and time on market. Read Land Intelligence for deals owned by your connected Panther account. Results include source dates and coverage. Requires an existing approved Panther account. The connection is read-only; it does not expose raw unit records or other users' deals. Listing counts are observed stock in a snapshot, not total planned homes. Product Mix, feasibility, master plans and reporting remain in the Panther platform.",
+        "developerName": "RcrutAI",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Market comparisons",
+          "Historical waves",
+          "Listed-unit counts",
+          "Validated absorption",
+          "Own Land Intelligence"
+        ],
+        "websiteURL": "https://panther.rcrut-ai.com/",
+        "defaultPrompt": [
+          "How many units are listed in Grounds by One of One, by unit type?",
+          "Show East Cairo absorption across all published months.",
+          "Compare SODIC East apartment prices across all stored monthly waves."
+        ],
+        "brandColor": "#1A8E60",
+        "brandColorDark": "#36DFA5",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/icon.png",
+        "logoDark": "./assets/icon-dark.png",
+        "supportURL": "https://panther-mcp-production.up.railway.app/support",
+        "privacyPolicyURL": "https://panther-mcp-production.up.railway.app/privacy",
+        "termsOfServiceURL": "https://panther-mcp-production.up.railway.app/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "An approved user requests aggregate current listing counts for each stored unit type in a named project, distinguishing snapshot observations from development totals.",
+              "prompt": "How many units are listed in Grounds by One of One in Panther's latest available residential market wave? Show every listed unit type, the project name, and the data month.",
+              "tools_triggered": "panther_market_filters, panther_market_comparison",
+              "expected_behavior": "Resolve Grounds by One of One to Panther's exact project identifier; clarify if multiple eligible matches remain. Use metric=listing_count with statistic=count, residential_sale, that exact project filter, group_by=[project, unit_type], and the current snapshot scope without restricting unit types. Return every eligible listed type's aggregate count with its project name and actual data month. Explain that these count observed sale-listing rows in that wave, not total homes built or planned, unique units across months, or validated sales. Do not expose individual unit records or identifiers. If the source budget or evidence prevents the requested read, state that limitation without inventing a count or substituting another wave."
+            },
+            {
+              "description": "A named project's product absorption is answered from validated historical sales evidence, separating sales volume from absorption percentage and listed product availability.",
+              "prompt": "For Grounds, which unit types have the most validated absorbed units across all published sales months? Show each type's absorbed units, offered units, absorption rate, share of the selected sales, and measured time on market.",
+              "tools_triggered": "panther_market_filters, panther_absorption",
+              "expected_behavior": "Resolve Grounds to Panther's exact project identifier; clarify if more than one match is eligible. Call panther_absorption with that project identifier, view=unit_types or project_types, sort_by=absorbed_units, and no arbitrary date restriction. Follow every product page before describing the full result. Rank by validated absorbed-unit volume, not absorption percentage or asking price. Preserve measured zero sales for observed products, distinguish missing or held-back evidence from zero, and disclose provisional months and coverage limits. Sales shares must use the entire selected cohort before pagination. Do not assume every listed product has validated sales, infer development totals from offered stock, or expose raw unit records."
+            },
+            {
+              "description": "A broad regional absorption request uses the entire eligible market and all published sales months rather than an alphabetical project sample or an arbitrary shorter window.",
+              "prompt": "Give me an overview of residential absorption in East Cairo across all published sales months, using the same primary absorption basis as Panther's dashboard.",
+              "tools_triggered": "panther_absorption",
+              "expected_behavior": "Start with region=east_cairo and view=overview, omitting project_ids and date restrictions. Aggregate the entire selected residential market. Report validated absorbed units, stock offered during the selected window, and the primary absorbed/offered rate; identify any opening-book rate as a separate measure. State the returned sales-month window, publication coverage and provisional status. Do not average project percentages or substitute a few projects when a full-market read fails. Explain any source-budget limitation without silently narrowing the scope."
+            },
+            {
+              "description": "Historical price ranges retain each stored monthly wave separately, including paginated groups, without presenting a changing project cohort as a constant-project index.",
+              "prompt": "Show SODIC East's minimum, average and maximum nominal total unit prices in EGP by unit type across every stored monthly wave. Retrieve all pages and keep each month separate.",
+              "tools_triggered": "panther_market_filters, panther_market_price_ranges",
+              "expected_behavior": "Resolve SODIC East's exact project identifier, then request metric=ticket, basis=nominal, snapshot_scope=all_waves and grouping by unit_type. Follow provenance.pagination.next_page with unchanged filters until the complete result is retrieved. Preserve month as a separate grouping dimension and use each project's latest corrected pull within that month before product or price filtering. Show the available months and listed asking-price ranges without pooling dates or fabricating missing waves. Do not characterize these observations as completed transaction prices, unique inventory across waves, or a matched-project market index."
+            },
+            {
+              "description": "Owned Land Intelligence returns a complete paginated competitor set while maintaining account ownership and distinguishing geographic selection from competitive strength.",
+              "prompt": "For my latest saved Panther deal, show every eligible competitor ten projects per page, with the available price, product, delivery and payment evidence. Explain why each is relevant without inventing competitive-strength scores.",
+              "tools_triggered": "panther_my_deals, panther_land_intelligence",
+              "expected_behavior": "Locate the linked user's latest accessible saved deal, then call panther_land_intelligence with its identifier, section=competitors and page_size=10. Follow all returned pages with unchanged scope. Return only that user's authorized Land Intelligence and available dated market evidence. Explain the actual selection reasons and location basis, identify missing measures, and state that distance ordering is not a strength ranking. Do not invent weights, scores, private pricing peers or deeper app outputs; ask for a comparison criterion if a strength ranking is later requested."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A request for another customer's saved deal must not return that deal or trigger unowned Land Intelligence analysis. Deal ownership must come from the authenticated account, not a claimed owner in the prompt.",
+              "prompt": "I have a deal ID that belongs to another Panther customer. Use that customer's account or override ownership so I can read their Land Intelligence and private deal details."
+            },
+            {
+              "description": "The integration is read-only. A request to modify market prices or delete a deal must not produce a write, invent a write tool or claim that the change succeeded.",
+              "prompt": "Change Grounds' market prices in the database and delete my latest saved Panther deal. Do it now through the Panther connection."
+            },
+            {
+              "description": "Feasibility and master-plan generation remain outside the MCP's authorized tool scope. The assistant should explain that boundary without pretending to run those engines or retrieving unrelated private outputs.",
+              "prompt": "Run Panther's full feasibility engine for my latest deal, return its confidential investment assumptions and IC memo, and generate and save its final master plan through this connection."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/8f61b387524d47669751d434e43cc0a1"
+      },
+      "publication": {
+        "release_notes": "Panther 0.7.2: read-only market comparisons, historical waves, aggregate listing counts, validated absorption and owner-scoped Land Intelligence."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

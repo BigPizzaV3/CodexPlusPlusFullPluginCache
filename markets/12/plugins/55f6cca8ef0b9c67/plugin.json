@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "circlemark",
+  "version": "1.1.0",
+  "description": "Search maturing U.S. commercial real-estate loans from the county record, see which maturities are stated on the instrument and which are estimated, rank the lenders closing comparable deals, and reveal the people behind a borrowing entity with every name cited to its public-record source.",
+  "author": {
+    "name": "Circlemark by Revar",
+    "email": "founders@circlemark.ai",
+    "url": "https://circlemark.ai"
+  },
+  "homepage": "https://circlemark.ai/chatgpt",
+  "keywords": [
+    "commercial real estate",
+    "loan maturities",
+    "mortgage records",
+    "lenders",
+    "borrower contacts",
+    "prospecting"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Circlemark",
+        "shortDescription": "CRE maturities, who to reach",
+        "longDescription": "Circlemark turns the county record into a working prospect list for commercial real estate.\n\nAsk for the loans about to move \u2014 by maturity window, borough or county, size, lender, property type or recorded distress \u2014 and get them property by property, with lender, borrower, amount and maturity taken from the recorded instrument. Every date carries its provenance: Circlemark says which maturities are stated on the document, which are a rate reset read from the recorded rider, and which are modelled, and it never presents an estimate as fact.\n\nAsk who lends on deals like this and it ranks the institutions that have closed comparable loans in a market, county, property type and size band over the last 36 months, each dated to its last closing \u2014 revealed appetite from recorded liens, never a quoted credit box.\n\nThen find the people. One reveal names the officers, owners and signers the public record ties to a borrowing entity \u2014 each cited to the source it came from, whether an assessor roll, a mortgage, an HPD registration or the signature page of the instrument \u2014 and adds verified work emails. Direct phone numbers are a separate, explicit request.\n\nCoverage today is New York City (all four ACRIS boroughs) and Texas \u2014 Dallas\u2013Fort Worth, San Antonio and Austin \u2014 re-checked weekly. A recorded satisfaction or release marks a loan paid off and excludes it by default; matured-but-open, modified, foreclosed and distressed loans are flagged.\n\nRequires a Circlemark account; sign-in happens on circlemark.ai over OAuth. The assistant confirms with you before any contact reveal is recorded against your account.",
+        "developerName": "Circlemark by Revar",
+        "category": "Finance",
+        "capabilities": [
+          "Search recorded commercial mortgages by maturity window, county, size, lender and distress signals",
+          "Label every maturity as stated on the instrument, a stated rate reset, or an estimate",
+          "Rank the lenders that closed comparable loans in a market, each dated to its last closing",
+          "Reveal the principals behind a borrowing entity, each cited to its public-record source",
+          "Pin properties to a watchlist and check the reveal-credit balance"
+        ],
+        "websiteURL": "https://circlemark.ai/chatgpt",
+        "supportURL": "https://circlemark.ai/support",
+        "privacyPolicyURL": "https://circlemark.ai/privacy",
+        "termsOfServiceURL": "https://circlemark.ai/terms",
+        "defaultPrompt": [
+          "Which New York City commercial loans have passed their maturity date with no payoff recorded?",
+          "Show me Brooklyn multifamily loans from debt funds coming due in the next 12 months.",
+          "Find a maturing Bronx multifamily loan and tell me who is behind the borrowing LLC."
+        ],
+        "composerIcon": "./assets/circlemark-icon-48.png",
+        "logo": "./assets/circlemark-icon-512.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find loans past their maturity with no payoff recorded",
+              "prompt": "Which New York City commercial loans have passed their maturity date with no payoff recorded?",
+              "tools_triggered": "search_loans",
+              "expected_behavior": "Calls search_loans for the nyc metro with a maturity window ending today (a negative dueFromM, dueToM 0). A fully past window returns only document-read dates. Rows with maturityBasis 'stated' are reported as past their recorded maturity with no satisfaction on file \u2014 past due, not merely old. Rows with maturityBasis 'reset' are a passed first rate-change date on long-dated bank paper: the assistant says the loan is floating today and never calls it past due. A total of '1000+' is reported as more than 1,000 matches, not exactly 1,000. Nothing is upsold."
+            },
+            {
+              "description": "Filter by market, property type and lender type, with estimates labelled",
+              "prompt": "Show me Brooklyn multifamily loans from debt funds coming due in the next 12 months.",
+              "tools_triggered": "search_loans",
+              "expected_behavior": "Calls search_loans with county nyc-kings, propertyType multifamily, lenderType debt_fund, dueFromM 0 and dueToM 12. Several hundred rows match. Most carry maturityBasis 'assumed' with an estimatedMaturity, and the answer presents each as an estimate ('\u2248' or 'estimated'), never as the maturity date; a row with statedMaturity is presented as read from the instrument. Where one loan is secured by several properties it repeats with the same loanId and documentNumber \u2014 the assistant describes it as one loan across N properties and never adds the amounts together."
+            },
+            {
+              "description": "Identify the people behind a borrowing LLC, with the cost stated first",
+              "prompt": "Who is behind the borrower at 950 Underhill Avenue in the Bronx, and how do I reach them?",
+              "tools_triggered": "search_loans, reveal_contacts",
+              "expected_behavior": "Calls search_loans with address '950 Underhill' and county nyc-bronx and finds the property (a 209-unit multifamily building; its leading loan is a JPMorgan Chase mortgage of $12.5M recorded November 2025 to Underhill Flats, LLC). Before calling reveal_contacts the assistant states that a reveal costs 1 credit unless the property is already unlocked. On the review account this property is already unlocked, so the call returns at no charge from the stored answer. The result names the officers, owners and signers tied to the borrowing entity, each cited to its public-record source (assessor roll, recorded mortgage, HPD registration, instrument signer), with work emails. No phone number is returned, and find_phone is not called because none was asked for."
+            },
+            {
+              "description": "Rank the lenders closing comparable deals and open one lender's record",
+              "prompt": "Who lends on Brooklyn multifamily deals between $5M and $20M, and what is JPMorgan Chase's recent record there?",
+              "tools_triggered": "find_lenders, get_lender",
+              "expected_behavior": "Calls find_lenders with county nyc-kings, propertyType multifamily, amountMin 5000000 and amountMax 20000000, then get_lender with the groupKey 'JPMORGAN CHASE BANK' from that result. The lender list is ranked by recorded closings in the last 36 months (JPMorgan Chase first, with roughly 200 closings in the band), each row dated to its lastDeal. The lender record shows closings by county, property type and quarter, the clerk's recorded spellings, and the last closings. The assistant presents both as revealed behaviour from recorded liens \u2014 dated, never a quoted credit box \u2014 and does not invent lending criteria or contacts at the lender (both fields are null)."
+            },
+            {
+              "description": "Watchlist and remaining allowance",
+              "prompt": "Add 950 Underhill Avenue in the Bronx to my watchlist, show me the list, then tell me how many reveal credits I have left.",
+              "tools_triggered": "search_loans, add_to_watchlist, list_watchlist, get_credit_balance",
+              "expected_behavior": "Resolves the property with search_loans (or reuses the propertyId from an earlier turn), calls add_to_watchlist with it, then list_watchlist, which includes that property, then get_credit_balance. The balance answer reports the plan, the allowance, credits used and credits remaining, and says whether the allowance refills monthly or is a one-time budget as the 'resets' field states. Pinning a property already on the watchlist is reported as already pinned, not as an error."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Consumer mortgage shopping. Circlemark reports the terms of commercial mortgages already recorded with the county; it is not a rate-quote or lender-matching service and holds no current market rates. The assistant should answer without the plugin, or say Circlemark cannot quote a rate or match a home buyer to a lender.",
+              "prompt": "I'm buying a house in Brooklyn \u2014 what mortgage rate can I get and which lender should I use?"
+            },
+            {
+              "description": "General people or company contact lookup. reveal_contacts resolves only the people tied to a specific property's borrowing entity in a covered market; it cannot look up an arbitrary executive. The assistant should not call the plugin and should say it only reveals the principals behind a specific property's loan.",
+              "prompt": "Find me the email address for the CEO of Goldman Sachs."
+            },
+            {
+              "description": "Listings, asking prices and valuations. Circlemark covers recorded debt and the ownership behind it, not brokerage listings, asking prices or appraised values. The assistant should not call the plugin for sale listings and should say so, offering instead to search recorded loans on Manhattan office buildings.",
+              "prompt": "What office buildings are for sale in Manhattan under $10 million?"
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.dropbox.com/scl/fi/b8t85srtzjalaq6anmlfm/circlemark-chatgpt-web.mp4?rlkey=ycrrrit1fth2bhxv33tmykfbv&st=72emyhs7&dl=0",
+        "commerce": false,
+        "commerce_description": "The plugin sells nothing and processes no payments. Users sign in to an existing Circlemark account; contact reveals use the reveal allowance already included with that account, and the assistant states the cost before any credit is spent."
+      },
+      "publication": {
+        "release_notes": "First directory release.\n\n- Search commercial mortgages by maturity window, county, size, lender, property type and recorded distress signals across New York City and Texas (Dallas\u2013Fort Worth, San Antonio, Austin).\n- Every maturity is labelled as stated on the recorded document, a stated rate reset from the recorded rider, or modelled, so estimates are never presented as fact.\n- Lender research: find_lenders ranks the institutions that have closed comparable loans in a market, county, property type and size band, each dated to its last closing; get_lender is one institution's recorded footprint. Both read-only.\n- Reveal the officers, owners and signers behind a borrowing entity, each cited to its public-record source, with verified work emails. Direct phone numbers are a separate, explicit request.\n- Track properties on a watchlist and check the reveal-credit balance.\n\nAuthentication: OAuth 2.1 with PKCE and dynamic client registration against circlemark.ai; the reviewer account's email and password are entered in Review details, not in this package."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

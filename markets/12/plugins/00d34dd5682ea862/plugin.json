@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "adstar",
+  "version": "1.0.0",
+  "description": "Video ads for your products, made by AdStar: import a product from its page, agree to a quote, and get a finished video ad in minutes. Recipes make product shots, lifestyle scenes and short clips from the product's photos.",
+  "author": {
+    "name": "AdStar",
+    "email": "support@adstar.ai",
+    "url": "https://www.adstar.ai"
+  },
+  "homepage": "https://www.adstar.ai",
+  "keywords": [
+    "video ads",
+    "product video",
+    "ugc",
+    "advertising creatives",
+    "marketing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AdStar",
+        "shortDescription": "Video ads for your products",
+        "longDescription": "AdStar makes video ads for your products from inside ChatGPT. Point it at a product page, or describe a product that has no page and add photos, and AdStar reads the page, extracts the name, benefits and images, and turns them into a finished video ad: a UGC-style clip, a product showcase or an explainer, in the format and language you ask for.\n\nWhat you can do:\n\u2022 Import a product from its web page, or create one by hand and add photos from the web or from your device.\n\u2022 Get a quote for an ad before anything is made, then make the ad once you agree. The ad takes a few minutes; the AdStar card in the chat shows the scenes as they are made and plays the finished video.\n\u2022 Browse the recipe gallery: fixed procedures that make product shots, lifestyle scenes, UGC clips, motion graphics and mockups from a product's photos and text. Quote a run, run it, follow it and cancel it.\n\u2022 See your brands, products and ads, and open any ad on the AdStar site to edit it.\n\nMade for people who sell products online and want ads without a studio: shop owners, marketers and agencies.\n\nGood to know:\n\u2022 You need an AdStar account. ChatGPT signs you in to it, and you can disconnect at any time from Settings in AdStar or from ChatGPT.\n\u2022 Making an ad or running a recipe spends credits from your AdStar account. AdStar always quotes the cost first and acts only after you agree. Credits and plans are managed on the AdStar website, not in ChatGPT.\n\u2022 An ad takes several minutes to make; a recipe run takes from under a minute to several minutes.\n\u2022 Importing needs a public product page. Text on imported pages is treated as content, never as instructions.\n\u2022 AdStar does not post ads to social networks or ad platforms; you download the video or edit it on the site.",
+        "developerName": "AdStar",
+        "category": "Creativity",
+        "capabilities": [
+          "Import a product from its page",
+          "Create a product by hand and add photos",
+          "Quote and make video ads",
+          "Browse, quote and run image and video recipes",
+          "Read your account, brands, products and ads"
+        ],
+        "websiteURL": "https://www.adstar.ai",
+        "privacyPolicyURL": "https://www.adstar.ai/legal/privacy",
+        "termsOfServiceURL": "https://www.adstar.ai/legal/terms",
+        "supportURL": "https://www.adstar.ai/support",
+        "defaultPrompt": [
+          "Make a 9:16 UGC video ad in English for my newest product. Quote it first.",
+          "Import the product page I paste into AdStar and tell me when it is ready.",
+          "Show me recipes that make product shots, and quote one for my product."
+        ],
+        "brandColor": "#7E9202",
+        "brandColorDark": "#E0FC31",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Account: the plan and the credit balance of the signed-in AdStar account.",
+              "prompt": "What AdStar plan am I on, and how many credits do I have left?",
+              "tools_triggered": "get_account",
+              "expected_behavior": "The assistant names the plan and the credit balance of the test account, as get_account returned them, and says credits are managed in the user's AdStar account. No checkout or upgrade link."
+            },
+            {
+              "description": "Catalog: list the products and describe one of them with its photos.",
+              "prompt": "What products do I have in AdStar? Describe the first one and list its photos.",
+              "tools_triggered": "list_products, get_product",
+              "expected_behavior": "The assistant lists the test account's products (one, status \"ready\") and gives that product's description, the benefits extracted from its page, and the addresses of its photos, as get_product returned them."
+            },
+            {
+              "description": "Import: create a product from its web page and follow the analysis until it is ready.",
+              "prompt": "Import https://www.amazon.com/ASICS-Gel-Kayano-Running-Shoes-Energy/dp/B0GY9P79XX/ref=ast_sto_dp_puis?th=1&psc=1 into AdStar and tell me when it is ready.",
+              "tools_triggered": "import_product, get_product",
+              "expected_behavior": "import_product returns at once with the new product's id and status \"importing\". The assistant reads get_product every poll_after_seconds (about 15 s), never in a tight loop; after one to three minutes the status is \"ready\" and the assistant reports the name, description, benefits and images taken from the page. The product then appears in AdStar under Products."
+            },
+            {
+              "description": "Ad: quote a video ad, make it after the user agrees, and follow it on the AdStar card.",
+              "prompt": "Make a 9:16 UGC video ad in English for my product. Quote it first.",
+              "tools_triggered": "quote_ad, create_ad, get_ad (or wait_for_ad)",
+              "expected_behavior": "quote_ad answers the price in credits and the balance; the assistant states both and asks for agreement before anything is made. After the user says yes, exactly one create_ad call with max_credits equal to the quoted price starts the ad; the AdStar card appears in the chat, shows progress and the scenes as they are made, and after several minutes plays the finished video with links to open or edit it on the site. The balance in get_account drops by the quoted amount."
+            },
+            {
+              "description": "Recipes: browse the gallery, quote a run for the product, run it after agreement and follow it.",
+              "prompt": "Which recipes make product shots? Quote the first one for my product and run it if I agree.",
+              "tools_triggered": "list_recipes, get_recipe, quote_recipe, run_recipe, get_recipe_run (or wait_for_recipe_run)",
+              "expected_behavior": "list_recipes answers recipes of the product-shot kind; quote_recipe answers the credits, the number of steps, the balance and whether it is affordable, with the product's photos and text filling the inputs. The assistant states the cost and asks. After the user agrees, exactly one run_recipe call starts the run; the assistant follows it with get_recipe_run every poll_after_seconds and ends with the output images as links. The run also appears in AdStar under My Flows."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Commerce: the plugin sells nothing and never links to a checkout. Asked to buy credits or change the plan, it explains that credits and plans are managed in the user's AdStar account, and no tool that spends money exists.",
+              "prompt": "Buy me 500 AdStar credits and upgrade my plan to the biggest one."
+            },
+            {
+              "description": "Deletion: there is no tool that deletes a brand, a product or an ad. The plugin says that removing things is done on the AdStar site and changes nothing; the catalog is unchanged afterwards.",
+              "prompt": "Delete my brand in AdStar with all its products and ads."
+            },
+            {
+              "description": "Publishing: the plugin does not post to social networks or ad platforms. It says so, offers the ad's video link or the editor on the site instead, and calls no tool that publishes anything.",
+              "prompt": "Post my latest AdStar ad to TikTok and Instagram right now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1r7mwFBNmOlMTdHHgMfTRqaAnAkT78agM/view",
+        "commerce": false,
+        "commerce_description": "AdStar sells nothing in ChatGPT and processes no payments. Making an ad or running a recipe spends credits the user already holds in their AdStar account; the plugin quotes the cost first and acts only after the user agrees. Credits and plans are managed on the AdStar website; the plugin links to the user's account page, never to a checkout or an upgrade."
+      },
+      "publication": {
+        "release_notes": "First release. Sign in with your AdStar account; import a product from its page or create one by hand and add photos from the web or your device; quote, make and follow video ads on a live card in the chat; browse, quote, run, follow and cancel the recipe gallery's image and video recipes; read your account, brands, products and ads."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

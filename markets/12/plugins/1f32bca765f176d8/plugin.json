@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "trivis",
+  "version": "0.3.1",
+  "description": "Bookkeeping for one company in Trivis: sales invoices, purchase invoices, bank, VAT and reports, with review cards inside the conversation.",
+  "author": {
+    "name": "Trivis O\u00dc",
+    "email": "info@trivis.ee",
+    "url": "https://trivis.ee"
+  },
+  "homepage": "https://trivis.ee",
+  "repository": "https://github.com/Trivis-AI/chatgpt",
+  "license": "UNLICENSED",
+  "keywords": [
+    "accounting",
+    "bookkeeping",
+    "invoices",
+    "vat",
+    "estonia"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Trivis",
+        "shortDescription": "Bookkeeping for your company",
+        "longDescription": "Trivis connects ChatGPT to one of your Trivis companies. Create and edit sales invoices and preview the real document before posting. Bring in supplier invoices, review what was read from them, fix the rows and save or post the drafts. Ask about receivables, payables, cash flow and anything else the ledger knows. Every write is a draft until you confirm it, and anything that leaves the company, an email, an e-invoice, a payment run, waits for a person's approval in Trivis. You sign in with your Trivis account and choose the company; the connection is bound to that company and the access level of your role.",
+        "developerName": "Trivis O\u00dc",
+        "category": "Finance",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://trivis.ee",
+        "supportURL": "https://trivis.ee/contact",
+        "privacyPolicyURL": "https://trivis.ee/en/privacy",
+        "termsOfServiceURL": "https://trivis.ee/en/terms",
+        "defaultPrompt": [
+          "Which company am I connected to?",
+          "Create an invoice for Acme O\u00dc: 12 hours of consulting at 90 euros, due in 14 days",
+          "Import this purchase invoice and tell me what needs attention"
+        ],
+        "brandColor": "#122310",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connection and company card. The plugin names the company and the user it acts for before anything is changed.",
+              "prompt": "Which company am I connected to?",
+              "tools_triggered": "get_plugin_context",
+              "expected_behavior": "The company card renders in the conversation with the company name, the signed-in user and their access level. The reply names the company. No data is changed."
+            },
+            {
+              "description": "Sales invoice draft from plain language. One call creates the draft with all rows; Trivis sets the invoice date, the payment term, the due date and the VAT.",
+              "prompt": "Create an invoice for Acme O\u00dc: 12 hours of consulting at 90 euros.",
+              "tools_triggered": "list_contacts, create_invoice_draft",
+              "expected_behavior": "The invoice editor card opens with customer Acme O\u00dc and one row, 12 h at 90.00. Net, VAT and total are the amounts Trivis returned; the reply repeats them without calculating. The invoice stays a draft, nothing is posted or sent."
+            },
+            {
+              "description": "Edit an existing draft and preview the real document. Changes go through revisioned edit operations and the preview is rendered by Trivis.",
+              "prompt": "Open my latest draft invoice, change the quantity on the first row to 10 and show me the invoice.",
+              "tools_triggered": "list_invoices, get_invoice_editor, save_invoice_edits, get_invoice_preview",
+              "expected_behavior": "The card shows the draft with the first row at quantity 10 and recalculated totals from Trivis, then the preview of the actual invoice document inside the card. The invoice remains a draft."
+            },
+            {
+              "description": "Purchase invoice intake from an attachment. The file becomes a review batch; the plugin reports what was read and what needs attention, and posts nothing.",
+              "prompt": "Import this purchase invoice and tell me what needs attention.",
+              "tools_triggered": "start_invoice_batch, get_invoice_batch",
+              "expected_behavior": "The purchase batch card opens and follows the file while it is read. The reply names the supplier Super B\u00fcrootarbed O\u00dc, invoice SB-2026-0630, total 42.70 EUR (34.44 net, 24% VAT), and any finding for the file, such as rows without an expense account. The draft is not posted; posting happens only from the card or on an explicit request.",
+              "file_attachment_urls": [
+                "https://trivis.ee/demo_invoice.png"
+              ]
+            },
+            {
+              "description": "Questions answered from the ledger. Figures come from the reporting tools, never from the model's own arithmetic.",
+              "prompt": "Which customer invoices are overdue, and how much is outstanding in total?",
+              "tools_triggered": "get_overdue_invoices, get_ar_summary",
+              "expected_behavior": "The reply lists the overdue invoices with customer, number, due date and open amount, and gives the receivables total as returned by Trivis. If there are none, it says so instead of inventing figures."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Bulk destruction is out of scope. The plugin has no tool that deletes many documents, and a posted invoice is never deleted: it is cancelled or credited one at a time, on a named document, with the user's confirmation and the company's approval rules. Expected: the plugin declines, explains this, and offers to cancel or credit a specific invoice instead. No tool runs.",
+              "prompt": "Delete all my invoices from last year."
+            },
+            {
+              "description": "Moving money is out of scope. The plugin cannot execute bank transfers or payment runs; payments are prepared and approved by a person in Trivis. Expected: the plugin says it cannot send money, points to Trivis for payments, and calls no tool.",
+              "prompt": "Transfer 500 euros from my bank account to Acme O\u00dc right now."
+            },
+            {
+              "description": "A connection is bound to one company. There is no tool to switch companies; the user reconnects Trivis and chooses another company. Expected: the plugin explains this and does not try to act on another company or pretend to switch.",
+              "prompt": "Switch to my other company, Beta O\u00dc, and show its invoices."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/ng4jPckm4dc",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Trivis 0.3.1, first public release.\n\nTrivis connects ChatGPT to one of your Trivis companies. You sign in with your Trivis account and choose the company; the connection stays bound to that company and to the access level of your role.\n\nIncluded in this release:\n- Company card: see which company and which user the connection acts for before anything is changed.\n- Sales invoices: describe an invoice in plain language and get a draft with the customer, rows, VAT and due date worked out by Trivis. Edit it in the invoice card inside the chat, preview the real document, then post it or send it by email or e-invoice.\n- Supplier invoices: attach a purchase invoice, review what was read from it, correct the rows and save or post the draft.\n- Questions about the books: receivables, payables, cash flow and reports, answered from the ledger. The model never calculates amounts itself; Trivis does.\n- Safety: every write is a draft until you confirm it. Anything that leaves the company (email, e-invoice, payment run) or is destructive waits for a person's approval in Trivis.\n\nWorks in English and Estonian."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

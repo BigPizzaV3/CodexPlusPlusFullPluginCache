@@ -1,0 +1,1 @@
+OpenAI cannot execute local lifecycle hooks. This upload provides explicit user-invoked setup/review workflows, not equivalent automatic enforcement or local audit ledgers. Server-side MCP rail auditing remains authoritative; human approval gates remain in OloLand.

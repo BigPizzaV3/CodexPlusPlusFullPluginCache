@@ -1,0 +1,74 @@
+---
+name: risk-taxonomy
+description: "Use when assessing, categorizing, or quantifying deal risks \u2014 OloLand\
+  \ uses an institutional risk taxonomy of 311 risk factors across 67 categories in\
+  \ five dimensions; every surfaced risk must be classified per this framework and\
+  \ quantified rather than left as narrative."
+---
+
+# Risk Taxonomy — 311 Risk Factors Across 67 Categories
+
+Every risk surfaced from a deal must be classified along five dimensions. Narrative-only risk lists fail the verifier-stack standard.
+
+## The five dimensions
+
+1. **Risk family** — one of: Financial, Commercial, Operational, Legal/Regulatory, Strategic
+2. **Risk category** — the specific subcategory within the family (one of the 311 leaf risk factors, grouped into 67 categories — full taxonomy is part of the OloLand backend; representative subset below)
+3. **Severity** — Low (1-3), Medium (4-6), High (7-8), Deal-Killer (9-10) on a 10-point scale
+4. **Likelihood** — Probability the risk materializes during a 3-year hold (Low / Medium / High)
+5. **Financial impact** — Estimated dollar impact band: `<$1M` / `$1-5M` / `$5-25M` / `$25-100M` / `>$100M`
+
+## Key categories by family (representative subset)
+
+**Financial** — revenue concentration, working capital deterioration, covenant breach risk, deferred revenue recognition, related-party transactions, material weakness in controls, going concern, off-balance-sheet liabilities, tax exposure, ASC 606 misapplication
+
+**Commercial** — customer concentration (>20% from one customer = High), pricing pressure, churn acceleration, market saturation, competitive moat erosion, channel partner dependency, regulatory exposure on revenue model
+
+**Operational** — key-person risk, supply chain single-source, supplier concentration, manufacturing capacity, IT system fragility, cyber incident exposure, regulatory compliance gap, key contract auto-renewal exposure
+
+**Legal/Regulatory** — pending litigation, regulatory investigation, IP infringement claims, employment class actions, environmental liability, antitrust scrutiny, change-of-control restrictions, indemnity caps inadequate
+
+**Strategic** — technology disruption, business-model obsolescence, integration risk (for acquirer), retention of key contracts post-close, customer migration to competitor
+
+## Industry overlays
+
+Some categories materially shift severity by industry. The taxonomy carries industry overlays for SaaS, manufacturing, healthcare, services, retail, and financial services:
+
+- **SaaS** — NDR decay, CAC payback, cohort economics, deferred revenue cliff, professional services dependency
+- **Manufacturing** — LIFO liquidation, deferred maintenance, bill-and-hold, obsolete inventory
+- **Healthcare** — reimbursement dependency, regulatory risk, M&A integration complexity, certificate-of-need exposure
+
+## Output format
+
+Every risk surfaced should look like this:
+
+```
+- Family: Financial
+  Category: Revenue concentration
+  Severity: 8 (High)
+  Likelihood: High
+  Impact: $5-25M
+  Description: Top customer 28% of revenue with no long-term contract
+  Source: 10-K p.14, Risk Factors
+```
+
+Never surface a risk without categorization. If you cannot classify a risk, the right output is "I observed a potential risk but could not classify it under the 67-category framework. The category that may apply is X; the missing input that would let me classify it is Y."
+
+## Quantification over narrative
+
+Narrative risks ("the company faces competitive pressure") are insufficient. Always:
+- Anchor on a numeric severity score
+- Anchor on a dollar-impact band
+- Anchor on a documented source (use the `source-hierarchy` skill for ranking)
+
+This is what makes a risk register useful in an IC meeting — not the prose around it.
+
+
+## OpenAI execution requirements
+
+Use the connected MCP server's current tool schemas. Do not invent tool arguments, job-status endpoints, inputs, or outputs. If a referenced tool is unavailable, explain the limitation and request the needed connection or data. Invoke writes only when the user has requested the corresponding action. Do not initiate purchases or payments. An unrun, unsupported, or unavailable procedure is a gap, never a passing result.
+
+
+OpenAI cannot execute local lifecycle hooks. Use the packaged explicit setup/review workflow when requested. Server-side MCP auditing remains authoritative; preserve evidence blockers and human-only approval gates.
+
+Claim-correction submission is unsupported in this OpenAI upload because the current handler records surface=cowork. Do not invoke submit_agent_claim_correction from OpenAI. Explain the limitation and retain proposed correction text for human review without claiming submission. See unsupported-workflows.json for the excluded canonical workflow.

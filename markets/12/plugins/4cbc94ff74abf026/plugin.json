@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "onyst-rvg",
+  "version": "1.0.1",
+  "description": "Calculates German lawyers' fees under the RVG with the ONYST fee engine and turns them into invoices and calculation sheets for law firms.",
+  "author": {
+    "name": "ONYST UG (haftungsbeschr\u00e4nkt)",
+    "email": "info@onyst.legal",
+    "url": "https://onyst.legal"
+  },
+  "homepage": "https://onyst.legal/mcp/en",
+  "keywords": [
+    "legal fees",
+    "RVG",
+    "Germany",
+    "law firm",
+    "invoice"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ONYST RVG",
+        "shortDescription": "German legal fees (RVG)",
+        "longDescription": "ONYST RVG connects ChatGPT to the fee engine behind the ONYST fee calculator for German lawyers. ChatGPT no longer estimates fees under the German Lawyers' Remuneration Act (RVG): it asks the engine, and every item comes back with its fee number (VV), rate and calculation.\n\nWhat you can do:\n- Calculate fees, expenses and VAT for a matter, or for several matters with credits between them, for example a payment order procedure followed by a lawsuit.\n- Determine the value in dispute, for example for tenancy, maintenance or dismissal cases.\n- Look up fee numbers, rates and required inputs in the fee schedule.\n- Find the route between two addresses for travel expenses, with a map and the distance as an expense item.\n- See an invoice as a draft in your firm's layout, then issue it as PDF or e-invoice (ZUGFeRD), along with a calculation sheet. Documents arrive as a download link that is valid for seven days.\n- Find recipients in your address book and read or update your firm's invoice details. ChatGPT asks before every change.\n\nResults appear as interactive views in the chat: the calculation, the value in dispute, the fee schedule, the route, the invoice draft with its pages, the finished invoice and the documents to download.\n\nWho it is for: law firms and legal departments in Germany. You sign in with your ONYST account; new users can create one during sign-in. The calculation tools work with every ONYST account. Whether invoices, calculation sheets and the distance for travel expenses are available depends on your firm's ONYST account.\n\nLimitations: ONYST RVG calculates lawyers' fees under the RVG; it does not calculate court fees. The results are a calculation, not legal advice. Whether a fee applies in the individual case and whether a discretionary rate is appropriate remains the lawyer's responsibility.\n\nYour control: every connected assistant is listed in your ONYST account under Connected assistants and can be disconnected there at any time. Download links can be withdrawn in the invoice history.",
+        "developerName": "ONYST",
+        "category": "Business & Operations",
+        "websiteURL": "https://onyst.legal",
+        "supportURL": "https://onyst.legal/kontakt",
+        "privacyPolicyURL": "https://onyst.legal/datenschutz",
+        "termsOfServiceURL": "https://onyst.legal/nutzungsbedingungen",
+        "defaultPrompt": [
+          "Calculate the lawyer's fees for a lawsuit over \u20ac8,000 with one hearing, mandate received today, including VAT.",
+          "Eviction lawsuit, the monthly rent is \u20ac1,200. What is the value in dispute?",
+          "Payment order procedure, then a lawsuit with a hearing over \u20ac4,500: combined fee calculation with crediting and VAT."
+        ],
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Fees of one matter in a German civil lawsuit, with the out-of-court business fee credited against the procedural fee, including VAT.",
+              "prompt": "Value in dispute \u20ac8,000, mandate 13 Aug 2026. Procedural fee and hearing fee, first instance. Before that I acted out of court, 1.3 business fee from the same value, which is to be credited. With VAT.",
+              "tools_triggered": "rvg_calculate",
+              "expected_behavior": "ChatGPT calls rvg_calculate and shows the calculation view: VV 3100 (rate 1.3) 692.90 EUR, VV 3104 (rate 1.2) 639.60 EUR, credit of 0.65 of the business fee -346.45 EUR (Vorbem. 3 Abs. 4 VV), net 986.05 EUR, VAT 187.35 EUR, total 1,173.40 EUR gross. It may ask whether to add the flat rate for post and telecommunications (VV 7002) but does not add it on its own; after a yes the total is 1,197.20 EUR. Every amount comes from the tool result; ChatGPT does not calculate amounts itself."
+            },
+            {
+              "description": "Two matters billed together: a payment order procedure followed by a lawsuit, with the payment order fee credited against the procedural fee of the lawsuit.",
+              "prompt": "Claim \u20ac4,500, mandate 3 Aug 2026. First a payment order procedure (procedural fee for the application), after the objection a lawsuit with a hearing. The payment order fee is credited against the procedural fee. Flat rate for post per proceeding, VAT. A combined invoice, please.",
+              "tools_triggered": "rvg_calculate_combined",
+              "expected_behavior": "ChatGPT calls rvg_calculate_combined and shows the combined view with both matters: payment order procedure VV 3305 354.50 EUR and VV 7002 20.00 EUR; lawsuit VV 3100 460.85 EUR, VV 3104 425.40 EUR, credit of VV 3305 -354.50 EUR and VV 7002 20.00 EUR; net 926.25 EUR, VAT 175.99 EUR, total 1,102.24 EUR gross."
+            },
+            {
+              "description": "Value in dispute for an eviction lawsuit from the monthly rent.",
+              "prompt": "Eviction lawsuit, the monthly rent is \u20ac1,200. Mandate 13 Aug 2026. What is the value in dispute?",
+              "tools_triggered": "rvg_determine_value",
+              "expected_behavior": "ChatGPT calls rvg_determine_value and shows the value view: 14,400.00 EUR, twelve monthly rents under section 41 (1) GKG. ChatGPT does not multiply the rent itself."
+            },
+            {
+              "description": "Invoice draft for a recipient from the address book of the test account. Nothing is issued until the user confirms.",
+              "prompt": "Draft an invoice to Max Beispiel from my address book: lawsuit over \u20ac5,000, mandate 13 Aug 2026, procedural fee, hearing fee, flat rate for post, VAT. Invoice date 13 Aug 2026, PDF. Show me the draft first.",
+              "tools_triggered": "rvg_recipients_search, rvg_preview_invoice",
+              "expected_behavior": "ChatGPT finds Max Beispiel, Nebenstra\u00dfe 2, 10117 Berlin with rvg_recipients_search and calls rvg_preview_invoice. The draft view shows the invoice pages in the test firm's layout with the watermark ENTWURF: VV 3100 460.85 EUR, VV 3104 425.40 EUR, VV 7002 20.00 EUR, net 906.25 EUR, VAT 172.19 EUR, total 1,078.44 EUR. Nothing is issued before the user confirms. After the user confirms (asking ChatGPT, which calls rvg_create_invoice, or clicking \"Rechnung ausstellen\" in the view), the invoice gets its number and a download card appears."
+            },
+            {
+              "description": "Travel expenses from two addresses: the distance comes from the route, not from an estimate, and goes unchanged into the fee calculation.",
+              "prompt": "Let ONYST determine the driving route from my law firm to the Regional Court Berlin, Littenstra\u00dfe 12-17, 10179 Berlin, and back. Then add the travel costs to the fees for a lawsuit over \u20ac5,000, mandate 13 Aug 2026: procedural fee, hearing fee, flat rate for post, VAT.",
+              "tools_triggered": "rvg_travel_route, rvg_calculate",
+              "expected_behavior": "ChatGPT calls rvg_travel_route with the firm address of the test account (Friedrichstra\u00dfe 100, 10117 Berlin) as start and the court as destination; the route view shows both addresses, a map and the distance there and back. ChatGPT then calls rvg_calculate with VV 3100, 3104, 7002 and the VV 7003 item taken unchanged from the route result (kilometers with both addresses as evidence), including VAT. ChatGPT does not estimate kilometers or multiply them by the rate itself."
+            }
+          ],
+          "negative": [
+            {
+              "description": "An item that does not exist in the fee schedule. The plugin must not invent an item or an amount.",
+              "prompt": "Calculate at \u20ac5,000, mandate 13 Aug 2026: procedural fee 3100, hearing fee 3104 and as a third item FREE with \u20ac50 for copies the client ordered. Without VAT.",
+              "expected_behavior": "ChatGPT does not invent a fee item or an amount. Either rvg_calculate rejects the item FREE and names its position while the valid items are still calculated, or ChatGPT maps the copies to an allowed key (the document fee VV 7000 or a pass-through item) or asks the user. Every amount comes from the tool result."
+            },
+            {
+              "description": "A corrective invoice. ONYST RVG has no corrective or cancellation invoice type, and the plugin must not issue a document the user has not confirmed.",
+              "prompt": "Yesterday I issued invoice 2026-K-01 (lawsuit over \u20ac5,000, mandate 13 Aug 2026, procedural and hearing fee, flat rate for post, VAT). Now I notice that 30 km travel costs are missing. Make me a corrective invoice.",
+              "expected_behavior": "No rvg_create_invoice call without the user's confirmation. ONYST RVG has no corrective invoice type: ChatGPT offers a new invoice with its own number for the missing travel costs, calculated with the tools and shown first as a draft with rvg_preview_invoice. It may first ask for the distance or the recipient."
+            },
+            {
+              "description": "Court fees (GKG) are out of scope: ONYST RVG calculates lawyers' fees only.",
+              "prompt": "What court fees will the court charge for a lawsuit over \u20ac10,000?",
+              "expected_behavior": "ChatGPT does not present a court fee amount as a result of ONYST RVG and does not compute one from the fee tables of the plugin. It may offer to calculate the lawyer's fees with rvg_calculate."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "ONYST RVG does not sell products or process payments in ChatGPT. It calculates lawyers' fees and creates invoices that the law firm sends to its own clients.",
+        "demo_recording_url": "https://drive.google.com/file/d/1QTxe0rVgjvM6J91bxTySt-v4GHsAbapk/view"
+      },
+      "publication": {
+        "release_notes": "Initial release: thirteen tools to calculate German lawyers' fees under the RVG, determine the value in dispute, look up the fee schedule, find the distance for travel expenses, preview and issue invoices and calculation sheets, and manage the address book and firm details, with interactive views in the chat.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "Anwaltsgeb\u00fchren nach RVG",
+            "description": "ONYST RVG verbindet ChatGPT mit der Geb\u00fchren-Engine des ONYST Geb\u00fchren Rechners. ChatGPT sch\u00e4tzt Anwaltsgeb\u00fchren nach dem RVG nicht mehr, sondern fragt die Engine, und jede Position kommt mit VV-Nummer, Satz und Rechenweg zur\u00fcck.\n\nWas Sie damit tun k\u00f6nnen:\n- Geb\u00fchren, Auslagen und Umsatzsteuer einer Angelegenheit berechnen, auch mehrerer Angelegenheiten mit Anrechnung, etwa Mahnverfahren und anschlie\u00dfende Klage.\n- Den Gegenstandswert ermitteln, etwa bei Miete, Unterhalt oder K\u00fcndigungsschutz.\n- Geb\u00fchrennummern, S\u00e4tze und Pflichtangaben im Verg\u00fctungsverzeichnis nachschlagen.\n- F\u00fcr Reisekosten die Strecke zwischen zwei Adressen finden, mit Karte und der Entfernung als Position.\n- Eine Rechnung als Entwurf im Layout Ihrer Kanzlei sehen und sie als PDF oder E-Rechnung (ZUGFeRD) ausstellen, dazu den Berechnungsbogen. Dokumente kommen als Download-Link, der sieben Tage gilt.\n- Empf\u00e4nger im Adressbuch finden und die Rechnungsangaben der Kanzlei lesen oder \u00e4ndern. ChatGPT fragt vor jeder \u00c4nderung.\n\nDie Ergebnisse erscheinen als Ansicht im Chat: die Berechnung, der Gegenstandswert, das Verg\u00fctungsverzeichnis, die Strecke, der Rechnungsentwurf mit seinen Seiten, die fertige Rechnung und die Dokumente zum Herunterladen.\n\nF\u00fcr wen: Kanzleien und Rechtsabteilungen in Deutschland. Sie melden sich mit Ihrem ONYST-Konto an; wer noch keines hat, legt es bei der Anmeldung an. Die Rechenwerkzeuge stehen jedem ONYST-Konto offen. Ob Rechnungen, Berechnungsb\u00f6gen und die Entfernung f\u00fcr Reisekosten zur Verf\u00fcgung stehen, h\u00e4ngt vom ONYST-Konto der Kanzlei ab.\n\nGrenzen: ONYST RVG rechnet Anwaltsgeb\u00fchren nach dem RVG, keine Gerichtskosten. Das Ergebnis ist eine Rechenauskunft, keine Rechtsberatung. Ob ein Geb\u00fchrentatbestand im Einzelfall einschl\u00e4gig und ein Ermessenssatz angemessen ist, verantwortet die Anw\u00e4ltin oder der Anwalt.\n\nIhre Kontrolle: Jeder verbundene Assistent steht im ONYST-Konto unter Verbundene Assistenten und l\u00e4sst sich dort jederzeit trennen. Download-Links ziehen Sie im Rechnungsverlauf zur\u00fcck."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

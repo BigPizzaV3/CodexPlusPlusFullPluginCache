@@ -1,0 +1,141 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "e-invoices",
+  "version": "1.4.0",
+  "description": "Understand Italian electronic invoices (FatturaPA) in ChatGPT: e-invoices.it reads an attached .xml, .xml.p7m or zip invoice and explains amounts, VAT, due dates and payment details, sums up several invoices for you and your accountant, or explains why the SdI rejected an invoice you sent.",
+  "author": {
+    "name": "Thomas Tschager",
+    "url": "https://e-invoices.it/en/"
+  },
+  "homepage": "https://e-invoices.it/en/",
+  "keywords": [
+    "fatturapa",
+    "fattura elettronica",
+    "e-invoice",
+    "italy",
+    "vat",
+    "sdi"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "e-invoices.it",
+        "shortDescription": "Understand Italian e-invoices",
+        "longDescription": "e-invoices.it helps you understand Italian electronic invoices (FatturaPA) before you pay them, book them or pass them to your accountant.\n\nAttach an invoice to the chat: a .xml file, a signed .xml.p7m file or a zip, as you get it from the supplier or from the Agenzia delle Entrate portal Fatture e Corrispettivi. e-invoices.it reads it and shows it as a readable document: supplier and customer with their VAT numbers, line items, the VAT summary per rate, the total, due dates, payment details with IBAN, withholding tax and the names of the attached files. ChatGPT then answers your questions about it in your language, for example how much to pay and by when, how the VAT is made up, or what the Italian codes mean (document type, VAT nature, split payment, payment method).\n\nIf an invoice you sent was rejected by the Sistema di Interscambio, attach the rejection receipt (notifica di scarto, the _NS_ file) and, if you have it, the invoice: e-invoices.it explains each error code in plain words, names the fields concerned with their current values, and ChatGPT proposes how to correct the invoice before you send it again.\n\nFor businesses, freelancers and accountants who receive or send Italian invoices, including foreign suppliers and customers who do not read Italian.\n\nAttach several invoices, or the zip of a download massivo, and e-invoices.it sums them up for you and your accountant: revenue and costs, VAT, the largest customers and suppliers, the imposta di bollo per quarter, withholding tax and anomalies worth checking. The chat takes a limited number of invoices at a time. The plugin only reads invoices and rejection receipts: it does not create, check in advance or send invoices. For many invoices at once (one Excel file, PDFs, a dashboard), use https://e-invoices.it.\n\ne-invoices.it processes the file only in memory: it does not store the file and does not log anything about it.",
+        "developerName": "Thomas Tschager",
+        "category": "Finance",
+        "websiteURL": "https://e-invoices.it/en/",
+        "supportURL": "https://e-invoices.it/en/legal-notice#contatti",
+        "privacyPolicyURL": "https://e-invoices.it/en/privacy",
+        "termsOfServiceURL": "https://e-invoices.it/en/terms",
+        "defaultPrompt": [
+          "Summarize the invoice I attached",
+          "When is this invoice due and how do I pay it?",
+          "Break down the VAT of this invoice by rate"
+        ],
+        "brandColor": "#253494",
+        "composerIcon": "./assets/logo.svg",
+        "logo": "./assets/logo.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Summary of an attached XML invoice",
+              "prompt": "Summarize the invoice I attached.",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/fattura.xml"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files with the attached file and shows the invoice. The answer names invoice 2025/0042 of 17 June 2025 from Bottega Alpina Srl to Hotel Dolomiti Spa, total 852.38 EUR, due 17 July 2025, by bank transfer."
+            },
+            {
+              "description": "Due date and payment details",
+              "prompt": "When is this invoice due and where do I have to pay it?",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/fattura.xml"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files. The answer says 852.38 EUR are due on 17 July 2025 by bank transfer to IBAN IT00X0000000000012345678900 at Banca di Esempio."
+            },
+            {
+              "description": "VAT summary per rate",
+              "prompt": "Break down the VAT of this invoice by rate.",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/fattura.xml"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files. The answer lists 4% on 192.00 = 7.68, 10% on 378.20 = 37.82 and 22% on 194.00 = 42.68, all with immediate VAT due, 88.18 EUR of VAT in total."
+            },
+            {
+              "description": "Explanation in another language",
+              "prompt": "Erkl\u00e4re mir diese italienische Rechnung auf Deutsch.",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/fattura.xml"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files and answers in German: invoice (TD01, Fattura) 2025/0042 from Bottega Alpina Srl, total 852.38 EUR, due 17 July 2025; Italian terms such as imponibile are translated."
+            },
+            {
+              "description": "Invoice rejected by the SdI",
+              "prompt": "My invoice was rejected by the SdI. Why, and what do I have to fix?",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/IT01234567890_0042S_NS_001.xml",
+                "https://e-invoices.it/static/demo/IT01234567890_0042S.xml"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files with both files. The answer says the SdI rejected the invoice with error 00423 because the total of line 3 (Canederli allo speck) is 147.00 instead of 8 x 18.40 = 147.20, proposes to correct PrezzoTotale to 147.20, and says to send the corrected invoice again, preferably within 5 days with the same number and date."
+            },
+            {
+              "description": "Line items",
+              "prompt": "Which items are on this invoice and what does each one cost?",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/fattura.xml"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files. The answer lists five items: Speck Alto Adige IGP 231.00, Formaggio Stelvio DOP 192.00, Canederli allo speck 147.20, Succo di mela 149.00 and Trasporto refrigerato 45.00, with their VAT rates."
+            },
+            {
+              "description": "Several invoices summed up for the accountant",
+              "prompt": "Sum up these invoices for my accountant.",
+              "file_attachment_urls": [
+                "https://e-invoices.it/static/demo/fatture.zip"
+              ],
+              "tools_triggered": "read_e_invoice_files",
+              "expected_behavior": "Calls read_e_invoice_files once with the zip. The answer gives an overview of 18 invoices of Bottega Alpina Srl in 2025, not the single invoices: 10 issued invoices with 5639.60 EUR taxable and 670.28 EUR VAT, 8 received invoices with 3512.00 EUR taxable and 496.88 EUR VAT, a VAT balance of 173.40 EUR, Hotel Dolomiti Spa as the largest customer (about 60% of sales), and the anomalies to check, such as one invoice transmitted late. It says the figures are an aid to be checked, not tax advice."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Creating an invoice is not supported",
+              "prompt": "Write me an invoice for three hours of consulting at 80 euros per hour."
+            },
+            {
+              "description": "General tax question without a file",
+              "prompt": "What is the standard VAT rate in Italy?"
+            },
+            {
+              "description": "Sending an invoice to the SdI is not supported",
+              "prompt": "Send my invoice to the Sistema di Interscambio for me."
+            }
+          ]
+        },
+        "demo_recording_url": "https://eta.tschager.net/e-invoices-chatgpt-demo.webm"
+      },
+      "publication": {
+        "release_notes": "Analyses several invoices at once (more files, a zip or a download massivo, up to 20 per call) instead of asking you to use the website: sales and purchases, top customers and suppliers, VAT by rate, trend by period, cash flow, transmission to the SdI, the bollo per quarter, the ritenute per month and a list of checks. Only aggregates are returned.",
+        "translations": {
+          "it-IT": {
+            "subtitle": "Leggi le fatture elettroniche",
+            "description": "e-invoices.it ti aiuta a capire le fatture elettroniche (FatturaPA) prima di pagarle, registrarle o passarle al commercialista.\n\nAllega in chat una fattura: un file .xml, un .xml.p7m firmato o uno zip, come la ricevi dal fornitore o dal portale Fatture e Corrispettivi dell'Agenzia delle Entrate. e-invoices.it la legge e la mostra come documento leggibile: fornitore e cliente con partita IVA, righe, riepilogo IVA per aliquota, totale, scadenze, dati di pagamento con IBAN, ritenute e nomi degli allegati. ChatGPT risponde poi alle tue domande, per esempio quanto pagare ed entro quando, come si compone l'IVA o cosa significano i codici.\n\nSe una fattura che hai inviato \u00e8 stata scartata dal Sistema di Interscambio, allega la notifica di scarto (il file _NS_) e, se ce l'hai, la fattura: e-invoices.it spiega ogni codice di errore in parole semplici, indica i campi interessati con i valori attuali e ChatGPT propone come correggere la fattura prima di inviarla di nuovo.\n\nPer imprese, professionisti e commercialisti, e per chi riceve fatture italiane senza leggere l'italiano.\n\nAllega pi\u00f9 fatture, o lo zip di un download massivo, ed e-invoices.it le riassume per te e per il commercialista: fatturato e costi, IVA, principali clienti e fornitori, imposta di bollo per trimestre, ritenute e anomalie da verificare. In chat si possono allegare poche fatture alla volta. Il plugin legge soltanto fatture e notifiche di scarto: non crea, non controlla in anticipo e non invia fatture. Per molte fatture insieme (un unico Excel, PDF, una dashboard) usa https://e-invoices.it.\n\ne-invoices.it elabora il file solo in memoria: non lo salva e non ne registra nulla nei log."
+          },
+          "de-DE": {
+            "subtitle": "E-Rechnungen aus Italien lesen",
+            "description": "e-invoices.it hilft Ihnen, italienische elektronische Rechnungen (FatturaPA) zu verstehen, bevor Sie sie bezahlen, verbuchen oder an Ihre Steuerberatung weitergeben.\n\nH\u00e4ngen Sie eine Rechnung an den Chat an: eine .xml-Datei, eine signierte .xml.p7m-Datei oder ein ZIP, so wie Sie sie vom Lieferanten oder aus dem Portal Fatture e Corrispettivi der Agenzia delle Entrate erhalten. e-invoices.it liest sie und zeigt sie als lesbares Dokument: Lieferant und Kunde mit USt-IdNr., Positionen, MwSt.-Zusammenfassung je Satz, Gesamtbetrag, F\u00e4lligkeiten, Zahlungsdaten mit IBAN, Quellensteuer und die Namen der Anh\u00e4nge. ChatGPT beantwortet dann Ihre Fragen auf Deutsch, etwa wie viel bis wann zu zahlen ist, wie sich die MwSt. zusammensetzt oder was die italienischen Codes bedeuten.\n\nWurde eine Rechnung, die Sie gesendet haben, vom Sistema di Interscambio abgelehnt, h\u00e4ngen Sie den Ablehnungsbescheid (notifica di scarto, die _NS_-Datei) und, falls vorhanden, die Rechnung an: e-invoices.it erkl\u00e4rt jeden Fehlercode verst\u00e4ndlich, nennt die betroffenen Felder mit ihren aktuellen Werten, und ChatGPT schl\u00e4gt vor, wie Sie die Rechnung vor dem erneuten Senden korrigieren.\n\nF\u00fcr Unternehmen, Selbst\u00e4ndige und Steuerberatungen, die Rechnungen aus Italien erhalten oder nach Italien senden.\n\nH\u00e4ngen Sie mehrere Rechnungen oder das ZIP eines download massivo an, und e-invoices.it fasst sie f\u00fcr Sie und Ihre Steuerberatung zusammen: Umsatz und Kosten, MwSt., die wichtigsten Kunden und Lieferanten, die Stempelsteuer (imposta di bollo) je Quartal, Quellensteuer und Auff\u00e4lligkeiten, die Sie pr\u00fcfen sollten. Im Chat k\u00f6nnen Sie nur eine begrenzte Zahl von Rechnungen auf einmal anh\u00e4ngen. Das Plugin liest nur Rechnungen und Ablehnungsbescheide: Es erstellt, pr\u00fcft vorab oder versendet keine Rechnungen. F\u00fcr viele Rechnungen zusammen (eine Excel-Datei, PDFs, ein Dashboard) nutzen Sie https://e-invoices.it.\n\ne-invoices.it verarbeitet die Datei nur im Arbeitsspeicher: Es speichert sie nicht und protokolliert nichts \u00fcber sie."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

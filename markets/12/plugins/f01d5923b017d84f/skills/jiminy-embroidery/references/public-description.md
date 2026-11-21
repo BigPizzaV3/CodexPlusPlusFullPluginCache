@@ -1,0 +1,2 @@
+# Jiminy Stitch Studio Agent with public-guide MCP
+Read the current public embroidery guides and WebMCP command documentation through an anonymous, read-only MCP server. Bundled skills help apply guidance. Browser editing, image generation, previews and file delivery require separately available host capabilities; the MCP does not perform these actions. No artwork, project data, browser identifiers or private account data is accepted by the MCP. Trial sewing remains necessary.

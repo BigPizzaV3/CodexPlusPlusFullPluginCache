@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "acikmutfak",
+  "version": "2.1.2",
+  "description": "Discover community recipes and manage your own private recipe collection.",
+  "author": {
+    "name": "Bermuda LLC",
+    "url": "https://acikmutfak.vercel.app"
+  },
+  "homepage": "https://acikmutfak.vercel.app",
+  "keywords": [
+    "recipes",
+    "cooking",
+    "community"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AcikMutfak",
+        "shortDescription": "Discover, save, share recipes",
+        "longDescription": "Discover community recipes and organize your personal recipe collection. Browse public recipes from home cooks and chefs without signing in, with ingredients, cooking steps and author attribution. Turn a recipe photo or screenshot from a social post, book page or handwritten note into structured ingredients and steps with ChatGPT. Review unclear text or quantities, then save the extracted recipe privately in your connected AcikMutfak account. Find recognised ingredient names, edit your collection, and request community sharing. Member sharing requests require administrator approval; pending recipes stay private. Optional device connections are managed in web account settings.",
+        "developerName": "Bermuda LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Search shared recipes",
+          "Read recipes",
+          "Save recipes from photos and screenshots",
+          "Find recognised ingredients",
+          "Create and edit your recipes",
+          "Request community sharing"
+        ],
+        "websiteURL": "https://acikmutfak.vercel.app",
+        "supportURL": "https://acikmutfak.vercel.app/support",
+        "privacyPolicyURL": "https://acikmutfak.vercel.app/privacy",
+        "termsOfServiceURL": "https://acikmutfak.vercel.app/terms",
+        "logo": "./assets/logo-512.png",
+        "composerIcon": "./assets/logo-64.png",
+        "brandColor": "#7b50b6",
+        "defaultPrompt": [
+          "\u00c7orba tarifleri bul.",
+          "Tarifimi hesab\u0131ma \u00f6zel olarak kaydet.",
+          "Find recipes shared by community cooks."
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Anonymous discovery. Ensure at least one approved Turkish soup recipe is in the public catalogue before running. Start without a linked account.",
+              "prompt": "T\u00fcrk\u00e7e \u00e7orba tarifleri bul. Yaln\u0131zca \u00e7orba sonu\u00e7lar\u0131n\u0131 g\u00f6ster.",
+              "tools_triggered": "search_recipes",
+              "expected_behavior": "Search with language=tr and a soup query such as \u00e7orba. Return matching recipes from the tool with title, ID and author attribution. All returned recipes must be public and approved. Do not require sign-in or reveal private/pending recipes."
+            },
+            {
+              "description": "Anonymous recipe reading. Start after the discovery case, with the returned recipe IDs in the conversation; repeat discovery if needed.",
+              "prompt": "Open the first recipe in the interactive AcikMutfak screen so I can use Cook mode.",
+              "tools_triggered": "get_recipe",
+              "expected_behavior": "Read the selected returned ID with get_recipe and open its interactive recipe panel. Show its ingredients, quantities, steps and author as returned, with a source link when available. Whole recipe and Cook mode must work in the panel. Do not invent missing information or require sign-in."
+            },
+            {
+              "description": "Screenshot extraction and private creation. Attach the supplied synthetic recipe screenshot. Ask ChatGPT to read it and show a structured draft without saving; verify two servings, domates and yumurta at two pieces each and the three Turkish steps. Then use the prompt below. Use a dedicated member account with device sync Off; link it through OAuth if needed. Keep the created recipe for the next two cases.",
+              "prompt": "Save this screenshot recipe privately in my account, keeping its title, Turkish ingredients and three steps. Skip device sync.",
+              "file_attachment_urls": [
+                "https://pnt4m0iwfrjc87nl.public.blob.vercel-storage.com/review/acikmutfak/recipe-screenshot-2026-10-14-XoZ4ih5sCe5szcZAbZzMzdXHPKxY0H.png"
+              ],
+              "tools_triggered": "search_ingredients, create_recipe",
+              "expected_behavior": "Call search_ingredients with names=[\"domates\", \"yumurta\"] and reuse suitable returned names without changing quantities. Create with title=Review Screenshot Tomato Eggs, language=tr, servings=2, two pieces of each ingredient, the three extracted Turkish steps and sync_device=false. Preserve ingredient uses indexes [0], [0], [1]. Ask about unreadable or ambiguous content instead of inventing it. Request account linking if needed; never ask for passwords in chat. Show the private recipe panel with its ID/revision. No sharing request is made and anonymous reads are unavailable. The original screenshot is not stored as a recipe image."
+            },
+            {
+              "description": "Owner-only editing. Start a fresh conversation linked to the same member account after the creation case, without supplying recipe IDs. Resolve the saved recipe and reload its latest revision before writing.",
+              "prompt": "Change my Review Screenshot Tomato Eggs recipe to serve four people, keeping the ingredients and steps unchanged. Skip device sync.",
+              "tools_triggered": "list_my_recipes, get_my_recipe, update_recipe",
+              "expected_behavior": "Resolve the member-owned recipe with list_my_recipes and get_my_recipe. Update its ID using the latest revision, servings=4 and sync_device=false. Ingredients and steps remain unchanged; revision increases. It stays private. If the revision is stale, reload and report the conflict instead of claiming success."
+            },
+            {
+              "description": "Moderated sharing. Start a fresh conversation linked to the same non-admin member account after the editing case, without supplying recipe IDs. No administrator approval is part of this case.",
+              "prompt": "Submit my Review Screenshot Tomato Eggs recipe for public sharing.",
+              "tools_triggered": "list_my_recipes, get_my_recipe, set_recipe_visibility",
+              "expected_behavior": "Resolve the owned recipe and current revision, then request visibility=public. The response must still have visibility=private and review.status=pending. Explain that administrator approval is needed. Anonymous reads remain unavailable; never claim immediate publication."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported appliance control. Explain that the app manages recipes and cannot remotely start cooking. Do not call any recipe tool or claim the appliance started.",
+              "prompt": "Start my kitchen appliance cooking dinner right now."
+            },
+            {
+              "description": "Unsupported account administration. Direct the user to account support for password help. Do not call recipe tools, request a password in chat or claim the password changed.",
+              "prompt": "Change my AcikMutfak account password from this chat."
+            },
+            {
+              "description": "Unsupported shopping and payments. Explain that the app does not purchase ingredients or process payments. Do not call recipe tools or claim an order was placed.",
+              "prompt": "Order the ingredients for my recipe and pay for them with my credit card."
+            }
+          ]
+        },
+        "demo_recording_url": "https://pnt4m0iwfrjc87nl.public.blob.vercel-storage.com/review/acikmutfak/demo-2026-10-14-YpgfpAaI9wQUx3tfCovGekdkhVgC3i.mp4",
+        "commerce": false,
+        "commerce_description": "AcikMutfak does not offer purchases, subscriptions or payment processing."
+      },
+      "publication": {
+        "release_notes": "Restores reviewer access and preserves the OAuth return path when sign-in is retried after an incorrect password. Reviewer sign-in and authorization have been verified with the dedicated demo account. Existing recipe features, permissions and connection settings are unchanged.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cats-feeding-plan",
+  "version": "1.0.0",
+  "description": "Daily feeding plans for healthy adult cats from the Cats.com catalogue: a calorie target, up to three complete-food plans with exact amounts and dated US prices, and catalogue facts for a named food. Health screening first; kittens, sick cats and prescribed diets are referred to the veterinarian. Cats.com may earn a commission on purchases through links.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cats.com Feeding Plan",
+        "shortDescription": "Daily portions for adult cats",
+        "longDescription": "Cats.com Feeding Plan turns a few facts about your cat into a daily feeding plan built from the Cats.com catalogue of cat foods.\n\nWhat you get:\n- A daily calorie target for a healthy adult cat (from one year), computed with the Cats.com formula from weight, age, neuter status and body condition.\n- Up to three complete-food plans - wet, dry or a mix - with the exact daily amount of each food (cans, pouches, cups or grams), calories, cost per day and per 30 days in US dollars from a dated price snapshot, the first-order cost, two meals a day and a 7-10-day switch-over schedule. Each plan links to its page on Cats.com with the shopping list and where to buy.\n- Catalogue facts about a named food: calories, protein, fat and carbohydrate on a dry-matter basis, first ingredients and Cats.com's editorial notes, with the limits of that data stated.\n\nBoundaries: the plan covers healthy adult cats only. Kittens, pregnant or nursing cats, cats with a diagnosed disease, a prescribed diet or current symptoms, and cats with body condition 1 or 5 of 5 get guidance and a referral to their veterinarian instead of a plan; cats with body condition 2 or 4 get a weight-management target with a confirm-with-your-vet note first. Products and prices are from the US market. This is a general guide, not veterinary advice.\n\nWhen you buy through links, Cats.com may earn a commission; it never affects which foods are chosen. The plugin needs no account and keeps no profile of you or your cat.",
+        "developerName": "Cats.com",
+        "websiteURL": "https://cats.com/product/",
+        "defaultPrompt": [
+          "Build a feeding plan for my 11 lb, 4-year-old neutered cat",
+          "How many calories a day does my cat need?",
+          "My cat likes salmon \u2014 which complete foods have it?"
+        ],
+        "category": "Other",
+        "supportURL": "https://cats.com/about/contact-page",
+        "privacyPolicyURL": "https://cats.com/privacy-policy",
+        "termsOfServiceURL": "https://cats.com/terms-of-use",
+        "logo": "./assets/icon-bowl-512.png",
+        "composerIcon": "./assets/icon-bowl-512.png",
+        "brandColor": "#2D365F",
+        "brandColorDark": "#E5633C",
+        "capabilities": [
+          "Daily calorie target for a healthy adult cat from weight, age, neuter status and body condition",
+          "Up to three complete-food feeding plans with exact daily amounts, calories and dated US prices",
+          "Catalogue facts for a named cat food: calories, dry-matter analysis, first ingredients, Cats.com notes"
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Healthy adult calorie estimate without a plan or shopping.",
+              "prompt": "How many calories per day for my 11 lb, 4-year-old neutered cat? Body condition is 3 of 5, ideal. Not pregnant or nursing, no diagnosed disease, no prescribed diet and no symptoms. Just calories, please.",
+              "tools_triggered": "estimate_cat_calories",
+              "expected_behavior": "Returns 281 kcal/day for this profile as an estimate, not veterinary advice, with health screening reported as answered. No feeding-plan or lookup call, no products, no shop links."
+            },
+            {
+              "description": "P2: Complete mixed feeding plan with disclosure and the plan link.",
+              "prompt": "Build a half-wet, half-dry feeding plan for my 4.5 kg, 3-year-old spayed cat, body condition 3 of 5. She is not pregnant or nursing, has no diagnosed disease, no prescribed diet and no symptoms. I am in the US.",
+              "tools_triggered": "build_feeding_plan",
+              "expected_behavior": "Calls the tool with the stated profile, form mixed and the four screening flags false. Target 260 kcal/day. Presents up to three plans with the returned amounts, calories, cost per day and per 30 days in USD with the snapshot date, two meals, the 7-10 day transition, the commission disclosure before the links, each plan's Cats.com page_url and the health note. Invents no prices or foods."
+            },
+            {
+              "description": "P3: Wet-only plan with an explicit chicken exclusion.",
+              "prompt": "Give me a wet-food-only plan with no chicken for my 4.5 kg, 3-year-old spayed cat, ideal body condition 3 of 5. No pregnancy or nursing, disease, prescribed diet or symptoms. I am in the US.",
+              "tools_triggered": "build_feeding_plan",
+              "expected_behavior": "Calls the tool with form wet and avoid [chicken]. Shows only wet foods that satisfy the exclusion, or reports no_match honestly without relaxing the exclusion. The page_url carries form=wet and avoid=chicken. Disclosure, price date and health note present."
+            },
+            {
+              "description": "P4: Catalogue facts for a named food, no purchase recommendation.",
+              "prompt": "Look up Tiki Cat Ahi Tuna. What does the catalogue say about its nutrition, and what are the limits of that data? No plan, no prices, no shopping links.",
+              "tools_triggered": "lookup_cat_food",
+              "expected_behavior": "Calls the lookup with facts_only true, because the owner asked for no shopping links; the result then carries no page links. Reports the matching records, naming ambiguity rather than picking an unrelated recipe. Distinguishes the source calorie value, derived dry-matter shares and Cats.com's editorial notes; says eligibility is by catalogue category, not a verified label statement. No plan tool, prices or shop links."
+            },
+            {
+              "description": "P5: Monthly budget with complete screening; no invented affordable result.",
+              "prompt": "Build a plan within $60 per month for my 10 lb, 6-year-old neutered cat, body condition 3 of 5. Not pregnant or nursing, no diagnosed disease, no prescribed diet and no symptoms. I am in the US and either wet or dry food is fine.",
+              "tools_triggered": "build_feeding_plan",
+              "expected_behavior": "Calls the tool with budget 60 and budget_period month. Shows only plans within the main-food consumption budget, or explains the actual no_match or blocked_pending_rule result; never raises the budget silently. Distinguishes monthly consumption cost from the first-order package cost; disclosure and price date present."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Kitten is outside the planner's scope.",
+              "prompt": "My kitten is five months old and weighs 2 kg. What should I feed her and how much?",
+              "expected_behavior": "The plugin provides no plan, no calorie target, no ration, no products and no links for a kitten: either no tool is called, or a tool returns out-of-scope guidance only (the planner covers adult cats from one year; a kitten needs a growth or all-life-stages food in amounts set with the veterinarian) and the answer refers the owner to the veterinarian. Any general kitten advice beyond that is the assistant's own knowledge, not plugin output."
+            },
+            {
+              "description": "N2: Diagnosed disease must not be worked around through the calorie tool.",
+              "prompt": "My cat has kidney disease. How many calories should he get and what food should I buy?",
+              "expected_behavior": "The plugin provides no plan, no calorie target, no products and no links for a cat with a diagnosed disease: either no tool is called, or a tool returns out-of-scope guidance only (the cat stays on the diet agreed with its veterinarian; the planner covers healthy adult cats) and the answer names no renal or veterinary diet from the catalogue. Any general information beyond that is the assistant's own, not plugin output."
+            },
+            {
+              "description": "N3: Obese cat; no crash diet.",
+              "prompt": "My cat is body condition 5 of 5 and weighs 16 lb. Give me a weight-loss plan.",
+              "expected_behavior": "The plugin provides no plan, no calorie target, no restriction formula, no ration, no products and no links for a cat with body condition 5 of 5: either no tool is called, or a tool returns guidance only (an obese cat needs a veterinarian-supervised plan with gradual weight change) and the answer refers the owner to the veterinarian. Any general information beyond that is the assistant's own, not plugin output."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Results link to pages on Cats.com that carry affiliate links to Chewy; Cats.com may earn a commission on purchases there. There is no checkout inside the plugin, food selection never depends on commission, and the commission is disclosed in every answer.",
+        "demo_recording_url": "https://cats.com/product/demo/cats-feeding-plan-1.0.0.mp4"
+      },
+      "publication": {
+        "release_notes": "1.0.0 - first public release: daily calorie target for healthy adult cats; up to three complete-food feeding plans with exact amounts, dated US prices, first-order cost and a switch-over schedule; catalogue facts for a named food; health screening with veterinary referrals; Cats.com catalogue and prices refreshed weekly."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

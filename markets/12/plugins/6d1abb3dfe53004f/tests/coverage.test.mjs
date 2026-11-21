@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import path from 'node:path';import{fileURLToPath}from'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const skills=fs.readdirSync(path.join(root,'skills')).sort(), catalog=read('references/METHOD_CATALOG.md'), map=read('references/ROUTING_COVERAGE.md');
+const ids=[...catalog.matchAll(/^\| ([BCTM]\d\d) \|/gm)].map(x=>x[1]);
+const wbs=[...catalog.matchAll(/^\| (WB-\d\d) \|/gm)].map(x=>x[1]);
+test('24 actual skills',()=>{assert.equal(skills.length,24);for(const dir of skills){const s=read('skills/'+dir+'/SKILL.md');assert.match(s,/^---\nname:/);assert.ok(s.length>600,dir+' must be more than placeholder');assert.ok(/(Работа|применять|использовать|Когда)/i.test(s),dir+' operational instructions');assert.ok(/(результат|выход)/i.test(s),dir+' output');}});
+test('38 distinct course methods',()=>{assert.equal(new Set(ids).size,38);assert.equal(ids.length,38);for(const id of ids){assert.match(map,new RegExp('\\| '+id+' \\|'));const consumers=skills.filter(dir=>new RegExp('\\b'+id+'\\b').test(read('skills/'+dir+'/SKILL.md')));assert.ok(consumers.length>0,id);}});
+test('13 workbook worksheets',()=>{assert.equal(new Set(wbs).size,13);assert.equal(wbs.length,13);for(const id of wbs)assert.ok(map.includes('| '+id+' |'));});
+test('all skill relative links to references resolve',()=>{for(const dir of skills){let txt=read('skills/'+dir+'/SKILL.md');for(const match of txt.matchAll(/\.\.\/\.\.\/references\/([\w.-]+)/g))assert.ok(fs.existsSync(path.join(root,'references',match[1])),dir+' references '+match[1]);}});
+test('24 skills are declared via standard directory',()=>{let manifest=JSON.parse(read('plugin.json'));assert.ok(manifest.extensions['com.openai'].onboardingSkill);assert.equal(manifest.version,'1.2.0');});
+test('no placeholder live mcp.json included',()=>assert.equal(fs.existsSync(path.join(root,'mcp.json')),false));

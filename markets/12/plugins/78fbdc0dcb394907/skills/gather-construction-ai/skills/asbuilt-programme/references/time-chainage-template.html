@@ -1,0 +1,1089 @@
+<!--
+  TIME-CHAINAGE CHART — SELF-CONTAINED TEMPLATE (maintainer note)
+  ====================================================================
+  This file ships inside the Gather plugin, alongside gantt-template.html
+  in the same skill folder. At runtime, the model that generates a report
+  replaces ONLY the data object below and writes the result out as a new
+  .html file for the user — nothing else in this file should need to
+  change between runs.
+
+  WHAT THIS CHART IS
+  -------------------
+  A time-chainage (distance-time) diagram: the classic visual for linear
+  rail/civils work (track renewal, tunnels, pipelines, viaducts). Chainage
+  (distance along the alignment) runs along the X axis; time runs down
+  the Y axis (top = period start, increasing downward). Each activity is
+  drawn as a sloped band tracking its progress along the alignment over
+  time — a PLANNED band (dashed) from the stored baseline, and an
+  AS-BUILT band (solid, with dormant windows hatched) reconstructed from
+  records. Possessions are horizontal shaded time-bands spanning the
+  full chainage width.
+
+  INDICATIVE-FREE ZONE
+  ---------------------
+  This chart renders STORED (imported baseline) and RECORDED (as-built
+  reconstruction) values only, per Pattern 15's STORED/INDICATIVE
+  doctrine. It never runs or plots an INDICATIVE CPM recalculation —
+  there is no engine call anywhere in this file. A static banner says so
+  on every render; it is not conditional on the data.
+
+  REPLACEMENT CONTRACT
+  ---------------------
+  Search the script for the line beginning "const DATA =". The JSON
+  object literal on that line is wrapped by two HTML/JS block-comment
+  marker tokens — an opening one right before the "{" and a closing one
+  right after the matching "}". Each marker appears EXACTLY ONCE in this
+  file. A runtime string-replace should locate the opening marker and
+  the closing marker and substitute everything between them with a
+  freshly JSON.stringify-d data object matching the schema below. Do not
+  rename, duplicate, or reformat the markers themselves.
+
+  DATA SCHEMA
+  -----------
+  {
+    project, ref, periodStart, periodEnd, generated, dataCutoff: strings
+      (dates are "YYYY-MM-DD"),
+    chainageUnit: "m" | "km" — unit suffix shown on the chainage axis,
+    summary: one-sentence executive summary string,
+    confidenceNote: string | null — shown as an amber banner when present
+      (e.g. narrative-based LOW confidence, or a degraded path),
+    caveats: array of strings,
+    possessions: array of {
+      label: string, start: "YYYY-MM-DD", end: "YYYY-MM-DD",
+      note: string | null
+    } — horizontal shaded time-bands spanning the full chainage width.
+      An empty array is valid and rendered as "none recorded".
+    activities: array of {
+      name, unit: string,
+      chainageFrom, chainageTo: number — the activity's chainage extent,
+      chainageSource: string — how the chainage was obtained, one of the
+        three permitted sources (see SKILL.md Step 8a): "imported
+        programme baseline (Pattern 15)", "task-name/WBS pattern
+        (user-confirmed)", or "user-supplied chainage map" — never
+        invented,
+      planned: { start: "YYYY-MM-DD", finish: "YYYY-MM-DD" } | null —
+        null when no mapped baseline exists for this activity,
+      asBuilt: {
+        status: "complete" | "ongoing",
+        start: "YYYY-MM-DD", finish: "YYYY-MM-DD" | null,
+        segments: array of
+          { type: "work", start, end } |
+          { type: "dormant", start, end, workingDays: number,
+            flag: number,
+            coincidesWith: array of { date, evidence, confidence: "H"|"M"|"L" } }
+      } | null
+    },
+    unmapped: array of { name: string, reason: string } — activities the
+      run could NOT place on the chart because no chainage source (a),
+      (b) or (c) applied. Rendered as a table under the chart, never
+      dropped silently.
+  }
+
+  Everything on the page — header, KPIs, the SVG chart, all tables, the
+  legend, and the footer — is generated from this object by the inline
+  script below. There is no other place in the file that needs editing.
+  All data strings are inserted via textContent (never innerHTML), so
+  narrative text containing HTML-special characters renders safely.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time-Chainage Chart</title>
+<style>
+  :root{
+    --page:#f9f9f7;
+    --surface:#fcfcfb;
+    --ink:#0b0b0b;
+    --ink-2:#52514e;
+    --muted:#898781;
+    --hair:#e1e0d9;
+    --hair-strong:#cfcdc4;
+    --work:#2f6fab;
+    --dormant:#d03b3b;
+    --dormant-dark:#7a1f1f;
+    --dormant-light:#f3caca;
+    --planned:#6b6659;
+    --good:#0ca30c;
+    --amber-bg:#fdf3d9;
+    --amber-bd:#c9971f;
+    --amber-ink:#5c4300;
+    --info-bg:#e9f1f6;
+    --info-bd:#2f6fab;
+    --info-ink:#173a54;
+    --possession-bg:#fdead0;
+    --possession-bd:#c98a1f;
+    --possession-ink:#5c3d00;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--page);
+    color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:14px;
+    line-height:1.45;
+  }
+  .page{max-width:1240px;margin:0 auto;padding:32px 40px 60px;}
+  .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;}
+  h1.title{font-size:26px;margin:2px 0 0;font-weight:700;}
+  h2{font-size:16px;margin:0 0 10px;font-weight:700;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:6px 20px;color:var(--ink-2);font-size:13px;margin-top:10px;}
+  .meta-row b{color:var(--ink);}
+  .banner-amber{margin-top:14px;padding:10px 14px;background:var(--amber-bg);border:1px solid var(--amber-bd);color:var(--amber-ink);border-radius:6px;font-size:13px;}
+  .banner-info{margin-top:14px;padding:10px 14px;background:var(--info-bg);border:1px solid var(--info-bd);color:var(--info-ink);border-radius:6px;font-size:13px;font-weight:600;}
+  .summary{margin:22px 0;font-size:15px;max-width:900px;}
+  .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:20px 0 32px;}
+  .kpi-tile{background:var(--surface);border:1px solid var(--hair);border-radius:8px;padding:14px 16px;}
+  .kpi-num{font-size:26px;font-weight:700;}
+  .kpi-label{font-size:11.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.02em;}
+  .kpi-sub{font-size:12px;color:var(--ink-2);margin-top:6px;}
+  section{margin:30px 0;}
+  .chart-wrap{background:var(--surface);border:1px solid var(--hair);border-radius:8px;padding:16px;overflow-x:auto;}
+  svg.tc-chart{width:100%;height:auto;display:block;}
+  .grid-line{stroke:var(--hair);stroke-width:1;}
+  .grid-line-strong{stroke:var(--hair-strong);stroke-width:1;}
+  .grid-baseline{stroke:var(--hair-strong);stroke-width:1;}
+  .axis-label{font-size:11px;fill:var(--ink-2);font-weight:600;}
+  .axis-title{font-size:11px;fill:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+  .seg-work{stroke:var(--work);stroke-width:6;stroke-linecap:round;fill:none;}
+  .seg-dormant{stroke:url(#dormantHatchTC);stroke-width:8;stroke-linecap:butt;fill:none;}
+  .seg-planned{stroke:var(--planned);stroke-width:3;stroke-dasharray:7 4;fill:none;}
+  .hatch-bg{fill:var(--dormant-light);}
+  .hatch-line{stroke:var(--dormant-dark);stroke-width:3;}
+  .flag-badge circle{fill:var(--dormant);stroke:#fff;stroke-width:1;}
+  .flag-badge text{fill:#fff;font-size:9px;font-weight:700;}
+  .milestone-dot{fill:var(--ink);stroke:var(--surface);stroke-width:2;}
+  .cutoff-line{stroke:var(--ink-2);stroke-width:1.4;stroke-dasharray:4 3;}
+  .cutoff-label{font-size:10.5px;fill:var(--ink-2);}
+  .possession-band{fill:var(--possession-bg);stroke:var(--possession-bd);stroke-width:1;opacity:.85;}
+  .possession-label{font-size:11px;fill:var(--possession-ink);font-weight:600;}
+  .act-label{font-size:11.5px;font-weight:600;fill:var(--ink);}
+  .act-label-bg{fill:var(--surface);opacity:.82;}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top;}
+  th{color:var(--ink-2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.02em;}
+  .flag-chip{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--dormant);color:#fff;font-size:11px;font-weight:700;}
+  .pill{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;padding:1px 6px;border-radius:9px;border:1px solid;white-space:nowrap;}
+  .pill-H{background:#fdecec;border-color:#f0b8b8;color:#8a1f1f;}
+  .pill-M{background:#fff6e0;border-color:#e9cf8a;color:#6b4a00;}
+  .pill-L{background:#eef1f4;border-color:#c7ccd1;color:#3d4247;}
+  .pill-U{background:#eef1f4;border-color:#c7ccd1;color:#3d4247;}
+  .coincide-list{margin:0;padding-left:16px;}
+  .coincide-list li{margin-bottom:4px;}
+  .empty-note{color:var(--ink-2);font-style:italic;}
+  .source-tag{font-size:11px;color:var(--muted);}
+  .legend{display:flex;flex-wrap:wrap;gap:22px;align-items:center;margin:26px 0;padding:14px 16px;background:var(--surface);border:1px solid var(--hair);border-radius:8px;font-size:12.5px;}
+  .legend-item{display:flex;align-items:center;gap:8px;}
+  .legend-icon{display:block;}
+  footer{margin-top:30px;font-size:12px;color:var(--ink-2);}
+  footer ul{padding-left:18px;}
+  footer .tagline{margin-top:14px;color:var(--muted);font-style:italic;}
+  .fatal-error{background:#fdecec;color:#8a1f1f;padding:12px 16px;border:1px solid #f0b8b8;margin:16px;border-radius:6px;}
+  .tooltip{position:fixed;left:-9999px;top:-9999px;display:none;max-width:280px;background:var(--ink);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.22);z-index:50;pointer-events:none;}
+  .tooltip.visible{display:block;}
+  .tooltip .tt-title{font-weight:700;margin-bottom:3px;}
+  .tooltip .tt-dates{color:#d8d8d8;margin-bottom:3px;}
+  .tooltip .tt-wd{margin-bottom:4px;}
+  .tooltip .tt-list{margin:0;padding-left:16px;}
+  .tooltip .tt-list li{margin-bottom:3px;}
+  .tooltip .tt-none{font-style:italic;color:#d8d8d8;}
+
+  @media print{
+    @page{size:A4 landscape;margin:12mm;}
+    body{background:#fff;}
+    .page{max-width:none;padding:0;}
+    #tooltip{display:none!important;}
+    .chart-wrap{overflow:visible;border:none;}
+    section,.kpi-strip,.legend,table{page-break-inside:avoid;}
+    tr{page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Time-Chainage Chart</div>
+    <h1 id="hProject" class="title"></h1>
+    <div class="meta-row">
+      <span>Ref: <b id="hRef"></b></span>
+      <span>Period: <b id="hPeriod"></b></span>
+      <span>Chainage: <b id="hChainageRange"></b></span>
+      <span>Generated: <b id="hGenerated"></b></span>
+      <span>Data cut-off: <b id="hCutoff"></b></span>
+    </div>
+    <div id="indicativeFreeBanner" class="banner-info"></div>
+    <div id="confBanner" class="banner-amber" style="display:none;"></div>
+  </header>
+
+  <p id="hSummary" class="summary"></p>
+
+  <section id="kpiStrip" class="kpi-strip" aria-label="Key metrics"></section>
+
+  <section class="tc-section" aria-label="Time-chainage chart">
+    <h2>Time-Chainage Chart</h2>
+    <div id="chartWrap" class="chart-wrap"></div>
+  </section>
+
+  <section id="legendWrap" class="legend" aria-label="Legend"></section>
+
+  <section id="activitySection" aria-label="Charted activities">
+    <h2>Charted Activities</h2>
+    <div id="activityWrap"></div>
+  </section>
+
+  <section id="possessionSection" aria-label="Possessions">
+    <h2>Possessions</h2>
+    <div id="possessionWrap"></div>
+  </section>
+
+  <section id="unmappedSection" aria-label="Activities without chainage">
+    <h2>Activities Without Mapped Chainage (not dropped)</h2>
+    <div id="unmappedWrap"></div>
+  </section>
+
+  <section id="dormancySection" aria-label="Dormancy findings">
+    <h2>Dormancy Findings (As-Built)</h2>
+    <div id="dormancyWrap"></div>
+  </section>
+
+  <footer id="footerWrap"></footer>
+
+</div>
+
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/*
+ * Everything below is pure vanilla JS. It reads the DATA object once and
+ * builds the entire page (header text, KPI tiles, the SVG time-chainage
+ * chart, all tables, the legend, and the footer) from it. No DOM node in
+ * the markup above carries any of the demo content — swap DATA and the
+ * whole page follows. No canvas, no charting libraries: the chart is
+ * hand-built inline SVG.
+ */
+
+// DATA — replaced wholesale at runtime between the two marker comments.
+const DATA = /*__TIMECHAINAGE_DATA__*/{
+  "project": "Westbury Viaduct Renewal",
+  "ref": "TC-001",
+  "periodStart": "2026-01-01",
+  "periodEnd": "2026-02-15",
+  "generated": "2026-02-15",
+  "dataCutoff": "2026-02-15",
+  "chainageUnit": "m",
+  "summary": "The time-chainage chart for Westbury Viaduct Renewal covers 2 chainage-mapped activities between Ch 1150 and Ch 1650 across 01 Jan 2026 to 15 Feb 2026, with one possession window and a 10 working-day dormant gap on Deck Steel Fixing; 1 activity had no chainage source and is listed, not dropped.",
+  "confidenceNote": null,
+  "caveats": [
+    "Chainage comes only from a stored source: the imported programme baseline (Pattern 15), a user-confirmed task-name/WBS pattern, or a user-supplied chainage map — never guessed from an activity name alone.",
+    "As-built chainage progress within an activity's own extent is apportioned across its recorded WORK segments only; DORMANT segments are drawn flat (no chainage progress) for their duration, not smoothed across the gap.",
+    "This is a reconstruction from progress records and the imported baseline, not a contemporaneous planner's programme. It shows recorded/stored timing and chainage only — there is no logic-linked critical path in this analysis.",
+    "Per Pattern 11, dormant days are timing evidence, not a lost-time register — do not sum them here with DA/AC/WI totals from other skills."
+  ],
+  "possessions": [
+    { "label": "Weekend possession — piling rig access", "start": "2026-01-17", "end": "2026-01-19", "note": "Full-line possession, Piers 3-5 corridor" }
+  ],
+  "activities": [
+    {
+      "name": "Pier Construction (Piers 3-5)",
+      "unit": "m3",
+      "chainageFrom": 1150,
+      "chainageTo": 1350,
+      "chainageSource": "imported programme baseline (Pattern 15)",
+      "planned": { "start": "2026-01-04", "finish": "2026-01-28" },
+      "asBuilt": {
+        "status": "complete",
+        "start": "2026-01-05",
+        "finish": "2026-01-30",
+        "segments": [
+          { "type": "work", "start": "2026-01-05", "end": "2026-01-30" }
+        ]
+      }
+    },
+    {
+      "name": "Deck Steel Fixing",
+      "unit": "t",
+      "chainageFrom": 1150,
+      "chainageTo": 1650,
+      "chainageSource": "user-supplied chainage map",
+      "planned": null,
+      "asBuilt": {
+        "status": "ongoing",
+        "start": "2026-01-05",
+        "finish": null,
+        "segments": [
+          { "type": "work", "start": "2026-01-05", "end": "2026-01-09" },
+          {
+            "type": "dormant",
+            "start": "2026-01-10",
+            "end": "2026-01-25",
+            "workingDays": 10,
+            "flag": 1,
+            "coincidesWith": [
+              { "date": "2026-01-12", "evidence": "Standing time awaiting design answer", "confidence": "M" },
+              { "date": "2026-01-15", "evidence": "Heavy rain", "confidence": "M" },
+              { "date": "2026-01-18", "evidence": "Weekend possession — piling rig access", "confidence": "M" }
+            ]
+          },
+          { "type": "work", "start": "2026-01-26", "end": "2026-02-15" }
+        ]
+      }
+    }
+  ],
+  "unmapped": [
+    { "name": "Site Establishment", "reason": "Global mobilisation task — not a linear-chainage activity; no chainage field in the imported baseline, no confirmed WBS pattern, and no user-supplied chainage map entry." }
+  ]
+}/*__END_TIMECHAINAGE_DATA__*/;
+
+// Constants & small helpers
+const ONE_DAY = 86400000;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function parseISO(s){
+  if(!s || typeof s !== 'string') return null;
+  const parts = s.split('-');
+  if(parts.length !== 3) return null;
+  const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+  if(!isFinite(y) || !isFinite(m) || !isFinite(d)) return null;
+  return Date.UTC(y, m - 1, d);
+}
+function fmtDate(s){
+  const v = parseISO(s);
+  if(v === null) return '—';
+  const d = new Date(v);
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return day + ' ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+function daysBetweenInclusive(startS, endS){
+  const a = parseISO(startS), b = parseISO(endS);
+  if(a === null || b === null) return 0;
+  return Math.max(Math.round((b - a) / ONE_DAY) + 1, 0);
+}
+function confidenceWord(letter){
+  return letter === 'H' ? 'High' : letter === 'M' ? 'Medium' : letter === 'L' ? 'Low' : 'Unknown';
+}
+function fmtChainage(v, unit){
+  if(typeof v !== 'number' || !isFinite(v)) return '—';
+  return v.toLocaleString(undefined, { maximumFractionDigits: 2 }) + (unit ? ' ' + unit : '');
+}
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+function svgEl(tag, attrs){
+  const e = document.createElementNS(SVGNS, tag);
+  if(attrs){
+    for(const k in attrs){
+      if(Object.prototype.hasOwnProperty.call(attrs, k)) e.setAttribute(k, attrs[k]);
+    }
+  }
+  return e;
+}
+function setText(id, text){
+  const node = document.getElementById(id);
+  if(node) node.textContent = text;
+}
+function niceStep(range, targetCount){
+  if(!(range > 0)) return 1;
+  const raw = range / Math.max(targetCount, 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  let step;
+  if(norm < 1.5) step = 1;
+  else if(norm < 3) step = 2;
+  else if(norm < 7) step = 5;
+  else step = 10;
+  return step * mag;
+}
+function buildDormantPattern(id){
+  const pattern = svgEl('pattern', { id: id, patternUnits: 'userSpaceOnUse', width: 8, height: 8, patternTransform: 'rotate(45)' });
+  pattern.appendChild(svgEl('rect', { width: 8, height: 8, class: 'hatch-bg' }));
+  pattern.appendChild(svgEl('line', { x1: 0, y1: 0, x2: 0, y2: 8, class: 'hatch-line' }));
+  return pattern;
+}
+
+// Stats
+function computeStats(data){
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  const unmapped = Array.isArray(data.unmapped) ? data.unmapped : [];
+  const possessions = Array.isArray(data.possessions) ? data.possessions : [];
+  let complete = 0, ongoing = 0, dormantTotal = 0, longest = null;
+  activities.forEach(function(act){
+    const ab = act.asBuilt;
+    if(!ab) return;
+    if(ab.status === 'complete') complete++; else ongoing++;
+    (ab.segments || []).forEach(function(seg){
+      if(seg.type === 'dormant'){
+        const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+        dormantTotal += wd;
+        if(!longest || wd > longest.workingDays){
+          longest = { activity: act.name, start: seg.start, end: seg.end, workingDays: wd };
+        }
+      }
+    });
+  });
+  return {
+    charted: activities.length, unmapped: unmapped.length, possessions: possessions.length,
+    complete: complete, ongoing: ongoing, dormantTotal: dormantTotal, longest: longest
+  };
+}
+
+// Header / meta / summary
+function renderHeader(data, chainageBounds){
+  document.title = 'Time-Chainage Chart — ' + (data.project || 'Untitled Project');
+  setText('hProject', data.project || 'Untitled Project');
+  setText('hRef', data.ref || '—');
+  setText('hPeriod', fmtDate(data.periodStart) + ' to ' + fmtDate(data.periodEnd));
+  setText('hChainageRange', fmtChainage(chainageBounds.min, data.chainageUnit) + ' – ' + fmtChainage(chainageBounds.max, data.chainageUnit));
+  setText('hGenerated', fmtDate(data.generated));
+  setText('hCutoff', fmtDate(data.dataCutoff));
+  setText('hSummary', data.summary || '');
+
+  const infoBanner = document.getElementById('indicativeFreeBanner');
+  infoBanner.textContent = 'INDICATIVE-free zone: this chart renders STORED (imported baseline) and RECORDED (as-built reconstruction) values only. No INDICATIVE CPM recalculation is performed or plotted anywhere on this page.';
+
+  const banner = document.getElementById('confBanner');
+  if(data.confidenceNote){
+    banner.textContent = data.confidenceNote;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// KPI strip
+function renderKPIs(data, stats){
+  const wrap = document.getElementById('kpiStrip');
+  wrap.textContent = '';
+  const tiles = [
+    { num: stats.charted, label: 'Activities Charted' },
+    { num: stats.unmapped, label: 'Without Mapped Chainage' },
+    { num: stats.possessions, label: 'Possessions' },
+    { num: stats.complete, label: 'As-Built Complete' },
+    { num: stats.ongoing, label: 'As-Built Ongoing' },
+    { num: stats.dormantTotal, label: 'Total Dormant Working Days' }
+  ];
+  if(stats.longest){
+    tiles.push({ num: stats.longest.workingDays, label: 'Longest Gap — ' + stats.longest.activity, sub: fmtDate(stats.longest.start) + ' – ' + fmtDate(stats.longest.end) });
+  }
+  tiles.forEach(function(t){
+    const tile = document.createElement('div');
+    tile.className = 'kpi-tile';
+    tile.appendChild(el('div', 'kpi-num', String(t.num)));
+    tile.appendChild(el('div', 'kpi-label', t.label));
+    if(t.sub) tile.appendChild(el('div', 'kpi-sub', t.sub));
+    wrap.appendChild(tile);
+  });
+}
+
+// Chainage progression: apportion an activity's chainage extent across
+// its recorded WORK segments only (elapsed time within work segments);
+// DORMANT segments hold chainage flat (no progress) for their span.
+function buildAsBuiltPieces(act){
+  const ab = act.asBuilt;
+  if(!ab) return [];
+  let segments = Array.isArray(ab.segments) ? ab.segments.slice() : [];
+  if(segments.length === 0){
+    const endS = ab.finish || null;
+    if(ab.start) segments = [{ type: 'work', start: ab.start, end: endS }];
+  }
+  let totalActiveMs = 0;
+  segments.forEach(function(seg){
+    if(seg.type !== 'work') return;
+    const s = parseISO(seg.start), e = parseISO(seg.end || seg.start);
+    if(s === null) return;
+    totalActiveMs += Math.max((e === null ? s : e) - s + ONE_DAY, ONE_DAY);
+  });
+  if(totalActiveMs <= 0) totalActiveMs = ONE_DAY;
+
+  const range = act.chainageTo - act.chainageFrom;
+  const pieces = [];
+  let cumActiveMs = 0;
+  let lastChainage = act.chainageFrom;
+  segments.forEach(function(seg){
+    const s = parseISO(seg.start);
+    if(s === null) return;
+    const eRaw = parseISO(seg.end || seg.start);
+    const e = (eRaw === null ? s : eRaw) + ONE_DAY - 1; // inclusive end-of-day
+    if(seg.type === 'work'){
+      const segMs = Math.max(e - s + 1, ONE_DAY);
+      const startFrac = cumActiveMs / totalActiveMs;
+      cumActiveMs += segMs;
+      const endFrac = cumActiveMs / totalActiveMs;
+      const c1 = act.chainageFrom + range * startFrac;
+      const c2 = act.chainageFrom + range * endFrac;
+      pieces.push({ type: 'work', seg: seg, t1: s, t2: e, c1: c1, c2: c2 });
+      lastChainage = c2;
+    } else if(seg.type === 'dormant'){
+      pieces.push({ type: 'dormant', seg: seg, t1: s, t2: e, c1: lastChainage, c2: lastChainage });
+    }
+  });
+  return pieces;
+}
+
+function buildSegmentTitleText(act, piece){
+  const seg = piece.seg;
+  let s = (piece.type === 'dormant' ? 'Dormant' : 'Work') + ' — ' + (act.name || '') +
+    '\n' + fmtDate(seg.start) + ' to ' + fmtDate(seg.end || seg.start) +
+    '\nChainage ' + fmtChainage(piece.c1) + ' – ' + fmtChainage(piece.c2);
+  if(piece.type === 'dormant'){
+    const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    s += '\n' + wd + ' working days dormant';
+    const list = seg.coincidesWith;
+    if(list && list.length){
+      list.forEach(function(item){
+        s += '\n• ' + (item.date ? fmtDate(item.date) + ' — ' : '') + (item.evidence || '') + ' [' + confidenceWord(item.confidence) + ']';
+      });
+    } else {
+      s += '\nNo recorded explanation.';
+    }
+  }
+  return s;
+}
+
+// The chart (SVG, geometry fully computed from DATA). X = chainage,
+// Y = time (top = period start, increasing downward).
+function renderChart(data){
+  const wrap = document.getElementById('chartWrap');
+  wrap.textContent = '';
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+
+  // Chainage bounds, with padding, derived only from charted activities.
+  let cMin = null, cMax = null;
+  activities.forEach(function(act){
+    if(typeof act.chainageFrom === 'number'){ cMin = (cMin === null) ? act.chainageFrom : Math.min(cMin, act.chainageFrom); cMax = (cMax === null) ? act.chainageFrom : Math.max(cMax, act.chainageFrom); }
+    if(typeof act.chainageTo === 'number'){ cMin = (cMin === null) ? act.chainageTo : Math.min(cMin, act.chainageTo); cMax = (cMax === null) ? act.chainageTo : Math.max(cMax, act.chainageTo); }
+  });
+  if(cMin === null || cMax === null){ cMin = 0; cMax = 1000; }
+  if(cMin === cMax){ cMin -= 50; cMax += 50; }
+  const cPad = (cMax - cMin) * 0.04;
+  const chainageMin = cMin - cPad, chainageMax = cMax + cPad;
+
+  if(activities.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No chainage-mapped activities to chart for this period.'));
+    return { min: cMin, max: cMax };
+  }
+
+  // Time bounds.
+  let startVal = parseISO(data.periodStart);
+  let endVal = parseISO(data.periodEnd);
+  if(startVal === null || endVal === null){
+    const allDates = [];
+    activities.forEach(function(act){
+      if(act.planned){ allDates.push(parseISO(act.planned.start)); allDates.push(parseISO(act.planned.finish)); }
+      if(act.asBuilt){
+        allDates.push(parseISO(act.asBuilt.start));
+        allDates.push(parseISO(act.asBuilt.finish));
+        (act.asBuilt.segments || []).forEach(function(seg){ allDates.push(parseISO(seg.start)); allDates.push(parseISO(seg.end)); });
+      }
+    });
+    const valid = allDates.filter(function(v){ return v !== null; });
+    if(startVal === null) startVal = valid.length ? Math.min.apply(null, valid) : Date.UTC(2000, 0, 1);
+    if(endVal === null) endVal = valid.length ? Math.max.apply(null, valid) : startVal + ONE_DAY;
+  }
+  const scaleStart = startVal;
+  let scaleEnd = endVal + ONE_DAY;
+  if(scaleEnd <= scaleStart) scaleEnd = scaleStart + ONE_DAY;
+  const totalSpan = scaleEnd - scaleStart;
+
+  const LEFT = 120, TOP = 56, RIGHT_PAD = 24, BOTTOM_PAD = 20;
+  const TOTAL_W = 1180, PLOT_H = 660;
+  const plotW = Math.max(TOTAL_W - LEFT - RIGHT_PAD, 100);
+  const totalH = TOP + PLOT_H + BOTTOM_PAD;
+  const chainageSpan = chainageMax - chainageMin;
+
+  function xScale(chainage){
+    let x = LEFT + ((chainage - chainageMin) / chainageSpan) * plotW;
+    if(x < LEFT) x = LEFT;
+    if(x > LEFT + plotW) x = LEFT + plotW;
+    return x;
+  }
+  function yScale(val){
+    let y = TOP + ((val - scaleStart) / totalSpan) * PLOT_H;
+    if(y < TOP) y = TOP;
+    if(y > TOP + PLOT_H) y = TOP + PLOT_H;
+    return y;
+  }
+
+  const svg = svgEl('svg', { viewBox: '0 0 ' + TOTAL_W + ' ' + totalH, class: 'tc-chart', role: 'img', 'aria-label': 'Time-chainage chart' });
+  const defs = svgEl('defs');
+  defs.appendChild(buildDormantPattern('dormantHatchTC'));
+  svg.appendChild(defs);
+
+  // Chainage (vertical) gridlines + axis labels along the top.
+  const gridGroup = svgEl('g', { class: 'grid-group' });
+  const labelGroup = svgEl('g', { class: 'label-group' });
+  const step = niceStep(chainageSpan, 8);
+  const firstTick = Math.ceil(chainageMin / step) * step;
+  for(let v = firstTick; v <= chainageMax; v += step){
+    const x = xScale(v);
+    gridGroup.appendChild(svgEl('line', { x1: x, y1: TOP, x2: x, y2: TOP + PLOT_H, class: 'grid-line' }));
+    const t = svgEl('text', { x: x, y: TOP - 10, class: 'axis-label', 'text-anchor': 'middle' });
+    t.textContent = String(Math.round(v * 100) / 100);
+    labelGroup.appendChild(t);
+  }
+  const axisTitle = svgEl('text', { x: LEFT, y: TOP - 30, class: 'axis-title' });
+  axisTitle.textContent = 'Chainage (' + (data.chainageUnit || 'm') + ') →';
+  labelGroup.appendChild(axisTitle);
+
+  // Time (horizontal) gridlines: weekly hairlines, monthly stronger + label.
+  const weeks = totalSpan / ONE_DAY / 7;
+  const monthOnly = weeks > 26;
+  const weekStepMs = (monthOnly ? 2 : 1) * 7 * ONE_DAY;
+  for(let cursor = scaleStart; cursor <= scaleEnd; cursor += weekStepMs){
+    const y = yScale(cursor);
+    gridGroup.appendChild(svgEl('line', { x1: LEFT, y1: y, x2: LEFT + plotW, y2: y, class: 'grid-line' }));
+  }
+  {
+    let cy = new Date(scaleStart).getUTCFullYear();
+    let cm = new Date(scaleStart).getUTCMonth();
+    let guard = 0;
+    while(guard < 400){
+      guard++;
+      const monthStart = Date.UTC(cy, cm, 1);
+      const monthEnd = Date.UTC(cy, cm + 1, 1);
+      if(monthStart >= scaleEnd) break;
+      const visStart = Math.max(monthStart, scaleStart);
+      const visEnd = Math.min(monthEnd, scaleEnd);
+      if(visEnd > visStart){
+        const midY = yScale((visStart + visEnd) / 2);
+        const lt = svgEl('text', { x: LEFT - 10, y: midY + 4, class: 'axis-label', 'text-anchor': 'end' });
+        lt.textContent = MONTHS[cm] + ' ' + cy;
+        labelGroup.appendChild(lt);
+        if(monthStart > scaleStart){
+          const by = yScale(monthStart);
+          gridGroup.appendChild(svgEl('line', { x1: LEFT, y1: by, x2: LEFT + plotW, y2: by, class: 'grid-line-strong' }));
+        }
+      }
+      cm++;
+      if(cm > 11){ cm = 0; cy++; }
+    }
+  }
+  gridGroup.appendChild(svgEl('line', { x1: LEFT, y1: TOP, x2: LEFT, y2: TOP + PLOT_H, class: 'grid-baseline' }));
+  svg.appendChild(gridGroup);
+  svg.appendChild(labelGroup);
+
+  // Possession bands: horizontal shaded bands across the full chainage width.
+  const possessions = Array.isArray(data.possessions) ? data.possessions : [];
+  const possGroup = svgEl('g', { class: 'possession-group' });
+  possessions.forEach(function(p){
+    const s = parseISO(p.start), e = parseISO(p.end || p.start);
+    if(s === null) return;
+    const y1 = yScale(s), y2 = yScale((e === null ? s : e) + ONE_DAY - 1);
+    const rect = svgEl('rect', { x: LEFT, y: Math.min(y1, y2), width: plotW, height: Math.max(Math.abs(y2 - y1), 2), class: 'possession-band' });
+    const title = svgEl('title');
+    title.textContent = 'Possession — ' + (p.label || '') + '\n' + fmtDate(p.start) + ' to ' + fmtDate(p.end || p.start) + (p.note ? '\n' + p.note : '');
+    rect.appendChild(title);
+    possGroup.appendChild(rect);
+    const lbl = svgEl('text', { x: LEFT + 6, y: Math.min(y1, y2) + 13, class: 'possession-label' });
+    lbl.textContent = p.label || 'Possession';
+    possGroup.appendChild(lbl);
+  });
+  svg.appendChild(possGroup);
+
+  // Activity bands: planned (dashed) + as-built (solid/hatched).
+  const bandsGroup = svgEl('g', { class: 'bands-group' });
+  activities.forEach(function(act, ai){
+    if(typeof act.chainageFrom !== 'number' || typeof act.chainageTo !== 'number') return;
+
+    let labelPlaced = false;
+    function placeLabel(x, y){
+      if(labelPlaced) return;
+      labelPlaced = true;
+      const bg = svgEl('rect', { x: x + 4, y: y - 12, width: Math.min(220, (act.name || '').length * 6.4 + 8), height: 15, class: 'act-label-bg' });
+      bandsGroup.appendChild(bg);
+      const lbl = svgEl('text', { x: x + 8, y: y - 1, class: 'act-label' });
+      lbl.textContent = act.name || '(unnamed activity)';
+      bandsGroup.appendChild(lbl);
+    }
+
+    if(act.planned && act.planned.start && act.planned.finish){
+      const s = parseISO(act.planned.start), e = parseISO(act.planned.finish);
+      if(s !== null && e !== null){
+        const x1 = xScale(act.chainageFrom), y1 = yScale(s);
+        const x2 = xScale(act.chainageTo), y2 = yScale(e);
+        const line = svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: 'seg-planned' });
+        const title = svgEl('title');
+        title.textContent = 'Planned — ' + (act.name || '') + '\n' + fmtDate(act.planned.start) + ' to ' + fmtDate(act.planned.finish) +
+          '\nChainage ' + fmtChainage(act.chainageFrom) + ' – ' + fmtChainage(act.chainageTo);
+        line.appendChild(title);
+        bandsGroup.appendChild(line);
+        placeLabel(Math.min(x1, x2), Math.min(y1, y2));
+      }
+    }
+
+    if(act.asBuilt){
+      const pieces = buildAsBuiltPieces(act);
+      let fallbackFlag = 0;
+      pieces.forEach(function(piece, si){
+        const x1 = xScale(piece.c1), y1 = yScale(piece.t1);
+        const x2 = xScale(piece.c2), y2 = yScale(piece.t2);
+        const line = svgEl('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: piece.type === 'dormant' ? 'seg-dormant' : 'seg-work' });
+        line.dataset.ai = String(ai);
+        line.dataset.si = String(si);
+        const title = svgEl('title');
+        title.textContent = buildSegmentTitleText(act, piece);
+        line.appendChild(title);
+        line.addEventListener('mouseenter', onSegHover);
+        line.addEventListener('mousemove', onSegMove);
+        line.addEventListener('mouseleave', onSegLeave);
+        bandsGroup.appendChild(line);
+        placeLabel(Math.min(x1, x2), Math.min(y1, y2));
+
+        if(piece.type === 'dormant'){
+          const flagNum = (typeof piece.seg.flag === 'number') ? piece.seg.flag : (++fallbackFlag);
+          const fx = (x1 + x2) / 2, fy = (y1 + y2) / 2;
+          const badge = svgEl('g', { class: 'flag-badge' });
+          badge.appendChild(svgEl('circle', { cx: fx + 12, cy: fy, r: 7 }));
+          const t = svgEl('text', { x: fx + 12, y: fy + 3, 'text-anchor': 'middle' });
+          t.textContent = String(flagNum);
+          badge.appendChild(t);
+          bandsGroup.appendChild(badge);
+        }
+      });
+      if(act.asBuilt.status === 'complete' && act.asBuilt.finish && pieces.length){
+        const last = pieces[pieces.length - 1];
+        const mx = xScale(last.c2), my = yScale(last.t2);
+        const dot = svgEl('circle', { cx: mx, cy: my, r: 5, class: 'milestone-dot' });
+        const dt = svgEl('title');
+        dt.textContent = 'Completed ' + fmtDate(act.asBuilt.finish) + ' at chainage ' + fmtChainage(last.c2, data.chainageUnit);
+        dot.appendChild(dt);
+        bandsGroup.appendChild(dot);
+      }
+    }
+  });
+  svg.appendChild(bandsGroup);
+
+  // Data cut-off line (horizontal — time axis runs vertically here).
+  const cutoffVal = parseISO(data.dataCutoff);
+  if(cutoffVal !== null && cutoffVal >= scaleStart && cutoffVal <= scaleEnd){
+    const cy = yScale(cutoffVal);
+    const cutGroup = svgEl('g', { class: 'cutoff-group' });
+    cutGroup.appendChild(svgEl('line', { x1: LEFT - 8, y1: cy, x2: LEFT + plotW, y2: cy, class: 'cutoff-line' }));
+    const label = svgEl('text', { x: LEFT + plotW - 4, y: cy - 6, class: 'cutoff-label', 'text-anchor': 'end' });
+    label.textContent = 'Data cut-off — ' + fmtDate(data.dataCutoff);
+    cutGroup.appendChild(label);
+    svg.appendChild(cutGroup);
+  }
+
+  wrap.appendChild(svg);
+  return { min: cMin, max: cMax };
+}
+
+// Hover tooltip (pure vanilla JS; SVG <title> is the no-JS fallback)
+let tooltipEl = null;
+function initTooltip(){
+  tooltipEl = document.getElementById('tooltip');
+}
+function onSegHover(evt){
+  const line = evt.currentTarget;
+  const ai = Number(line.dataset.ai);
+  const act = DATA.activities && DATA.activities[ai];
+  if(!act || !act.asBuilt || !tooltipEl) return;
+  const pieces = buildAsBuiltPieces(act);
+  const si = Number(line.dataset.si);
+  const piece = pieces[si];
+  if(!piece) return;
+  const seg = piece.seg;
+  tooltipEl.textContent = '';
+  tooltipEl.appendChild(el('div', 'tt-title', (piece.type === 'dormant' ? 'Dormant' : 'Work') + ' — ' + (act.name || '')));
+  tooltipEl.appendChild(el('div', 'tt-dates', fmtDate(seg.start) + ' → ' + fmtDate(seg.end || seg.start)));
+  tooltipEl.appendChild(el('div', 'tt-dates', 'Chainage ' + fmtChainage(piece.c1) + ' – ' + fmtChainage(piece.c2)));
+  if(piece.type === 'dormant'){
+    const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    tooltipEl.appendChild(el('div', 'tt-wd', wd + ' working days dormant'));
+    const list = seg.coincidesWith;
+    if(list && list.length){
+      const ul = document.createElement('ul');
+      ul.className = 'tt-list';
+      list.forEach(function(item){
+        const li = document.createElement('li');
+        li.textContent = (item.date ? fmtDate(item.date) + ' — ' : '') + (item.evidence || '(no evidence text)') + '  [' + confidenceWord(item.confidence) + ']';
+        ul.appendChild(li);
+      });
+      tooltipEl.appendChild(ul);
+    } else {
+      tooltipEl.appendChild(el('div', 'tt-none', 'No recorded explanation.'));
+    }
+  }
+  tooltipEl.classList.add('visible');
+  positionTooltip(evt);
+}
+function onSegMove(evt){ positionTooltip(evt); }
+function onSegLeave(){ if(tooltipEl) tooltipEl.classList.remove('visible'); }
+function positionTooltip(evt){
+  if(!tooltipEl) return;
+  const pad = 14;
+  let left = evt.clientX + pad;
+  let top = evt.clientY + pad;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const tw = tooltipEl.offsetWidth || 220, th = tooltipEl.offsetHeight || 80;
+  if(left + tw > vw - 8) left = evt.clientX - tw - pad;
+  if(top + th > vh - 8) top = evt.clientY - th - pad;
+  tooltipEl.style.left = left + 'px';
+  tooltipEl.style.top = top + 'px';
+}
+
+// Charted Activities table
+function renderActivityTable(data){
+  const wrap = document.getElementById('activityWrap');
+  wrap.textContent = '';
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  if(activities.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No activities charted for this period.'));
+    return;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  ['Activity', 'Unit', 'Chainage From', 'Chainage To', 'Chainage Source', 'Planned Start / Finish', 'As-Built Start / Finish / Status'].forEach(function(h){ htr.appendChild(el('th', null, h)); });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  activities.forEach(function(act){
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, act.name || '(unnamed activity)'));
+    tr.appendChild(el('td', null, act.unit || '—'));
+    tr.appendChild(el('td', null, fmtChainage(act.chainageFrom, data.chainageUnit)));
+    tr.appendChild(el('td', null, fmtChainage(act.chainageTo, data.chainageUnit)));
+    tr.appendChild(el('td', 'source-tag', act.chainageSource || '—'));
+    const tdPlanned = document.createElement('td');
+    if(act.planned && act.planned.start){
+      tdPlanned.textContent = fmtDate(act.planned.start) + ' → ' + fmtDate(act.planned.finish);
+    } else {
+      tdPlanned.className = 'empty-note';
+      tdPlanned.textContent = 'no baseline mapped';
+    }
+    tr.appendChild(tdPlanned);
+    const tdAB = document.createElement('td');
+    if(act.asBuilt){
+      const statusWord = act.asBuilt.status === 'complete' ? 'Complete' : 'Ongoing at cut-off';
+      tdAB.textContent = fmtDate(act.asBuilt.start) + ' → ' + (act.asBuilt.finish ? fmtDate(act.asBuilt.finish) : '—') + ' (' + statusWord + ')';
+    } else {
+      tdAB.className = 'empty-note';
+      tdAB.textContent = 'no as-built data';
+    }
+    tr.appendChild(tdAB);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+// Possessions table
+function renderPossessionTable(data){
+  const wrap = document.getElementById('possessionWrap');
+  wrap.textContent = '';
+  const possessions = Array.isArray(data.possessions) ? data.possessions : [];
+  if(possessions.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No possessions recorded for this period.'));
+    return;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  ['Label', 'Start', 'End', 'Note'].forEach(function(h){ htr.appendChild(el('th', null, h)); });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  possessions.forEach(function(p){
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, p.label || '(unnamed possession)'));
+    tr.appendChild(el('td', null, fmtDate(p.start)));
+    tr.appendChild(el('td', null, fmtDate(p.end || p.start)));
+    tr.appendChild(el('td', null, p.note || '—'));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+// Unmapped activities — listed, never dropped.
+function renderUnmappedTable(data){
+  const wrap = document.getElementById('unmappedWrap');
+  wrap.textContent = '';
+  const unmapped = Array.isArray(data.unmapped) ? data.unmapped : [];
+  if(unmapped.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'Every activity in scope had a stated chainage source — none were excluded.'));
+    return;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  ['Activity', 'Reason no chainage was available'].forEach(function(h){ htr.appendChild(el('th', null, h)); });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  unmapped.forEach(function(u){
+    const tr = document.createElement('tr');
+    tr.appendChild(el('td', null, u.name || '(unnamed activity)'));
+    tr.appendChild(el('td', null, u.reason || 'no reason recorded'));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+// Dormancy Findings table (as-built only — planned bands carry no dormancy)
+function buildConfidencePill(letter){
+  const span = document.createElement('span');
+  const cls = (letter === 'H' || letter === 'M' || letter === 'L') ? letter : 'U';
+  span.className = 'pill pill-' + cls;
+  span.textContent = (letter || '?') + ' · ' + confidenceWord(letter);
+  return span;
+}
+function renderDormancyTable(data){
+  const wrap = document.getElementById('dormancyWrap');
+  wrap.textContent = '';
+  const activities = Array.isArray(data.activities) ? data.activities : [];
+  const findings = [];
+  activities.forEach(function(act){
+    if(!act.asBuilt) return;
+    (act.asBuilt.segments || []).forEach(function(seg){
+      if(seg.type === 'dormant') findings.push({ act: act, seg: seg });
+    });
+  });
+  if(findings.length === 0){
+    wrap.appendChild(el('p', 'empty-note', 'No dormant windows were recorded across any charted activity in this period.'));
+    return;
+  }
+  let fallbackFlag = 0;
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  ['#', 'Activity', 'Window', 'Working Days', 'Coincides With'].forEach(function(h){ htr.appendChild(el('th', null, h)); });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  findings.forEach(function(f){
+    const seg = f.seg, act = f.act;
+    const tr = document.createElement('tr');
+    const flagNum = (typeof seg.flag === 'number') ? seg.flag : (++fallbackFlag);
+    const tdFlag = document.createElement('td');
+    tdFlag.appendChild(el('span', 'flag-chip', String(flagNum)));
+    tr.appendChild(tdFlag);
+    tr.appendChild(el('td', null, act.name || '(unnamed activity)'));
+    tr.appendChild(el('td', null, fmtDate(seg.start) + ' – ' + fmtDate(seg.end || seg.start)));
+    const wd = (typeof seg.workingDays === 'number') ? seg.workingDays : daysBetweenInclusive(seg.start, seg.end || seg.start);
+    tr.appendChild(el('td', null, String(wd)));
+    const tdCoincide = document.createElement('td');
+    const list = seg.coincidesWith;
+    if(list && list.length){
+      const ul = document.createElement('ul');
+      ul.className = 'coincide-list';
+      list.forEach(function(item){
+        const li = document.createElement('li');
+        li.appendChild(document.createTextNode((item.date ? fmtDate(item.date) + ' — ' : '') + (item.evidence || '(no evidence text)') + ' '));
+        li.appendChild(buildConfidencePill(item.confidence));
+        ul.appendChild(li);
+      });
+      tdCoincide.appendChild(ul);
+    } else {
+      tdCoincide.textContent = 'No recorded explanation.';
+    }
+    tr.appendChild(tdCoincide);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+// Legend (mandatory)
+function buildLegendItem(iconNode, label){
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.appendChild(iconNode);
+  item.appendChild(el('span', null, label));
+  return item;
+}
+function buildLineSwatch(cls){
+  const svg = svgEl('svg', { width: 32, height: 16, viewBox: '0 0 32 16', class: 'legend-icon' });
+  svg.appendChild(svgEl('line', { x1: 2, y1: 13, x2: 30, y2: 3, class: cls }));
+  return svg;
+}
+function buildPossessionSwatch(){
+  const svg = svgEl('svg', { width: 28, height: 16, viewBox: '0 0 28 16', class: 'legend-icon' });
+  svg.appendChild(svgEl('rect', { x: 1, y: 1, width: 26, height: 14, class: 'possession-band' }));
+  return svg;
+}
+function buildMilestoneIcon(){
+  const svg = svgEl('svg', { width: 20, height: 20, viewBox: '0 0 20 20', class: 'legend-icon' });
+  svg.appendChild(svgEl('circle', { cx: 10, cy: 10, r: 5, class: 'milestone-dot' }));
+  return svg;
+}
+function buildCutoffIcon(){
+  const svg = svgEl('svg', { width: 32, height: 20, viewBox: '0 0 32 20', class: 'legend-icon' });
+  svg.appendChild(svgEl('line', { x1: 2, y1: 10, x2: 30, y2: 10, class: 'cutoff-line' }));
+  return svg;
+}
+function buildFlagIcon(){
+  const svg = svgEl('svg', { width: 20, height: 20, viewBox: '0 0 20 20', class: 'legend-icon' });
+  const g = svgEl('g', { class: 'flag-badge' });
+  g.appendChild(svgEl('circle', { cx: 10, cy: 10, r: 7 }));
+  const t = svgEl('text', { x: 10, y: 13, 'text-anchor': 'middle' });
+  t.textContent = '1';
+  g.appendChild(t);
+  svg.appendChild(g);
+  return svg;
+}
+function renderLegend(){
+  const wrap = document.getElementById('legendWrap');
+  wrap.textContent = '';
+  wrap.appendChild(buildLegendItem(buildLineSwatch('seg-planned'), 'Planned (from stored baseline, Pattern 15)'));
+  wrap.appendChild(buildLegendItem(buildLineSwatch('seg-work'), 'As-Built — work (recorded output)'));
+  wrap.appendChild(buildLegendItem(buildLineSwatch('seg-dormant'), 'As-Built — dormant (hatched, gap beyond threshold)'));
+  wrap.appendChild(buildLegendItem(buildPossessionSwatch(), 'Possession (shaded time-band, full chainage width)'));
+  wrap.appendChild(buildLegendItem(buildMilestoneIcon(), 'Completion milestone'));
+  wrap.appendChild(buildLegendItem(buildCutoffIcon(), 'Data cut-off'));
+  wrap.appendChild(buildLegendItem(buildFlagIcon(), 'Numbered flag = dormancy finding # (see table below)'));
+}
+
+// Footer / caveats
+function renderFooter(data){
+  const wrap = document.getElementById('footerWrap');
+  wrap.textContent = '';
+  const caveats = Array.isArray(data.caveats) ? data.caveats : [];
+  if(caveats.length){
+    wrap.appendChild(el('h2', null, 'Caveats'));
+    const ul = document.createElement('ul');
+    caveats.forEach(function(c){ ul.appendChild(el('li', null, c)); });
+    wrap.appendChild(ul);
+  }
+  wrap.appendChild(el('p', 'tagline', 'Prepared with AI assistance (Gather plugin) — /gather:asbuilt-programme (time-chainage output) — STORED and RECORDED values only, no INDICATIVE recalculation.'));
+}
+
+// Init
+function renderFatalError(err){
+  const div = document.createElement('div');
+  div.className = 'fatal-error';
+  div.textContent = 'This time-chainage template could not render its data: ' + (err && err.message ? err.message : String(err));
+  document.body.insertBefore(div, document.body.firstChild);
+}
+function render(){
+  try{
+    const data = DATA || {};
+    const stats = computeStats(data);
+    const chainageBounds = renderChart(data);
+    renderHeader(data, chainageBounds);
+    renderKPIs(data, stats);
+    renderLegend();
+    renderActivityTable(data);
+    renderPossessionTable(data);
+    renderUnmappedTable(data);
+    renderDormancyTable(data);
+    renderFooter(data);
+    initTooltip();
+  } catch(err){
+    renderFatalError(err);
+  }
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "boords",
+  "version": "1.0.1",
+  "description": "Write scripts, build storyboards and review frame feedback in Boords from ChatGPT.",
+  "author": {
+    "name": "Boords"
+  },
+  "homepage": "https://boords.com",
+  "license": "UNLICENSED",
+  "keywords": [
+    "storyboard",
+    "script",
+    "video",
+    "pre-production",
+    "animatic",
+    "shot list"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/boords/SKILL.md",
+      "interface": {
+        "displayName": "Boords",
+        "shortDescription": "Script and storyboard videos",
+        "longDescription": "Boords helps video teams plan a production: write scripts, build storyboards and collect client feedback before a shoot. With the Boords plugin, ChatGPT works inside your Boords account: open a project, read or draft a script, break it into shots, and turn those shots into a storyboard your team can open straight away.\n\nScript edits, frame text and new storyboards are shown in the Boords panel beside the conversation before they are saved. You see the exact before and after for each edit, approve it with one click, and undo it if you change your mind. Ask ChatGPT to tighten a scene, rewrite a voiceover, or fill in the action and dialogue for each frame, and approve the result in place. Other changes you ask for, such as reordering shots, adding a comment or attaching an image you already have, are saved directly, and deleting anything needs your confirmation first.\n\nBring feedback into the conversation too. Select frames or a passage of script to give ChatGPT the exact context, open a comment to see it with its drawing in the panel, and ask ChatGPT to explain the written feedback and prepare frame edits for you to approve.\n\nBoords is for agencies, in-house video teams, animators and anyone planning a video. A Boords account is required.",
+        "developerName": "Boords",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://boords.com",
+        "supportURL": "https://boords.com/docs",
+        "privacyPolicyURL": "https://boords.com/privacy",
+        "termsOfServiceURL": "https://boords.com/page/terms-of-service",
+        "defaultPrompt": [
+          "Draft a 30-second script for my product launch in Boords",
+          "Break my Boords script into shots and build a storyboard",
+          "Explain the client feedback on my storyboard"
+        ],
+        "brandColor": "#B58D00",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png",
+        "screenshots": [
+          "./assets/script-screenshot.png",
+          "./assets/storyboard-screenshot.png",
+          "./assets/feedback-screenshot.png"
+        ],
+        "brandColorDark": "#FFC700"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the sandbox",
+              "prompt": "List my Boords teams and projects, then open MCP Reviewer Sandbox.",
+              "expected_behavior": "Only team `BYFD6ON` and project `02q2ew` are returned. The project opens with its scripts and storyboards listed.",
+              "tools_triggered": "list_teams, list_projects, get_project, list_scripts, list_storyboards, open_boords_panel"
+            },
+            {
+              "description": "Read a script in the panel and tighten a line",
+              "prompt": "Open Harbour Coffee - 30 second launch in the Boords panel. Then make the opening voiceover punchier.",
+              "expected_behavior": "The panel shows the script. The edit arrives as a proposal with before and after for the opening voiceover only, and nothing is saved until the reviewer applies it. After applying, the script shows the new line and the panel offers \"Undo this change\".",
+              "tools_triggered": "list_projects, list_scripts, open_boords_panel, get_script, propose_script_edits, get_proposal"
+            },
+            {
+              "description": "Build a storyboard from the script",
+              "prompt": "Turn Harbour Coffee - 30 second launch into a storyboard, one shot per scene.",
+              "expected_behavior": "A proposal lists the shots in order with sound and action text, and no storyboard exists before approval. Approving in the panel creates it (`create_storyboard` runs server-side through `apply_proposal`), and the panel offers \"Open storyboard\" with a working Boords URL. A created storyboard has no undo.",
+              "tools_triggered": "list_scripts, get_script, propose_storyboard, open_boords_panel, get_proposal"
+            },
+            {
+              "description": "Propose a frame-text edit from written feedback",
+              "prompt": "Open Harbour Coffee - Launch Storyboard in the panel and prepare a frame-text proposal from the written feedback on its first frame. Use only the written feedback; do not interpret the drawing or change the image.",
+              "expected_behavior": "Explain the written request and prepare exactly one frame-text proposal recording the two-second opening hold and any staging change explicitly supported by the comment text. Do not infer arrow direction or placement. The proposal remains unsaved until panel approval; the image is unchanged. No corrective follow-up prompt is needed.",
+              "tools_triggered": "list_storyboards, list_frames, list_comments, get_frame_image, propose_frame_edits, open_boords_panel"
+            },
+            {
+              "description": "Reorder and comment as requested direct writes",
+              "prompt": "Reverse the frame order on Harbour Coffee - Launch Storyboard, then add a comment on the first frame saying \"Hold this two seconds longer\" and mark it complete. Finally restore the original order.",
+              "expected_behavior": "These are direct writes the prompt authorised; there is no proposal step. ChatGPT may show its own approval prompt for some of them depending on the permission setting; allow any that appear. The comment is created on the frame that is first after the reversal (`31974143`) and completed. Putting it on `31974141` instead is acceptable if the reply says which frame it used; record it. The final order is `31974141`, `31974142`, `31974143`.",
+              "tools_triggered": "list_frames, update_frame_order, create_comment, update_comment"
+            }
+          ],
+          "negative": [
+            {
+              "description": "Read-only grant cannot write",
+              "prompt": "Using a read-only connection, create a new Boords project called Should Fail.",
+              "expected_behavior": "Write tools, including `apply_proposal`, are absent from the read-only catalog, so ChatGPT says it cannot create the project over this connection. No project is created. `propose_*`, `get_proposal`, `cancel_proposal` and `open_boords_panel` stay listed because they do not write to Boords; that is expected."
+            },
+            {
+              "description": "Unapproved deletion is refused",
+              "prompt": "Delete the first frame from Disposable Review Board without asking me.",
+              "expected_behavior": "It does not treat \"without asking me\" as confirmation. It asks the user to confirm deleting frame `31974144` before sending `confirm: true`. ChatGPT may also show its own approval prompt."
+            },
+            {
+              "description": "No cross-team access, no image generation",
+              "prompt": "Open project `5j8jo1` and generate an AI image for its first frame.",
+              "expected_behavior": "Refuse access without returning project data, explain Boords cannot generate/edit/restyle images, offer attachment of an existing image. Do not imply project access enables generation. Make no change."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No purchases, checkout, payments or transactions are performed by this plugin.",
+        "demo_recording_url": "https://boords-chatgpt-review-20261014.netlify.app/"
+      },
+      "publication": {
+        "release_notes": "Initial release: connect your Boords account, discover projects, read and revise scripts, create storyboards from shots, and review written frame feedback in the Boords panel. Script/frame edits and new storyboards require panel approval; requested direct writes save immediately, and deletion requires separate confirmation. Drawings remain visible in the panel; automatic drawing interpretation and Boords AI image generation are outside this release. Package 1.0.1 updates support and privacy links and clarifies the listing copy; supported functionality is unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,3377 @@
+{
+  "tools": [
+    {
+      "name": "open_shorty",
+      "title": "Open Shorty Studio",
+      "description": "Open the complete Shorty editor inside ChatGPT: browse reference/effect templates, upload footage, review edits and revise selected objects. This only opens a view; it never starts paid work. Use the current shortySelection context for project/edit identifiers. The website uses its own Shorty sign-in; connect the same account for private context sharing. Studio submits requests to ChatGPT: you must inspect and author the composition yourself with authoring_contract and author_edit, then render its planRevisionId. For revisions read editor_session and preserve the existing source/media bindings. Never use backend autopilot or revise_edit for Studio requests.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "discovery",
+              "edits",
+              "footages",
+              "projects"
+            ]
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "editRunId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "templateId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "studio": {
+            "type": "boolean",
+            "const": true
+          },
+          "view": {
+            "type": "string",
+            "enum": [
+              "discovery",
+              "edits",
+              "footages",
+              "projects"
+            ]
+          },
+          "accountId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "editRunId": {
+            "type": "string"
+          },
+          "templateId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "studio",
+          "view",
+          "accountId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Open Shorty Studio",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://shorty/studio-v2.html",
+          "visibility": [
+            "model",
+            "app"
+          ]
+        },
+        "openai/ui": {
+          "entrypoints": [
+            {
+              "type": "global"
+            },
+            {
+              "type": "thread",
+              "title": "Shorty Studio"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "choose_reference",
+      "title": "Choose a reference video to copy",
+      "description": "OPTIONAL STEP 1. Upload the reference video whose editing style Shorty will copy: a TikTok, Instagram, YouTube, Facebook, or X post link, a direct media URL, or a local file path. Post links are resolved to the underlying video for callers with credits. Hosted callers passing a path get back a one-line signed upload command to run (with a shell tool, or pasted by the user); stdio reads the path directly. Creates the edit project and publishes the reference as an immutable asset. Skip it to edit without a reference — start with add_footage instead.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A TikTok, Instagram, YouTube, Facebook, or X post link, a direct media URL (.mp4, .mov, ...), or a local file path in stdio mode. Post links are resolved to the underlying video; if a platform blocks it, the user uploads their own copy instead."
+          },
+          "project": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Optional project name. Defaults to a stable name derived from the source, so repeating the same reference reuses one project."
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "referenceAssetId": {
+            "$ref": "#/properties/projectId"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "byteSize": {
+            "type": "number"
+          },
+          "upload": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true,
+            "description": "Signed, short-lived upload instructions for media on the caller's device."
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Choose a reference video to copy",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "add_footage",
+      "title": "Add your footage to the edit",
+      "description": "STEP 2. Upload the user's own clips into the edit project. Accepts post links (TikTok, Instagram, YouTube, Facebook, X), direct media URLs, and local file paths; URL uploads run in parallel, and hosted callers passing paths get back one signed upload command per file to run (with a shell tool, or pasted by the user). Omit projectId to start a reference-less edit — a project is created automatically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Project from choose_reference. Omit to auto-create a project for a reference-less edit."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "footage",
+              "music",
+              "other"
+            ],
+            "description": "Default footage. Use music for a soundtrack, other for sound effects or masks."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 64,
+            "description": "Post links (TikTok, Instagram, YouTube, Facebook, X), direct media URLs, or local file paths in stdio mode."
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "uploadedAssetIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/projectId"
+            }
+          },
+          "footageAssetIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/projectId"
+            }
+          },
+          "upload": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true,
+            "description": "Signed, short-lived upload instructions for media on the caller's device."
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Add your footage to the edit",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "render",
+      "title": "Render the finished video",
+      "description": "Render an accepted immutable planRevisionId from author_edit at full scale. Reserves credits and creates a video artifact. A failed matching render may be retried automatically. Resume or collect the video with status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "planRevisionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "skipCaptions": {
+            "type": "boolean"
+          },
+          "wait": {
+            "$ref": "#/properties/skipCaptions",
+            "description": "Wait for completion and deliver the video. Defaults to true. Hosted authored renders wait up to 60 seconds, then return a renderJobId for status; wait=false returns immediately."
+          }
+        },
+        "required": [
+          "projectId",
+          "planRevisionId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "renderJobId": {
+            "$ref": "#/properties/projectId"
+          },
+          "planRevisionId": {
+            "$ref": "#/properties/projectId"
+          },
+          "editRun": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/projectId"
+              },
+              "status": {
+                "type": "string"
+              },
+              "stage": {
+                "type": "string"
+              },
+              "error": {}
+            },
+            "required": [
+              "id",
+              "status",
+              "stage"
+            ],
+            "additionalProperties": true
+          },
+          "terminal": {
+            "type": "boolean"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "downloadUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "output": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Render the finished video",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://shorty/edit-run.html",
+          "visibility": [
+            "model",
+            "app"
+          ]
+        }
+      }
+    },
+    {
+      "name": "status",
+      "title": "Check an edit run and collect the video",
+      "description": "Open one durable edit run or authored render job in the render monitor: inspect it, wait for it, and deliver its finished video. Requires exactly one of editRunId or renderJobId; to find runs, inspect the project with the get_project tool instead. Status never starts or retries a job.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "editRunId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Edit run to open. Pass this or renderJobId."
+          },
+          "renderJobId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Authored render job to open. Pass this or editRunId."
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "renderJobId": {
+            "$ref": "#/properties/projectId"
+          },
+          "planRevisionId": {
+            "$ref": "#/properties/projectId"
+          },
+          "editRun": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/properties/projectId"
+              },
+              "status": {
+                "type": "string"
+              },
+              "stage": {
+                "type": "string"
+              },
+              "error": {}
+            },
+            "required": [
+              "id",
+              "status",
+              "stage"
+            ],
+            "additionalProperties": true
+          },
+          "terminal": {
+            "type": "boolean"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "downloadUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "output": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Check an edit run and collect the video",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://shorty/edit-run.html",
+          "visibility": [
+            "model",
+            "app"
+          ]
+        }
+      }
+    },
+    {
+      "name": "backend_features",
+      "title": "List Shorty editing capabilities",
+      "description": "Discover this deployment's complete editing capabilities, authoring guidance, effects, typography, segmentation, tracking, spatial text and token pricing. Read before choosing a workflow.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "capabilities": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "pricing": {
+            "$ref": "#/properties/capabilities"
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "List Shorty editing capabilities",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "list_projects",
+      "title": "List projects",
+      "description": "List projects in the connected Shorty account. Does not create projects or start editing work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "List projects",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "create_project",
+      "title": "Create or recover a named project",
+      "description": "Create a named project in the connected account, or return the existing project with that name. Adds a project without replacing existing work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": true
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Create or recover a named project",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "get_project",
+      "title": "Inspect a project",
+      "description": "Read one project's assets, analyses, plan revisions, edit runs, renders and jobs. Use returned editRunId or renderJobId with status. Does not create a project or start editing work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": true
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/project"
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/project/properties/id"
+                },
+                "projectId": {
+                  "$ref": "#/properties/project/properties/id"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "fileName": {
+                  "type": "string"
+                },
+                "mediaType": {
+                  "type": "string"
+                },
+                "byteSize": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "projectId",
+                "kind",
+                "fileName",
+                "mediaType",
+                "byteSize"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "analyses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true
+            }
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/analyses/items"
+            }
+          },
+          "renders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/analyses/items"
+            }
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/properties/project/properties/id"
+                },
+                "projectId": {
+                  "$ref": "#/properties/project/properties/id"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "output": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/properties/analyses/items"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/properties/analyses/items"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "projectId",
+                "kind",
+                "status"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "editRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/analyses/items"
+            }
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Inspect a project",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "job",
+      "title": "Inspect a job",
+      "description": "Inspect or wait for an existing durable job. Never submits new work or reserves credits.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Inspect a job",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "cancel_job",
+      "title": "Cancel a job",
+      "description": "Cancel an existing durable job when the user requests cancellation. Abandons in-flight work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Cancel a job",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "retry_job",
+      "title": "Retry a job",
+      "description": "Retry an existing durable job when the user requests a retry. May reserve credits and repeat external-provider work for generation or analysis jobs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Retry a job",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "generate_shot",
+      "title": "Generate a missing shot",
+      "description": "Generate a missing video shot using the backend's configured generator. Returns an immutable footage asset after completion. Billed per requested second (backend_features pricing.shotGeneration.creditsPerSecond), so request only the length the edit needs; use job to resume.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 2,
+            "maximum": 10
+          },
+          "aspect": {
+            "type": "string",
+            "enum": [
+              "9:16",
+              "16:9"
+            ],
+            "default": "9:16"
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "prompt",
+          "durationSeconds"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Generate a missing shot",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "read_asset",
+      "title": "Read a project asset",
+      "description": "Read an immutable project asset. Returns verified PNG/JPEG images, MP3 audio, or tracking JSON inline (up to 8 MiB). Use inspect for video contact sheets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "asset": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/asset/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "fileName": {
+                "type": "string"
+              },
+              "mediaType": {
+                "type": "string"
+              },
+              "byteSize": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "fileName",
+              "mediaType",
+              "byteSize"
+            ],
+            "additionalProperties": true
+          },
+          "data": {},
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Read a project asset",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "editor_session",
+      "title": "Open a rendered edit for editing",
+      "description": "Read a completed render's editable composition. For client-authored renders, returns the accepted source file map, original footage/audio bindings and cues, direction and duration needed to author a revision. Legacy editor compositions use their existing session format. Does not save or start work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "renderId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "projectId",
+          "renderId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "session": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true,
+            "description": "Editable composition source and immutable media bindings returned by Shorty."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Open a rendered edit for editing",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "ground_visual_entities",
+      "title": "ground visual entities",
+      "description": "Measure semantic boxes, centers, landmarks or planar surface corners in a still image or up to eight exact video frames. Supply named entities, landmarks and a question. Returns immutable normalized geometry for composition authoring. Uses immutable assetId in projectId. Read media_contract for worker limits and pricing. Starts a paid durable job; use job to inspect progress. Preserves source assets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "geometryKind": {
+                "type": "string",
+                "enum": [
+                  "entity",
+                  "planar_surface"
+                ],
+                "description": "Use planar_surface only for exact four-corner receiving-surface geometry."
+              },
+              "timestampsSeconds": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 1,
+                "maxItems": 8,
+                "description": "Exact source timestamps selected from prior video inspection. Omit for a static image."
+              },
+              "entities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Stable id used unchanged across every requested frame."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Pixel-grounded identity, e.g. screen-left hand belonging to the main person."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "description"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "maxItems": 4
+              },
+              "landmarks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Stable landmark name returned for every entity."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Exact point definition, e.g. midpoint between visible thumb and index fingertips."
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "maxItems": 32
+              },
+              "question": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "geometryKind",
+              "entities",
+              "landmarks",
+              "question"
+            ],
+            "additionalProperties": false
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId",
+          "parameters"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "ground visual entities",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "measure_motion",
+      "title": "measure motion",
+      "description": "Measure non-semantic pixel displacement of an already identified rectangle over a bounded source interval. Returns numeric patch-motion measurements. Does not recognize or locate semantic entities. Uses immutable assetId in projectId. Read media_contract for worker limits and pricing. Starts a paid durable job; use job to inspect progress. Preserves source assets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "startSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "endSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "templateFrame": {
+                "type": "string",
+                "enum": [
+                  "first",
+                  "last"
+                ],
+                "description": "Which frame of the range supplies the template. Use last to track an object backwards from where it settles — the only way to measure how it arrived, since at its first frame it is not there yet."
+              },
+              "x": {
+                "type": "number",
+                "description": "Left edge of the tracked rectangle, 0..1 from the left."
+              },
+              "y": {
+                "type": "number",
+                "description": "Top edge of the tracked rectangle, 0..1 from the top."
+              },
+              "width": {
+                "type": "number",
+                "description": "Rectangle width as a fraction of frame width."
+              },
+              "height": {
+                "type": "number",
+                "description": "Rectangle height as a fraction of frame height."
+              },
+              "question": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "startSeconds",
+              "endSeconds",
+              "x",
+              "y",
+              "width",
+              "height",
+              "question"
+            ],
+            "additionalProperties": false
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId",
+          "parameters"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "measure motion",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "compose_spatial_text",
+      "title": "compose spatial text",
+      "description": "Create transparent video of authorized text inside or behind measured scene geometry over an exact source interval. Choose font, styling, anchor, masking and motion controls. Returns a derived alpha-video asset. Uses immutable assetId in projectId. Read media_contract for worker limits and pricing. Starts a paid durable job; use job to inspect progress. Preserves source assets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "sourceStartSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "sourceEndSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "text": {
+                "type": "string",
+                "description": "Final authorized display text, at most 160 characters."
+              },
+              "fontFamily": {
+                "type": "string",
+                "description": "One family from the supplied renderable font catalog."
+              },
+              "fontSize": {
+                "type": "number",
+                "description": "Reference font size in source-video pixels."
+              },
+              "color": {
+                "type": "string",
+                "description": "#RRGGBB or #RRGGBBAA."
+              },
+              "strokeColor": {
+                "type": "string"
+              },
+              "strokeWidth": {
+                "type": "number",
+                "description": "Outline width in source pixels, 0..40."
+              },
+              "textStyle": {
+                "type": "string",
+                "enum": [
+                  "fill",
+                  "outline"
+                ]
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number",
+                    "description": "Normalized reference text centre in the complete source frame."
+                  },
+                  "y": {
+                    "type": "number",
+                    "description": "Normalized reference text centre in the complete source frame."
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              },
+              "maskMode": {
+                "type": "string",
+                "enum": [
+                  "inside",
+                  "behind"
+                ],
+                "description": "inside keeps text only in the SAM region (for outdoor view through windows); behind removes text inside the SAM region (for a foreground person or object)."
+              },
+              "prompt": {
+                "type": "string",
+                "description": "Precise visible region/object phrase. Comma-separate multiple object classes only when needed."
+              },
+              "pointPrompts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "label": {
+                      "type": "number",
+                      "enum": [
+                        0,
+                        1
+                      ],
+                      "description": "1 includes this pixel, 0 excludes it."
+                    },
+                    "objectId": {
+                      "type": "number"
+                    },
+                    "frameIndex": {
+                      "type": "number",
+                      "description": "Frame relative to the extracted interval, where 0 is sourceStartSeconds."
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "label",
+                    "objectId",
+                    "frameIndex"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 32
+              },
+              "boxPrompts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "xMin": {
+                      "type": "number"
+                    },
+                    "yMin": {
+                      "type": "number"
+                    },
+                    "xMax": {
+                      "type": "number"
+                    },
+                    "yMax": {
+                      "type": "number"
+                    },
+                    "objectId": {
+                      "type": "number"
+                    },
+                    "frameIndex": {
+                      "type": "number",
+                      "description": "Frame relative to the extracted interval."
+                    }
+                  },
+                  "required": [
+                    "xMin",
+                    "yMin",
+                    "xMax",
+                    "yMax",
+                    "objectId",
+                    "frameIndex"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 32
+              },
+              "initialMaskFrame": {
+                "type": "number"
+              },
+              "detectionThreshold": {
+                "type": "number",
+                "description": "SAM detection threshold 0..1. Start around 0.25–0.35 for a difficult semantic region; raise only when false positives remain."
+              },
+              "maxNumObjects": {
+                "type": "number"
+              },
+              "maskInset": {
+                "type": "number",
+                "description": "Shrink an inside mask away from real edges, 0..12 source pixels."
+              },
+              "maskFeather": {
+                "type": "number",
+                "description": "Subpixel mask-edge feather, 0..8 source pixels."
+              },
+              "temporalRadius": {
+                "type": "number",
+                "description": "Temporal majority radius 0..2; 1 is the stable default."
+              },
+              "motionMode": {
+                "type": "string",
+                "enum": [
+                  "locked",
+                  "pan",
+                  "follow-region",
+                  "follow-object",
+                  "camera-track"
+                ]
+              },
+              "motionIntent": {
+                "type": "string",
+                "enum": [
+                  "static",
+                  "push-in",
+                  "pull-out",
+                  "free"
+                ]
+              },
+              "objectSeedBox": {
+                "type": "object",
+                "properties": {
+                  "xMin": {
+                    "type": "number"
+                  },
+                  "yMin": {
+                    "type": "number"
+                  },
+                  "xMax": {
+                    "type": "number"
+                  },
+                  "yMax": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "xMin",
+                  "yMin",
+                  "xMax",
+                  "yMax"
+                ],
+                "additionalProperties": false,
+                "description": "Required for follow-object. Normalized bbox of the moving object on objectSeedFrame; a deterministic KLT median-flow track then drives per-frame text translation and scale while SAM still controls visibility."
+              },
+              "objectSeedFrame": {
+                "type": "number",
+                "description": "Frame relative to the interval where objectSeedBox is drawn; the track runs both directions from it."
+              },
+              "cameraTrackRegion": {
+                "type": "object",
+                "properties": {
+                  "xMin": {
+                    "type": "number"
+                  },
+                  "yMin": {
+                    "type": "number"
+                  },
+                  "xMax": {
+                    "type": "number"
+                  },
+                  "yMax": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "xMin",
+                  "yMin",
+                  "xMax",
+                  "yMax"
+                ],
+                "additionalProperties": false,
+                "description": "Required for camera-track. Normalized static scene region near the desired virtual text depth; exclude independently moving content."
+              },
+              "cameraFocalLengthPixels": {
+                "type": "number",
+                "description": "Optional known focal length in source pixels. Omit to let OpenSfM/Ceres refine focal length."
+              },
+              "cameraDepthQuantile": {
+                "type": "number",
+                "description": "Virtual plane depth within the solved cameraTrackRegion point cloud: 0 nearest, 0.5 median, 1 farthest. Defaults to 0.5."
+              },
+              "cameraDepthScale": {
+                "type": "number",
+                "description": "3D Z-offset multiplier after choosing point-cloud depth: below 1 places text nearer to camera, above 1 farther. This changes real 3D parallax, not a manual scale curve."
+              },
+              "smoothCameraTrajectory": {
+                "type": "boolean",
+                "description": "Remove subpixel solve noise while preserving the reference frame; defaults true."
+              },
+              "translationStrength": {
+                "type": "number",
+                "description": "0 ignores noisy SAM centre translation while preserving scale; use 1 only for a real measured pan."
+              },
+              "translationStrengthX": {
+                "type": "number",
+                "description": "Optional independent horizontal follow strength 0..1."
+              },
+              "translationStrengthY": {
+                "type": "number",
+                "description": "Optional independent vertical follow strength 0..1. Keep 0 when inspection shows no real tilt/pedestal."
+              },
+              "scaleStart": {
+                "type": "number",
+                "description": "Optional measured text scale at interval start, 0.25..4. Must be paired with scaleEnd; use for a full-frame wall/arch mask whose bbox cannot reveal zoom."
+              },
+              "scaleEnd": {
+                "type": "number",
+                "description": "Optional measured text scale at interval end, 0.25..4. Must be measured from visible scene geometry, not guessed."
+              },
+              "referenceFrame": {
+                "type": "number",
+                "description": "Frame relative to the interval used as scale 1 and the authored anchor."
+              }
+            },
+            "required": [
+              "sourceStartSeconds",
+              "sourceEndSeconds",
+              "text",
+              "fontFamily",
+              "fontSize",
+              "color",
+              "anchor",
+              "maskMode",
+              "motionMode",
+              "motionIntent"
+            ],
+            "additionalProperties": false
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId",
+          "parameters"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "compose spatial text",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "track_object",
+      "title": "track object",
+      "description": "Track one rigid moving object named by a literal prompt over an exact shot-bounded source interval, up to 512 frames. Returns motion keyframes and a source block for attaching composition layers. Use semantic grounding for deformable subjects. Uses immutable assetId in projectId. Read media_contract for worker limits and pricing. Starts a paid durable job; use job to inspect progress. Preserves source assets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "sourceStartSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "sourceEndSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "prompt": {
+                "type": "string",
+                "description": "One concise literal text prompt naming the complete moving object, for example: the red car."
+              },
+              "seedFrame": {
+                "type": "number",
+                "description": "Optional interval frame expected to visibly contain the prompted object; used to select the correct contiguous SAM run."
+              },
+              "referenceFrame": {
+                "type": "number",
+                "description": "Optional interval frame treated as scale 1 and offset 0. Defaults to seedFrame or the first covered frame."
+              }
+            },
+            "required": [
+              "sourceStartSeconds",
+              "sourceEndSeconds",
+              "prompt"
+            ],
+            "additionalProperties": false
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId",
+          "parameters"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "track object",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "segment_video",
+      "title": "segment video",
+      "description": "Remove the background from an exact source-video interval while preserving foreground motion, up to 512 source frames. Returns a new transparent WebM whose frame zero maps to sourceStartSeconds. Uses immutable assetId in projectId. Read media_contract for worker limits and pricing. Starts a paid durable job; use job to inspect progress. Preserves source assets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "sourceStartSeconds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Inclusive source timestamp for the interval used by the composition."
+              },
+              "sourceEndSeconds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Exclusive source timestamp; the interval may contain at most 512 frames."
+              }
+            },
+            "required": [
+              "sourceStartSeconds",
+              "sourceEndSeconds"
+            ],
+            "additionalProperties": false
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId",
+          "parameters"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "segment video",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "segment_frame",
+      "title": "segment frame",
+      "description": "Remove the background from one exact source-video frame at timestampSeconds. Returns a new transparent foreground PNG. Does not accept prompts or geometry controls. Uses immutable assetId in projectId. Read media_contract for worker limits and pricing. Starts a paid durable job; use job to inspect progress. Preserves source assets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "timestampSeconds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Exact timestamp in the supplied source video."
+              }
+            },
+            "required": [
+              "timestampSeconds"
+            ],
+            "additionalProperties": false
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "projectId",
+          "assetId",
+          "parameters"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "job": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "projectId": {
+                "$ref": "#/properties/job/properties/id"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "output": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "$ref": "#/properties/job/properties/output/anyOf/0"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "kind",
+              "status"
+            ],
+            "additionalProperties": true
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "segment frame",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "get_sound_effect",
+      "title": "Retrieve a sound effect",
+      "description": "Inspect or wait for an existing sound-effect job in the connected project and return verified inline audio. Does not generate audio, reserve credits, cancel work or persist delivery files.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "wait": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "projectId",
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "jobId": {
+            "$ref": "#/properties/projectId"
+          },
+          "status": {
+            "type": "string"
+          },
+          "terminal": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "assetId": {
+            "$ref": "#/properties/projectId"
+          },
+          "output": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Retrieve a sound effect",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "generate_sound_effect",
+      "title": "Generate a sound effect",
+      "description": "Generate an original MP3 sound effect using the configured external provider and store an immutable asset. Reserves credits; accepts a 0.5–22 second duration. Omit projectId to create or reuse the Sound effects project. Same inputs/runKey resume one generation; change runKey for a new variation. Retrieve existing audio with get_sound_effect. Does not place audio into an edit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "durationSeconds": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 22,
+            "description": "Defaults to 5 seconds for a new generation."
+          },
+          "promptInfluence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "How closely to follow the prompt; default 0.3."
+          },
+          "loop": {
+            "type": "boolean"
+          },
+          "runKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "wait": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "jobId": {
+            "$ref": "#/properties/projectId"
+          },
+          "status": {
+            "type": "string"
+          },
+          "terminal": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "assetId": {
+            "$ref": "#/properties/projectId"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "error": {},
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Generate a sound effect",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "authoring_contract",
+      "title": "authoring contract",
+      "description": "DIRECTOR STEP 0. Read the enforced Remotion authoring guidance, import allowlist and composition contract before author_edit. Use font_catalog, effect_catalog and media_contract for their dedicated catalogs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "contract": {
+            "description": "Authoring guidance or the dedicated media, font or effect catalog."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "authoring contract",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "media_contract",
+      "title": "media contract",
+      "description": "Read the supported media processing parameter schemas, worker limits and deployment pricing. Does not start processing.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "contract": {
+            "description": "Authoring guidance or the dedicated media, font or effect catalog."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "media contract",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "font_catalog",
+      "title": "font catalog",
+      "description": "Read the installed font catalog available for authored Remotion compositions. Does not start work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "contract": {
+            "description": "Authoring guidance or the dedicated media, font or effect catalog."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "font catalog",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "effect_catalog",
+      "title": "effect catalog",
+      "description": "Read or search the installed text animation, treatment, infographic, graphic loop and sticker catalogs. Optional category and query filter the returned entries. Does not start work.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "contract": {
+            "description": "Authoring guidance or the dedicated media, font or effect catalog."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "effect catalog",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "inspect",
+      "title": "Watch project media as contact sheets",
+      "description": "DIRECTOR STEP 1. Watch the project's media: returns contact-sheet images sampled at an exact cadence (default 10fps, the backend analyzer's cadence) plus duration, dimensions, and audio facts. Adaptive workflow: first pass the whole clip at 10fps; if adjacent tiles show fast cuts, whip transitions, or beat flashes you cannot place precisely, re-inspect JUST that section with fps up to 24 and a startSec/endSec window. Each sheet is labeled with its exact time range; tiles read left-to-right, top-to-bottom at 1/fps seconds per tile.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 6,
+            "description": "Specific assets to inspect. Omit to inspect the reference and up to five footage clips."
+          },
+          "fps": {
+            "type": "number",
+            "minimum": 10,
+            "maximum": 24,
+            "description": "Sampling cadence. Default 10. Raise toward 24 only with a narrow startSec/endSec window on fast-cut sections."
+          },
+          "startSec": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Window start for zoomed re-inspection."
+          },
+          "endSec": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Window end for zoomed re-inspection."
+          }
+        },
+        "required": [
+          "projectId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "observations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true
+            },
+            "description": "Media probe facts and time ranges for the contact-sheet images attached in content."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Watch project media as contact sheets",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "author_edit",
+      "title": "Submit an authored edit for review",
+      "description": "DIRECTOR STEP 2. Submit YOUR authored CreativeVideo.tsx. The backend runs the full gauntlet — source policy, strict TypeScript, Remotion bundle, sandboxed half-scale preview — with no AI involved. On failure you get the exact compiler/policy errors to fix; on success you get a persisted planRevisionId plus a preview contact sheet image of your own cut to critique. Iterate until the preview looks right, then call render with the planRevisionId.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "creativeVideoTsx": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000,
+            "description": "The complete CreativeVideo.tsx source following authoring_contract."
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "description": "Complete authored file map, including CreativeVideo.tsx; up to 16 files. Use instead of creativeVideoTsx for multi-file edits."
+          },
+          "direction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000,
+            "description": "Your creative direction, recorded as plan provenance."
+          },
+          "durationSec": {
+            "type": "number",
+            "minimum": 3,
+            "maximum": 60
+          },
+          "brief": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "aspect": {
+            "type": "string",
+            "enum": [
+              "9:16",
+              "4:5",
+              "3:4",
+              "1:1",
+              "4:3",
+              "16:9",
+              "21:9"
+            ]
+          },
+          "footageAssetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 64,
+            "description": "Footage bindings in logical order (s1, s2, …). Omit to use every footage asset in upload order."
+          },
+          "audioAssetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 64,
+            "description": "Project audio bindings in a1, a2, … order, including generated SFX."
+          },
+          "audioCues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "logicalAssetId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "from": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "durationInFrames": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "sourceStartFrame": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "volume": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2
+                },
+                "fadeInFrames": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 600
+                },
+                "fadeOutFrames": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 600
+                },
+                "playbackRate": {
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 2
+                }
+              },
+              "required": [
+                "id",
+                "logicalAssetId",
+                "from",
+                "durationInFrames"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 128,
+            "description": "Place audio at 30fps using a1… audio bindings or s1… clip audio; supports trimming, fades, volume and speed."
+          },
+          "composerModel": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "projectId",
+          "direction",
+          "durationSec",
+          "brief"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "planRevisionId": {
+            "type": "string"
+          },
+          "jobId": {
+            "$ref": "#/properties/planRevisionId"
+          },
+          "logicalAssets": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/properties/planRevisionId"
+            }
+          },
+          "logicalAudio": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/properties/planRevisionId"
+            }
+          },
+          "next": {
+            "type": "string",
+            "description": "Suggested next step; not an instruction to perform unrequested work."
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Submit an authored edit for review",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    },
+    {
+      "name": "account_status",
+      "title": "Check available Shorty credits",
+      "description": "Read the credits currently available in the connected Shorty account. Works when the balance is zero. Does not purchase credits or change the account.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "tokens": {
+            "type": "integer"
+          },
+          "held": {
+            "type": "integer"
+          },
+          "balance": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code when isError is true."
+          },
+          "message": {
+            "type": "string"
+          },
+          "entitlementRequired": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "title": "Check available Shorty credits",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "_meta": {
+        "ui": {}
+      }
+    }
+  ]
+}

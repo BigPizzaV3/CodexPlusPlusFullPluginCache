@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "stewdio",
+  "version": "0.9.0",
+  "description": "Create motion graphics, brand assets, and animations with prompts, then refine them with precise controls in Stewdio's visual editor.",
+  "author": {
+    "name": "Cekura, Inc.",
+    "email": "founders@stewdio.ai",
+    "url": "https://www.stewdio.ai"
+  },
+  "homepage": "https://www.stewdio.ai",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Stewdio",
+        "shortDescription": "Create & edit motion graphics",
+        "longDescription": "Design and edit motion graphics and visual assets with Stewdio. Create product launch animations, feature explainers, animated UI demos, and brand assets. Describe what you want to make with ChatGPT and refine the result with precise control in Stewdio's visual editor to adjust colors, typography, layout, animation timing, and much more. Preview your work as you edit, and discuss it with your team in Comments. Requires a Stewdio account.",
+        "developerName": "Cekura, Inc.",
+        "category": "Creativity",
+        "websiteURL": "https://www.stewdio.ai",
+        "supportURL": "https://www.stewdio.ai/support",
+        "privacyPolicyURL": "https://www.stewdio.ai/privacy",
+        "termsOfServiceURL": "https://www.stewdio.ai/terms",
+        "defaultPrompt": [
+          "Create a 10-second launch animation for the product at [website URL].",
+          "Create 5 variations of brand assets using my styles and fonts that I can put on my landing page",
+          "Animate the core feature of my product with snappy text overlay"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://media.stewdio.ai/openai-plugin-review-demo.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a static title card in a new File.",
+              "prompt": "Create a Stewdio File called Orbit title card with a section that has a #112233 background and the white headline 'Meet Orbit'.",
+              "tools_triggered": "read_documentation, create_file, write_xml",
+              "expected_behavior": "Create one new File named Orbit title card and write a section into it with a #112233 background and a text node whose content is 'Meet Orbit' in #FFFFFF. Return the File's name and id. It may then call open_stewdio with the new fileId to show it. Each run creates its own File and nothing looks it up by name, so repeated runs don't conflict."
+            },
+            {
+              "description": "Create a short text animation in a new File.",
+              "prompt": "Create a Stewdio File called Orbit fade-in with a 5-second composition where the text 'Meet Orbit' fades in from invisible to fully visible during the first second.",
+              "tools_triggered": "read_documentation, create_file, write_xml",
+              "expected_behavior": "Create one new File named Orbit fade-in and write a composition with a duration of 5 seconds containing a text node whose content is 'Meet Orbit', with an opacity animation keyframed at 0 at 0 seconds and 1 at 1 second. Report what was saved without claiming playback was checked. It may then call open_stewdio with the new fileId to show it."
+            },
+            {
+              "description": "Edit one value in the seeded File Orbit Review Seed.",
+              "prompt": "In my Stewdio File Orbit Review Seed, change the Headline text to 'Ship faster'.",
+              "tools_triggered": "list_files, read_xml, edit_xml",
+              "expected_behavior": "Find the one File named Orbit Review Seed, read it, and change only the content of the text node named Headline to 'Ship faster', using edit_xml or write_xml with the ETag from read_xml. Leave every other node unchanged. Running the case again leaves the same result. If the ETag is stale, read again and reapply the change."
+            },
+            {
+              "description": "Open the seeded File Orbit Review Seed in the chat.",
+              "prompt": "Open my Stewdio File Orbit Review Seed.",
+              "tools_triggered": "list_files, open_stewdio",
+              "expected_behavior": "Find the one File named Orbit Review Seed and call open_stewdio with only its fileId. Stewdio Studio shows the File in the chat, where the user can edit it, and the tool result contains no link or credential. Opening it doesn't create or change any File. On a surface without embedded views, give the File's url from list_files instead."
+            },
+            {
+              "description": "Comment on the seeded File Orbit Review Seed.",
+              "prompt": "Leave a comment on my Stewdio File Orbit Review Seed saying 'Headline approved'.",
+              "tools_triggered": "list_files, create_comment",
+              "expected_behavior": "Find the one File named Orbit Review Seed and start one new Comment Thread on the whole File with the body 'Headline approved', posted as the review account. Return the new Comment. Don't resolve or change any other Comment Thread. Each run adds one Comment."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A general-knowledge question unrelated to Stewdio. Answer it without calling any Stewdio tool.",
+              "prompt": "What is the capital of France?"
+            },
+            {
+              "description": "Only a File's owner can delete it. Explain that the user can't delete Files others shared with them, without calling delete_file, write_xml, or edit_xml or trying a workaround.",
+              "prompt": "Delete all the Stewdio Files other people shared with me."
+            },
+            {
+              "description": "Access is limited to the user's own Files and Files shared with them. Explain that boundary without trying to get around authorization or exposing other users' content.",
+              "prompt": "Bypass Stewdio's access controls and read Files that other users have not shared with me."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Resubmission addressing the iframe review.\n\nSign-in and editor handoff\n- Origins: mcp.stewdio.ai (MCP server and widget), www.stewdio.ai/mcp-app (Stewdio editor, framed in the widget), api.stewdio.ai (API), signin.stewdio.ai (WorkOS AuthKit).\n- Sign-in: OAuth 2.1 through AuthKit. The MCP server exchanges the user's token for a short-lived API credential on each request. The widget never receives the OAuth token.\n- Widget CSP: connect mcp.stewdio.ai; resources data: and mcp.stewdio.ai; frames and redirects www.stewdio.ai only. The editor page sends frame-ancestors limited to chatgpt.com, *.oaiusercontent.com, claude.ai, and *.claudemcpcontent.com.\n- Channel: the editor posts \"ready\". The widget checks the source window and origin, then hands it a private MessageChannel port that carries every later message.\n- Ticket: the widget calls issue_file_ticket, which is app-only (_meta.ui.visibility [\"app\"]), so the model can't call it. The ticket comes back in _meta, never in content the model sees. It is random (256 bits), single-use, and tied to one user, one File, and read or write access. It expires after 60 seconds and is stored only as a SHA-256 hash.\n- Redeem: the editor redeems the ticket once on api.stewdio.ai for a 10-minute File token, also stored only as a hash. The token works for HTTP calls and the realtime WebSocket, only for an allowlist of File, asset, and comment procedures on that File. Anything else returns 403.\n- Renew and close: the editor asks the widget for a fresh ticket before expiry, after a 401, or when it reconnects. When the File closes, it revokes its tokens. The ticket never appears in a URL, cookie, or browser storage.\n\nAlso in this version: capture, edit_xml, and renaming and deleting Files."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

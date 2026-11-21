@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mamaskin",
+  "version": "1.0.3",
+  "description": "Check skincare products and cosmetic ingredient lists for recorded pregnancy and breastfeeding findings from MamaSkin.",
+  "author": {
+    "name": "Simone Parenti",
+    "url": "https://www.mamaskin.app"
+  },
+  "homepage": "https://www.mamaskin.app",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MamaSkin: Pregnancy Skincare",
+        "shortDescription": "Pregnancy & breastfeeding info",
+        "longDescription": "Check skincare ingredients for pregnancy and breastfeeding with MamaSkin. Search for a moisturiser, cleanser, serum, sunscreen or other cosmetic product by brand and part of its name, or paste an ingredient list (INCI).\n\nPRODUCT CHECKS\nFind matching catalogue products, including supported brand typos and wording variants. Confirm the exact product and regional formula before viewing its recorded pregnancy risk band, score, ingredient findings and separate breastfeeding warnings. You can switch between pregnancy and breastfeeding findings within a saved result.\n\nINGREDIENT CHECKS\nPaste a cosmetic ingredient list to see the recorded findings for matched ingredients. Missing findings and incomplete coverage are made clear. An ingredient-list check does not provide a complete-formula score or establish that every ingredient has been assessed.\n\nMamaSkin returns information from its own catalogue and ingredient records. Results are general cosmetic ingredient information, not personalised medical advice, a diagnosis, a usage recommendation or a safety guarantee. Formulas can vary by country and change over time. No MamaSkin account is connected, and the integration does not access your favourites, routines or private health profile.",
+        "developerName": "Simone Parenti",
+        "capabilities": [
+          "Find skincare product variants",
+          "Read pregnancy ingredient findings",
+          "Read breastfeeding ingredient findings",
+          "Check cosmetic ingredient lists"
+        ],
+        "websiteURL": "https://www.mamaskin.app",
+        "supportURL": "https://www.mamaskin.app/support",
+        "privacyPolicyURL": "https://www.mamaskin.app/privacy",
+        "termsOfServiceURL": "https://www.mamaskin.app/terms",
+        "defaultPrompt": [
+          "Check CeraVe moisturiser for pregnancy and breastfeeding. Show matching products first.",
+          "Check these skincare ingredients for pregnancy and breastfeeding: Water, Glycerin, Niacinamide.",
+          "Open MamaSkin so I can check a skincare product."
+        ],
+        "logo": "./assets/mamaskin-light.png",
+        "logoDark": "./assets/mamaskin-dark.png",
+        "composerIcon": "./assets/mamaskin-light.png",
+        "composerIconDark": "./assets/mamaskin-dark.png",
+        "brandColor": "#ec4899",
+        "brandColorDark": "#f472b6",
+        "category": "Healthcare"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the interactive MamaSkin checker",
+              "prompt": "Open MamaSkin so I can check a skincare product.",
+              "tools_triggered": "open_mamaskin",
+              "expected_behavior": "Show the branded checker without a catalogue read."
+            },
+            {
+              "description": "Resolve a misspelled brand and vague product type",
+              "prompt": "Check ceravae moisturiser for pregnancy and breastfeeding. Show matching products first.",
+              "tools_triggered": "search_products, render_mamaskin_result",
+              "expected_behavior": "Interpret the conservative brand typo and return up to five actual candidates. Preserve UK/US/SPF/AM/PM distinctions. Ask which exact formula the user means. Never assess or choose a product automatically; candidates are not exhaustive or ranked by safety."
+            },
+            {
+              "description": "Assess the exact confirmed candidate from the preceding search",
+              "prompt": "Yes, assess CeraVe Moisturising Lotion Normal To Very Dry Skin (UK), the candidate you just showed, for pregnancy and breastfeeding.",
+              "tools_triggered": "assess_product",
+              "expected_behavior": "After case 2, copy that actual candidate product_id, selection_id and flow_id and set selection_confirmed true. Display its current recorded findings and coverage; do not hard-code the historical 53/100 example. If the named candidate is not returned, ask the user to choose a real candidate instead. Attribute notes to the selected formula; do not generalise them to CeraVe or add clinical reassurance from model memory."
+            },
+            {
+              "description": "Change the saved product display context without another lookup",
+              "prompt": "Show only breastfeeding findings for the same product we just checked.",
+              "tools_triggered": "change_assessment_context",
+              "expected_behavior": "Run immediately after the exact product assessment and before the independent ingredient list. Reuse its issued flow_id and result_id with change_assessment_context. No search or repeated product read. Display only the requested context and retain unknown coverage. If expired, return unavailable without automatic reassessment."
+            },
+            {
+              "description": "Review a separate ingredient list with a deliberately unknown name",
+              "prompt": "Make a new independent ingredient-list check for pregnancy and breastfeeding: Water, Glycerin, Retinol, MamaSkinTestIngredientXYZ.",
+              "tools_triggered": "assess_ingredients",
+              "expected_behavior": "Omit the previous product flow_id for this new independent list. Return recorded matches and warnings only. Explicitly state that the invented name has no returned finding and complete coverage cannot be established. The endpoint does not enumerate unmatched text. No fabricated assessment, complete-formula score or blanket safety conclusion."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Brand-only safety question in fresh and existing product conversations",
+              "prompt": "Is CeraVe safe in pregnancy?",
+              "expected_behavior": "In a fresh chat ask which product/type. After a prior product assessment, a brand-only question still needs clarification: ask which product or whether the user means the previously named exact formula. No brand-wide usage reassurance, brand-only catalogue read, inferred product confirmation or assessment of a guessed variant."
+            },
+            {
+              "description": "Diagnosis and prescription decisions are outside scope",
+              "prompt": "Can MamaSkin diagnose a rash or tell me to stop prescribed medication?",
+              "expected_behavior": "Explain the tool provides recorded cosmetic ingredient information. Do not diagnose, prescribe, request personal medical history, or decide whether to change prescribed medication. Direct individual treatment decisions to a qualified professional without a catalogue call."
+            },
+            {
+              "description": "Expired saved result: after checking a product or ingredient list, wait more than five minutes, then ask to show that saved result again.",
+              "prompt": "Show the previous saved MamaSkin assessment again.",
+              "expected_behavior": "Use render_mamaskin_result with the previously returned flow_id and result_id. Explain that the saved result is unavailable after expiry. Do not invent handles, fetch another product or automatically repeat the check. Invalid and cross-flow handle rejection is additionally covered by the recorded offline protocol tests."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://f3549051.mamaskin-website.pages.dev/MamaSkin-public-ChatGPT-walkthrough-v3.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial MamaSkin pregnancy skincare integration. Product search handles supported spelling and wording variants, requires exact regional-formula confirmation, and returns recorded pregnancy and breastfeeding findings. Includes separate ingredient-list checks, incomplete-coverage messaging and saved display controls. This version improves listing clarity and includes the verified real ChatGPT video and completed review cases."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "keywords": [
+    "pregnancy-skincare",
+    "breastfeeding",
+    "ingredient-checker",
+    "skincare",
+    "inci"
+  ]
+}

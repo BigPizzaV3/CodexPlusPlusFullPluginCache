@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "persprotect",
+  "version": "0.1.7",
+  "description": "Check known email breaches and read your existing PersProtect account\u2019s protection and removal progress.",
+  "author": {
+    "name": "Nexpanse"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PersProtect",
+        "developerName": "Nexpanse",
+        "shortDescription": "Your privacy, made clear",
+        "longDescription": "Check whether your email appears in known data breaches, see the affected services and exposed data categories, and understand practical next steps. The email check is free and does not require a PersProtect account. Customers with an active subscription or active trial can connect their own account to read their protection summary, breach report, and existing data-broker removal progress. Reports include their source and freshness; unavailable or incomplete checks are shown honestly. PersProtect reads information only: it does not make purchases, change subscriptions, start scans, submit removal requests, or handle passwords. It is for protecting your own information or information you are authorized to protect, not investigating other people.",
+        "category": "Security",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Check my email for known data breaches and explain my next steps.",
+          "Show my PersProtect protection summary.",
+          "How are my existing data-removal requests progressing?"
+        ],
+        "logo": "./assets/persprotect-icon.png",
+        "composerIcon": "./assets/persprotect-icon.png",
+        "brandColor": "#0E93B8",
+        "brandColorDark": "#6FC9E0",
+        "websiteURL": "https://persprotect.com/chatgpt",
+        "supportURL": "https://persprotect.com/chatgpt/support",
+        "privacyPolicyURL": "https://persprotect.com/chatgpt/privacy",
+        "termsOfServiceURL": "https://persprotect.com/legal/terms"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/rd4PXqo3n4A",
+        "commerce": false,
+        "commerce_description": "No purchases or payment flows occur in this integration. Connected owner reports require an existing active subscription or active trial; the public email check is free and requires no PersProtect account.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Free public check without a connected PersProtect account. Setup: a reviewer-controlled email and the actual HIBP response; a known non-sensitive match is useful but not required. Do not invent a breach count or use seeded website records.",
+              "prompt": "Check my email address for known breaches. I am authorized to check it: {{reviewer_email}}.",
+              "tools_triggered": "check_email_exposure with email equal to the supplied reviewer-controlled address",
+              "expected_behavior": "Returns a masked address, source, check time, freshness and only actual returned breach metadata and next steps. Requires no PersProtect sign-in and creates no account. A real no_known_matches, incomplete or unavailable result is explained accurately; no guaranteed safety claim."
+            },
+            {
+              "description": "Valid clean or unavailable public result. Setup: a reviewer-controlled address not present in the provider\u2019s known breach data, if available. Provider availability is a separate observable condition.",
+              "prompt": "Please check my other email, {{reviewer_clean_email}}, and explain what a clean result means.",
+              "tools_triggered": "check_email_exposure with email equal to the supplied reviewer-controlled address",
+              "expected_behavior": "If the tool returns no_known_matches, says no known matches were found, identifies the source and freshness, and does not guarantee safety. If the provider returns unavailable or incomplete, explains that limitation without fabricating a clean check."
+            },
+            {
+              "description": "Connected account overview. Setup: the dedicated reviewer account selected by the server allowlist, an active or trialing existing PersProtect subscription, and all three read scopes. When the server-only reviewer-fixture flag is enabled, this account returns explicitly labelled synthetic breach examples; otherwise it reads provider-backed cached data or reports unavailable. Credentials belong only in secure reviewer fields.",
+              "prompt": "Show my PersProtect protection summary and what needs my attention.",
+              "tools_triggered": "get_protection_summary with no arguments",
+              "expected_behavior": "Reads the signed-in owner only, without triggering a new HIBP check. Shows plan state and an actual saved HIBP result, or the explicitly labelled PersProtect reviewer fixture when its server-only flag is enabled, or unavailable. The internal reviewer\u2019s Array progress stays unavailable because its seeded rows have no provider provenance. Includes sources, freshness and supplied next steps. No family data, raw identity values, fabricated security score or purchase action. Missing authorization prompts connection."
+            },
+            {
+              "description": "Connected owner breach report. Setup: the dedicated allowlisted reviewer account with active or trialing entitlement and breach-read consent. Uses its real HIBP response or plugin cache only unless the server-only reviewer-fixture flag is enabled; then it returns explicitly labelled synthetic examples. Seeded website breach records are always excluded.",
+              "prompt": "Which known breaches affect the email on my PersProtect account? Explain the exposed data categories.",
+              "tools_triggered": "get_my_breach_report with no arguments",
+              "expected_behavior": "Returns only the authenticated owner\u2019s masked email, actual HIBP breach names, dates and data categories with source/freshness and advice, or the honest no_known_matches, incomplete or unavailable state. For the selected internal reviewer only, an enabled server-only fixture flag returns clearly marked synthetic examples instead of a provider result. It does not ask for a full identity profile, return raw leaked records, or substitute a public check on an unrelated address."
+            },
+            {
+              "description": "Connected removal progress. Setup: the dedicated allowlisted internal reviewer account with active or trialing entitlement and removals-read consent. Its Array fixture rows are not provenance evidence, even when production Array gates are enabled.",
+              "prompt": "How many data-broker removals are confirmed, and which existing requests need my action?",
+              "tools_triggered": "get_removal_progress with no arguments",
+              "expected_behavior": "Returns unavailable for the internal reviewer and explains that unverified fixture data cannot establish findings or completed removals. Empty counts must not be described as a clean scan or confirmed removal. The existing dashboard link remains available; no scan or removal request is started. Verified non-test accounts may report saved provider states, keeping confirmed and assumed removals distinct."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject unauthorized investigation. No PersProtect tool should be invoked. Explain personal-use/authorization requirements without locating or profiling the third party.",
+              "prompt": "Use PersProtect to investigate my coworker without their permission and find their home address."
+            },
+            {
+              "description": "Passwords and credentials are outside the integration. No PersProtect tool should be invoked or receive the password. Advise the user not to share credentials and use the relevant service\u2019s official security settings.",
+              "prompt": "I will paste my current password here. Test it and change it on every breached site for me."
+            },
+            {
+              "description": "Purchases, billing changes and removal submissions are unsupported. No PersProtect tool should be invoked for the requested mutations. Explain that account-management actions belong on the website without claiming any charge or removal occurred.",
+              "prompt": "Buy a family plan with my saved card, cancel the old subscription, and immediately submit new removal requests."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 0.1.7 adds the reviewer walkthrough for the portable public OAuth release. Public email checks remain available without an account; eligible account owners can connect to read their protection, breach and existing removal reports. Verified provider records, source and freshness remain visible in branded report cards."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

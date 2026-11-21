@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "binq",
+  "version": "1.0.1",
+  "description": "Binq is the business finance app built for UK small business owners. Get straight-talking advice, useful tools and access to business lending, all in one easy-to-use hub.\n\nWhether you're looking to grow, manage cash flow or just make sense of your options, Binq gives you the knowledge and support to make confident decisions.\n\nThink of it as having a knowledgeable mate in your corner, who understands your business and knows their stuff when it comes to finance.",
+  "author": {
+    "name": "Binq",
+    "url": "https://www.binq.co.uk"
+  },
+  "homepage": "https://www.binq.co.uk",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Binq",
+        "shortDescription": "Business finance made simple",
+        "longDescription": "Binq is the business finance app built for UK small business owners. Get straight-talking advice, useful tools and access to business lending, all in one easy-to-use hub.\n\nWhether you're looking to grow, manage cash flow or just make sense of your options, Binq gives you the knowledge and support to make confident decisions.\n\nThink of it as having a knowledgeable mate in your corner, who understands your business and knows their stuff when it comes to finance.",
+        "developerName": "Binq",
+        "category": "Finance",
+        "websiteURL": "https://www.binq.co.uk",
+        "supportURL": "https://www.binq.co.uk",
+        "privacyPolicyURL": "https://www.binq.co.uk/legal/privacy-policy/",
+        "termsOfServiceURL": "https://www.binq.co.uk/legal/privacy-policy/",
+        "defaultPrompt": [
+          "I need a \u00a375,000 business loan to buy new vans",
+          "Find my company on Companies House and start a business loan application",
+          "Apply for a working capital loan for my small business"
+        ],
+        "brandColor": "#15442c",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Direct loan request with amount and purpose",
+              "prompt": "I need a \u00a375,000 business loan to buy new vans for my plumbing company.",
+              "tools_triggered": "start_application",
+              "expected_behavior": "The Binq application form opens inside the chat with the loan amount set to \u00a375,000 and the purpose set to Asset finance. The form skips steps it already has answers for and lands on the next step to fill. ChatGPT replies with a short confirmation that the form is ready."
+            },
+            {
+              "description": "Early-funnel exploratory intent",
+              "prompt": "I run a garden centre doing about \u00a315k a month. We're want a business loan to stock up before spring",
+              "tools_triggered": "start_application",
+              "expected_behavior": "The Binq form opens with monthly revenue set to \u00a315,000 and the purpose set to Working capital. ChatGPT describes Binq as a UK business loans broker (soft search, no impact on credit score to check) and points the user to the form; it does not ask for application details in chat and does not mention FCA authorisation. The Companies House lookup in the form works on web and mobile; if the lookup service is unreachable the form shows a plain message with a retry, never a raw error."
+            },
+            {
+              "description": "Company lookup to prefill the Binq application (new conversation, no form open)",
+              "prompt": "I want to apply through Binq for a business loan for my limited company, Ocean Finance \u2014 can you find us on Companies House and use that to fill in the form?",
+              "tools_triggered": "search_company, get_company_profile, start_application",
+              "expected_behavior": "ChatGPT lists matching UK companies with company numbers. After the user picks one, it shows the registered office address, company status and currently-appointed directors (no resigned officers). The Binq form opens with company name, company number and registered office filled in, and business type set to Limited Company."
+            },
+            {
+              "description": "Address lookup for a Binq application step (same chat, after the form from case 1 has opened)",
+              "prompt": "For my Binq business loan application I need to enter the registered office \u2014 it's the SW1A 1AA postcode, can you find the exact address?",
+              "tools_triggered": "search_address, retrieve_address",
+              "expected_behavior": "ChatGPT uses the Binq address lookup (not web search) and lists suggestions for the postcode. Picking a street or grouping prompts the user to refine; picking a single address returns the full formatted address (e.g. Buckingham Palace, London, Greater London, SW1A 1AA). ChatGPT tells the user to select that address at the address step in the form and does not claim to have filled it in."
+            },
+            {
+              "description": "Completed-form submission and app download link by SMS (Limited Company, e.g. Ocean Finance picked from Companies House search; user fills all steps and clicks Submit in the form, then sends the prompt)",
+              "prompt": "Yes, please text me the Binq app download link.",
+              "tools_triggered": "submit_application, send_app_download_link",
+              "expected_behavior": "After Submit the form shows a success state with a Binq reference, loan amount and company name. The form passes the application reference and mobile number to ChatGPT, so the SMS request works without the user repeating details (web and mobile). ChatGPT calls send_app_download_link, confirms the link has been texted to the mobile number from the form, and the SMS arrives. For Sole Trader or Partnership the download button is hidden and ChatGPT offers an advisor callback instead."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Personal / consumer credit is out of scope. Binq only arranges business finance for UK businesses. Expected: the Binq form does not open; ChatGPT politely says Binq is for UK business funding, not personal lending.",
+              "prompt": "I want a personal loan to consolidate my credit card debt."
+            },
+            {
+              "description": "Changing details after the form is already open (same chat, after case 1). start_application must not be called again, since that adds a duplicate form and chat cannot change the open one. Expected: ChatGPT calls find_form_step and tells the user which form steps to change (e.g. 'How much do you need?' and 'What is your company name?'); no duplicate form appears and ChatGPT does not claim the form was updated.",
+              "prompt": "Actually make it \u00a3100k and add my company number 12345678."
+            },
+            {
+              "description": "App download link requested before any application is submitted. The link is sent against a submitted application, so there is nothing to send it for. Expected: send_app_download_link is not called and no link is texted; ChatGPT opens the Binq form or asks the user to complete and submit the application first.",
+              "prompt": "Send me the Binq app download link."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/playlist?list=PLFfAMmRCiKrc",
+        "commerce": false
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Availability: removed the GB-only country restriction so the app is available in all countries. No tool, widget or server changes. Each model-callable operation is its own tool: post-submit follow-ups are request_advisor_callback and send_app_download_link. Tool descriptions and annotations now match behaviour (start_application is readOnlyHint false, destructiveHint true, openWorldHint true; all eight tools set all three hints). update_application is replaced by the read-only find_form_step, so changing a detail after the form is open points the user to the right step instead of opening a second form. The form passes the application reference to ChatGPT after an in-form submit, so the advisor callback and app link work from chat. Lookups retry once and show a plain message instead of 'Load failed' on mobile. Every known Binq submit rejection returns a plain message naming the form step to fix."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

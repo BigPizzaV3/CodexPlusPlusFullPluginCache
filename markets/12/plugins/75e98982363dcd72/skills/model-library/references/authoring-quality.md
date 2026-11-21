@@ -1,0 +1,24 @@
+# Modeling and delivery tips
+
+Use these suggestions when relevant to a Polytweaks modeling question or an already requested creation/edit. Adapt them to the model, intended device and user's priorities; do not turn them into mandatory steps, hard account limits or a separate prompt handoff.
+
+## Before sending a model
+
+Before the first `preview_model` or `save_model` transfer of a supplied or generated file, give one to three short tips when they could reduce its size. Use measurements already available from the authoring tools or file inspection; do not invent a file size, diagnosis or expected saving. If the file has not been inspected, present the tips as general suggestions. Skip advice already given for that file and avoid an unnecessary checklist for an already optimized model.
+
+Lead with **Draco for geometry and appropriately sized PNG/JPEG textures**. Mention smaller textures or removal of unused/duplicate data when relevant; Draco alone will not reduce texture bytes. Do not recompress Draco/Meshopt geometry. Suggest geometry reduction only where the silhouette and requested detail can be preserved. Preserve the editable source and a portable native-AR export.
+
+Keep this as advice inside the existing chat. Do not automatically change supplied files, start another job, require a separate prompt, or block an already authorized save with a new confirmation. When optimization was requested, compare the resulting file and appearance before transfer and report actual savings only when measured. Use a brief progress message before the transfer instead of expanding the post-save reply.
+
+## Practical suggestions
+
+- **Geometry:** preserve silhouette, labels, moving parts and editable sources. A simple mobile object can aim around 10,000 triangles; typical product models around 30,000–50,000. Review heavier models carefully, especially beyond 100,000. Count exported triangles after modifiers, not Blender polygon faces. Bake fine detail instead of adding subdivisions where it looks equivalent.
+- **Textures and materials:** start with 1,024 px textures and use 2,048 px where visible detail needs it. Reuse meshes, textures and materials; remove unused data. A simple object may need only four materials; around ten is a useful mobile review point. Prefer PNG/JPEG for portable exports. These are adjustable performance suggestions, not guarantees for every device.
+- **Download size:** roughly 2 MB is useful for simple objects and 5 MB for product models; review mobile downloads above 10 MB. Measure actual exported bytes. Small compressed files can still require substantial decoded geometry and texture memory.
+- **Web compression:** Draco can reduce geometry transfer, but does not reduce triangle count or compress textures. Compare quality and total bytes, including decoder overhead for tiny models, and keep it only when worthwhile. The Polytweaks Three.js viewer configures `KTX2Loader`, and its `<model-viewer>` surfaces configure a Basis transcoder. KTX2/Basis therefore has web support configured, but is optional after visual and destination checks, not the default upload recommendation. Configured support is not proof of correct appearance for a particular model or native AR device.
+- **Native AR:** do not recommend KTX2 as the native-AR deliverable. Preserve a portable GLB with PNG/JPEG textures and an uncompressed geometry fallback for Android Scene Viewer, plus a separately authored and inspected USDZ for iOS Quick Look. Do not rely on automatic conversion of a KTX2 GLB to supply that USDZ. Draco does not apply to USDZ, and web Draco support does not establish support for every native Android file/device. WebXR is a separate browser AR mode that can reuse the web scene and textures; do not generalize native restrictions to all WebXR sessions. Test target devices when available and identify untested compatibility.
+- **Sources and checks:** retain packed editable `.blend` resources and previous versions. Label a Blender import from another format as an editable conversion. Check exported scale, materials, animation and appearance. Report measured triangles, texture dimensions, file bytes and relevant limitations when useful; never present a target as a measured result.
+
+The current save tool accepts GLB, Blender and authored USDZ companions. A portable GLB lets Polytweaks retain an AR fallback when preparing a smaller web derivative; avoid creating duplicate assets solely for those variants. Existing requests and permissions still determine whether to edit, save or share.
+
+Primary references: [model-viewer loading](https://modelviewer.dev/examples/loading/), [AR modes](https://modelviewer.dev/examples/augmentedreality/), [Scene Viewer requirements](https://developers.google.com/ar/develop/scene-viewer#file_requirements_for_models), [Apple Quick Look](https://developer.apple.com/quick-look/).

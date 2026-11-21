@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aluguelmanager",
+  "version": "1.0.0",
+  "description": "Rental bookkeeping for Brazilian landlords: contracts, rent receipts, IPTU instalments and alerts, with multa e juros and business-day due dates calculated for you.",
+  "author": {
+    "name": "PORTMAN LLC",
+    "email": "info@aluguelmanager.com",
+    "url": "https://aluguelmanager.com"
+  },
+  "homepage": "https://aluguelmanager.com",
+  "license": "MIT",
+  "keywords": [
+    "rental",
+    "property management",
+    "brazil",
+    "finance",
+    "bookkeeping"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AluguelManager",
+        "shortDescription": "Rent, IPTU and late fees",
+        "longDescription": "AluguelManager is rental bookkeeping for Brazilian landlords who manage their own leases. Connect your account and ChatGPT can read your contracts, rent receipts, IPTU instalments, alerts and dashboard summary, work out what is owed, and record payments.\n\nIt implements the Brazilian lease mechanics these leases actually run on: IPTU, the municipal property tax billed in up to ten instalments per property and commonly passed to the tenant; reajuste, the annual index-linked rent increase, with per-month rent history so past months stay correct after an increase; multa e juros, late rent as rent plus a fixed penalty percentage plus interest pro-rated by days late, following each contract's own terms; due dates that roll forward to the next Brazilian business day, including the movable Easter-derived national holidays; and proration on move-in and on departure.\n\nThe decisions that cannot be undone stay with the person. No tool is offered for ending a tenancy (encerrar), deleting a contract or applying a reajuste. ChatGPT is given a link and you do it in the app. You can also limit a connection to read only when you approve it.\n\nEach person connects with their own AluguelManager account and ChatGPT sees only their data. Tenant CPF and CNPJ are masked before any result leaves the server, leaving only the last two digits. Tokens are stored only as SHA-256 hashes, and disconnecting at aluguelmanager.com/connections revokes every token in that connection at once.",
+        "developerName": "PORTMAN LLC",
+        "category": "Finance",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://aluguelmanager.com",
+        "supportURL": "https://aluguelmanager.com/contact",
+        "privacyPolicyURL": "https://aluguelmanager.com/privacy",
+        "termsOfServiceURL": "https://aluguelmanager.com/terms",
+        "defaultPrompt": [
+          "Qual a situacao dos recebimentos deste mes?",
+          "Quanto devo cobrar de um aluguel 12 dias atrasado, com multa e juros?",
+          "Como estao as parcelas de IPTU deste ano?"
+        ],
+        "brandColor": "#059669",
+        "brandColorDark": "#34d399",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the landlord's lease contracts",
+              "prompt": "Quais contratos eu tenho no AluguelManager?",
+              "tools_triggered": "list_contracts",
+              "expected_behavior": "Lists the four fictional leases in the reviewer account: Alameda Santos 900, Rua das Acacias 128, Rua Domingos de Morais 55 and Rua Harmonia 740, with their monthly rent and due day. Tenant CPF and CNPJ come back masked, showing only the last two digits."
+            },
+            {
+              "description": "Rent collection status for the current month",
+              "prompt": "Qual a situacao dos recebimentos deste mes?",
+              "tools_triggered": "get_payment_status",
+              "expected_behavior": "Returns which leases are paid, pending and overdue for the month, with amounts in reais. Due dates follow the Brazilian business-day calendar, so a due day falling on a weekend or national holiday is reported on the next working day."
+            },
+            {
+              "description": "Late rent with the contract's own penalty and interest",
+              "prompt": "O aluguel da Rua das Acacias, 128 esta 12 dias atrasado. Quanto devo cobrar com multa e juros?",
+              "tools_triggered": "get_contract",
+              "expected_behavior": "Returns the rent plus that contract's own multa (a fixed percentage) plus juros de mora pro-rated by days late, not a generic late fee. The arithmetic follows the terms stored on the contract."
+            },
+            {
+              "description": "IPTU instalment status for a property",
+              "prompt": "Como estao as parcelas de IPTU da Rua Domingos de Morais, 55 neste ano?",
+              "tools_triggered": "get_iptu_status",
+              "expected_behavior": "Returns the municipal property tax instalments for that property for the year, instalment by instalment, showing which are settled and which are still open."
+            },
+            {
+              "description": "Undo and re-record a rent payment",
+              "prompt": "Desfaca o pagamento de outubro da Rua Harmonia, 740 e registre de novo.",
+              "tools_triggered": "undo_rent_payment, pay_rent",
+              "expected_behavior": "Undoes the recorded October payment on that lease and records it again, confirming both. Shows that the write path works and that it is reversible. ChatGPT asks for permission before each write, which is its own prompt rather than anything the server does."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Ending a tenancy cannot be undone, so it is the person's decision and is made in the app",
+              "prompt": "Encerre o contrato da Rua Harmonia, 740 com saida no dia 30.",
+              "expected_behavior": "AluguelManager does not act. No tool that ends a tenancy is offered to connected assistants at all: encerrar writes a final prorated payment and closes the lease, and there is no undo. ChatGPT explains this and gives the link to aluguelmanager.com. No contract is closed and no payment is written."
+            },
+            {
+              "description": "Deleting a contract cannot be undone, so it is the person's decision and is made in the app",
+              "prompt": "Apague o contrato da Alameda Santos, 900.",
+              "expected_behavior": "AluguelManager does not act. No tool that deletes a contract is offered to connected assistants, and ChatGPT gives the link to the app instead. No contract is deleted."
+            },
+            {
+              "description": "Applying the annual rent increase needs an index the landlord looks up, so the tool is not offered at all",
+              "prompt": "Aplique o reajuste anual de 4,5% no contrato da Rua das Acacias, 128.",
+              "expected_behavior": "AluguelManager does not act. No reajuste tool is offered to connected assistants, and update_contract has no rent field, because a reajuste has to be written to the rent history or earlier months silently recalculate at the new figure. ChatGPT may still work out the new rent and show it, then report that it was not applied and link to the app. The stored rent is unchanged."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No purchases inside ChatGPT. AluguelManager accounts and subscriptions are managed at aluguelmanager.com.",
+        "demo_recording_url": "https://aluguelmanager.com/review/aluguelmanager-chatgpt-review.mp4"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

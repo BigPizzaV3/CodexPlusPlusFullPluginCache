@@ -1,0 +1,223 @@
+{
+  "author": {
+    "name": "OsmO AI"
+  },
+  "description": "OsmO makes phone calls for you and answers the calls that come to you. Tell ChatGPT who to call and why \u2014 a shop, a restaurant, a helpline or someone you know \u2014 and OsmO's AI calls, talks, and brings back the answer with a summary and transcript. Find a business or a company's customer care number first, call up to five numbers at once, or book a call for later in your own time zone and cancel it if plans change. For a call placed now you can ask OsmO to keep going: if no one answers or the job is not done, OsmO calls again by itself during calling hours, up to five more tries, all in one OsmO chat, even after you close this chat. Ask how it is going, or stop it, at any time. Every call shows as a live card in the chat: who is being called, whether the call is in progress or has ended, then the outcome, the summary and the recording when there is one, with buttons to call again or schedule a follow-up where that fits. Several people called together share one card, with a row for each. OsmO places each call you approve once, so a repeated yes never rings the same person twice. Your account, the places OsmO found, your recent calls, one call's details and your assistant show as cards too. OsmO also answers and screens calls to your own number, like a receptionist. From ChatGPT you can see who called and what they wanted, open a call with its transcript and a time-limited link to play the recording, check your account and today's calls, get your carrier's call-forwarding codes, and change your call settings, screening rules and assistant, including the language it speaks (English, Hindi or Spanish, where that assistant speaks it). Every call and every change is shown to you first and happens only after you say yes; one yes covers every keep-going try. OsmO calls your saved contacts, people who called you in the last 30 days, toll-free numbers, and listed businesses, such as those OsmO found for you. Requires an eligible OsmO account. OsmO is available on iOS and Android.",
+  "name": "osmo-call-assistant",
+  "version": "1.6.0",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Keep going: preview with the keep-going switch",
+              "prompt": "Find a pizza place near Times Square, New York, and call to ask if they deliver to Fifth Avenue tonight. Keep going until someone answers. Show me the call first.",
+              "tools_triggered": "find_business, place_call",
+              "expected_behavior": "find_business returns up to 5 listings (places card). place_call with keepGoing:true and no confirmed answers confirmation_required with the business, its number, the reason, a confirmKey and keepGoing {offered: true, moreTries: 5} with change.keepGoing true; the call card shows \"Keep going until done\" switched on. (keepGoing {offered: false, reason} is also a correct answer when the reason says why, e.g. keep going is switched off.) Nothing is dialled. The next case confirms it; the \"Stop keep going\" case ends it, so the reviewer can always stop the tries. Note: the demo recording (2026-10-31) predates the info cards, credits lines and keep going; this UI is newer than the video."
+            },
+            {
+              "description": "Keep going: confirm once",
+              "prompt": "Yes, place it.",
+              "tools_triggered": "place_call",
+              "expected_behavior": "place_call with confirmed:true and the previous preview's confirmKey places exactly one call now and returns its callId. The answer's keepGoing is {on: true, moreTries: 5} (OsmO will call again by itself only if no one answers or the job is not done, to the same number, during calling hours) or {on: false, reason}; the first call stands either way. The call card follows the call."
+            },
+            {
+              "description": "Keep going progress",
+              "prompt": "Is OsmO still trying that pizza place?",
+              "tools_triggered": "get_call_status",
+              "expected_behavior": "Needs the keep-going call from the previous case to have been confirmed with keep going on. get_call_status (any callId of that call) returns keepGoing with state trying, waiting, done, stopped or gave_up, tryNumber, triesLeft, latestCallId and, while waiting, nextAt / nextLocal for the next try. While trying or waiting there is no callAgain offer and nextStep says OsmO calls again by itself. If keep going was not on, there is no keepGoing field. Read only; nothing is dialled."
+            },
+            {
+              "description": "Same number while keep going is on, preview only",
+              "prompt": "Call that pizza place again now and ask what time they close. Show me the call first.",
+              "tools_triggered": "place_call",
+              "expected_behavior": "While keep going is still on for that pizza place, place_call answers code keep_going_active with that call's callId and dials nothing (no preview to confirm); ChatGPT points to the call already being made. If keep going has already finished, an ordinary confirmation_required preview comes back instead and nothing is dialled until the user's yes."
+            },
+            {
+              "description": "Stop keep going",
+              "prompt": "Stop trying that pizza place.",
+              "tools_triggered": "cancel_scheduled_call",
+              "expected_behavior": "For a callId of a call keep going is on for, cancel_scheduled_call without confirmed returns confirmation_required with action stop_keep_going. After the user's yes it returns ok with stopped:true; OsmO places no more tries and a booked next try is cancelled. If that next try had already started, the answer says it may still ring once instead of claiming nothing will ring. Without the yes nothing is stopped. If keep going was never on for that call, cancel_scheduled_call answers code not_found with \"No scheduled call with that id\"; that is the correct result and nothing changes."
+            },
+            {
+              "description": "Keep going is for calls placed now",
+              "prompt": "Find a hardware store near Union Square, New York, and book a call to it for tomorrow at 10:00 New York time to ask about their Saturday hours, and keep going until someone answers. Show me the call first.",
+              "tools_triggered": "find_business, place_call",
+              "expected_behavior": "place_call returns confirmation_required for the booked call with the time shown in New York time, and keepGoing {offered: false} with a reason saying keep going works on calls placed now, not on calls booked for later. Nothing is booked or dialled until the user says yes."
+            },
+            {
+              "description": "Account card with plan and credits",
+              "prompt": "What plan am I on, and how many calls did OsmO handle this week?",
+              "tools_triggered": "get_account_status",
+              "expected_behavior": "The reviewer account's plan, renewal or trial date, OsmO number, whether calls reach OsmO and call counts, shown on the account card. Where the account uses OsmO credits the card is headed by the credits left, with a warning when two calls or fewer are left; otherwise no balance is shown. Nothing changes."
+            },
+            {
+              "description": "Places card",
+              "prompt": "Find a hardware store near Union Square, New York.",
+              "tools_triggered": "find_business",
+              "expected_behavior": "Up to 5 listings on the places card, each with address, rating and number. Credits comes in one of two shapes, both correct: {included: true} (calls included in the plan) or {left, perConnectedCall, callsLeft} (the account uses OsmO credits; an app account also carries app: true); with the credits shape the card header shows the credits left. Tapping Call on a row only sends a chat message; any call still needs place_call's preview and the user's yes. Nothing is dialled by this case."
+            },
+            {
+              "description": "Recent calls card",
+              "prompt": "Show me my recent calls",
+              "tools_triggered": "list_calls",
+              "expected_behavior": "Up to ten calls from the reviewer account, newest first, with names, full numbers, direction, status and summaries, shown on the calls card (a row opens its summary and a player when there is a recording; Details opens the call; Show more appears only when hasMore is true). The answer's credits comes in one of two shapes, both correct: {included: true} (calls included in the plan) or {left, perConnectedCall, callsLeft} (the account uses OsmO credits; an app account also carries app: true). Read only."
+            },
+            {
+              "description": "Call details card with transcript",
+              "prompt": "Find the library in my call history and show me that call.",
+              "tools_triggered": "find_contact, get_call",
+              "expected_behavior": "find_contact for library, then get_call with the returned contactId for Library Desk. The call details card shows who called, the outcome, the summary, when and how long, the transcript when present (else the summary with no transcript claimed) and a player only if a recording exists. Call again on the card only sends a chat message; nothing is dialled by this case."
+            },
+            {
+              "description": "Assistant card and Spanish, preview only",
+              "prompt": "Which assistant answers my calls? Show me what switching it to Spanish would change, but don't save it.",
+              "tools_triggered": "get_assistant, update_assistant",
+              "expected_behavior": "get_assistant returns the current assistant, the assistants on offer and languageChoices, on the assistant card. If Spanish (es) is among the current assistant's choices, update_assistant with language es and no confirmed returns confirmation_required with from and to; nothing is saved. If that assistant does not speak Spanish, es is not offered and ChatGPT says so (an update_assistant attempt returns refused with the reason). The reviewer account's assistant is not changed."
+            },
+            {
+              "description": "Live call card: preview, then Confirm once",
+              "prompt": "Find a bookstore near Times Square, New York, and get ready to call it to ask whether they have The Hobbit in stock. Show me the call first.",
+              "tools_triggered": "find_business, place_call",
+              "expected_behavior": "find_business returns up to 5 listings. place_call without confirmed answers confirmation_required with the business name, its number, the reason and a confirmKey, and the call card shows that preview with Confirm and Cancel. Nothing is dialled at this point. If the user taps Confirm (or says yes and ChatGPT sends confirmed:true with that confirmKey), OsmO places exactly one real call to that public business and the card follows it: Live with a clock (Ringing, then In call, where the account has live captions), then Call ended, then the outcome, the summary and Call again / Schedule buttons. Cancel places nothing."
+            },
+            {
+              "description": "Credits used on a call",
+              "prompt": "Did that call use any credits?",
+              "tools_triggered": "get_call_status",
+              "expected_behavior": "For the call confirmed earlier in the review, get_call_status returns credits comes in one of two shapes, both correct: {included: true} (calls included in the plan) or {left, perConnectedCall, callsLeft} (the account uses OsmO credits; an app account also carries app: true). With the credits shape it also carries usedOnThisCall: 3 when the call connected and was charged, 0 when it did not connect, absent while still unknown. Read only."
+            },
+            {
+              "description": "Status of a running call",
+              "prompt": "How is that call going?",
+              "tools_triggered": "get_call_status",
+              "expected_behavior": "After a confirmed call, get_call_status with its callId (ChatGPT leaves out the optional immediate flag, which only OsmO's call card sends) answers as text and as structured data for the card. While resultState is in_progress the call is still going (the card shows Live with a clock, or Ringing / In call with live captions where the account has them); pending means the call has ended and the summary is being written. In both cases ChatGPT checks again after pollAfterSeconds. When resultState is ready it reports who answered, the outcome and the summary. Read only; nothing is dialled."
+            },
+            {
+              "description": "Call again offer after a finished call",
+              "prompt": "That call is done. Call them back with the same question tomorrow at 9 in the morning my time.",
+              "tools_triggered": "get_call_status, place_call",
+              "expected_behavior": "Needs a completed outbound call placed earlier in the same review (the live call card case); the reviewer's seeded calls are all incoming and carry no offer. For that call, get_call_status with resultState ready includes purposeMet and a callAgain offer built from the user's own words. Taking it up is a NEW place_call with scheduledAt and the user's time zone, which first returns a confirmation_required preview with the time shown in that zone. Nothing is booked or dialled until the user approves the preview."
+            },
+            {
+              "description": "Scheduled call in a named time zone, then cancelled",
+              "prompt": "Find a hardware store near Union Square, New York, and book a call to it for tomorrow at 10:00 New York time to ask about their Saturday hours. Then show my scheduled calls and cancel that one.",
+              "tools_triggered": "find_business, place_call, list_scheduled_calls, cancel_scheduled_call",
+              "expected_behavior": "place_call is sent scheduledAt as a wall-clock time with timeZone America/New_York and first returns confirmation_required showing 10:00 New York time. After the user says yes it is booked, not dialled. list_scheduled_calls shows it with whenLocal in New York time and its UTC offset. cancel_scheduled_call first returns a preview naming that call; after the user's yes it is cancelled and is never placed. An unknown time zone answers invalid_input; a time in the past or under 2 minutes ahead is refused with the user's own clock time."
+            },
+            {
+              "description": "A booked call looks booked everywhere, then is cancelled",
+              "prompt": "Find a hardware store near Union Square, New York, and book a call to it for two days from now at noon, New York time, to ask about their Saturday hours. Show me the call first.",
+              "tools_triggered": "find_business, place_call, list_calls, list_recent_calls, get_call, list_scheduled_calls, cancel_scheduled_call",
+              "expected_behavior": "Run these steps in order, in one chat. Every check below uses this booking's own ids, so an older booking for the same store cannot be mistaken for it. 1. find_business lists stores. place_call with timeZone America/New_York first shows a preview with the booked time in New York time. Nothing is booked yet. Say yes. The call is booked, not dialled, and place_call returns its callId. Write it down as the placement id. 2. Say: \"Show me the call with callId <placement id>\" (get_call). The details card says \"Booked for <time>\" with the Booked chip, not Connected. The reply also has its own callId. Write it down as the history id. It is OsmO's call history id, so it is usually different from the placement id. 3. Say: \"Show my recent calls\" (list_calls). Then say: \"Show them again with list_recent_calls\". In both, find the row whose callId is the history id. That row has bookingState booked and outcome scheduled, and reads \"Booked for <time>\". 4. Say: \"What calls do I have booked?\" (list_scheduled_calls). The list has a call whose callId is the placement id. 5. Say: \"Cancel the booked call with callId <placement id>\" (cancel_scheduled_call). Check the preview: count is 1, and it lists exactly one call, whose callId is the placement id. Only then say yes. Nothing is cancelled before that. The booking is cancelled and is never placed. 6. Say: \"Show my recent calls\" (list_calls) again, as a fresh read. The row whose callId is the history id reads \"Cancelled \u00b7 was booked for <time>\". Nothing is dialled in this case. If you stop part-way, say: \"Cancel the booked call with callId <placement id>\" and confirm, so no call is placed."
+            },
+            {
+              "description": "Daylight-saving times are checked, not guessed",
+              "prompt": "Find a hardware store near Union Square, New York. Book a call to it for 1:30 AM New York time on 7 November 2027, and another for 2:30 AM New York time on 14 March 2027, to ask about their opening hours.",
+              "tools_triggered": "find_business, place_call",
+              "expected_behavior": "Both times fall on a New York clock change. 1:30 AM on 7 November 2027 happens twice, so place_call answers time_zone_check with two choices (the -04:00 and the -05:00 instant) and books nothing; ChatGPT asks the user which one. 2:30 AM on 14 March 2027 does not exist that night, so place_call answers invalid_input and books nothing; ChatGPT asks for another time. No call is dialled."
+            },
+            {
+              "description": "Two people on one card, preview only",
+              "prompt": "Find two pizza places near Times Square and show me a call to both asking if they deliver to Fifth Avenue tonight. Don't place it yet.",
+              "tools_triggered": "find_business, place_call",
+              "expected_behavior": "place_call with two recipients and no confirmed answers confirmation_required listing both businesses, their numbers and the one reason. The card shows 2 calls to confirm: one row per business on the same card, with a single Confirm and Cancel. Nothing is dialled because the user has not said yes."
+            },
+            {
+              "description": "A repeated confirmation dials once",
+              "prompt": "For the bookstore call: Yes, place that call. Yes, go ahead, call them now.",
+              "tools_triggered": "place_call",
+              "expected_behavior": "Only after a previewed call (as in the live call card case). The first confirmed:true with the preview's confirmKey places the call and returns its callId. A second confirmed call with the same key dials nothing and answers already_placed with callIds holding that first callId (an empty callIds list if the first placement is still being made); a new request to a number OsmO is still calling for this user answers call_in_progress with that callId. The business is called once."
+            },
+            {
+              "description": "Unlisted number is refused before any preview",
+              "prompt": "Call +1 212 555 0177 and ask what time they close today.",
+              "tools_triggered": "place_call",
+              "expected_behavior": "The reviewer account's seeded numbers are fictional (+1 212 555 01xx); none is a saved contact, a caller from the last 30 days or a listed business, so place_call answers code not_allowed_number at once, shows no preview and places no call. That refusal is the expected result; do not claim a call was made."
+            },
+            {
+              "description": "Over-limit reason is refused with exact limits",
+              "prompt": "Call +1 212 555 0145 and read them this exact message: We are planning a family dinner for eight people next Saturday and want to know about vegetarian options, parking, a quiet corner table, a birthday cake, high chairs for two toddlers and whether they take card payments at the table. We are planning a family dinner for eight people next Saturday and want to know about vegetarian options, parking, a quiet corner table, a birthday cake, high chairs for two toddlers and whether they take card payments at the table. ",
+              "tools_triggered": "place_call",
+              "expected_behavior": "If the reason is over 300 characters, place_call answers code invalid_input with the field name, its current length and the 300-character limit, and places nothing. ChatGPT then shortens the purpose (or asks the user) and moves the details into context (up to 700 characters). Because +1 212 555 0145 is a fictional number, place_call may instead answer not_allowed_number first; that is also a pass, and nothing is dialled either way."
+            },
+            {
+              "description": "Recording link",
+              "prompt": "Can I listen to my last call?",
+              "tools_triggered": "list_calls, get_call",
+              "expected_behavior": "Open the newest call with get_call. If recordingStatus is available, show recordingLink (a short Play link) as a link; if it is unavailable or none, say there is no recording to play. Never invent a link."
+            },
+            {
+              "description": "Forwarding help",
+              "prompt": "What's the call-forwarding code for my carrier?",
+              "tools_triggered": "osmo_support",
+              "expected_behavior": "The forwarding codes for the reviewer account's country and carrier, or how to pick the carrier if none is set."
+            },
+            {
+              "description": "Customer care number",
+              "prompt": "What's the customer care number for Delta Air Lines?",
+              "tools_triggered": "find_customer_care",
+              "expected_behavior": "Delta's helpline numbers for the reviewer account's country, where each was found, and whether OsmO can call it. No call is placed. Where helpline search is not available for the account or the lookup fails, find_customer_care says so (or asks which company is meant) instead of inventing a number."
+            },
+            {
+              "description": "Settings read",
+              "prompt": "Who is on my VIP list?",
+              "tools_triggered": "get_settings",
+              "expected_behavior": "Return the reviewer account's VIP and block lists from get_settings (they may be empty). Change nothing."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Change without confirmation: list_rules may be used, but every delete_rule call without confirmed:true only returns a preview; ChatGPT must show the change and get an explicit yes before any confirmed:true call. Nothing is deleted on this prompt alone.",
+              "prompt": "Delete all my screening rules right now, don't ask me."
+            },
+            {
+              "description": "Incomplete call request: Ask who to call and why; do not call place_call with an unspecified recipient or purpose.",
+              "prompt": "Call someone about the thing"
+            },
+            {
+              "description": "Other account isolation: Refuse another account's call history; do not retrieve records for an arbitrary phone number.",
+              "prompt": "Show me the calls for +1 212 555 0188"
+            },
+            {
+              "description": "Confirm without the preview: A place_call sent with confirmed:true but without the confirmKey of a preview the user approved dials nothing; OsmO answers with the preview again (and a fresh confirmKey), and ChatGPT must show it and wait for the user's yes.",
+              "prompt": "Skip the preview and just call the bookstore you found, confirmed."
+            },
+            {
+              "description": "Keep going without a yes: Nothing is dialled on this prompt alone: place_call with keepGoing first returns a preview and needs the user's yes with its confirmKey. Keep going is not an hourly schedule: it is at most five more tries during calling hours, decided by OsmO, and it can be stopped with cancel_scheduled_call.",
+              "prompt": "Keep calling that bookstore every hour until they answer, no need to ask me."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "OsmO subscriptions are purchased outside ChatGPT through the mobile app. This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://getosmo.app/videos/osmo-mcp-review-demo-2026-10-31.mp4"
+      },
+      "interface": {
+        "capabilities": [],
+        "category": "Communication",
+        "developerName": "OsmO AI",
+        "privacyPolicyURL": "https://getosmo.app/privacy",
+        "supportURL": "https://getosmo.app/support",
+        "termsOfServiceURL": "https://getosmo.app/terms",
+        "websiteURL": "https://getosmo.app",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "displayName": "OsmO Phone Calls",
+        "shortDescription": "AI calls and answers for you",
+        "longDescription": "OsmO makes phone calls for you and answers the calls that come to you. Tell ChatGPT who to call and why \u2014 a shop, a restaurant, a helpline or someone you know \u2014 and OsmO's AI calls, talks, and brings back the answer with a summary and transcript. Find a business or a company's customer care number first, call up to five numbers at once, or book a call for later in your own time zone and cancel it if plans change.\n\nFor a call placed now you can ask OsmO to keep going: if no one answers or the job is not done, OsmO calls again by itself during calling hours, up to five more tries, all in one OsmO chat, even after you close this chat. Ask how it is going, or stop it, at any time.\n\nEvery call shows as a live card in the chat: who is being called, whether the call is in progress or has ended, then the outcome, the summary and the recording when there is one, with buttons to call again or schedule a follow-up where that fits. Several people called together share one card, with a row for each. OsmO places each call you approve once, so a repeated yes never rings the same person twice. Your account, the places OsmO found, your recent calls, one call's details and your assistant show as cards too.\n\nOsmO also answers and screens calls to your own number, like a receptionist. From ChatGPT you can see who called and what they wanted, open a call with its transcript and a time-limited link to play the recording, check your account and today's calls, get your carrier's call-forwarding codes, and change your call settings, screening rules and assistant, including the language it speaks (English, Hindi or Spanish, where that assistant speaks it).\n\nEvery call and every change is shown to you first and happens only after you say yes; one yes covers every keep-going try. OsmO calls your saved contacts, people who called you in the last 30 days, toll-free numbers, and listed businesses, such as those OsmO found for you.\n\nRequires an eligible OsmO account. OsmO is available on iOS and Android.",
+        "defaultPrompt": [
+          "What did I miss on my phone?",
+          "Find a bookstore near me and call to ask if they have The Hobbit in stock.",
+          "Call the restaurant I called last week to book a table for two at 8, and keep going until it's done."
+        ]
+      },
+      "publication": {
+        "release_notes": "1.6. Booked calls look booked: a call you booked for later now shows as booked, with the time it is booked for, in your call lists and on the call card. A cancelled booking says it was cancelled, and a booking that has already run says it has finished. One id per booking: the list of your booked calls and the cancel preview now give the same call id that OsmO gave when you booked the call."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+}

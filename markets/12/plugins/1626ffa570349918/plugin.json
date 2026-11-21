@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nervus",
+  "version": "0.4.102",
+  "description": "Read Nervus context and save reviewed results with separate consent.",
+  "author": {
+    "name": "Nervus",
+    "email": "hello@nervus.chat",
+    "url": "https://nervus.chat"
+  },
+  "homepage": "https://nervus.chat",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/nervus-setup/SKILL.md",
+      "interface": {
+        "displayName": "Nervus",
+        "shortDescription": "Project context with sources",
+        "longDescription": "Bring your Nervus project work into chat. Review your Inbox, inspect Tasks with their source Threads, and get Thread summaries with links to the original sources. Review a result, choose its destination, and confirm before saving it as a new Thread or appending it to an existing active Thread. Supported files can be staged with separate consent. A Nervus account is required; access follows your existing permissions. Task and Decision editing is not supported. No purchases.",
+        "developerName": "CS3B",
+        "category": "Productivity",
+        "capabilities": [
+          "Inbox and Tasks with sources",
+          "Cited Thread summaries",
+          "Confirmed result and file delivery"
+        ],
+        "websiteURL": "https://nervus.chat/",
+        "supportURL": "https://nervus.chat/support",
+        "privacyPolicyURL": "https://nervus.chat/legal/privacy",
+        "termsOfServiceURL": "https://nervus.chat/legal/terms",
+        "defaultPrompt": [
+          "Show my Inbox and explain what needs my attention, with source links.",
+          "Show a Task together with its source Thread inside this chat.",
+          "Prepare this result for a new Nervus Thread. Show the destination and content, then ask me to confirm saving."
+        ],
+        "brandColor": "#7FA9F8",
+        "logo": "./assets/nervus-logo-512.png",
+        "composerIcon": "./assets/nervus-composer-icon-192.png"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/QPpjKqREIQ0",
+        "commerce": false,
+        "commerce_description": "The plugin accesses authorized Nervus account information and offers no purchasing or payment actions.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: sign in as the dedicated reviewer account in a fresh chat with the Nervus plugin connected and leave the scope unset; the demo organization has actionable Inbox items across its client and internal Spaces. Pass condition: the answer and the Inbox view agree on all-accessible-work scope, action-first ordering, counts, retrieval time and completeness, and every item links to its canonical source.",
+              "prompt": "Show my Inbox and explain what needs my attention. Include source links.",
+              "tools_triggered": "get_context, show_inbox, list_inbox",
+              "expected_behavior": "Establish context once, show the read-only Inbox for all accessible work, explain requests before assignments and overdue work without hiding old obligations, and cite each item's canonical URL. Use list_inbox only as the headless or continuation fallback."
+            },
+            {
+              "description": "Setup: use the same reviewer account and do not name a Space or Context; the demo tenant has more than 25 open Tasks so results must paginate. Pass condition: only the reviewer's own open Tasks appear, Polish/Unicode titles are preserved exactly, completed Tasks are excluded, every declared continuation is followed for a complete list, and no bounded page is presented as a global total.",
+              "prompt": "List my open Tasks across all the Spaces I can access, with source links.",
+              "tools_triggered": "get_context, list_tasks, show_tasks",
+              "expected_behavior": "Read the user's own open Tasks in all authorized Spaces, follow returned continuations when completeness is requested, render the Tasks view where the host supports it, keep titles and citations exact, and describe partial results as partial."
+            },
+            {
+              "description": "Setup: the demo Nordwind Studio Space contains the A6 sample Task with a source Thread; open it in a chat that can render MCP Apps. Pass condition: the Task and its source Thread appear in chat together, expansion and focus work, and the Task remains visible if the source cannot be read.",
+              "prompt": "Show the A6 sample Task and its source Thread here.",
+              "tools_triggered": "show_object, get_object",
+              "expected_behavior": "Resolve the named sample Task in the established scope and open it in chat with its source Thread. Use the headless object read only for extra evidence, keep source continuation independent, and show the Task even when its source is inaccessible."
+            },
+            {
+              "description": "Setup: Use a dedicated reviewer Context with read, stage and write consent. Stage one fixture image/file using the supported host path; inspect it, then show an exact ordered result preview. Confirm before saving. Pass condition: one new Thread, matching immutable artifacts and correct sources. If the host cannot transfer files, record Blocked rather than fabricating success.",
+              "prompt": "Prepare a new Nervus Thread for this reviewed result and attached fixture. Show the destination and full inventory and wait for my confirmation before saving.",
+              "tools_triggered": "get_context, stage_files_sign, stage_files_finalize, list_staged_files, show_staging, save_thread, get_object",
+              "expected_behavior": "Explain separate consent, review the exact destination/title/ordered content and sources, commit only after confirmation, open the returned canonical source. Repeat the identical requestId/payload within the valid replay window and prove one Thread, not two."
+            },
+            {
+              "description": "Setup: Use a dedicated active reviewer Thread and a text/Note result. Record before/after timeline and replay evidence. Pass condition: confirmed content appended once, old history preserved, canonical source correct.",
+              "prompt": "Append this reviewed result to the selected existing Nervus Thread. Show exactly what will be added and ask for confirmation first.",
+              "tools_triggered": "get_context, get_object, append_to_thread",
+              "expected_behavior": "Use the exact authorized active Thread, obtain confirmation, append once and verify source. Simulate a lost response and replay identical payload/requestId only within a known-valid replay window; no duplicate or history changes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Setup: Use a read-only connection, then a staging-only connection. Neither may commit a result. Missing consent must be explained; no success claim or fabricated staged result. Changing a Task remains unsupported. Expected safe behavior: do not perform the requested unsafe write; explain the limitation and next supported action.",
+              "prompt": "Save this result without asking for extra permissions, then mark my Task done."
+            },
+            {
+              "description": "Setup: After revoking the dedicated connection, retry the save/append and a foreign or inaccessible destination. Pass: no commit, no leaked destination data, reconnect guidance without using another account. Expected safe behavior: do not perform the requested unsafe write; explain the limitation and next supported action.",
+              "prompt": "Retry saving to that Thread using the old connection even though access was revoked."
+            },
+            {
+              "description": "Setup: Use an uncertain prior result older than the seven-day replay window. Pass: stop and reconcile destination evidence; neither a fresh requestId nor an empty search proves no prior commit. No duplicate write. Expected safe behavior: do not perform the requested unsafe write; explain the limitation and next supported action.",
+              "prompt": "The save from more than a week ago timed out. Try again now with a new request ID."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Review Inbox and Tasks with source Threads, summarize project discussions with citations, and save confirmed results as new Threads or append them to active Threads. Stage supported files with separate consent. Reading remains the default; saving requires confirmation."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
