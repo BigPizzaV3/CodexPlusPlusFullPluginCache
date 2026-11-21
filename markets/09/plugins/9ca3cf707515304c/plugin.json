@@ -1,0 +1,102 @@
+{
+  "name": "eclincher",
+  "version": "1.0.6",
+  "description": "Manage social publishing, inbox engagement, and analytics through Eclincher.",
+  "author": {
+    "name": "Eclincher",
+    "email": "support@eclincher.com",
+    "url": "https://www.eclincher.com/"
+  },
+  "homepage": "https://www.eclincher.com/",
+  "repository": "https://github.com/talm/eclincher-mcp-server",
+  "license": "MIT",
+  "keywords": [
+    "social-media",
+    "publishing",
+    "inbox",
+    "analytics"
+  ],
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Eclincher",
+        "shortDescription": "Manage social media",
+        "longDescription": "Eclincher helps social media managers, marketing teams, and agencies manage their business social media accounts. Schedule and publish posts, edit scheduled content, read and reply to social inbox messages and comments, and retrieve performance and comparison reports. Connect an existing Eclincher account through OAuth. Access is limited to the brands, profiles, and features available to the connected account; supported actions vary by social network.",
+        "developerName": "Eclincher",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Schedule and publish social posts",
+          "Manage social inbox conversations",
+          "Retrieve social media analytics"
+        ],
+        "defaultPrompt": [
+          "Show my brands and connected social profiles.",
+          "Show my upcoming scheduled posts.",
+          "Summarize my social media performance."
+        ],
+        "websiteURL": "https://www.eclincher.com/",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "privacyPolicyURL": "https://www.eclincher.com/privacy-policy",
+        "termsOfServiceURL": "https://www.eclincher.com/terms-of-service",
+        "supportURL": "https://www.eclincher.com/"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover available brands and connected profiles. Setup: use the dedicated reviewer account with at least one sample brand and connected test profile. The secure reviewer instructions identify the sample brand/profile; if ambiguous, ask the reviewer to select one.",
+              "prompt": "Show the brands I can manage, then show the social profiles connected to my sample brand.",
+              "tools_triggered": "list_brands, list_accounts",
+              "expected_behavior": "List only brands accessible to the authenticated account. Resolve the sample brand from returned IDs, asking for a selection if ambiguous, then call list_accounts for that brand. Return connected profile names, networks and IDs supported by the server response. Do not create or modify anything."
+            },
+            {
+              "description": "Retrieve scheduled content. Setup: sample brand containing an upcoming scheduled post; resolve its brand ID first.",
+              "prompt": "Show upcoming scheduled posts for my sample brand for the next seven days.",
+              "tools_triggered": "list_brands, get_scheduled_posts",
+              "expected_behavior": "Apply the requested date range and return matching scheduled content and scheduling details. Do not create, edit or publish posts."
+            },
+            {
+              "description": "Retrieve inbox conversations. Setup: sample brand containing unanswered sample messages.",
+              "prompt": "Show unanswered inbox messages for my sample brand.",
+              "tools_triggered": "list_brands, receive_inbox_items",
+              "expected_behavior": "Return matching inbox events and their supported metadata. Do not reply or change their status."
+            },
+            {
+              "description": "Retrieve cross-channel analytics. Setup: sample brand with connected profiles and analytics data; resolve account IDs first.",
+              "prompt": "Summarize my sample brand social performance over the last 30 days.",
+              "tools_triggered": "list_brands, list_accounts, get_cross_channel_report, get_analytics_job_status",
+              "expected_behavior": "Use the returned brand and profile IDs and the requested last-30-days timeframe. Call get_analytics_job_status only if an async job is returned, using the actual returned job identifier. Wait for completed results before reporting completed analytics; clearly report pending or failed states. Report only metrics supported by returned data. With the seeded analytics fixture, return actual metrics; an empty object alone does not demonstrate analytics success. If the selected period has no data, explain that without inventing values."
+            },
+            {
+              "description": "Schedule and edit a post in one workflow. Setup: dedicated reviewer account with a clearly identified connected test profile that supports text-only posts and create/edit permissions. The secure reviewer instructions identify the brand/profile. Use a send time seven days ahead at 10:00 America/Los_Angeles. This case creates real scheduled content; the account owner must remove it in Eclincher after review and before the scheduled time. No dependency on another test case.",
+              "prompt": "On my connected test profile, schedule a text-only post saying \"Eclincher review test post\" for seven days from today at 10:00 AM America/Los_Angeles. After confirming it is scheduled, edit that same post to say \"Eclincher review test post (edited)\" and confirm the new text and unchanged scheduled time. Do not publish it now.",
+              "tools_triggered": "list_brands, list_accounts, create_post, get_post_status, get_scheduled_posts, edit_post",
+              "expected_behavior": "Resolve the authorized test brand and profile; ask for clarification before writing if ambiguous. Convert the requested local date/time with the applicable UTC offset and use the deployed create_post schema to schedule exactly one post with the requested initial text. If an async job is returned, use its returned identifier with get_post_status until completion or a clear failure/pending result. Retrieve the new scheduled post with get_scheduled_posts and use its returned post ID with edit_post; preserve the original profile and scheduleTimes while changing only the text. If editing returns an async job, check its status. Retrieve the post again to verify the edited text and unchanged future time. Report only server-supported identifiers/status; never invent a jobId, assume job and post IDs are interchangeable, create a duplicate post, or claim immediate publication. If a step fails, report it instead of claiming the workflow passed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Outside supported social management operations: do not invoke Eclincher tools or claim an advertising purchase. Explain the unsupported action.",
+              "prompt": "Buy $500 of Instagram advertising for my business."
+            },
+            {
+              "description": "Outside supported account-management operations: do not invoke Eclincher tools or claim a password change. Direct the user to the appropriate account settings.",
+              "prompt": "Change the password on my LinkedIn account."
+            },
+            {
+              "description": "No authorized target: do not perform write actions. Ask the user to select a connected brand and profile; do not invent identifiers.",
+              "prompt": "Publish a post to a social account that is not connected to Eclincher."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=ohfJo1xatFY"
+      },
+      "publication": {
+        "release_notes": "Analytics report jobs now surface real metrics on completion and report no-data and upstream-failure states distinctly instead of an empty success. Added scheduled-post create and edit review cases on a dedicated test profile. Covers social profile discovery, scheduled content, inbox retrieval and analytics. Package 1.0.6 corrects review metadata to exactly five positive and three negative cases, combines brand/profile discovery and scheduled-post create/edit workflows, clarifies timezone and verification expectations, and synchronizes both manifests."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

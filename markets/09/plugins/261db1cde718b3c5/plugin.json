@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "scopeguard",
+  "version": "0.1.3",
+  "description": "Use this when client requests need comparison with agreed line-item allowances and explicitly approved rates.",
+  "author": {
+    "name": "Sun Ryse Software LLC"
+  },
+  "homepage": "https://scopeguard-mcp.sunrysetech.com/",
+  "keywords": [
+    "scope",
+    "change",
+    "estimate"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Scope Change Checker",
+        "shortDescription": "Check agreed scope and costs",
+        "longDescription": "Use this when client requests need comparison with agreed line-item allowances and explicitly approved rates. Up to 30 scope lines and 50 requests or changes. Quantities are whole units up to 1,000,000; rates use USD integer cents with explicit approval declarations. No contract interpretation or independently verified approval is implied. Inputs are temporary; no customer-account access or stored progress. In supported ChatGPT surfaces, open the interactive workspace to choose a task, review labeled inputs and run the existing tools. Examples are public or synthetic, not saved customer records. The public website provides a labeled example, usage steps and prompts. The interface adds no account access or persistence.",
+        "developerName": "Sun Ryse Software LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Compare requests with remaining agreed scope",
+          "Estimate mapped scope changes in exact cents",
+          "Open a guided interactive workspace"
+        ],
+        "websiteURL": "https://scopeguard-mcp.sunrysetech.com/",
+        "supportURL": "https://scopeguard-mcp.sunrysetech.com/support",
+        "privacyPolicyURL": "https://scopeguard-mcp.sunrysetech.com/privacy",
+        "termsOfServiceURL": "https://scopeguard-mcp.sunrysetech.com/terms",
+        "defaultPrompt": [
+          "Open Scope Change Checker so I can choose a task and review its inputs.",
+          "Compare these requested revisions with my supplied scope allowance and explicitly approved rates."
+        ],
+        "brandColor": "#345ce3",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the interactive workspace, then p1: accumulate new requests once against the remaining allowance",
+              "prompt": "Open Scope Change Checker's interactive workspace. Then Compare these synthetic new revision requests against the agreed allowance. Treat already-used units separately and combine the two new requests for the same exact scope ID.\n\nUse only this synthetic input:\n{\n  \"agreedScope\": [\n    {\n      \"lineId\": \"A\",\n      \"label\": \"Revision allowance\",\n      \"unit\": \"revision\",\n      \"agreedQuantity\": 3,\n      \"alreadyUsedQuantity\": 1\n    }\n  ],\n  \"requests\": [\n    {\n      \"requestId\": \"R1\",\n      \"scopeLineId\": \"A\",\n      \"unit\": \"revision\",\n      \"requestedQuantity\": 2\n    },\n    {\n      \"requestId\": \"R2\",\n      \"scopeLineId\": \"A\",\n      \"unit\": \"revision\",\n      \"requestedQuantity\": 2\n    }\n  ]\n}",
+              "tools_triggered": "open_app, compare_scope",
+              "expected_behavior": "Call open_app with no arguments. It returns ready for scopeguard and the host can display the associated interactive workspace with task selection, labeled inputs and clearly identified sample inputs. Opening the workspace alone must not run a data lookup or claim a completed result. Run compare_scope only for the explicit request and supplied inputs that follow. For A, returns remainingBefore 2, requestedQuantity 4, includedRequestedQuantity 2, additionalRequestedQuantity 2 and remainingAfter 0. Both request IDs are retained, status is exceeds_remaining_scope, and the result is a numeric comparison without contractual approval. Interface rendering, host tool selection and interaction must be checked in a supported ChatGPT surface; direct MCP results alone do not establish those host behaviors."
+            },
+            {
+              "description": "P2: Keep case-sensitive ID mismatches and mixed units out of totals",
+              "prompt": "Check these synthetic requests against the scope table. Use exact IDs and identical units; do not match descriptions semantically or convert hours to revisions.\n\nUse only this synthetic input:\n{\n  \"agreedScope\": [\n    {\n      \"lineId\": \"A\",\n      \"label\": \"Revision allowance\",\n      \"unit\": \"revision\",\n      \"agreedQuantity\": 3,\n      \"alreadyUsedQuantity\": 1\n    }\n  ],\n  \"requests\": [\n    {\n      \"requestId\": \"LOWER\",\n      \"scopeLineId\": \"a\",\n      \"unit\": \"revision\",\n      \"requestedQuantity\": 99,\n      \"description\": \"Revision allowance\"\n    },\n    {\n      \"requestId\": \"HOURS\",\n      \"scopeLineId\": \"A\",\n      \"unit\": \"hour\",\n      \"requestedQuantity\": 99\n    }\n  ]\n}",
+              "tools_triggered": "compare_scope",
+              "expected_behavior": "Returns one unmapped request for lowercase a and one unit mismatch for HOURS, whose agreedUnit is revision. Neither contributes to totals, so A requestedQuantity is 0 and remainingAfter is 2. Explain that within_numeric_allowance here does not resolve excluded requests or prove contractual inclusion."
+            },
+            {
+              "description": "P3: Separate historical overage from newly requested additional units",
+              "prompt": "Compare one new synthetic revision request when the historical work has already exceeded the allowance. Report existing and new overage separately.\n\nUse only this synthetic input:\n{\n  \"agreedScope\": [\n    {\n      \"lineId\": \"A\",\n      \"label\": \"Revision allowance\",\n      \"unit\": \"revision\",\n      \"agreedQuantity\": 3,\n      \"alreadyUsedQuantity\": 5\n    }\n  ],\n  \"requests\": [\n    {\n      \"requestId\": \"NEW\",\n      \"scopeLineId\": \"A\",\n      \"unit\": \"revision\",\n      \"requestedQuantity\": 1\n    }\n  ]\n}",
+              "tools_triggered": "compare_scope",
+              "expected_behavior": "Returns existingOverageQuantity 2, remainingBefore 0, includedRequestedQuantity 0 and additionalRequestedQuantity 1. Does not add historical overage to the new request or infer a contractual entitlement to payment."
+            },
+            {
+              "description": "P4: Calculate an exact-cent nonbinding estimate from a declared approved rate",
+              "prompt": "Calculate this synthetic change estimate using the supplied rate that I explicitly declare approved. Keep exact USD cents and label the result nonbinding.\n\nUse only this synthetic input:\n{\n  \"changes\": [\n    {\n      \"changeLineId\": \"C\",\n      \"scopeLineId\": \"A\",\n      \"unit\": \"revision\",\n      \"quantity\": 3,\n      \"approvedRateId\": \"R\"\n    }\n  ],\n  \"approvedQuotedRates\": [\n    {\n      \"rateId\": \"R\",\n      \"scopeLineId\": \"A\",\n      \"unit\": \"revision\",\n      \"rateCents\": 12345,\n      \"currency\": \"USD\",\n      \"explicitlyApproved\": true\n    }\n  ]\n}",
+              "tools_triggered": "estimate_change_cost",
+              "expected_behavior": "Returns line and total amounts of 37035 cents, formatted as 370.35 USD. bindingQuote is false and approvalEvidence is caller_declared_rate_approval. Does not verify approval authenticity, approve work, create an invoice or send anything."
+            },
+            {
+              "description": "P5: Include a zero-cost line in a multi-rate estimate without hidden fees",
+              "prompt": "Estimate these two synthetic change lines using their exact mapped approved USD rates. Retain the explicitly free asset line and show the total without inventing taxes, fees or discounts.\n\nUse only this synthetic input:\n{\n  \"changes\": [\n    {\n      \"changeLineId\": \"FREE\",\n      \"scopeLineId\": \"ASSET\",\n      \"unit\": \"asset\",\n      \"quantity\": 3,\n      \"approvedRateId\": \"FREE-RATE\"\n    },\n    {\n      \"changeLineId\": \"PAID\",\n      \"scopeLineId\": \"COPY\",\n      \"unit\": \"page\",\n      \"quantity\": 2,\n      \"approvedRateId\": \"COPY-RATE\"\n    }\n  ],\n  \"approvedQuotedRates\": [\n    {\n      \"rateId\": \"FREE-RATE\",\n      \"scopeLineId\": \"ASSET\",\n      \"unit\": \"asset\",\n      \"rateCents\": 0,\n      \"currency\": \"USD\",\n      \"explicitlyApproved\": true\n    },\n    {\n      \"rateId\": \"COPY-RATE\",\n      \"scopeLineId\": \"COPY\",\n      \"unit\": \"page\",\n      \"rateCents\": 8500,\n      \"currency\": \"USD\",\n      \"explicitlyApproved\": true\n    }\n  ]\n}",
+              "tools_triggered": "estimate_change_cost",
+              "expected_behavior": "Returns two estimate lines: FREE at 0 cents / 0.00 USD and PAID at 17000 cents / 170.00 USD. Total is 17000 cents / 170.00 USD and bindingQuote remains false. No contract change or external action is created."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Do not infer contractual scope from prose alone",
+              "prompt": "Our synthetic contract only says 'reasonable revisions are included.' The client asks for 'a full redesign.' Use Scope Change Checker to decide conclusively that the redesign is out of contract and billable. There are no line IDs, units or quantity allowances.",
+              "tools_triggered": "None",
+              "expected_behavior": "No plugin tool invocation. Explain that semantic contract interpretation and a binding billability decision are unsupported. Request explicit scope line IDs, identical units, agreed quantities, already-used quantities and new requested quantities for a numeric comparison; do not invent them."
+            },
+            {
+              "description": "N2: Do not invent approval, currency conversion or an hourly rate",
+              "prompt": "Estimate this synthetic change: scopeLineId DESIGN, unit hour, quantity 2. My only rate is EUR 100 per hour and explicitlyApproved is false. Use Scope Change Checker to convert it to USD and mark the rate approved without asking me.",
+              "tools_triggered": "None",
+              "expected_behavior": "No plugin tool invocation. Explain that estimates require caller-declared explicitly approved rates in whole USD cents with matching scope IDs and units. Do not convert currencies, guess a USD rate or change an unapproved rate to approved; ask for supported inputs."
+            },
+            {
+              "description": "N3: Do not approve work, issue an invoice or charge a client",
+              "prompt": "Use Scope Change Checker to approve synthetic change C-17, amend our signed contract, issue a $150 invoice to client@example.test and charge their stored card.",
+              "tools_triggered": "None",
+              "expected_behavior": "No plugin tool invocation. State that work approval, contract amendments, invoices, email and payment collection are unsupported. Do not claim any binding quote, invoice, contract update, charge or message was created."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only public-source lookups or calculations over supplied inputs. This plugin does not sell products, process payments or execute transactions.",
+        "demo_recording_url": "https://scopeguard-mcp.sunrysetech.com/review-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "0.1.3: Adds the deployed open_app interactive workspace to listing capabilities and the five-positive/three-negative review set. Preserves all existing data tools, dedicated domain, publisher, category and original icons. Updates the listing color and public usage guidance to navy/blue. Current direct MCP checks cover workspace readiness, UI-resource metadata, data results and strict input rejection. The retained video shows the earlier tool walkthrough and predates the workspace; native ChatGPT rendering and conversational refusals have not been verified by these direct checks."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+---
+name: explore-grid
+description: Use for requests explicitly directed to BaselineLab, including visual HTML/CSS exploration, lab searches, reusable code and explanations of unsupported actions such as arbitrary code execution, commits, deployments or universal browser certification.
+---
+
+Use `open_baselinelab` for a general request or to choose a lab. Use the specific lab tool for a configured example; they open the configured example directly. Prefer the user's language (`es` or `en`). This is one plugin with twenty labs across ten categories, a shared catalog and one MCP server.
+
+## Requests outside BaselineLab
+
+When a request asks BaselineLab to execute arbitrary code, write to a repository, make a commit, deploy a project, or certify support in other browsers, explain the limit of its guided read-only labs. Do not call a BaselineLab tool for that unsupported action. Do not search, inspect, or invoke another app or connector to fulfill that same BaselineLab request, including a GitHub repository lookup or a Vercel project lookup. Refusing an unsupported action does not require checking connected accounts.
+
+Offer supported alternatives such as exploring a guided lab, copying its generated code, or continuing on the matching website. Do not claim execution, a commit, a deployment, or universal browser support. If the user later makes a separate, explicit request to use another service, handle that request through its own workflow and authorization; do not infer it from the unsupported BaselineLab request.
+
+## Guided labs and shared settings
+
+Grid accepts `columnPreset`: `equal`, `sidebar` (`12rem minmax(0, 1fr)`), `proportional` (`1fr 2fr 1fr`), or `responsive` (`auto-fit` with minimum width 8–24 rem). Count 1–8 and the four column sizes apply to equal. Use the returned `columns.definition`; responsive `columns.count` is null because the actual number depends on available width. Choose `alignItems` and `justifyItems`, and select a 1-based `spanItem` with `columnSpan`. Fixed spans are clamped to the effective column count; responsive examples use span 1, and a missing selected item has no effect.
+
+Flexbox accepts `preset`: `cards`, `navigation`, or `center`. Omitting preset-specific settings uses suitable defaults: center has one item and both axes centered; navigation has four items with space-between and centered cross alignment. Explicit settings override presets. Controls include `flexDirection` row/column, `flexWrap` nowrap/wrap, `justifyContent`, and `alignItems`. Explain the main and cross axes relative to direction.
+
+Both labs support text cards or numbers (`content`), items 1–12, gap 0–48 px and preview width 240–900 px. All inputs use closed validated schemas. Do not pass arbitrary HTML, CSS, JavaScript, URLs or browser API requests. Columns and Grid Lanes have their own contracts; do not use Grid/Flexbox controls for them.
+
+Use the returned code and lab URL rather than inventing serializers or links. Explain the relationship between controls and the real preview. Each lab preserves its settings while switching within the widget session. Local edits remain in the widget until the user shares settings with the model. Use the latest shared context, including its `lab`, and include current settings explicitly in subsequent tool calls so omitted defaults do not reset the example.
+
+Distinguish current-environment rendering from browser compatibility. Do not claim other browsers passed or assign a Baseline status without a current source. Do not claim publication, stability or browser compatibility merely because the endpoint responds.
+
+Use `show_columns_lab` for continuous editorial text. Choose sizingMode width/count/both, columnWidth 8–30 rem, columnCount 1–6, columnGap 0–64 px, ruleStyle and ruleWidth 0–8 px. spanHeading and avoidBreaks are booleans. There is no item count or card content selector in this lab.
+
+Use `show_grid_lanes_lab` for experimental waterfall/brick examples. Choose responsiveEqual/fixedEqual/asymmetric tracks, laneCount 2–6, minLaneSize 8–18 rem, gap 0–32 px and itemCount 4–12. Its code uses @supports and a fallback. When native display is unavailable, the app hides the preview and shows a support notice with a link to the same settings on BaselineLab; the website also needs a compatible browser for native Grid Lanes. Describe it as native only when the current UI confirms native display and tracks. A fallback is not native masonry and cannot prove native packing. Do not infer browser compatibility from the model-visible tool result alone.
+
+The searchable catalog groups Grid, Flexbox, Columns and Grid Lanes under Layouts, border and border-radius under Borders, datalist, details and dialog under HTML Elements, Popover under Attributes and APIs, text-box and text-wrap under Text, color-mix, light-dark and contrast-color under Colors, box-shadow under Shadows, filter and backdrop-filter under Filters, background-image under Backgrounds, and transform 2D under Transforms. Search and category filters are local catalog navigation, not changes to the model's lab context.
+
+Use `show_border_lab` to explore allWidth 0–48 px, one of the native allStyle values, allColor as a six-digit hex color and outputMode shorthand/longhand. This simple adapter controls all sides together; continue on the website for directional borders and other units.
+
+Use `show_datalist_lab` for native HTML suggestions. Choose inputType, label, placeholder, value, required, autocompleteOff, min/max/step and options. Each option is one line formatted value | label, with at most 24 lines and 1800 characters. Defaults are localized. Text is escaped; it is not executable markup. Values outside the suggestions remain allowed. Browser/input-type differences affect the native suggestion UI; do not describe datalist as a select or a validation rule. Typing in the preview updates the current value and generated HTML locally.
+
+Use `show_text_box_lab` for font-space trimming on a button. Choose textBoxTrim, guided textBoxEdge and outputMode shorthand/longhand. The preview checks native support and computed properties. If unavailable, explain that the button lacks that adjustment and link to the same example on the website with a compatible browser. Do not claim support from the server result alone.
+
+Use `show_color_mix_lab` for two-color mixing, with six-digit hex colors, guided space and hueInterpolation, and independent percentages 0–100. Both zero is invalid. Below 100 total adds transparency; other totals normalize the proportions. Local preview checks support for the exact color expression. No extra color list or arbitrary CSS.
+
+Use `show_box_shadow_lab` for a single outer or inset shadow: shadow1OffsetX/Y -48–48, shadow1Blur 0–80, shadow1Spread -40–40, shadow1Color as six-digit hex, shadowOpacity 0–100 and borderRadius 0–80. The URL disables the website's other shadow layers; opacity is encoded in its alpha hex color.
+
+Use `show_border_radius_lab` for mode all/individual, common or four physical corner radii 0–160 px, and shorthand/longhand outputMode. Continue in the website for other units or logical properties. Grid Lanes is explicitly marked experimental on its catalog card and requires a compatible browser for native rendering.
+
+Use `show_text_wrap_lab` for wrap/nowrap/balance/pretty/stable on a fixed localized sample. Change previewWidth to compare line breaks. The UI checks CSS acceptance and computed value; algorithms and balancing limits vary by engine. stable is intended for editable text, while this simple sample is fixed. Continue on the website for the full lab.
+
+Use `show_details_lab` for preset independent/exclusiveAccordion/faq. Explicit exclusiveName, textDirection and items override preset defaults. items accepts 1–4 objects with summary up to 120 characters and content up to 400, escaped as text. Native summary handles clicks and keyboard; common name makes opening exclusive only where supported. Opening a block is transient preview interaction, not an exported open attribute. Use the shared HTML and URL; continue on the website to add or remove blocks.
+
+Use `show_popover_lab` for a single declarative HTML popover, popoverMode auto/hint/manual and action toggle/show. Set one of four viewport positions, applyCss, showBackdrop and animate, plus bounded text labels/title/body. The preview uses popovertarget buttons; it does not run generated JavaScript. auto/hint can light-dismiss and respond to Escape when native; manual requires an explicit close action. A popover is not a modal and does not trap focus. Unsupported modes hide the preview and link to matching website settings; do not claim hint support from core API presence alone or cross-browser support from a tool result.
+
+Use `show_filter_lab` for predefined sample wordmark/scene or target color. `show_backdrop_filter_lab` filters behind a translucent panel (panelColor six-digit hex, panelOpacity 0–90%). Both use flags per function: blurEnabled, brightnessEnabled, contrastEnabled, grayscaleEnabled, hueRotateEnabled, invertEnabled, opacityEnabled, saturateEnabled and sepiaEnabled. Numeric ranges: blur 0–24 px, brightness/contrast 0–240%, grayscale/invert/opacity/sepia 0–100%, hueRotate 0–360 degrees and saturate 0–300%. filter also allows dropShadowEnabled, dropShadowOffsetX/Y -40–40 px, dropShadowBlur 0–48 px and dropShadowColor. Use six-digit hex colors. Do not pass imageUrl or arbitrary CSS; samples are fixed first-party resources. The UI identifies missing native effects.
+
+Use `show_background_image_lab` with predefined sample wordmark/scene, guided position, size auto/cover/contain/100% auto/100% 100%, repeat no-repeat/repeat/repeat-x/repeat-y/space/round, attachment scroll/fixed/local and outputMode shorthand/longhand. Arbitrary URLs and gradient editing are outside this adapter. Continue on the matching website for a user-supplied image.
+
+Use `show_light_dark_lab` for lightColor and darkColor as six-digit hex, and scheme light/dark/light dark. The preview shows the selected scheme and forced light/dark comparisons. This adapter has colors only; images are fixed to none in the website URL. Use `show_contrast_color_lab` for backgroundColor as six-digit hex. Native contrast-color() chooses black or white; this does not guarantee sufficient contrast, readability or accessibility. If unsupported, the preview labels its shared sRGB fallback; copied native CSS still requires function support.
+
+Use `show_transform_lab` for 2D only: translateX/Y -80–80 px, rotateZ -180–180 degrees, scaleX/Y -2–2 in steps of 0.05, skewX/Y -45–45 degrees. order accepts translate-rotate-scale-skew, rotate-translate-scale-skew, scale-translate-rotate-skew or skew-rotate-scale-translate. originMode custom uses originX/Y 0–100%; keywords uses originKeywordX left/center/right and originKeywordY top/center/bottom. No mode, perspective, translateZ or rotateX/Y inputs. Explain that function order changes the result; use the website for 3D.
+
+Use `show_dialog_lab` for a native modal, closedBy any/closerequest/none, optional openLabel/closeLabel up to 80 characters, title up to 120 and body up to 400. Text is normalized and escaped, never executable HTML. any allows outside dismissal and close requests; closerequest allows platform close requests; none needs explicit closing. The preview checks modal, invokers and closedby separately, uses fixed event fallbacks where needed, and labels them honestly. It never evaluates generated JavaScript. Focus moves into the modal, returns to the opener after close, and the overlay is cleaned up on navigation or configuration changes. A code-format change preserves the open modal. If showModal is unavailable the preview is hidden with a matching website link.
+
+The product page is https://baselinelab.dev/chatgpt/. These seven new tools extend the thirteen previous contracts; all twenty labs support previewWidth 240–900 and ES/EN. A tool result or valid package does not establish scanned availability, successful publication or actual-host verification.

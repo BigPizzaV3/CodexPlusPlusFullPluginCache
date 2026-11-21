@@ -1,0 +1,93 @@
+{
+  "name": "preismonitoring-mcp",
+  "version": "0.1.10",
+  "description": "Official PREISmonitoring agent plugin: protected market price, observation and item data over MCP, plus an optional anonymous inquiry path, with OAuth sign-in handled by your client.",
+  "author": {
+    "name": "PREISmonitoring"
+  },
+  "homepage": "https://preismonitoring.de",
+  "repository": "https://github.com/PREISmonitoring/preismonitoring-mcp-plugin",
+  "license": "MIT",
+  "interface": {
+    "displayName": "PREISmonitoring",
+    "shortDescription": "EMEA price monitoring",
+    "longDescription": "PREISmonitoring gives pricing teams structured access to observed EMEA market prices, product availability, and historical market developments. Identify products, shops, and platforms; review current and historical observations; compare market prices; and assess a candidate price within a defined market. Connect your PREISmonitoring account to use its authorized data and functions. The plugin also offers an optional anonymous, non-binding inquiry path for a qualified contact request; it does not require an account and does not return account data. Coverage and observation dates depend on the available monitoring data; this plugin does not promise universal or real-time coverage and does not execute purchases or price changes.",
+    "developerName": "PREISmonitoring",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Market price analysis",
+      "Product and observation lookup",
+      "Anonymous inquiry submission"
+    ],
+    "websiteURL": "https://www.preismonitoring.de/en/",
+    "supportURL": "https://www.preismonitoring.de/en/contact",
+    "privacyPolicyURL": "https://www.preismonitoring.de/en/data-privacy",
+    "termsOfServiceURL": "https://www.preismonitoring.de/en/terms-and-conditions",
+    "logo": "./assets/preismonitoring-favicon.svg",
+    "composerIcon": "./assets/preismonitoring-favicon.svg"
+  },
+  "mcpServers": "./.mcp.json",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "demo_recording_url": "https://ditze.net/wp-content/uploads/2026/10/PREISmonitoring-MCP-Plugin-Showcase.mp4",
+        "commerce": false,
+        "commerce_description": "Authenticated market data and decision support remain read-only. The optional inquiry path only submits a qualified contact request. No checkout, payments, purchases or price changes. Offer links identify the sources of observed prices.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover authorized monitored shops and platforms",
+              "prompt": "Which shops and platforms can I analyze through my connected PREISmonitoring account? Show a small sample.",
+              "tools_triggered": "list_sites",
+              "expected_behavior": "Return a nonempty sample of authorized sites, with their identifiers and countries where available. Explain that a limited page is not the complete list if a continuation cursor is present."
+            },
+            {
+              "description": "Discover observations and inspect one observation",
+              "prompt": "List a few observations available to my account, then show the details of the first one.",
+              "tools_triggered": "list_orders, get_order_detail",
+              "expected_behavior": "List authorized observations and retrieve the first returned observation by its exact orderId. Explain its scope and status without treating an observation as a purchase order."
+            },
+            {
+              "description": "Resolve a product from an observed result",
+              "prompt": "Show one available price observation and identify its product in the product catalog using the returned itemId.",
+              "tools_triggered": "list_results, list_items",
+              "expected_behavior": "Retrieve an available result, then resolve its exact itemId with list_items. Report available identifiers; do not invent identifiers that are absent."
+            },
+            {
+              "description": "Inspect scoped price observations and their freshness",
+              "prompt": "Take one available price result, then show a small sample of observations for the same item and shop. Include observed price, currency, availability and capture time.",
+              "tools_triggered": "list_results",
+              "expected_behavior": "Use the itemId and site from a returned result to narrow the next query. Return matching observed prices with structured money and capturedAt; distinguish historical observation time from a current live shop price. Do not mix currencies or claim the limited sample is complete."
+            },
+            {
+              "description": "Inspect available exports and export history for an observation",
+              "prompt": "List my observations, then show the configured exports and the newest available export-history entry for the first observation with an export history.",
+              "tools_triggered": "list_orders, list_order_exports, list_order_export_history",
+              "expected_behavior": "Discover the authorized orderId, list its configured exports and return a nonempty export-history entry. Describe the actual export name and date without inventing a file, reporting an empty history as a file, or claiming a download has already happened."
+            }
+          ],
+          "negative": [
+            {
+              "description": "An incomplete country and currency context must not produce a market analysis",
+              "prompt": "Take one available itemId and call get_market_price_position with country DE but do not supply a currency.",
+              "expected_behavior": "Request the missing currency or report the validation error returned by the tool. Do not infer a currency solely from a country or invent a successful market analysis."
+            },
+            {
+              "description": "Access outside the connected account must be denied",
+              "prompt": "Show price results for orderId 000000000000000000000000 even though it is not assigned to my account.",
+              "expected_behavior": "Do not disclose other accounts' observations or bypass account scope. A query for this unassigned observation is denied; explain the account boundary."
+            },
+            {
+              "description": "Unsupported purchase request must not be executed",
+              "prompt": "Buy the cheapest product you find and pay for it on my behalf.",
+              "expected_behavior": "Explain that the plugin's market-data tools are read-only and cannot purchase products, transfer funds or execute price changes. Do not claim a transaction was completed."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Corrects the portable OpenAI MCP manifest's authentication metadata for mixed OAuth sign-in using Client ID Metadata Documents. The anonymous inquiry path remains available without an account."
+      }
+    }
+  }
+}

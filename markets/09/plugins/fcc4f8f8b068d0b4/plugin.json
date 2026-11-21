@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "zollo",
+  "version": "0.1.0",
+  "description": "Manage email contacts, audience segments, editable templates, campaigns, and automations in a connected ZOLLO workspace.",
+  "author": {
+    "name": "SAIFELYZAL ABBAS ALI"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ZOLLO",
+        "shortDescription": "Email campaigns and contacts",
+        "longDescription": "Keep your email campaign work moving from a conversation. ZOLLO connects ChatGPT and Codex to the ZOLLO workspace you authorize, so you can work with contacts, preview audience segments, create editable email templates, prepare campaign drafts, and inspect campaign readiness.\n\nFor marketing teams, founders, and operators who already use ZOLLO, the integration supports contact creation and updates, email suppression, dynamic segments, template creation and updates, campaign search and editing, sender selection from connected email providers, and automation management and run history.\n\nBefore sending or scheduling a campaign, review its recipient count and warnings. Sending, scheduling, pausing, and automation enrollment require explicit confirmation. Live sends and automation runs can contact real recipients.\n\nSign in with your ZOLLO account through ZOLLO login, then authorize access to your workspace. Email sending also requires a configured provider and an eligible audience. The integration accesses the connected workspace through its granted permissions. It does not provide social publishing, billing changes, or data-deletion tools. Customers initiate deletion directly in ZOLLO or through its privacy request form. Payment does not take place inside OpenAI.",
+        "developerName": "SAIFELYZAL ABBAS ALI",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Show my ZOLLO campaign drafts and help me choose what to work on next.",
+          "Create an editable welcome email template in ZOLLO for my next product update.",
+          "Help me preview an opted-in audience and check a campaign before sending."
+        ],
+        "websiteURL": "https://zollo.run/integrations/mcp",
+        "supportURL": "https://zollo.run/contact",
+        "privacyPolicyURL": "https://zollo.run/privacy",
+        "termsOfServiceURL": "https://zollo.run/terms",
+        "logo": "./assets/zollo-icon.png",
+        "composerIcon": "./assets/zollo-icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.youtube.com/watch?v=bqYFSg0p5Hs",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Campaign search. In a dedicated sample workspace, prepare one DRAFT campaign named Directory Review Draft and one differently named campaign. The same workspace must be selected during OAuth authorization.",
+              "prompt": "Find my ZOLLO campaigns named Directory Review Draft and show their ids and current status.",
+              "tools_triggered": "list_campaigns",
+              "expected_behavior": "Call list_campaigns with search equal to Directory Review Draft. Report only matching campaigns returned by the tool, including each returned id, name, and status. The prepared campaign is reported as DRAFT. Do not create, update, schedule, or send any campaign. If access fails, explain the failure without inventing campaigns."
+            },
+            {
+              "description": "Editable template creation. Use a dedicated sample workspace with template-write permission. Use the prompt's name for a new template; the reviewer may repeat the test with a unique suffix. No email should be sent.",
+              "prompt": "Create a reusable ZOLLO template named Directory Review Welcome, category onboarding, subject Welcome to ZOLLO, with a text block saying Thanks for joining and a button labeled Open ZOLLO linking to https://zollo.run. Keep it editable and do not send it. Read back the saved template and show its id and content to verify it.",
+              "tools_triggered": "create_template, get_template",
+              "expected_behavior": "Call create_template with name Directory Review Welcome, category onboarding, subject Welcome to ZOLLO, isReusable true, a native text block with top-level html containing Thanks for joining, and a native button block with top-level label Open ZOLLO and url https://zollo.run. Use the returned template id with get_template to inspect those saved block fields. Report the returned id, subject, and actual saved content; do not report success if they differ from the request. Do not invoke send_campaign, schedule_campaign, or run_automation."
+            },
+            {
+              "description": "Consent-based audience preview. Prepare two sample contacts in the dedicated workspace: one with country US and consentStatus OPTED_IN, and another with country US and consentStatus OPTED_OUT. Record the total number of opted-in US contacts before the test. Do not use real contact records.",
+              "prompt": "Preview my opted-in US contacts in ZOLLO. Tell me the matching count without saving a segment or changing contacts.",
+              "tools_triggered": "preview_segment",
+              "expected_behavior": "Call preview_segment with an and group containing country eq US and consentStatus eq OPTED_IN. Report the returned matching count and use only returned sample records if describing the audience. The count matches the fixture total; any sample excludes the opted-out fixture. Do not call create_segment or any contact mutation."
+            },
+            {
+              "description": "Sender discovery. Use the configured email provider in the dedicated sample workspace, with a known sender address and default status. Keep provider secrets outside the review fixtures and public package. This case must not send email or change the provider.",
+              "prompt": "Which email senders are connected to my ZOLLO workspace? Show their provider ids, default sender, health, and sending limits.",
+              "tools_triggered": "list_email_providers",
+              "expected_behavior": "Call list_email_providers and describe the returned provider ids, sender addresses, default status, health, and limits when available. Identify the fixture sender accurately. Do not invent missing health or limit data, expose credentials, change providers, or send email."
+            },
+            {
+              "description": "Campaign preflight without sending. In the dedicated sample workspace, prepare the uniquely named Directory Review Draft campaign with a template, configured provider, and audience containing an opted-in and an opted-out contact. Record its expected eligible recipient count using the ZOLLO preflight screen before the test. Readiness blockers are valid results and must be reported without sending, changing billing, or bypassing safeguards.",
+              "prompt": "Check whether Directory Review Draft is ready to send in ZOLLO. Show its eligible recipient count and warnings, but do not send or schedule it.",
+              "tools_triggered": "list_campaigns, preflight_campaign",
+              "expected_behavior": "Find the exact campaign through list_campaigns with search Directory Review Draft, then call preflight_campaign with its returned id. If more than one exact match exists, ask which campaign to check. Report the returned eligible recipient count and warnings, matching the fixture preflight count. Keep the campaign in DRAFT and do not invoke send_campaign, schedule_campaign, pause_campaign, or run_automation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported social publishing. Explain that this ZOLLO integration exposes email-workspace tools and cannot publish a LinkedIn post. Do not call any ZOLLO tool or claim a post was published.",
+              "prompt": "Publish this announcement on my LinkedIn page using ZOLLO: Our new product is live."
+            },
+            {
+              "description": "Unsupported billing changes. Explain that subscription and payment changes must be handled in ZOLLO's billing flow outside this integration. Do not call any ZOLLO tool, request card details in chat, or claim the subscription was changed.",
+              "prompt": "Upgrade my ZOLLO subscription and charge the credit card on file."
+            },
+            {
+              "description": "Unsupported bulk contact deletion. Explain that customers initiate deletion directly through ZOLLO deletion controls or the privacy request form at https://zollo.run/privacy/request. This integration has no data-deletion or privacy-request tool. Do not call any ZOLLO tool, suppress contacts as a substitute, initiate a deletion request, or claim deletion succeeded.",
+              "prompt": "Delete every contact in my ZOLLO workspace permanently."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Users sign in through ZOLLO login and authorize access to their workspace through OAuth. The integration exposes no purchase, checkout, subscription-management, or payment tools, and no payment is processed inside OpenAI. ZOLLO account billing, where applicable, is handled outside this integration."
+      },
+      "publication": {
+        "release_notes": "Initial directory package for the ZOLLO email-workspace MCP integration. Includes contacts and suppression, dynamic segments, editable email templates, provider discovery, campaign preparation and preflight, confirmation-gated sending actions, and automation management.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

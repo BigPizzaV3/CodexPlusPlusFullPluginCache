@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "itha",
+  "version": "0.1.0",
+  "description": "Find and compare industrial B2B suppliers for procurement: search Itha's registry of structured seller cards and trace each fact to its source.",
+  "author": {
+    "name": "Itha",
+    "email": "hello@itha.ai",
+    "url": "https://itha.ai"
+  },
+  "homepage": "https://itha.ai/for-agents",
+  "keywords": [
+    "b2b",
+    "sourcing",
+    "procurement",
+    "robotics",
+    "industrial",
+    "vendors"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Itha",
+        "shortDescription": "Industrial & robotics vendors",
+        "longDescription": "Itha helps procurement and operations teams find and compare industrial suppliers. It is a registry of structured seller cards for industrial B2B companies: robots and automation, machine tools, farm, forestry and construction machinery, medical and laboratory equipment, drones, marine, components, industrial software, integrators and distributors.\n\nAsk for vendors by what you need: a category, a payload, an IP rating, a certification, a price ceiling, a lead time, a brand a distributor carries, or the country it has to be sold in. Each answer shows, per requirement, whether the seller's card states a value that meets it or does not state one at all. A seller that has not published a price is reported as price unknown, not as within budget.\n\nMost cards are unclaimed: drafts generated from the company's own public website, with the source and quote behind each fact available on request. A card marked verified has been approved fact by fact by a seller who proved control of the company's domain. Every result says which it is, and links to the card.\n\nItha is read-only. It does not place orders, request quotes or contact sellers.",
+        "developerName": "Itha",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Search vendor offerings by structured requirements",
+          "Explain why a company did or did not match",
+          "Read a company's full card",
+          "Show the source behind each fact on a card"
+        ],
+        "websiteURL": "https://itha.ai",
+        "supportURL": "https://itha.ai/legal/corrections",
+        "privacyPolicyURL": "https://itha.ai/legal/privacy",
+        "termsOfServiceURL": "https://itha.ai/legal/terms",
+        "defaultPrompt": [
+          "Use Itha to find cobots with at least 10 kg payload and IP65 that are sold in Germany.",
+          "Use Itha to find CNC lathe makers with ISO 9001 that serve Germany.",
+          "Use Itha to find distributors that carry Universal Robots in Europe."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The main workflow: a structured vendor search where one requirement, price, is something most sellers do not publish.",
+              "prompt": "Use Itha to find cobots with at least 10 kg payload and IP65 or better, under $60,000, that are sold in Germany.",
+              "tools_triggered": "search_offerings",
+              "expected_behavior": "Calls search_offerings with constraints for category cobot, payload_kg at_least 10, ip_at_least IP65, price_usd at_most 60000 and serves DE. Itha returns about 9 companies, among them dobot-robots.com (CR-30H), eliterobots.com (CS series), jaka.com (Pro series) and rokae.com (xMate CR). The answer lists these offerings with a link to each card on itha.ai, says payload and IP rating are stated on the card, and says the price is not published by the seller (unknown) instead of saying the offering is under $60,000. It says the cards are unclaimed, not verified."
+            },
+            {
+              "description": "A second workflow in a different industry, asked in plain buyer language with a named certification.",
+              "prompt": "Use Itha to find CNC lathe manufacturers with ISO 9001 that serve Germany.",
+              "tools_triggered": "search_offerings",
+              "expected_behavior": "Calls search_offerings with the buyer's line as q, or with equivalent constraints for a lathe category, the iso_9001 certification and serves DE. Itha returns about 6 companies, among them jyoti.co.in, tongtaimachinetool.com and ycmcnc.com, whose cards state coverage of Germany, and others such as star-m.jp and romi.com whose cards do not state a service area. The answer lists the companies with card links and notes for which of them availability in Germany is not stated."
+            },
+            {
+              "description": "An edge case: one company evaluated against requirements, where one of its product lines states the value and another does not.",
+              "prompt": "Using Itha, check whether universal-robots.com has a cobot with at least 10 kg payload rated IP65 or better, and explain the result for each product line.",
+              "tools_triggered": "explain_match",
+              "expected_behavior": "Calls explain_match with domain universal-robots.com and constraints for category cobot, payload_kg at_least 10 and ip_at_least IP65. The answer reports each offering on the card separately: the UR Series meets all three requirements as stated on the card, while for the e-Series the card states the category and payload but does not state an IP rating, so that requirement is unknown. It does not say the e-Series fails or passes the IP requirement."
+            },
+            {
+              "description": "A result the reviewer can verify: the source behind a fact on an unclaimed card.",
+              "prompt": "Using Itha, where does the payload figure on the Universal Robots card come from? Show me the source.",
+              "tools_triggered": "get_provenance",
+              "expected_behavior": "Calls get_provenance for universal-robots.com, possibly after get_card. The answer gives the source URL on the company's own website, the date it was retrieved and the quoted text the payload figure was taken from, and says whether the fact was extracted from that quote or inferred. The same sources are published at https://itha.ai/c/universal-robots.com/provenance.json.",
+              "expected_output_url": "https://itha.ai/c/universal-robots.com/provenance.json"
+            },
+            {
+              "description": "A distributor question: who carries a named brand in a named region.",
+              "prompt": "Use Itha to find distributors that carry Universal Robots in Europe.",
+              "tools_triggered": "search_offerings",
+              "expected_behavior": "Calls search_offerings with a carries constraint for universal-robots.com and a serves constraint for europe. Itha returns about 14 companies, among them alumotion.eu, cobots.se, cobotsonline.co.uk and elmark.com.pl. The answer lists them with card links and the territory each card states for that brand, and says the cards are unclaimed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A consumer product, not an industrial B2B purchase. Itha lists companies that sell to businesses, so a household robot vacuum is out of scope and the plugin should not be used.",
+              "prompt": "What is the best robot vacuum cleaner for a small apartment under $300?"
+            },
+            {
+              "description": "A question about a company as an investment, not about what it sells. Cards carry offerings, specifications and certifications, never share prices or financial results, so the plugin should not be used.",
+              "prompt": "What is the current share price of ABB, and how did its robotics division do last quarter?"
+            },
+            {
+              "description": "A programming task that happens to mention a robot. Itha is a registry of sellers and holds no code, manuals or technical how-to content, so the plugin should not be used.",
+              "prompt": "Write a Python script that moves a UR10e robot arm to a set of joint positions over RTDE."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/epcHckdCbJQ"
+      },
+      "publication": {
+        "release_notes": "First release. Five read-only tools over the Itha registry: search offerings by structured requirements, explain one company against them, read a card, trace a fact to its source, and list the query vocabulary. One skill for sourcing vendors."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

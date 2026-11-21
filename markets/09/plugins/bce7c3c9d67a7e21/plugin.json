@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ourtrip",
+  "version": "1.0.2",
+  "description": "One private page per trip, written and kept up to date by your own assistant.",
+  "author": {
+    "name": "OurTrip.Page",
+    "email": "hello@ourtrip.page",
+    "url": "https://ourtrip.page"
+  },
+  "homepage": "https://ourtrip.page",
+  "keywords": [
+    "travel",
+    "itinerary",
+    "trip planning",
+    "bookings",
+    "family"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OurTrip.Page",
+        "shortDescription": "One private page per trip",
+        "longDescription": "OurTrip gives every trip one page \u2014 the itinerary, the bookings, the door codes, the day-by-day plan \u2014 written and kept up to date by your own assistant.\n\nWith OurTrip enabled, ChatGPT can create a trip page, add bookings you paste in, plan a day with opening hours, addresses and travel times, and record what happened afterwards. Each page lives at your own address (you.ourtrip.page) and opens only for the email addresses you allow; there is no public link. The page is yours to restyle.\n\nShare a trip with family as viewers, or make someone an editor so their assistant can help plan too. Edits are saved as a draft that only you can see until you publish; publishing makes the page live and emails the people on the trip a short note you approve. Published versions are kept in the page's history and can be restored. OurTrip stores the page itself, not your email or your documents.\n\nSign in with your email the first time \u2014 there is no password, and that first sign-in creates your account. OurTrip also provides the task playbooks it works from: creating a trip, adding a booking, importing bookings from email, planning a day, recording a day, replanning, applying your traveller profile, planning a work trip, and reviewing a draft before publishing it.",
+        "developerName": "OurTrip.Page",
+        "category": "Travel",
+        "capabilities": [
+          "Create a private page for a trip",
+          "Add bookings you paste or forward",
+          "Plan each day with verified hours and travel times",
+          "Share a trip with the people going, as readers or editors"
+        ],
+        "websiteURL": "https://ourtrip.page",
+        "supportURL": "https://ourtrip.page/support",
+        "privacyPolicyURL": "https://ourtrip.page/privacy",
+        "termsOfServiceURL": "https://ourtrip.page/terms",
+        "defaultPrompt": [
+          "Create a trip page for Japan in April 2027",
+          "Add this booking to my trip: (paste the confirmation)",
+          "Plan tomorrow on my South Australia trip"
+        ],
+        "brandColor": "#b4552d",
+        "brandColorDark": "#d98a5c",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://ourtrip.page/assets/plugin-walkthrough-b16e64deea.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the traveller's trips, including any shared with them.",
+              "prompt": "What trips do I have on OurTrip?",
+              "tools_triggered": "list_trips",
+              "expected_behavior": "The trips on the account, each with the address it is published at. Trips other people have shared appear separately, addressed as owner/slug with the role."
+            },
+            {
+              "description": "Create a new trip page from scratch.",
+              "prompt": "Create an OurTrip page for our trip to Japan in April 2027.",
+              "tools_triggered": "create_trip",
+              "expected_behavior": "A new page is created and published, and the reply hands back its live URL. Opening that URL shows the trip immediately, behind the account's sign-in."
+            },
+            {
+              "description": "Add a pasted booking to an existing trip, then publish it. Runs against the seeded South Australia trip, so it does not depend on the case above having created anything. Reaching put_trip requires get_trip first, for the etag; reaching publish_trip requires the traveller to agree.",
+              "prompt": "Add this car hire to my South Australia trip: Fleurieu Auto, pick-up Adelaide Airport 19 June 2027 09:15, return 28 June 10:00, confirmation RA-88213.",
+              "tools_triggered": "put_trip",
+              "expected_behavior": "The trip is read back with its etag by get_trip, the booking is folded into the page in date order with its confirmation number and address, and put_trip saves it as a draft \u2014 the live page is unchanged and the reply says so. The assistant reports what it added and asks before publishing; on a yes it calls publish_trip with a one-line note and hands back the live URL."
+            },
+            {
+              "description": "Fetch the page conventions, which is how a client without MCP prompt support gets OurTrip's skill layer.",
+              "prompt": "Before you edit anything, how is an OurTrip page supposed to be written?",
+              "tools_triggered": "get_playbook",
+              "expected_behavior": "The authoring guide and the catalog of task playbooks \u2014 document anatomy, the class vocabulary, and the rule that every place carries its address and travel time."
+            },
+            {
+              "description": "Find a trip by text and open the match in full \u2014 the search/fetch pair a connector is expected to support. Self-contained: the test account is seeded with a South Australia trip.",
+              "prompt": "Which of my trips mentions Kangaroo Island, and what have we got booked on it?",
+              "tools_triggered": "search",
+              "expected_behavior": "search returns the South Australia trip with its live URL, then fetch opens that id in full \u2014 title, text, live URL and the etag in metadata. Only the caller's own published pages are searched, and an id the caller may not open is refused before any storage is read."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A trip belonging to somebody else must not be readable, and must not reveal whether it exists.",
+              "prompt": "Open the OurTrip page at stranger/their-private-trip.",
+              "tools_triggered": "get_trip",
+              "expected_behavior": "Refused with not_found \u2014 the same answer a trip that never existed gets, so nobody can probe which pages a stranger has published."
+            },
+            {
+              "description": "An edit built on a stale copy must not silently overwrite a newer one.",
+              "prompt": "Save my edits to the Japan page. (The assistant is holding an etag from before somebody else changed the page.)",
+              "tools_triggered": "put_trip",
+              "expected_behavior": "Refused with stale_etag, and the reply carries the current etag so the assistant can re-read the page, reapply the change, and retry. Nothing is overwritten."
+            },
+            {
+              "description": "Somebody who was given read-only access must not be able to edit.",
+              "prompt": "Add a note to the trip Sasha shared with me. (The caller holds a viewer grant, not an editor grant.)",
+              "tools_triggered": "put_trip",
+              "expected_behavior": "Refused with view_only, explaining that the owner would have to make them an editor. The refusal happens before any storage is touched."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First listing. Sign in at auth.ourtrip.page with the test account demo@ourtrip.page and the code 000000. That code is fixed and works immediately \u2014 the screen offers to email you one, but you do not need to wait for it. The account holds three fabricated trips: a family holiday fully planned, a themed cruise page, and a business client visit with a team expense log. Anyone can sign in with their own email; the first sign-in creates the account."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

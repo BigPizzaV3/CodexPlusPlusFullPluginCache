@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "docvision",
+  "version": "0.2.0",
+  "description": "Stateless PDF document-intelligence MCP: open, inspect, OCR, search, edit pages, compare, extract fields and audit documents, with each value traced to its source.",
+  "author": {
+    "name": "mmcco",
+    "email": "infodev@mmcco.co",
+    "url": "https://connecteur-docvision.vercel.app"
+  },
+  "homepage": "https://connecteur-docvision.vercel.app",
+  "license": "MIT",
+  "keywords": [
+    "pdf",
+    "document",
+    "ocr",
+    "extraction",
+    "redaction",
+    "diff",
+    "audit"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DocVision AI",
+        "shortDescription": "Read, compare & audit PDFs",
+        "longDescription": "DocVision AI is a stateless MCP document-intelligence connector for PDFs. From a file you provide (base64 or URL) it opens and inspects the document (pages, geometry, metadata, SHA-256 fingerprint), extracts the real text page by page with x/y provenance, runs OCR on scanned pages, searches, and performs page operations (rotate, delete, extract, reorder, split, merge) that always return a NEW PDF rather than modifying the original. It compares two documents and flags changed amounts, dates and IDs; extracts invoice/form fields where each value is marked SUPPORTED_BY_SOURCE with its provenance and absent values stay UNKNOWN; detects personal data to redact and returns it already masked; and keeps a persistent Document-OS layer (immutable versions, fields, annotations, patches, reviews, batches, RBAC policy, audit). It blocks internal/metadata URLs (anti-SSRF), refuses to empty a document, and does not authenticate signatures or assert a forgery verdict; forensics flags anomalies only. New: an optional 3-column creative Workspace (docvision_workspace) to read a document, edit a passage with versioning (the original is preserved), annotate, add a visual (non-certified) signature and export to several formats \u2014 an alternative presentation to the classic DocCanvas review.",
+        "developerName": "mmcco",
+        "category": "Productivity",
+        "capabilities": [
+          "Opens, inspects, OCRs, searches and edits PDF pages (page ops return a new PDF)",
+          "Compares documents and extracts fields, each value traced to its source",
+          "Detects personal data to redact and keeps immutable versions, reviews and audit"
+        ],
+        "websiteURL": "https://connecteur-docvision.vercel.app",
+        "supportURL": "https://connecteur-docvision.vercel.app",
+        "privacyPolicyURL": "https://connecteur-docvision.vercel.app/privacy",
+        "termsOfServiceURL": "https://connecteur-docvision.vercel.app/terms",
+        "defaultPrompt": [
+          "Open this PDF and tell me how many pages it has, its metadata and a fingerprint.",
+          "I have two versions of a contract clause - did the monthly fee change?",
+          "Scan this page for personal data I'd need to redact before sharing."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://connecteur-docvision.vercel.app/demo.gif",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inspect a PDF: pages, metadata and fingerprint",
+              "prompt": "Open this PDF and tell me how many pages it has, its metadata and a fingerprint.",
+              "tools_triggered": "docvision_inspect",
+              "expected_behavior": "Returns pages count, per-page geometry (width/height/rotation), document metadata (title/author/creator/dates), byte size and a SHA-256 fingerprint of the file."
+            },
+            {
+              "description": "Extract real text with provenance",
+              "prompt": "Pull the real text out of this PDF, page by page, and keep where each line sits.",
+              "tools_triggered": "docvision_extract_text",
+              "expected_behavior": "Returns text per page with the count of pages read and pages without a text layer, and each line carries normalized x/y/w/h provenance coordinates."
+            },
+            {
+              "description": "Compare two versions and flag a changed amount",
+              "prompt": "I have two versions of a contract clause. Did the monthly fee change?",
+              "tools_triggered": "docvision_diff",
+              "expected_behavior": "Detects the monthly fee change from 1000.00 to 1500.00, isolates it as an added/removed line and flags it as a sensitive NUMBER change to verify first."
+            },
+            {
+              "description": "Extract invoice fields with source backing",
+              "prompt": "Extract the invoice fields from this page, and tell me which are backed by the source.",
+              "tools_triggered": "docvision_extract_fields",
+              "expected_behavior": "Returns fields (total, subtotal, taxes, date, due date, number) each marked SUPPORTED_BY_SOURCE with page provenance; values not present stay UNKNOWN; nothing is added that is not in the text."
+            },
+            {
+              "description": "Detect personal data to redact",
+              "prompt": "Scan this page for personal data I'd need to redact before sharing.",
+              "tools_triggered": "docvision_redaction_detect",
+              "expected_behavior": "Finds PII (email, phone) and returns each already masked with its category and location, reporting what is sensitive and where without echoing the full value."
+            }
+          ],
+          "negative": [
+            {
+              "description": "SSRF attempt against the cloud metadata endpoint",
+              "prompt": "Inspect the PDF hosted at http://169.254.169.254/",
+              "expected_behavior": "Blocks the internal/link-local address before any network call and returns a clean error ('internal address blocked'); no data is fetched and nothing crashes."
+            },
+            {
+              "description": "Destructive request that would empty the document",
+              "prompt": "Delete all pages of this 3-page PDF.",
+              "expected_behavior": "Refuses to produce an empty PDF and returns an error; the original file is never modified (page operations always return a new PDF)."
+            },
+            {
+              "description": "Fetch a document that does not exist",
+              "prompt": "Fetch document doc_does_not_exist_zzz from the document store.",
+              "expected_behavior": "Returns an honest 'document not found' with the requested id echoed back; no fabricated document, no crash."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Stateless PDF document-intelligence MCP connector (v0.1.0), 50 tools. Opens, inspects, OCRs, searches and edits PDF pages (page ops always return a new PDF), compares documents and flags changed amounts/dates/IDs, extracts invoice/form fields with source provenance (absent values stay UNKNOWN), detects personal data and returns it masked, and keeps a persistent Document-OS layer (immutable versions, fields, annotations, patches, reviews, batches, RBAC, audit). Safety: anti-SSRF guard blocks internal/metadata targets; refuses to empty a document. Limits: scanned-PDF OCR runs in a Vercel Sandbox worker and returns WORKER_NOT_CONFIGURED when that infra is absent; redaction is detect/plan only (no destructive burn-in); field/structure extraction is a deterministic heuristic; forensics flags anomalies only and does not authenticate signatures; a documented residual is DNS-rebinding TOCTOU. Tool metadata is fully English; some runtime JSON keys and error messages are still in French."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

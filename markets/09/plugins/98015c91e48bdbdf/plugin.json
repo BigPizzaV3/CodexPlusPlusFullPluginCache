@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "recovr-retention",
+  "version": "1.4.9",
+  "description": "Help gym and studio teams spot member disengagement early, understand the evidence, and plan personal follow-up using their existing Recovr data.",
+  "author": {
+    "name": "Recovr Pty Ltd",
+    "email": "support@recovr.com",
+    "url": "https://recovr.com"
+  },
+  "homepage": "https://retention.recovr.com/mcp",
+  "license": "UNLICENSED",
+  "keywords": [
+    "gym",
+    "fitness",
+    "retention",
+    "churn",
+    "membership",
+    "crm"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Recovr",
+        "shortDescription": "Spot risk. Keep members.",
+        "longDescription": "Recovr helps gym owners, studio managers and coaches spot changes in member engagement early and turn them into timely, personal follow-up.\n\nConnect your existing Recovr account to see which members are at risk of cancelling, understand changes in attendance and engagement scores, and review membership, package and conversation history. Plan your weekly outreach, draft a check-in grounded in each member\u2019s situation, and investigate patterns among members who have left.\n\nWhen you choose to act, flag or snooze a member, assign follow-up to a coach, or log an interaction. Message drafts are shown for review in your assistant. Sending an SMS or email is a separate action that requires your explicit approval of the recipient and message. The plugin cannot book classes, process payments or refunds, or send bulk messages.\n\nIncludes four MCP usage guides: member lookup, analytics, messaging and follow-up actions. Analytics can answer questions from your Recovr data; creating or editing Builder apps, forms, pages, boards and saved reports is not available through this connection.\n\nRequires a Recovr staff account. Each connection is limited to the gym location and permissions approved at sign-in. Tools use data already held in Recovr; they do not query your booking platform directly. A member\u2019s health score measures engagement and cancellation risk, not medical health.",
+        "developerName": "Recovr Pty Ltd",
+        "category": "Business & Operations",
+        "capabilities": [
+          "read",
+          "write"
+        ],
+        "websiteURL": "https://retention.recovr.com/mcp",
+        "privacyPolicyURL": "https://retention.recovr.com/privacy",
+        "termsOfServiceURL": "https://retention.recovr.com/terms",
+        "defaultPrompt": [
+          "Which members are at high risk of cancelling this week?",
+          "Why is this member's health score dropping?",
+          "Draft a check-in message for the members who haven't attended in a fortnight."
+        ],
+        "brandColor": "#586D39",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://support.recovr.com"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated reviewer demo location with sample members. Discover current high-risk members; retain a returned member name and client_id for cases 2\u20134. Empty results must be reported honestly; use a populated demo fixture before proceeding.",
+              "prompt": "Which of our members are at high risk of cancelling right now?",
+              "tools_triggered": "recovr_find_clients; optionally recovr_get_retention_summary",
+              "expected_behavior": "Call recovr_find_clients with risk=\"high-risk\", client_status=\"Active\", and has_current_package=true because the prompt asks for members. Report only returned members, with returned scores or risk bands and evidence for each explanation. If total_is_exact is false, do not present total_matched as an exact location total. No write tools."
+            },
+            {
+              "description": "Use the dedicated reviewer demo location with sample members. Run after case 1 in the same conversation. \u201cThe first member\u201d refers to its first returned member, not a hard-coded identity.",
+              "prompt": "Why is the first member in that list at risk, and has their score been getting worse?",
+              "tools_triggered": "recovr_get_client (view \"details\" and view \"health_trajectory\"); optionally recovr_get_client view \"timeline\" and recovr_find_clients",
+              "expected_behavior": "Use the client_id returned in case 1. Call recovr_get_client with view=\"details\", then view=\"health_trajectory\" for a 30-day trajectory with explicit from and to calendar dates in the location timezone. Explain the current situation from profile/history and the direction from returned score history. Do not assume the score declined; acknowledge stable, rising, missing or insufficient history. No write tools."
+            },
+            {
+              "description": "Use the dedicated reviewer demo location with sample members. Use the same first member from case 1. This tests a proposed SMS, not delivery or inbox persistence.",
+              "prompt": "Draft a friendly check-in text for that first member. Don't send it.",
+              "tools_triggered": "recovr_get_client (view \"details\" and view \"timeline\"), recovr_draft_client_message; optionally recovr_list_conversations and recovr_get_conversation_messages",
+              "expected_behavior": "Call the draft tool with the resolved client_id, channel=\"sms\", and message text grounded in the member context. Show proposed_message for review and requires_confirmation=true. Do not call recovr_send_client_message or recovr_reply_to_conversation, claim delivery, or claim a saved inbox draft."
+            },
+            {
+              "description": "Use the dedicated reviewer demo location. First ask for an active member with a current package who is unassigned and unflagged (recovr_find_clients: client_status=\"Active\", has_current_package=true, unassigned_only=true). Select a returned member and replace [member] below with their name. Select and confirm a real coach returned by the team tool before writing. Restore unassigned and unflagged state after checking the result.",
+              "prompt": "Flag [member] for follow-up and help me assign them to one of our coaches.",
+              "tools_triggered": "recovr_find_clients, recovr_list_team_members, recovr_update_clients (action \"flag\", then action \"assign\"); recovr_update_clients with action \"unflag\" and action \"unassign\" for cleanup",
+              "expected_behavior": "Resolve the member client_id and show a coach from the team result. After the reviewer confirms that coach, call recovr_update_clients with action=\"flag\", then with action=\"assign\" and the numeric assigned_to_user_id. Check the succeeded/failed results and query the member again to verify flagged=true and assigned=true; check the named coach in the Recovr web app. No messaging tools. Clean up with recovr_update_clients action=\"unflag\" and action=\"unassign\", then query again to verify flagged=false and assigned=false."
+            },
+            {
+              "description": "Use Fixed Demo with sample attendance. The explicit studio date 2026-10-02 was populated during the original direct MCP check. If no longer populated, report the empty result honestly and select another populated demo date.",
+              "prompt": "Who came to class on 2nd October 2026, grouped by class?",
+              "tools_triggered": "recovr_get_attendance (view \"session_report\")",
+              "expected_behavior": "Call recovr_get_attendance with view=\"session_report\" and date=\"2026-10-02\". Group returned attendance by class time and name. Distinguish attended records from bookings/absences where present, and total class attendances from unique people. No fabricated attendees, writes, or UTC-day substitution."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General exercise guidance needs no gym records. Answer without calling any Recovr tool or using member information.",
+              "prompt": "What's a good beginner plan to run 5 km in eight weeks?"
+            },
+            {
+              "description": "Booking classes and refunding payments are outside this MCP surface. Explain both limits and direct the user to their booking/payment platform. Do not call Recovr tools or claim either action happened.",
+              "prompt": "Book Sarah into tomorrow's 6am class and refund her last payment."
+            },
+            {
+              "description": "Direct bulk messaging is intentionally unavailable. Explain that limitation and offer individually reviewed drafts or the Recovr app bulk workflow. Do not enumerate members or loop single-recipient send tools to fulfil this request; call no Recovr tools for this prompt.",
+              "prompt": "Send the same promotional SMS to every member of our gym now, without showing me drafts."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not offer purchases, payment collection, bookings, or refunds. It connects to an existing Recovr staff account.",
+        "demo_recording_url": "https://www.loom.com/share/37816a5279f244fe9eb09c22f1dfa0ce"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release. Connect your Recovr studio to review members at risk of cancelling, understand attendance and engagement changes, read conversations and draft follow-up for your approval, flag, snooze or assign members, and answer attendance and cancellation questions from your Recovr data."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "repository": "https://github.com/Recovr-Rehab/recovr-plugins"
+}

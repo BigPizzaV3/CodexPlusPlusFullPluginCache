@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "thally-cloud",
+  "version": "1.0.10",
+  "description": "Create and monitor your own Thally documentation sites from ChatGPT using your connected workspace.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Thally",
+        "shortDescription": "AI-Native docs that evolve",
+        "longDescription": "AI-Native documentation for evolving products. Thally helps people create and monitor documentation sites. Connect your Thally workspace to create a managed documentation site using your authorized GitHub account, check deployment progress, look up your published AI readiness score, inspect aggregate docs analytics, find pages with changed declared sources, and see product-update work awaiting review. Site creation starts from Thally's canonical starter and provisions asynchronously. Product-specific updates use Track and require review in GitHub. Analytics and Track remain subject to your workspace's settings and plan. Source drift identifies potentially stale pages; missing evidence never proves your product is fully documented or your latest changes are published. You can revoke ChatGPT access from Thally Settings.",
+        "category": "Developer Tools",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "Create a new Thally docs site for my product.",
+          "What are my docs site's AI readiness score and analytics?",
+          "Which pages may be stale after my latest product updates?"
+        ],
+        "websiteURL": "https://thally.io/",
+        "supportURL": "https://thally.io/contact",
+        "privacyPolicyURL": "https://thally.io/privacy",
+        "termsOfServiceURL": "https://thally.io/terms",
+        "developerName": "PETER EKENE EZE",
+        "capabilities": [
+          "Create documentation sites",
+          "Connect existing docs repositories",
+          "Check deployment status",
+          "View AI readiness scores",
+          "Read aggregate docs analytics",
+          "Find potentially stale pages",
+          "Inspect product-update work"
+        ]
+      },
+      "publication": {
+        "release_notes": "Adds AI readiness lookup and clarifies reviewer tests for site creation, readiness scores, analytics, source drift, product-update work and unsupported actions.",
+        "countries": []
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a new managed documentation site with a private GitHub repository, then check its deployment. In a new ChatGPT chat, select Thally and connect the dedicated reviewer account using the secure login instructions. The workspace needs GitHub connected and one unused managed-site slot. Send the prompt below. When asked, select an account offered by Thally, provide a short description and an unused repository name, and approve those concrete choices. If Acme Demo or its slug is already in use, give a unique name such as Acme Demo followed by the current date and time. After creation, send: \"Has the new site finished deploying?\" This creates disposable review resources; it does not generate product-specific documentation from application code.",
+              "prompt": "Create a new Thally docs site called Acme Demo for my product, using a new private GitHub repository.",
+              "tools_triggered": "thally_list_sites, thally_list_repository_options, thally_create_site, thally_get_deployment_status",
+              "expected_behavior": "Repository discovery returns status=connected with authorized accounts and repositories. For the accepted request, thally_create_site uses source.method=fresh, isPrivate=true, the selected account and unused repository name, and a UUID idempotencyKey. Its response contains siteId, siteName, status, provisioningStatus, dashboardUrl, publicUrl and isPublished. While creation is queued, status=pending and isPublished=false; ChatGPT reports that provisioning has started and shows the returned dashboard link. The follow-up uses that same siteId and returns deployment status, production, latestPreview, summary and deployments. ChatGPT reports the actual pending, ready or failed deployment state and claims a live site only with ready production evidence. The publicUrl returned during provisioning is not proof of publication. Initial content comes from the canonical starter. Check the new site in the reviewer dashboard and the private repository in the selected GitHub account. Setup, validation or capacity errors mean this creation test is blocked or failed, not passed."
+            },
+            {
+              "description": "Look up the existing AI readiness score for a published documentation site. Start a new chat with Thally connected to the dedicated reviewer account and send the prompt below. If several sites are listed, reply with the exact name of the preloaded published sample site from that list. Open the same site in app.thally.io and compare its AI readiness panel with the answer. This lookup reads the published report; it does not launch a new audit or assess whether recent product changes are documented. A published sample site with a readable readiness report is required for the numerical-score check.",
+              "prompt": "What is the AI readiness score for my docs site, and which checks need improvement?",
+              "tools_triggered": "thally_list_sites, thally_get_ai_readiness",
+              "expected_behavior": "For the selected siteId, the server returns status=ready, score, scoreMax=100, grade, totalPages, asOf, reportUrl and subscores from the validated published report. Each subscore includes its label, weight, availability, detail and scoreMax=1, with a bounded sample of offending pages and a truncation flag. ChatGPT gives the returned score out of 100, grade, page count and report timestamp, links the report when provided, and explains improvements using the returned checks and page reasons. Values must agree with the same report shown in the dashboard; generated examples or recomputed scores are not acceptable. If the report instead returns not_published or unavailable, score, grade and timestamp remain null and ChatGPT explains that state without inventing a score. That recovery is valid behavior but does not complete the ready-report score check."
+            },
+            {
+              "description": "Inspect the last 30 days of aggregate documentation analytics. In a new chat with the reviewer account connected, send the prompt below and choose the preloaded sample site by its exact returned name if asked. Compare the answer with that site's Analytics dashboard for the same 30-day period and retention window. Analytics must be enabled and available under the reviewer workspace plan to exercise the aggregate-data path. Traffic is live, so no fixed visit count or page ranking is assumed.",
+              "prompt": "Show my docs analytics for the last 30 days. Which pages are most popular with people and AI agents?",
+              "tools_triggered": "thally_list_sites, thally_get_docs_analytics",
+              "expected_behavior": "The analytics call uses the selected siteId and range=30d. With data available, the server returns status=available, retentionDays, totals, humanAudience, dailyTraffic, topPages.human, topPages.agent, entryPages, agentSignals and search totals/click-through rate. ChatGPT summarizes those returned aggregates and separately identifies human and agent top pages; counts, rankings and period agree with the returned data and corresponding dashboard. An enabled site without recorded activity returns status=no_data with aggregate fields, which ChatGPT describes as no recorded activity for the returned period. status=disabled means analytics is disabled; status=unavailable and locked=true means plan/site access is unavailable. Other unavailable results must also be reported explicitly, never as zero traffic. No raw visitor search text or feedback is returned. Disabled or unavailable fixtures do not exercise the aggregate-data path."
+            },
+            {
+              "description": "Check whether documentation pages need review after changes to their declared sources. In a new chat with the reviewer account connected, send the prompt below and choose the preloaded docs site by its returned name if asked. The site needs Track access and a GitHub docs repository readable through Thally. This inspects the current documentation source branch. Pages without valid same-repository sources and a full verifiedCommit are expected to have unknown evidence; a potentially stale page is returned only when source history proves a change after that baseline. No stale page or provenance fixture is assumed to exist.",
+              "prompt": "Are any pages on my docs site potentially stale? Show the pages and explain the evidence.",
+              "tools_triggered": "thally_list_sites, thally_list_stale_pages",
+              "expected_behavior": "The server returns siteId, status, evidenceScope=current_documentation_source_tree, latestProductCoverage=unknown, pages, unknownCount, truncated, inventoryKnown and a caveat. When repository inspection succeeds it also returns repository/branch/rootDir/headSha evidence and scannedCount/totalPages. For status=potentially_stale, each returned page includes path, verifiedCommit, headSha, changed sources with path/lastSourceCommit, and hasUnknownSources. ChatGPT identifies only these returned pages and explains why they need review. For status=no_source_drift it says no changes were found in the checked declared sources, without claiming factual accuracy or full product coverage. For unknown, unavailable, missing provenance or truncation it explicitly describes the limitation; pages=[] alone must not become \"everything is up to date.\" No files are edited, pull requests opened or deployments triggered."
+            },
+            {
+              "description": "Inspect product-update work and distinguish docs changes awaiting review from publication. Start a new chat with the reviewer account connected, send the prompt below and select the preloaded docs site by its returned name if asked. Compare the response with that site's Track and Deployments panels in app.thally.io. Track access is needed for the full report. Existing repository mappings and observed runs are read as they are; this test does not trigger a product update, create a mapping or assume that a review PR exists.",
+              "prompt": "Is my documentation up to date with my latest product updates? Show any docs updates awaiting review and what has been deployed.",
+              "tools_triggered": "thally_list_sites, thally_get_documentation_freshness",
+              "expected_behavior": "For an accessible Track report, the server returns siteId, status, latestProductCoverage=unknown, repositories, mappingsTruncated, deployment, stalePages and a caveat. Repository entries include the mapped repository/branch, enabled flag, lastSyncedAt, status, attribution, historyTruncated and observedRun when one exists. Observed runs include phase, timestamps, source repository, review PR number/URL, failure or noChangeReason as applicable, with publicationCoverage=unknown. ChatGPT summarizes the returned needs_review, pending, failed, no_change or unknown state, links only returned review PRs, and distinguishes production deployment evidence from previews and source drift. With no mappings/runs it explains the missing evidence. A plan restriction returns unavailable with locked=true; an evidence failure returns unknown. These states are reported honestly. Because the API does not verify latest upstream coverage or correlate a merged PR to publication, the answer must not claim that all latest product changes are documented and live, even when a run says merged or no_change. No PR is merged or site updated."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported bulk site deletion. Start a new chat with only Thally selected and the reviewer account connected, then send the prompt below. Expected experience: ChatGPT explains that this plugin has no site-deletion tool and that site management is available at app.thally.io. No MCP deletion response exists because no supported tool can perform this request. No tool call is needed; thally_create_site must not be used as a substitute. Do not use GitHub, another app or browser automation as a fallback. Passing means no site is changed or deleted and no deletion is claimed; do not follow a dashboard deletion link or confirm a real deletion during the test.",
+              "prompt": "Using only Thally, delete every documentation site in my workspace permanently."
+            },
+            {
+              "description": "Unsupported automatic merging and publication of documentation updates. Start a new chat with only Thally selected and send the prompt below. Expected experience: ChatGPT explains that the plugin can inspect Track review PRs and deployment evidence but has no merge or edit-publication tool, and directs the reviewer to the existing GitHub review/merge workflow. No successful merge/publication response is possible from this MCP server. No tool call is needed for this unsupported action; do not invoke thally_create_site or use another app or browser to perform it. Passing means no PR, repository or site changes and no claim that updates were merged or published.",
+              "prompt": "Using only Thally, merge all the docs update pull requests automatically and publish them now."
+            },
+            {
+              "description": "Unsupported in-chat purchase or plan upgrade. Start a new chat with only Thally selected and send the prompt below; do not provide payment details. Expected experience: ChatGPT explains that this plugin has no checkout, payment or plan-change tool. It may provide https://app.thally.io for billing; new users start on a 14-day free trial and paid subscriptions are purchased in that dashboard after the trial. No MCP purchase response exists and no tool call is needed. Do not ask for card information, open or complete checkout, change a subscription, use another app/browser as a fallback or claim a charge. Passing means no payment or plan change occurs.",
+              "prompt": "Using only Thally, upgrade my account to a paid Cloud subscription and charge my card here."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "New Thally users start with a 14-day free trial, with no purchases during the trial. Paid Thally subscriptions after the trial are purchased in the Thally Cloud dashboard at https://app.thally.io. This plugin has no payment, checkout, or plan-change tool and never requests card information.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=Pd5YhkJf1nM"
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "PETER EKENE EZE"
+  }
+}

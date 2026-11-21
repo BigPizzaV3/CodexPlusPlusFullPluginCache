@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "everythings",
+  "version": "1.0.1",
+  "description": "Everythings is a workspace app for notes, lists, and the work your AI agents produce. This plugin lets ChatGPT and Codex search, read and write things in your workspaces, ask you a question on a thing, and read your answer on the next run.",
+  "author": {
+    "name": "Everythings",
+    "email": "support@everythings.app",
+    "url": "https://www.everythings.app"
+  },
+  "homepage": "https://www.everythings.app",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Everythings",
+        "shortDescription": "Review what your agents write",
+        "longDescription": "Everythings is a workspace app for notes, lists, and the work your AI agents produce. It is made for people who run coding agents across several projects and want to read, approve, and correct what those agents write from wherever they are, including a phone.\n\nA workspace holds a tree of \"things\". A thing is one unit of work: a name, a Markdown body, and a position among other things. Things nest, so a plan sits under its project and a decision sits under its plan. Marks are emoji reactions on a thing, and comments are threaded discussion on it.\n\nThis plugin lets ChatGPT and Codex read and write that structure directly.\n\nWhat the plugin can do:\n\n- Search every workspace you have access to, by name, tags, or body text\n- Read a thing's full content, along with its sub-things, comments, and marks\n- Create and edit things, nest them, reorder them, and move or copy them between workspaces\n- Create and rename workspaces\n- Add comments and react with emoji marks\n- Ask you a question on a thing, and read your answer later\n- Show a workspace or a thing as the Everythings view inside the chat, where ChatGPT renders app views\n\nHow the review loop works:\n\nAn agent working on a task creates a thing for each result: a plan, a set of findings, a log entry from a scheduled run. When it needs a decision, it attaches a question to the thing, with options if it has them, and stops. The question waits on the thing, appears in your inbox, and Everythings can notify you. You answer from your phone or the web, or tell the agent in the chat, and the agent reads the answer on its next run. Every thing, comment, and mark an agent writes carries the agent's name, so its work is easy to tell from yours. Comments tell the agent what to change. Marks are your own record of what you reviewed, and the agent can read them back. A new workspace can start from the Agent workflow template, which lays out Agent tasks, Human tasks, Plans, and Logs.\n\nFor everyday use, ask it to keep what you just worked out (\"save this under Travel\") or to bring back something from months ago (\"what did we decide about the roof?\").\n\nRead tools are annotated read-only, so they run without a confirmation each time. Editing a thing, deleting one, renaming a workspace, and removing a mark are annotated destructive, so ChatGPT confirms them with you first. Editing replaces a thing's content in full, so the current version is read before it is changed. A deleted thing goes to Trash and can be restored; emptying Trash stays a human action in the app.\n\nAuthentication is OAuth. Sign in with your Everythings account, grant access once, and revoke it at any time from your Everythings settings. The plugin reaches only the workspaces your account can open, and nothing it writes is published outside them.",
+        "developerName": "Everythings",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.everythings.app",
+        "supportURL": "https://www.everythings.app/docs",
+        "privacyPolicyURL": "https://www.everythings.app/privacy",
+        "termsOfServiceURL": "https://www.everythings.app/terms",
+        "defaultPrompt": [
+          "Show me my workspaces in Everythings.",
+          "Find my packing list in Everythings.",
+          "What did we write about the Kyoto itinerary?"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the user's workspaces.",
+              "prompt": "Show me my workspaces in Everythings.",
+              "tools_triggered": "get_workspace_view",
+              "expected_behavior": "get_workspace_view returns the two workspaces the account can access (Japan \u00b7 Spring 2026, which is the default, and Ideas) plus the eight top-level things of Japan \u00b7 Spring 2026 (Trip Overview, Itinerary, Where we're staying, Food shortlist, Packing list, Before we go, Budget, Notes & tips), and the reply names them. Where the client renders MCP Apps components, the same grid also appears inline as the Everythings view; where it does not (native mobile apps), the text reply alone is the expected result."
+            },
+            {
+              "description": "Find a saved list.",
+              "prompt": "Find my packing list in Everythings.",
+              "tools_triggered": "search_things",
+              "expected_behavior": "search_things('packing') returns the thing named Packing list (\ud83e\uddf3, top level of the Japan \u00b7 Spring 2026 workspace) with its updatedAt, alongside two content matches (Itinerary, Health); the reply identifies Packing list as the match and offers to open it."
+            },
+            {
+              "description": "Open one saved item.",
+              "prompt": "Open the Kyoto itinerary thing.",
+              "tools_triggered": "search_things, get_thing_view",
+              "expected_behavior": "search_things finds the thing named Kyoto itinerary (\ud83c\udfef); get_thing_view then returns its Markdown content, its two sub-things (Temple shortlist, Rain-day plan), its marks, its comment thread and its breadcrumb (Japan \u00b7 Spring 2026 \u203a Itinerary), and the reply summarizes that. Where the client renders MCP Apps components, the thing page also appears inline as the Everythings view; where it does not (native mobile apps), the text reply alone is the expected result."
+            },
+            {
+              "description": "Create a nested reminder.",
+              "prompt": "Save 'buy JR pass' under my packing list.",
+              "tools_triggered": "search_things, create_thing, get_thing_view",
+              "expected_behavior": "search_things resolves the Packing list; create_thing creates a sub-thing named buy JR pass under it and returns its id; get_thing_view on that id returns the new thing with Packing list in its breadcrumb, and the reply confirms it was saved there. Running the case again creates a second buy JR pass; that is expected (create_thing is not idempotent)."
+            },
+            {
+              "description": "Add an emoji reaction.",
+              "prompt": "React to my packing list with a check mark.",
+              "tools_triggered": "search_things, add_mark",
+              "expected_behavior": "search_things resolves the Packing list; add_mark with emoji \u2705 returns success with action \"created\" the first time and \"unchanged\" on any repeat, never a duplicate, and the reply says which happened."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General travel knowledge that needs no personal data.",
+              "prompt": "What's the best time of year to see cherry blossoms in Kyoto?"
+            },
+            {
+              "description": "Operating-system trash, not Everythings Trash.",
+              "prompt": "How do I empty the Recycle Bin on my Windows laptop?"
+            },
+            {
+              "description": "Another product's workspace.",
+              "prompt": "Create a new board called Japan in Trello."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Everythings does not sell anything through the plugin.",
+        "demo_recording_url": "https://wtjyswuabjgietulgedb.supabase.co/storage/v1/object/public/public-assets/preview_videos/chatgpt_preview2.mp4"
+      },
+      "publication": {
+        "release_notes": "First release of Everythings for ChatGPT and Codex. Search, read and write things in your workspaces; ask the person a question on a thing and read the answer on the next run; see what people changed since the last run; claim a thing while working on it; see how people marked the agent's work; and show a workspace or a thing as the Everythings view in the chat."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

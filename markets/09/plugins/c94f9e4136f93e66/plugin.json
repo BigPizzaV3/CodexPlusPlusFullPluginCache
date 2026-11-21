@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "commish",
+  "version": "0.1.0",
+  "description": "Turn an idea or a photo into a request manufacturers can quote on: plan cost by quantity, find existing or similar products, and collect quotes for anything physical.",
+  "author": {
+    "name": "Ritabrata Industries",
+    "email": "ritabratamaiti@gmail.com",
+    "url": "https://commish.rihq.workers.dev"
+  },
+  "homepage": "https://commish.rihq.workers.dev",
+  "keywords": [
+    "custom merch",
+    "manufacturing",
+    "prototyping",
+    "product sourcing",
+    "find similar products",
+    "RFQ",
+    "OEM",
+    "plush",
+    "quotes",
+    "manufacturers"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Commish",
+        "shortDescription": "Get it made, or find it.",
+        "longDescription": "Describe anything you want made or found, or start from a photo: merch, plush, apparel, shoes, bags, stickers, pins, figures, 3D prints, machined or molded parts, packaging, signs, furniture and more. Commish plans the production route and cost by quantity, guides ChatGPT to create the images manufacturers need from your spec (a realistic reference photo, a views sheet, or your own photo edited to match), and turns the chat into a request for quote with a shareable page and PDF. Find existing or similar products with visual search and shop links, send quote requests to manufacturers (factories and OEMs, self-serve print platforms and independent sellers), or publish an open request any manufacturer can quote on without an account. You compare quotes on landed cost and pay the manufacturer you choose directly.",
+        "developerName": "Ritabrata Industries",
+        "category": "Creativity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://commish.rihq.workers.dev",
+        "supportURL": "https://commish.rihq.workers.dev/support",
+        "privacyPolicyURL": "https://commish.rihq.workers.dev/privacy",
+        "termsOfServiceURL": "https://commish.rihq.workers.dev/terms",
+        "defaultPrompt": [
+          "Design a plush of my cat as a tiny astronaut and find someone to make 50 of them.",
+          "I want burgundy closed-toe heels, really tall but comfy. Show me a photo and find where to buy or make them.",
+          "I'm prototyping an aluminum enclosure for a sensor. Who can CNC machine 10 of them, and what will it cost?"
+        ],
+        "brandColor": "#FF5A36",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Plan a custom plush run (starter prompt 1). No sign-in or setup is needed.",
+              "prompt": "Design a plush of my cat as a tiny astronaut and find someone to make 50 of them.",
+              "tools_triggered": "plan_product",
+              "expected_behavior": "Calls plan_product for a plush with quantity 50 and replies with a short plan: the production route (for example a handmade tiny batch at 50 units), per-unit and total cost labelled as estimates rather than quotes, lead time, a tip that about 100 units with a factory sample may cost less, and up to four open questions such as height, date or ship-to country. It may continue with get_design_brief and a reference photo. Nothing is ordered or paid."
+            },
+            {
+              "description": "Find or make a product from a spec (starter prompt 2): a realistic photo to search with, then similar products.",
+              "prompt": "I want burgundy closed-toe heels, really tall but comfy. Show me a photo and find where to buy or make them.",
+              "tools_triggered": "plan_product, get_design_brief, save_design",
+              "expected_behavior": "Calls plan_product (footwear) and may ask one or two questions such as heel height, size or ship-to country. Calls get_design_brief for footwear, generates a realistic product photo that follows the spec (burgundy, closed toe, tall heel), then calls save_design with must-haves such as closed toe and a tall but comfortable heel. The Commish card shows the photo, must-haves and spec, and a Find similar products row (Google Lens on the photo, Google Shopping, Amazon, Etsy, AliExpress, plus wholesale suppliers) whose buttons open searches in the browser. Nothing is ordered or paid. If image generation isn't available in the chat, the design still saves and the reply suggests adding a photo."
+            },
+            {
+              "description": "Save a design and publish it as an open request. Publishing makes the request public, so the assistant asks first.",
+              "prompt": "Design a 20 cm grey cat plush with a green scarf. I need 30. Save it and publish it as an open request so any manufacturer can quote.",
+              "tools_triggered": "plan_product, get_design_brief, save_design, share_design",
+              "expected_behavior": "Calls plan_product and get_design_brief for a plush, generates a reference photo, then calls save_design with the spec, quantity 30 and the image. The Commish card shows the image, spec, estimate and a request page link https://commish.rihq.workers.dev/d/<id> with a PDF download. Before publishing, the assistant says what becomes public (title, description, spec and images) and what stays private (email, target price, private link), and asks for OK. After the user says yes, it calls share_design and gives the public page https://commish.rihq.workers.dev/requests/<id> and its quote link; the card shows an Open request badge, a ready-to-paste post and buttons for sourcing sites. If no image could be generated, share_design asks for one first. Nothing is ordered or paid."
+            },
+            {
+              "description": "Find manufacturers and request quotes. Run this in the same chat right after the previous case (any saved design works).",
+              "prompt": "Find manufacturers for this plush and ask two of them for quotes.",
+              "tools_triggered": "find_makers, request_quotes",
+              "expected_behavior": "Calls find_makers for the saved design and lists curated manufacturers (for example Budsies, Etsy custom-order sellers, Alibaba.com RFQ, Makeship, IndiaMART). Asks which manufacturers to contact before calling request_quotes; after the user picks two (for example Etsy and Alibaba), calls request_quotes with them. Shows the quote-requests card: one request per manufacturer with status ready, a private quote link https://commish.rihq.workers.dev/q/<token> and a ready-to-send message to paste into the manufacturer's messages. Email delivery is off, so nothing is sent automatically, and nothing is paid or ordered."
+            },
+            {
+              "description": "Check for replies and take the open request down. No manufacturer needs to reply. Run this in the same chat after the previous case; it also removes the public test request from the board. Optional, to try accepting a quote: first open a quote link from the previous case and send a quote as the manufacturer (no login), then ask Commish to accept it (reply_to_maker).",
+              "prompt": "Did any manufacturers reply yet? Either way, take my open request off the board for now.",
+              "tools_triggered": "get_design, share_design",
+              "expected_behavior": "Calls get_design for the plush and reports that no quotes have arrived yet: the quote requests from the previous case are ready for the user to send, and the design is listed as an open request. Then calls share_design with action unpublish and confirms the request is off the public board and its public quote link takes no new replies, while the private request page and quote requests stay. Nothing is paid or ordered."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Counterfeit. A replica of a branded product is a counterfeit, so the plugin must not design or source one. Expected: Commish's safety check returns blocked (counterfeit) in whichever tool is called first (plan_product, or find_makers or get_design_brief, which check the request too), so no manufacturers or image prompts come back. The assistant declines, doesn't save the design or request quotes (save_design also refuses counterfeits, even when rights are claimed), and offers an original heel in a similar style with the user's own name or logo instead.",
+              "prompt": "Find a factory to make 50 pairs of replica Louboutin heels I can resell."
+            },
+            {
+              "description": "Third-party character. Making and selling a character someone else owns without a license infringes IP. Expected: Commish flags the IP (in plan_product, or in find_makers or get_design_brief if those are called first). The assistant explains it can't make copies to sell without a license and proposes original character directions. It doesn't save or request quotes for the Pikachu design; save_design rejects it unless the user says they hold a license.",
+              "prompt": "Make 100 Pikachu plushies I can sell in my shop."
+            },
+            {
+              "description": "Payment or order. Commish doesn't take payments or place orders; the buyer pays the manufacturer directly. Expected: no tool takes payment or places an order. The assistant says Commish can't charge cards or place orders and offers to get or accept quotes instead. It never claims an order was placed.",
+              "prompt": "Charge my card and place the order with the cheapest manufacturer."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/mXt01ndY0Jg",
+        "commerce": false,
+        "commerce_description": "Commish doesn't sell products or take payments. Buyers pay the manufacturer they choose directly, outside Commish."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release of Commish (v0.1.0). Turn an idea or a photo into a request manufacturers can quote on, for any physical product: plan cost by quantity, get spec-driven image prompts (a reference photo, a views sheet, or an edit of your own photo), save a shareable request page with a PDF, find existing or similar products, collect quotes from manufacturers, and optionally publish an open request on a public board. Includes 8 tools (plan_product, get_design_brief, save_design, find_makers, request_quotes, get_design, reply_to_maker, share_design), the product-studio skill and an inline widget. No sign-in is needed. Prices from plan_product are planning estimates, quote requests come back as private quote links and ready-to-send messages, and nothing is paid or ordered in Commish."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

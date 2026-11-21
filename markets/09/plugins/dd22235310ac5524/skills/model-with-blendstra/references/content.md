@@ -1,0 +1,7 @@
+# Use known models in finished content
+
+1. Discover public sources with `gallery_list` when needed; open a known publication directly with `publication_get`. Use `catalog_search` for authorized private discovery. Match exact product/variant or character identity, supported use and rights. No match is an honest result; never invent a library asset.
+2. Pin the publication/version and use `content_reference_prepare`; recover an existing package with `content_reference_get`. Viewing, remix and source-download permissions do not imply content-reference permission. Choose only media the consuming app accepts.
+3. Supply the reference bytes or authorized narrow transfer to the chosen content app using its actual input roles. The current agent coordinates services; apps do not automatically call each other. Keep account credentials and private capability URLs out of public attribution. Do not promise generation fidelity.
+4. Inspect the completed image or playable video. Use `content_result_save` with the exact references actually supplied and an uploaded output or authorized durable provider result. A provider submission is not finished content. Input provenance is distinct from verified depiction; disclose visible drift.
+5. Reopen finished work and its available exact sources with `content_result_get`. Preserve earlier results and unaffected references. Use `content_result_share` only for requested sharing; never widen source permissions to make a result public.

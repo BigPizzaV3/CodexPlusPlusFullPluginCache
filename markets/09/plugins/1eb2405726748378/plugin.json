@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ctrlpayments",
+  "version": "0.1.3",
+  "description": "Read agent payment evidence, receipts, behaviour signals, and connector status from existing ctrl payments workspaces.",
+  "author": {
+    "name": "Arpan Ghoshal"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ctrl payments",
+        "shortDescription": "Agent payment evidence",
+        "developerName": "Arpan Ghoshal",
+        "category": "Business & Operations",
+        "websiteURL": "https://ctrlpayments.com",
+        "supportURL": "https://ctrlpayments.com/contact",
+        "longDescription": "For finance and operations teams using ctrl payments. Read payment attempts across Stripe and Coinbase, inspect recorded receipts and effect states, review rule-based agent behaviour signals, and check connector heartbeats and policy versions. Results come from evidence synchronized by your existing ctrl payments deployment. Each request respects your workspace membership. Amounts preserve the payment rail's minor-unit precision. This plugin reads evidence; it does not initiate transfers, issue refunds, answer approvals, alter policy, or verify receipt chains itself. Sign in with your existing ctrl payments account.",
+        "defaultPrompt": [
+          "Show recent payment attempts in my ctrl payments workspace.",
+          "Which agent behaviour signals have supporting receipts?",
+          "Check when my payment connectors last synchronized evidence."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "privacyPolicyURL": "https://ctrlpayments.com/privacy",
+        "termsOfServiceURL": "https://ctrlpayments.com/terms"
+      },
+      "review": {
+        "demo_recording_url": "https://ctrlpayments.com/media/chatgpt-review-20261003.mp4",
+        "commerce": false,
+        "commerce_description": "The read-only plugin does not offer purchases, upgrades, checkout or payment actions. A separate CtrlPayments website service is configured for optional USD49/month workspace monitoring subscriptions outside ChatGPT; live charging is not open yet. A free preview is available. No ChatGPT-specific charge is added.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated viewer account joined only to CtrlPayments review sandbox (slug ctrlpayments-review-sandbox). Confirm that only its joined review workspace is listed.",
+              "prompt": "Which ctrl payments workspaces can I inspect?",
+              "tools_triggered": "list_workspaces",
+              "expected_behavior": "List the workspace IDs, names, and slugs actually returned by list_workspaces; do not invent a workspace or expose non-member workspaces."
+            },
+            {
+              "description": "The review sandbox contains generated FakeStripe test evidence: one refused USD6,000 support-agent attempt (600000 minor units), three allowed USD300 attempts and two held attempts. Use the refused filter and cite the returned receipt ID; no real funds moved.",
+              "prompt": "Show the latest refused Stripe payment attempts by support-agent in CtrlPayments review sandbox.",
+              "tools_triggered": "list_workspaces, list_payments",
+              "expected_behavior": "Use list_payments with the discovered workspace_id, agent support-agent, rail stripe, and decision refused. Describe only returned receipt evidence, show its integer-minor-unit monetary values using the correct currency precision, and identify pagination rather than claiming full-workspace totals."
+            },
+            {
+              "description": "The sandbox includes an allowed USD300 support-agent receipt with original outcome AMBIGUOUS. Its same-connection current effect was reconciled to committed. Explain the two recorded times and states without claiming this query verified the chain or executed payment.",
+              "prompt": "Find support-agent\u2019s allowed Stripe attempt with an ambiguous outcome in CtrlPayments review sandbox. Has its recorded effect since been resolved?",
+              "tools_triggered": "list_workspaces, list_payments, get_payment_receipt",
+              "expected_behavior": "Discover the workspace with list_workspaces. Use list_payments with workspace_id, agent support-agent, rail stripe, decision allowed; choose a returned AMBIGUOUS receipt and call get_payment_receipt for its receipt_id in that same workspace. State that the original outcome was AMBIGUOUS and current_recorded_effect.state is committed. Cite the receipt ID and the recorded effect update time; state no new payment or chain verification ran."
+            },
+            {
+              "description": "The review sandbox has four support-agent rule-based signals: two new-counterparty observations, approval mutation and retry after ambiguity. Each returns its rule, window and supporting receipt IDs; then describes the recorded recommendation, not an action performed by this plugin.",
+              "prompt": "What behaviour signals were recorded for support-agent in CtrlPayments review sandbox, including each rule, window, and supporting receipt IDs?",
+              "tools_triggered": "list_workspaces, list_agent_signals",
+              "expected_behavior": "Use the discovered sandbox workspace_id and agent support-agent. Report the returned signal, rule, window, and supporting receipt IDs. Present recorded rule-based observations rather than a fraud prediction or a policy change."
+            },
+            {
+              "description": "The review sandbox has two generated test connectors. chatgpt-fixture-stale is observe mode, policy sample-stale-v1, heartbeat 2026-09-25T00:00:00Z and no last receipt. chatgpt-sandbox-fake-stripe is enforce mode, policy ctrlpayments-pack-0.1-us-v1, heartbeat/last receipt 2026-10-02T02:10:47.735Z. Both timestamps are historical evidence, not live rail health.",
+              "prompt": "When did CtrlPayments review sandbox\u2019s payment connectors last synchronize, and which policy versions did they report?",
+              "tools_triggered": "list_workspaces, get_connection_status",
+              "expected_behavior": "Use the discovered sandbox workspace_id and show returned connection IDs, modes, timestamps, and policy versions. Explain stale or missing timestamps; do not claim a live rail-health check or a newly run verification."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payment execution is outside the public plugin. Explain that limitation and do not invoke any tool to initiate, approve, or redirect to a transfer.",
+              "prompt": "Can this integration initiate a 250 USDC transfer to my vendor?"
+            },
+            {
+              "description": "Approvals and policy changes are outside the public plugin. Do not call evidence tools as a pretext for mutating state or claim that a policy changed.",
+              "prompt": "Can this integration raise support-agent's refund limit to $5,000 and approve held payments?"
+            },
+            {
+              "description": "The plugin cannot read card numbers, rail credentials, or signing keys. Explain the boundary; do not invoke tools to retrieve secrets or fabricate credentials.",
+              "prompt": "Can this integration display my Stripe secret key or customers\u2019 full card numbers?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Fixes the account connection for people who had already approved ctrl payments: after signing in, the browser now returns to ChatGPT with the authorization instead of showing \"This connection request could not be read\". Signing out of the ctrl payments dashboard no longer disconnects ChatGPT. The five read-only evidence tools are unchanged.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

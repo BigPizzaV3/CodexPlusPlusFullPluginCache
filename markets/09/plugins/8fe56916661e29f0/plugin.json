@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bidpatch",
+  "version": "0.1.3",
+  "description": "Use this when a public RFP addendum changes and you need line evidence plus an explicit requirement coverage checklist.",
+  "author": {
+    "name": "Sun Ryse Software LLC"
+  },
+  "homepage": "https://bidpatch-mcp.sunrysetech.com/",
+  "keywords": [
+    "document",
+    "change",
+    "requirements"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Document Change Checker",
+        "shortDescription": "Compare public document edits",
+        "longDescription": "Use this when a public RFP addendum changes and you need line evidence plus an explicit requirement coverage checklist. Each supplied document is limited to 12,000 characters and 200 lines. Coverage accepts at most 30 requirements and 60 evidence entries. No documents or procurement accounts are fetched; requirement mapping uses caller-provided IDs. Inputs are temporary; no customer-account access or stored progress. In supported ChatGPT surfaces, open the interactive workspace to choose a task, review labeled inputs and run the existing tools. Examples are public or synthetic, not saved customer records. The public website provides a labeled example, usage steps and prompts. The interface adds no account access or persistence.",
+        "developerName": "Sun Ryse Software LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Compare public bid document versions",
+          "Map bid evidence to requirement IDs",
+          "Open a guided interactive workspace"
+        ],
+        "websiteURL": "https://bidpatch-mcp.sunrysetech.com/",
+        "supportURL": "https://bidpatch-mcp.sunrysetech.com/support",
+        "privacyPolicyURL": "https://bidpatch-mcp.sunrysetech.com/privacy",
+        "termsOfServiceURL": "https://bidpatch-mcp.sunrysetech.com/terms",
+        "defaultPrompt": [
+          "Open Document Change Checker so I can choose a task and review its inputs.",
+          "Compare these two public bid document versions and identify line changes and unmet evidence requirements."
+        ],
+        "brandColor": "#345ce3",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the interactive workspace, then p1: identify changed deadline and budget with exact line evidence",
+              "prompt": "Open Document Change Checker's interactive workspace. Then Compare these two synthetic public bid excerpts. Report exact line changes and the review cues for dates, money, deadlines and obligations. Preserve the supplied labels.\n\nUse only this synthetic input:\n{\n  \"beforeLabel\": \"Synthetic original\",\n  \"afterLabel\": \"Synthetic addendum\",\n  \"beforeText\": \"Header\\nDue October 12, 2026: $25000\\nSend PDF\",\n  \"afterText\": \"Header\\nDue October 19, 2026: $30000\\nSend PDF\\nSecurity plan required\"\n}",
+              "tools_triggered": "open_app, diff_public_documents",
+              "expected_behavior": "Call open_app with no arguments. It returns ready for bidpatch and the host can display the associated interactive workspace with task selection, labeled inputs and clearly identified sample inputs. Opening the workspace alone must not run a data lookup or claim a completed result. Run diff_public_documents only for the explicit request and supplied inputs that follow. Returns status ok, one changed line at before line 2 / after line 2, and one added line at after line 4. The changed after-line has date, money and deadline flags; the added line has an obligation flag. Shows the original and replacement text and explains that flags are review cues, not a compliance determination. Interface rendering, host tool selection and interaction must be checked in a supported ChatGPT surface; direct MCP results alone do not establish those host behaviors."
+            },
+            {
+              "description": "P2: Keep an isolated deletion and insertion from cascading into false replacements",
+              "prompt": "Compare these synthetic public document versions and show removed and added lines with one-based coordinates.\n\nUse only this synthetic input:\n{\n  \"beforeText\": \"A\\nDelete\\nB\\nC\",\n  \"afterText\": \"A\\nB\\nC\\nAppend\"\n}",
+              "tools_triggered": "diff_public_documents",
+              "expected_behavior": "Returns three unchanged lines, a removed line 2 containing Delete, and an added line 4 containing Append. Reports zero changed-line pairs; unchanged trailing content is not treated as a cascade of replacements."
+            },
+            {
+              "description": "P3: Normalize line endings while preserving repeated identical lines",
+              "prompt": "Check whether these synthetic document versions differ after supported line-ending normalization. The before text uses CRLF and the after text uses LF.\n\nUse only this synthetic input:\n{\n  \"beforeText\": \"A\\r\\nA\\r\\nB\",\n  \"afterText\": \"A\\nA\\nB\"\n}",
+              "tools_triggered": "diff_public_documents",
+              "expected_behavior": "Returns three lines in each version and three unchanged lines, with no added, removed or changed lines. Repeated lines are retained; only CRLF/CR line-ending normalization is applied."
+            },
+            {
+              "description": "P4: Separate user-asserted evidence coverage from a missing mandatory requirement",
+              "prompt": "Build a requirement coverage checklist from these explicit IDs and supplied excerpts. Preserve source line references and do not certify that any requirement is satisfied.\n\nUse only this synthetic input:\n{\n  \"requirements\": [\n    {\n      \"id\": \"R-01\",\n      \"text\": \"Include two references.\",\n      \"mandatory\": true\n    },\n    {\n      \"id\": \"R-02\",\n      \"text\": \"Include a delivery schedule.\",\n      \"mandatory\": true\n    }\n  ],\n  \"evidence\": [\n    {\n      \"evidenceId\": \"E-01\",\n      \"requirementId\": \"R-01\",\n      \"excerpt\": \"Reference A; Reference B.\",\n      \"sourceLabel\": \"Synthetic proposal\",\n      \"sourceLineStart\": 4,\n      \"sourceLineEnd\": 5,\n      \"userAssessment\": \"addresses_requirement\"\n    }\n  ]\n}",
+              "tools_triggered": "check_requirement_coverage",
+              "expected_behavior": "Marks R-01 user_asserted_coverage_unverified and R-02 missing_evidence. Preserves source lines 4\u20135, reports one requirement with evidence and one missing evidence, and leaves every verifiedSatisfied value false with summary verifiedSatisfied 0."
+            },
+            {
+              "description": "P5: Preserve conflicting, unreviewed and unmapped evidence as distinct outcomes",
+              "prompt": "Make an evidence checklist using exact case-sensitive requirement IDs. Show unreviewed evidence, an explicitly identified gap, conflicting assessments and any unmapped evidence separately.\n\nUse only this synthetic input:\n{\n  \"requirements\": [\n    {\n      \"id\": \"R-OPEN\",\n      \"text\": \"Include a project schedule.\"\n    },\n    {\n      \"id\": \"R-GAP\",\n      \"text\": \"Include a support plan.\"\n    },\n    {\n      \"id\": \"R-CONFLICT\",\n      \"text\": \"Include a security plan.\"\n    }\n  ],\n  \"evidence\": [\n    {\n      \"evidenceId\": \"E-OPEN\",\n      \"requirementId\": \"R-OPEN\",\n      \"excerpt\": \"Schedule excerpt.\",\n      \"sourceLabel\": \"Synthetic proposal\",\n      \"userAssessment\": \"not_reviewed\"\n    },\n    {\n      \"evidenceId\": \"E-GAP\",\n      \"requirementId\": \"R-GAP\",\n      \"excerpt\": \"Support plan omitted.\",\n      \"sourceLabel\": \"Synthetic review\",\n      \"userAssessment\": \"does_not_address_requirement\"\n    },\n    {\n      \"evidenceId\": \"E-YES\",\n      \"requirementId\": \"R-CONFLICT\",\n      \"excerpt\": \"Security controls listed.\",\n      \"sourceLabel\": \"Synthetic reviewer A\",\n      \"userAssessment\": \"addresses_requirement\"\n    },\n    {\n      \"evidenceId\": \"E-NO\",\n      \"requirementId\": \"R-CONFLICT\",\n      \"excerpt\": \"Required controls not addressed.\",\n      \"sourceLabel\": \"Synthetic reviewer B\",\n      \"userAssessment\": \"does_not_address_requirement\"\n    },\n    {\n      \"evidenceId\": \"E-LOWER\",\n      \"requirementId\": \"r-open\",\n      \"excerpt\": \"Another schedule excerpt.\",\n      \"sourceLabel\": \"Synthetic appendix\",\n      \"userAssessment\": \"addresses_requirement\"\n    }\n  ]\n}",
+              "tools_triggered": "check_requirement_coverage",
+              "expected_behavior": "Returns R-OPEN as unknown, R-GAP as user_identified_gap and R-CONFLICT as conflicting_user_assessments. Lowercase r-open remains unmapped rather than being matched to R-OPEN. Reports one unmapped evidence item and zero verified satisfied requirements."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Do not retrieve documents from a procurement portal",
+              "prompt": "Use Document Change Checker to sign in to https://procurement.example.test/private/rfp-17, download the current RFP and its addendum, and compare them. I have not supplied either document's text.",
+              "tools_triggered": "None",
+              "expected_behavior": "No plugin tool invocation. Explain that this plugin cannot sign in, fetch URLs or retrieve documents; request caller-supplied public before/after text within the supported size and line bounds. Do not claim that the portal was accessed or documents downloaded."
+            },
+            {
+              "description": "N2: Do not certify legal compliance or bid eligibility",
+              "prompt": "For this synthetic requirement, 'R-01: All mandatory certifications must be valid,' certify that our bid is legally compliant and eligible for award. We have supplied no certification evidence. I need an official compliance approval, not a checklist.",
+              "tools_triggered": "None",
+              "expected_behavior": "No plugin tool invocation. Explain that the plugin does not certify legal compliance, satisfaction or award eligibility. Do not invent evidence or issue approval; identify that an evidence checklist would require supplied requirements and excerpts and would remain unverified."
+            },
+            {
+              "description": "N3: Do not submit a bid or send external notifications",
+              "prompt": "Use Document Change Checker to upload and submit the synthetic proposal 'Demo bid 17' to https://procurement.example.test/submit and email procurement@example.test that submission is complete.",
+              "tools_triggered": "None",
+              "expected_behavior": "No plugin tool invocation. State that submission, uploads and email sending are unsupported. Do not claim any bid was submitted, uploaded or emailed; a caller-supplied text comparison remains the supported workflow."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only public-source lookups or calculations over supplied inputs. This plugin does not sell products, process payments or execute transactions.",
+        "demo_recording_url": "https://bidpatch-mcp.sunrysetech.com/review-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "0.1.3: Adds the deployed open_app interactive workspace to listing capabilities and the five-positive/three-negative review set. Preserves all existing data tools, dedicated domain, publisher, category and original icons. Updates the listing color and public usage guidance to navy/blue. Current direct MCP checks cover workspace readiness, UI-resource metadata, data results and strict input rejection. The retained video shows the earlier tool walkthrough and predates the workspace; native ChatGPT rendering and conversational refusals have not been verified by these direct checks."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

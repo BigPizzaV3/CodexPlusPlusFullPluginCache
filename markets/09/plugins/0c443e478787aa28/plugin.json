@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-facts",
+  "version": "1.2.0",
+  "description": "Check the facts a developer asks for again and again: when a software version reaches end of life, whether the runtimes a repository pins are still supported, what an open-source license is, whether a web feature works in a browser, what an RFC says about itself and what changed between two versions of a package.",
+  "author": {
+    "name": "Agent Tools",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dev Facts Check",
+        "shortDescription": "EOL, licences, browsers, RFCs",
+        "longDescription": "Check the facts a developer asks for again and again: when a software version reaches end of life, whether the runtimes a repository pins are still supported, what an open-source license is, whether a web feature works in a browser, what an RFC says about itself and what changed between two versions of a package.\n\nAsk \"is Node.js 20 still supported?\", \"is anything in this repo past end of life?\", \"is the MIT license OSI approved?\", \"can I use CSS container queries in Safari?\", \"which RFC obsoletes RFC 2616?\" or \"what changed in express between 4.18.2 and 5.1.0?\".\n\nFor a repository, pass the files that pin runtimes (package.json, .nvmrc, .python-version, pyproject.toml, go.mod, a Dockerfile or compose file, .tool-versions, mise.toml, .ruby-version, a Gemfile, composer.json or global.json) and get one row per runtime with its end-of-life date, days left, latest patch and the next supported cycle.\n\nIt reads five public sources: endoflife.date for release cycles and support dates, the SPDX License List for license identifiers and OSI and FSF status, webstatus.dev for Baseline status and the first browser version that supports a web feature, the RFC Editor and IETF Datatracker for RFC status, abstracts and obsoleting links, and GitHub releases and changelog files for the notes of each release in a version range.\n\nEvery answer names its source and the date of the data. endoflife.date is maintained by volunteers, so confirm a date with the vendor before a contract or compliance decision. A license answer identifies a license and does not say what it lets you do: it is not legal advice.\n\nIt does not scan packages for vulnerabilities or health: use the Package Health Check plugin for that.\n\nIt stores nothing about you: answers are cached for a few hours and the only lasting record is a daily count of calls per tool.",
+        "developerName": "Agent Tools",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Shows whether a version of a product has reached end of life, with its end-of-life and LTS dates",
+          "Lists the release cycles of a product that are still supported, newest first, with the latest patch",
+          "Reads the runtime pins in a repo (Node.js, Python, Go, Ruby, PHP, .NET, Docker images) and flags any past end of life",
+          "Looks up an SPDX license by identifier or name: OSI approved, FSF free, deprecated or not",
+          "Shows the first release of each major browser that supports a web feature, and its Baseline status",
+          "Looks up an RFC by number or title words: status, abstract, and the RFCs that obsolete or update it",
+          "Lists the GitHub release notes of an npm or PyPI package between 2 versions and flags breaking changes",
+          "Names the source and the date of its data in every answer"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "Is Node.js 20 still supported, and when does it reach end of life?",
+          "Is the MIT license OSI approved?",
+          "Can I use CSS container queries in Safari?"
+        ],
+        "brandColor": "#3B5BDB",
+        "brandColorDark": "#8CA0F2",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/dev-facts.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "status ok with release cycle 20, its end-of-life date and whether that date has passed, the LTS dates, the latest 20.x patch, the cycles still supported, and the endoflife.date source with the as-of date. Check against: https://endoflife.date/api/v1/products/nodejs",
+              "prompt": "Is Node.js 20 still supported and when does it reach end of life?",
+              "tools_triggered": "get_eol_status",
+              "expected_behavior": "Calls get_eol_status with product \"nodejs\" and version \"20\"."
+            },
+            {
+              "description": "status ok with the express releases after 4.18.2 up to 4.21.2, newest first, each with its date, link and a short excerpt of its notes, the breaking versions if any, complete true, a GitHub compare link, and the source with the as-of date. Check against: https://github.com/expressjs/express/releases.atom",
+              "prompt": "What changed in express between 4.18.2 and 4.21.2? Anything breaking?",
+              "tools_triggered": "get_release_notes",
+              "expected_behavior": "Calls get_release_notes with name \"express\", fromVersion \"4.18.2\" and toVersion \"4.21.2\"."
+            },
+            {
+              "description": "status ok with id \"MIT\", the name \"MIT License\", osiApproved true, fsfLibre true, deprecated false, the SPDX page link and the note that this is not legal advice. Check against: https://spdx.org/licenses/MIT.json",
+              "prompt": "Is the MIT license OSI approved and what is its SPDX id?",
+              "tools_triggered": "check_license",
+              "expected_behavior": "Calls check_license with license \"MIT\"."
+            },
+            {
+              "description": "status ok with one row per pin, past end of life first: Node.js 18 from the >=18 range and Node.js 20 past end of life, Debian 11 (bullseye) as the image's base, Python 3.11 still supported, each with its end-of-life date, days left, latest patch and next supported cycle, and the endoflife.date source with the as-of date. Check against: https://endoflife.date/api/v1/products/nodejs",
+              "prompt": "Are the runtimes in my repo still supported? package.json has \"engines\": {\"node\": \">=18\"}, .nvmrc says 20, and the Dockerfile starts with FROM python:3.11-slim-bullseye.",
+              "tools_triggered": "check_runtime_eol",
+              "expected_behavior": "Calls check_runtime_eol once with the three files: package.json with the engines field, .nvmrc with \"20\" and a Dockerfile with the FROM line."
+            },
+            {
+              "description": "status ok with RFC 2616 (HTTP/1.1), its historic status, and an obsoletedBy list that names RFCs 7230 to 7235, with the source and as-of date. Check against: https://www.rfc-editor.org/rfc/rfc2616.json",
+              "prompt": "Which RFC obsoletes RFC 2616?",
+              "tools_triggered": "lookup_rfc",
+              "expected_behavior": "Calls lookup_rfc with number 2616."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Package vulnerabilities and health belong to Package Health Check; this plugin covers versions, end of life, licenses and browser support. Expected: Does not use the Dev Facts tools to answer. Says this plugin does not cover package vulnerabilities.",
+              "prompt": "Is express@4.17.1 vulnerable?"
+            },
+            {
+              "description": "The plugin looks up dated reference facts; it does not teach programming. Expected: Does not call a tool. Answers from general knowledge or points to the React documentation.",
+              "prompt": "Explain how React hooks work."
+            },
+            {
+              "description": "The plugin identifies existing SPDX licenses; it does not write or advise on licenses. Expected: Does not call a tool to draft a license. May use check_license to look up a named license, and says it is not legal advice.",
+              "prompt": "Write a license for my project."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "1.2.0: adds check_runtime_eol, which reads the runtime pins in a repository's files (package.json engines, .nvmrc, .python-version, pyproject.toml, go.mod, Dockerfile and compose images, .tool-versions, mise.toml, .ruby-version, Gemfile, composer.json, global.json) and returns each runtime's end-of-life date, days left, latest patch and next supported cycle from endoflife.date. 1.1.0: adds get_release_notes, the GitHub release notes of an npm or PyPI package (or a GitHub repository) between 2 versions, with breaking changes flagged and the changelog file read when the release list does not reach back far enough. 1.0.0: first release. Reads endoflife.date, the SPDX License List, webstatus.dev and the RFC Editor: end-of-life status, license check, browser support and RFC lookup. Answers are cached for up to a day; read-only, no sign-in."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

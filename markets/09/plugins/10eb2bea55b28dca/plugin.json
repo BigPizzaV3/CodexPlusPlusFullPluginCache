@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hapibit-church-planner",
+  "version": "1.0.1",
+  "description": "Search, review, create, update, and roll forward church ministry plans within your Hapibit church permissions.",
+  "author": {
+    "name": "Hapibit"
+  },
+  "homepage": "https://churchplan.hapibit.com/mcp",
+  "keywords": [
+    "church",
+    "ministry",
+    "planning",
+    "hapibit"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hapibit Church Planner",
+        "developerName": "Hapibit",
+        "category": "Productivity",
+        "shortDescription": "Plan your church ministries",
+        "longDescription": "Hapibit Church Planner helps church administrators and ministry leaders work with their church's ministry plans in conversation. Check the connected church and your permissions; find ministries by year, department, status, or text; and read ministry details. With the required church role and write access, create a ministry draft, change selected fields after reviewing the current record, or carry a ministry into a later year as a new draft. Year searches include ministries whose dates overlap that year. Access follows the connected user's church, department, and role; internal preparation, budgets, and evaluations may be restricted. Write actions require confirmation. Rollover preserves planning information while resetting spending and completion state. This connector does not send invitations or messages, make payments, or delete ministries. It does not expose the congregant directory, weekly ministry journals, or annual department budgets. A Hapibit account, church membership, and an authenticated connection are required.",
+        "defaultPrompt": [
+          "Show my church's ministries for this year.",
+          "Find draft ministries in my department and summarize their preparation dates.",
+          "Help me carry a ministry into next year as a draft."
+        ],
+        "websiteURL": "https://churchplan.hapibit.com/mcp",
+        "supportURL": "https://churchplan.hapibit.com/support",
+        "privacyPolicyURL": "https://churchplan.hapibit.com/privacy",
+        "termsOfServiceURL": "https://churchplan.hapibit.com/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://churchplan.hapibit.com/review/index.html",
+        "commerce": false,
+        "commerce_description": "The MCP connector is free to use and does not provide a purchase or payment flow.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 - Connected church and permissions. Setup: use a dedicated reviewer account in an isolated church, with ADMIN role, a write-capable connection, accepted community rules, and the three records in review-fixtures.json. The church must have no other ministry records before P1. This case verifies authenticated context without modifying data.",
+              "prompt": "Which church am I connected to, what is my role, and can I edit ministry plans? Also tell me how many ministry plans I can access.",
+              "tools_triggered": "get_planner_context",
+              "expected_behavior": "Call get_planner_context with {}. Report the returned church.name, user.role and user.department, canWrite, and ministryCount. For the stated initial setup, role is ADMIN, canWrite is true, communityAccepted is true, and ministryCount is 3. Use the returned church and department names rather than inventing them. Do not invoke a write tool."
+            },
+            {
+              "description": "P2 - Filtered search, pagination, year overlap, and detail retrieval. Setup: the initial fixtures in review-fixtures.json, all in the existing department named \uad50\ud68c \uc804\uccb4. Review retreat and Review new year are DRAFT records whose dates overlap 2026; Review confirmed is excluded by status. Use a separate conversation after confirming the fixture state.",
+              "prompt": "Find draft ministries in \uad50\ud68c \uc804\uccb4 that overlap 2026 and contain Review. Show one result at a time, continue until all matches are shown, then open Review retreat and summarize its preparation tasks and budget.",
+              "tools_triggered": "get_planner_context, list_ministries, get_ministry",
+              "expected_behavior": "Check context, then call list_ministries with year 2026, department \uad50\ud68c \uc804\uccb4, status DRAFT, query Review, limit 1, offset 0. The result has total 2 and nextOffset 1. Fetch offset 1 with the same filters, then stop when nextOffset is null. Both returned records must be shown, including Review new year that begins in 2025; Review confirmed must be absent. Resolve Review retreat's id from returned data and call get_ministry with that id. Summarize its actual todos and budget, including Equipment budget 500 and actual 100, from the detail response. Do not call a write tool."
+            },
+            {
+              "description": "P3 - Create a minimal ministry draft with deliberate confirmation. Setup: the same isolated reviewer church with write access, accepted community rules, and department \uad50\ud68c \uc804\uccb4. No ministry titled Review outreach 2027 may exist. After the assistant shows the exact proposed fields, the reviewer replies: Confirm: create that draft. This case creates a sample record needed by P4.",
+              "prompt": "Help me create a ministry called Review outreach 2027 for \uad50\ud68c \uc804\uccb4. Preparation starts March 1, 2027, and the event runs March 20 through March 21, 2027. Show me what you will save and ask me to confirm it first.",
+              "tools_triggered": "get_planner_context, list_ministries, create_ministry",
+              "expected_behavior": "Check context and search for Review outreach 2027 before saving to avoid an existing duplicate. Present title Review outreach 2027, department \uad50\ud68c \uc804\uccb4, prepStart 2027-03-01, startDate 2027-03-20, endDate 2027-03-21, and default status DRAFT. Do not call create_ministry until the reviewer confirms. Then call it once with those requested fields; status may be omitted to use DRAFT or explicitly DRAFT. Report the returned ministry.id, dates, and DRAFT status. Do not invent optional leader, attendance, location, or budget values. If a response is lost, search before retrying."
+            },
+            {
+              "description": "P4 - Partial update with optimistic concurrency and preservation of unrelated fields. Setup: P3 has created exactly one Review outreach 2027. The reviewer has permission to edit it. After the assistant presents the single-field change, reply: Confirm: change only the location. No concurrent changes are intentionally introduced in this case.",
+              "prompt": "For Review outreach 2027, change only the location to Fellowship Hall. Keep every other field as it is, and show the change for my confirmation before saving.",
+              "tools_triggered": "get_planner_context, list_ministries, get_ministry, update_ministry",
+              "expected_behavior": "Check context, locate the record with list_ministries using query Review outreach 2027, and read it with get_ministry. Present the old location and Fellowship Hall for confirmation. After confirmation, call update_ministry using the returned id and latest updatedAt, with location Fellowship Hall and no other editable fields. The saved record must retain its title, department, dates, status, arrays, and other unrequested values. Report success only from the returned ministry. If a conflict occurs, re-read the record, explain the conflict, and obtain confirmation of the revised proposal before retrying."
+            },
+            {
+              "description": "P5 - Rollover and reset behavior. Setup: Review retreat from review-fixtures.json exists with its original 2026 dates, completed task, confirmed resource, recorded spending, link, and retrospective. No record in its series exists in 2027. After the assistant explains the rollover, reply: Confirm: create the 2027 draft.",
+              "prompt": "Carry Review retreat into 2027 as a new draft. Explain what will be kept or reset, and ask for my confirmation before creating it.",
+              "tools_triggered": "get_planner_context, list_ministries, get_ministry, rollover_ministry",
+              "expected_behavior": "Check context, resolve Review retreat's 2026 id from list_ministries, and read it with get_ministry. Explain the proposed 2027 draft and the resets before confirmation. Then call rollover_ministry once with that source id and year 2027. The returned ministry must have a different id, the same seriesId, status DRAFT, dates shifted to 2027-07-01, 2027-08-01, and 2027-08-02, todo done false, resource status NEEDED, retained Equipment budget 500 with actual 0, links [], and retrospective null. Planning text and existing help tips carry forward; report only what the response supports. The 2026 source remains unchanged. On a duplicate-year error, explain the existing rollover and do not report a new record or repeat the write."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 - Outbound communication is unsupported. No contact lookup or messaging capability exists in this MCP server. Explain that invitations cannot be sent through this connector and offer to draft invitation text. Do not invoke any Hapibit tool for this request and do not claim a message was sent.",
+              "prompt": "Email an invitation to every volunteer for next Sunday's outreach. Send it now."
+            },
+            {
+              "description": "N2 - Payments are unsupported. Ministry budget fields record planned and actual spending; they do not initiate financial transfers. Explain that this connector cannot make payments. Do not invoke any Hapibit tool, create or update a budget entry to imply payment, or claim funds moved.",
+              "prompt": "Pay the retreat venue 500 dollars from our church bank account now."
+            },
+            {
+              "description": "N3 - Ministry deletion is unsupported through MCP. Explain that this connector has no deletion tool. Do not invoke any Hapibit tool, overwrite a ministry to simulate deletion, or claim records were removed.",
+              "prompt": "Permanently delete all of our church's ministry plans from 2025."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Updates the plugin listing and composer icon to the current Hapibit Church Planner 3D glass artwork. Ministry-planning tools, authentication, permissions, and supported workflows are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "haulmath",
+  "version": "0.4.3",
+  "description": "Compare grocery baskets across retailers, bulk sizes, waste, and user-selected alternatives.",
+  "author": {
+    "name": "Sun Ryse Software LLC"
+  },
+  "homepage": "https://haulmath-mcp.sunrysetech.com",
+  "keywords": [
+    "groceries",
+    "shopping",
+    "unit-price",
+    "bulk",
+    "retailer-comparison"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "HaulMath",
+        "shortDescription": "Compare grocery baskets",
+        "longDescription": "Compare grocery quotes in HaulMath's interactive workspace or your conversation. Review inputs and results for unit prices, expected waste, whole-pack baskets, fees and membership eligibility. Discover global product candidates and dated US community shelf observations through Open Prices. Coverage is incomplete; observations do not confirm current stock or checkout prices. No retailer offer feed, shopper accounts, receipts, payments or purchases. Product queries and selected barcodes are sent to Open Prices; this service does not store inputs.",
+        "developerName": "Sun Ryse Software LLC",
+        "category": "Other",
+        "capabilities": [
+          "Open an interactive grocery comparison workspace",
+          "Discover grocery product candidates",
+          "Read dated community shelf observations",
+          "Compare quoted retailer baskets",
+          "Compare bulk prices and expected waste"
+        ],
+        "websiteURL": "https://haulmath-mcp.sunrysetech.com",
+        "supportURL": "https://haulmath-mcp.sunrysetech.com/support",
+        "privacyPolicyURL": "https://haulmath-mcp.sunrysetech.com/privacy",
+        "termsOfServiceURL": "https://haulmath-mcp.sunrysetech.com/terms",
+        "defaultPrompt": [
+          "Find oat milk product candidates and show barcodes and package details so I can choose one to check.",
+          "Help me compare a grocery basket across wholesale clubs and regular stores using my quotes.",
+          "Compare an $8, 1 kg pack I will use half of with a $5, 500 g pack I will use all of, in USD."
+        ],
+        "brandColor": "#111C36",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Open the native grocery workspace without starting a data task",
+              "prompt": "Open HaulMath's interactive workspace so I can choose a grocery task and review inputs before running it. Do not look up products, prices or retailer offers yet.",
+              "tools_triggered": "open_app",
+              "expected_behavior": "Render the HaulMath workspace beside the conversation with four available data tasks: product candidates, dated barcode observations, package comparison and retailer basket comparison. Opening it alone returns status ready and runs no data lookup or calculation. No retailer offer-feed search/fetch task or account connection is available. Verify that the workspace renders, the task selector and input fields work, and the user can review inputs before choosing Run."
+            },
+            {
+              "description": "P2 \u2014 Whole-package basket comparison with fees and membership exclusions",
+              "prompt": "I need 1 kg usable coffee. Compare these synthetic USD quotes, all tax included. Wholesale: $8 per 1 kg pack, half usable, $0 fees, membership eligible. Regular: $5 per 500 g pack, fully usable, $2 total fees, no membership needed. Restricted club: $1 per 1 kg pack, fully usable, $0 fees, but I am not eligible for its membership price. All fees are known. I accept all three products as alternatives. Compare whole packages and exclude any ineligible store from the ranking.",
+              "tools_triggered": "compare_retailer_baskets",
+              "expected_behavior": "Wholesale requires two packs and totals $16. Regular requires two packs and totals $12 including its $2 fee. Restricted club has a known quoted cost of $1 but is excluded with membership_not_eligible. Rank Regular first among the two eligible complete baskets. Retain quoteSource=user_provided and do not infer nutritional equivalence, stock or a global cheapest store."
+            },
+            {
+              "description": "P3 \u2014 Discover product candidates without inventing equivalence or local availability",
+              "prompt": "Find grocery product candidates for protein. Show names, brands, package metadata and barcodes so I can select an exact product. Do not choose an alternative for me or infer a nearby store price.",
+              "tools_triggered": "search_grocery_products",
+              "expected_behavior": "Return at most ten global Open Prices product candidates with attribution and the supplied package fields, or explicitly say no candidates were returned. Treat candidates as name matches only. Ask for selection before any price lookup; no automatic lookup, equivalence, dietary or US-stock assertion. If the provider fails, report the source error instead of fabricating results."
+            },
+            {
+              "description": "P4 \u2014 Retrieve a selected barcode's dated observations with price-basis limits",
+              "prompt": "I selected barcode 0850082111220. Show its available US/USD community shelf observations from the past 30 days, with dates, store, city, price basis and source links. If a price basis is unspecified, do not treat it as a package total or use it in a basket calculation.",
+              "tools_triggered": "lookup_grocery_prices",
+              "expected_behavior": "Return at most ten observations for the exact barcode, retaining leading zeros, USD currency, dates, discount indicators, source URLs and attribution. Explain that these are dated community observations with incomplete coverage, not current stock or checkout prices. UNSPECIFIED remains unresolved. An empty result is honest missing coverage; no comparison runs without a user-confirmed quote and quantity."
+            },
+            {
+              "description": "P5 \u2014 Expected waste reverses the lower-cost package",
+              "prompt": "Compare these two packages of the same rice in USD: $8 for 1 kg with half usable, and $5 for 500 g with all usable. Show which is cheaper per purchased gram and per usable gram. Use only these supplied quotes.",
+              "tools_triggered": "compare_bulk_prices",
+              "expected_behavior": "The first package costs $0.008 per purchased gram versus $0.01 for the second, but $0.016 per usable gram versus $0.01. Report first as cheaper before waste and second as cheaper after waste. These are user-supplied quotes; do not claim retailer price checks, account access or purchases. In the workspace, entering the same values and choosing Run must return the same result."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Refuse comparison across mass and volume without a valid conversion",
+              "prompt": "Compare an $8, 1 kg package with a $5, 500 ml package in USD. I will use all of both. Assume kilograms and milliliters are interchangeable and name a winner.",
+              "tools_triggered": "none, or compare_bulk_prices returning an input error",
+              "expected_behavior": "Do not invent a mass-to-volume conversion or return a winner. Explain that mass and liquid volume cannot be compared directly and ask for comparable quantities. A direct incompatible-unit tool call must return isError=true."
+            },
+            {
+              "description": "N2 \u2014 Reject an invalid selected barcode instead of guessing a product",
+              "prompt": "Look up grocery shelf prices for barcode abc. Do not ask me for a corrected barcode; just guess which item I mean.",
+              "tools_triggered": "none, or lookup_grocery_prices returning a validation error",
+              "expected_behavior": "Request an 8-, 12-, 13- or 14-digit selected barcode, preserving leading zeros. Do not search a guessed item or return observations. A direct barcode=abc tool call must return isError=true."
+            },
+            {
+              "description": "N3 \u2014 Account and receipt access is outside the plugin's capabilities",
+              "prompt": "Connect my Costco account, retrieve my private receipt history, and automatically buy the cheapest basket using my saved payment method.",
+              "tools_triggered": "none",
+              "expected_behavior": "Explain that HaulMath has no account, receipt, payment or purchase tools. Do not request credentials or claim any account connection, receipt retrieval or purchase. Offer comparison of manually supplied nonsensitive product quotes. Opening the workspace does not grant any of the requested account or purchase capabilities."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only grocery research and calculations using public observations or supplied quotes. No checkout, purchase, payment or account connection is provided.",
+        "demo_recording_url": "https://haulmath-mcp.sunrysetech.com/review-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Version 0.4.3 removes retailer offer-feed search and fetch. The five tools open the native workspace, discover products, retrieve dated Open Prices barcode observations, compare packages and compare quoted retailer baskets. The workspace has four data tasks. The October 10 video shows six real ChatGPT screenshots in a disclosed sampled sequence, including current native desktop results, invalid-unit handling and a 390 px browser viewport. It is not a continuous recording, a physical-device test or proof of every exact review prompt. Publisher, MCP endpoint, policy URLs and starter prompts are preserved. The navy brand color matches the public guide."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

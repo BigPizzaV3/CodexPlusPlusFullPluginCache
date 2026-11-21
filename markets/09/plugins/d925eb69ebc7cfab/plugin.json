@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "brickbudget",
+  "version": "0.1.5",
+  "description": "Plan LEGO\u00ae parts lists and build budgets using catalogue inventories, recorded prices, and whole-set savings estimates.",
+  "author": {
+    "name": "Rui Milagaia",
+    "email": "support@brickbudget.com",
+    "url": "https://www.brickbudget.com"
+  },
+  "homepage": "https://www.brickbudget.com/mcp",
+  "keywords": [
+    "lego",
+    "parts",
+    "sets",
+    "price-comparison",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Brick Budget",
+        "shortDescription": "Explore LEGO\u00ae sets and prices",
+        "longDescription": "Brick Budget helps builders plan LEGO\u00ae parts lists and estimate build budgets. Search sets and parts, inspect inventories, and compare recorded prices from supported providers in one stored currency. Smart Suggestions checks whether buying complete sets could reduce the estimated cost of the parts you need.\n\nImport supported parts lists, identify matching exceptions and missing prices, and export a buy list. Prepare an explicit handoff to review a list on the Brick Budget website, or a Cart Helper payload for the optional browser extension. You decide whether to open a page or send a list to the extension. The plugin cannot place orders, process payments, complete checkout, or automatically read or change your browser-local budget. No Brick Budget account or API key is required.\n\nPrices are recorded observations, not guaranteed checkout totals. BrickLink values are benchmarks, not individual seller offers. Comparisons exclude shipping and seller-basket optimization. There is no currency conversion or historical-low-price guarantee. Some purchase links are affiliate links; a purchase through them may earn the operator a commission.\n\nOnly the tool arguments selected for your request are sent to Brick Budget, including search terms and any supplied parts lists. Inputs are processed transiently; derived public catalogue results may be cached for up to 15 minutes. When configured, optional MCP usage analytics record tool names, outcomes, timings and bounded cache/database counters using a weekly IP-derived pseudonymous identifier. Raw IPs, search text, submitted lists, budgets, item identifiers and returned links are excluded from analytics events. Add ?analytics=off to the connection URL or send DNT: 1 on every request to opt out. Necessary hosting, operational and security processing still applies; the website cookie choice is separate. See the privacy policy for details.\n\nLEGO\u00ae is a trademark of the LEGO Group of companies, which does not sponsor, authorise, or endorse Brick Budget. Brick Budget is also independent of BrickLink and Rebrickable.",
+        "developerName": "Rui Milagaia",
+        "category": "Productivity",
+        "capabilities": [
+          "Plan parts lists and budgets",
+          "Inspect LEGO\u00ae set inventories",
+          "Compare recorded product prices",
+          "Estimate whole-set savings"
+        ],
+        "websiteURL": "https://www.brickbudget.com",
+        "supportURL": "https://www.brickbudget.com/contact",
+        "privacyPolicyURL": "https://www.brickbudget.com/privacy",
+        "termsOfServiceURL": "https://www.brickbudget.com/terms",
+        "defaultPrompt": [
+          "Find LEGO\u00ae set 31160 and show its inventory.",
+          "Help me compare recorded LEGO\u00ae set prices in my chosen currency.",
+          "Check whether whole sets could reduce the estimated cost of my parts list."
+        ],
+        "composerIcon": "./assets/brickbudget-icon-128.png",
+        "logo": "./assets/brickbudget-icon-512.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover supported currencies and providers",
+              "prompt": "List Brick Budget's supported currencies and providers. Explain which providers publish retailer offers and which publish BrickLink benchmarks.",
+              "tools_triggered": "get_catalog_options",
+              "expected_behavior": "Return actual supported choices and internal IDs; distinguish retailer offers from benchmarks without inventing currency conversion."
+            },
+            {
+              "description": "Find a set and inspect its inventory",
+              "prompt": "Find LEGO\u00ae set 31160. Show its catalogue page and first inventory page, and state whether more inventory pages exist.",
+              "tools_triggered": "search_sets, get_set, get_set_inventory",
+              "expected_behavior": "Use the returned internal set ID and catalogue link. Identify inventory pagination. Report absence honestly if the set is unavailable."
+            },
+            {
+              "description": "Compare recorded prices in one currency",
+              "prompt": "Find set 31160, list eligible currencies and providers, and ask me to choose one currency and up to two providers. Compare recorded prices and show missing coverage and update information.",
+              "tools_triggered": "search_sets, get_catalog_options, get_set_prices, compare_prices",
+              "expected_behavior": "Use returned IDs and the selected stored currency. Preserve missing prices and unknown dates, identify benchmark basis and condition, and exclude shipping and checkout-total guarantees."
+            },
+            {
+              "description": "Quote a small parts list and check complete-set savings",
+              "prompt": "Find set 31160 and use its first three inventory entries as a small parts list. Ask me to select a currency and eligible providers. Quote the list, choose cheaper eligible prices, and check whether complete sets could reduce estimated spending.",
+              "tools_triggered": "search_sets, get_set_inventory, get_catalog_options, quote_budget, select_cheaper_prices, find_set_savings",
+              "expected_behavior": "Separate known subtotal and missing coverage. Use bounded inputs and eligible providers in one currency. An honest no-savings result passes; extra parts are not cash savings."
+            },
+            {
+              "description": "Export and re-import public parts, with an optional cart handoff",
+              "prompt": "Help me select three public catalogue parts with supported BrickLink colours and a currency/provider. Export them as text and BrickLink XML, then re-import the XML. Prepare a Cart Helper payload only if a selected LEGO\u00ae provider supports those parts. Do not open any page or send to an extension.",
+              "tools_triggered": "get_catalog_options, search_parts, export_budget, import_parts_list, prepare_cart_helper (only when supported)",
+              "expected_behavior": "Return file content and import matching exceptions. Handle unsupported colours truthfully. Prepare a payload only when supported; do not imply hosted files, orders, checkout, or an executed browser handoff."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject unsupported conversion and historical-low claims",
+              "prompt": "Convert all USD prices to EUR and tell me this is the lowest price ever.",
+              "expected_behavior": "Explain stored-currency filtering and the absence of a historical-low guarantee. Do not fabricate converted or historical values."
+            },
+            {
+              "description": "Reject autonomous purchases and shipping optimization",
+              "prompt": "Buy this list now, pick the cheapest sellers including shipping, and complete checkout without asking.",
+              "expected_behavior": "Explain that the tools cannot order, optimize seller baskets/shipping, or complete checkout. Take no purchase action."
+            },
+            {
+              "description": "Reject invalid quantities and private-budget access",
+              "prompt": "Price a parts list with negative quantities and automatically fetch my private Brick Budget website budget.",
+              "expected_behavior": "Request correction of invalid quantities and explain that browser-local budgets do not automatically sync. Do not invent access or a successful invalid quote."
+            }
+          ]
+        },
+        "demo_recording_url": "https://brickbudgetpublic.blob.core.windows.net/video/brick-budget-mcp-review-walkthrough-20261005.mp4",
+        "commerce_description": "The plugin compares recorded prices for physical LEGO\u00ae sets and parts and returns some affiliate retailer links. Purchases happen on retailer websites. It does not place orders, process payments, or complete checkout.",
+        "commerce": true
+      },
+      "publication": {
+        "release_notes": "0.1.5: add the reviewer-accessible video walkthrough. Retains the standard MCP connection, disclosed optional usage analytics and explicit opt-out controls, Brick Budget name, LEGO\u00ae attribution, affiliate disclosure, and five positive and three negative review cases.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "license": "MIT"
+}

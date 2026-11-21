@@ -1,0 +1,143 @@
+{
+  "name": "statement-converter",
+  "version": "1.0.2",
+  "description": "Convert bank and credit card statement PDFs to Excel or CSV, reconciled to the cent.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://statement-converter.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "bank statement converter",
+    "convert bank statement to excel",
+    "bank statement pdf to excel",
+    "bank statement to csv",
+    "credit card statement to excel",
+    "pdf to excel",
+    "reconcile bank statement",
+    "bank reconciliation",
+    "quickbooks csv import",
+    "categorize transactions",
+    "money in and out by month",
+    "bank statement pdf to excel converter",
+    "pdf bank statement converter",
+    "statement to excel"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Tallyproof Statement Converter",
+    "shortDescription": "Bank statement PDF to XLSX/CSV",
+    "longDescription": "Convert a bank statement PDF to Excel or CSV and check that it balances to the cent: opening balance + money in - money out = closing balance. Attach a bank or credit card statement (a text PDF from your bank's website, or its CSV or Excel export) and Tallyproof extracts each transaction: date, description, signed amount (money out negative), running balance when printed, and a suggested category.\n\nThe key step is reconciliation. It finds the opening and closing balance on the statement and checks opening + money in - money out = closing to the cent. You see PASS, or the difference in dollars and cents and the rows to look at: where the running balance breaks, a likely missing deposit or withdrawal, a duplicated row, or a reversed sign. Deposit and withdrawal totals are compared with the statement's own totals.\n\nIt handles real statement layouts: one signed amount column, separate withdrawal and deposit columns, separate deposit and withdrawal sections, CR/DR suffixes, negatives in parentheses, thousands separators, multi-page statements with repeated headers, descriptions that wrap onto a second line, and dates without a year (placed inside the statement period, including December to January). Bank CSV and Excel exports are cleaned into the same format, newest-first or not.\n\nDownloads: an Excel workbook (transactions, reconciliation, totals by month and by category), a clean CSV, and a QuickBooks-ready CSV (Date, Description, Amount). You can also paste or list transactions to reconcile them or total money in and out by month and category.\n\nGood for bookkeepers, freelancers and small businesses doing monthly books or taxes, and anyone preparing statements for a loan application.\n\nLimitations: text PDFs only (scanned or photographed statements need OCR first); up to 60 pages and 20,000 transactions per file. Account numbers are masked to the last 4 digits. Files are read once and downloads expire after about an hour. Categories are keyword suggestions, not accounting or tax advice.",
+    "developerName": "Zovo",
+    "category": "Finance",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://statement-converter.zovo.one",
+    "supportURL": "https://statement-converter.zovo.one/support",
+    "privacyPolicyURL": "https://statement-converter.zovo.one/privacy",
+    "termsOfServiceURL": "https://statement-converter.zovo.one/terms",
+    "defaultPrompt": [
+      "Convert my bank statement PDF to Excel and check it balances",
+      "QuickBooks CSV: 10/2/26 client payment 1800, 10/5 office rent -950, 10/12 design app subscription -59.99, 10/20 bank fee -15",
+      "Statement is off: opening $500, closing $315.75; 6/3/26 deposit 200, 6/4 groceries -84.25, 6/4 groceries -84.25, 6/15 rent -300"
+    ],
+    "brandColor": "#0F7B5F",
+    "brandColorDark": "#4CC9A0",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/statement-converter/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Reconcile pasted transactions",
+              "prompt": "Reconcile: opening $1,200, closing $2,922.51; 9/1/26 payroll 2450, 9/3 rent -700, 9/9 Streamflix -15.49, 9/30 fee -12",
+              "tools_triggered": "summarize_transactions",
+              "expected_behavior": "Calls summarize_transactions with the four rows (payroll +2450, rent -700, Streamflix -15.49, fee -12), opening_balance 1200 and closing_balance 2922.51. Result: Reconciliation PASS to the cent: opening $1,200.00 + money in $2,450.00 - money out $727.49 = $2,922.51. Suggested categories include Payroll and Rent & mortgage. The widget shows a green PASS badge, the transaction table and Download Excel, CSV and QuickBooks CSV buttons."
+            },
+            {
+              "description": "QuickBooks CSV from listed transactions (starter prompt 2)",
+              "prompt": "QuickBooks CSV: 10/2/26 client payment 1800, 10/5 office rent -950, 10/12 design app subscription -59.99, 10/20 bank fee -15",
+              "tools_triggered": "summarize_transactions",
+              "expected_behavior": "Calls summarize_transactions with the four rows dated 2026-10-02 to 2026-10-20. Result: money in $1,800.00, money out $1,024.99, net $775.01; reconciliation is not verified because no opening or closing balance was given. Suggested categories: Income $1,800.00, Rent & mortgage $950.00, Subscriptions $59.99, Fees $15.00. Returns a QuickBooks CSV download (Date, Description, Amount) plus Excel and CSV."
+            },
+            {
+              "description": "Statement that does not balance: duplicate row (starter prompt 3)",
+              "prompt": "Statement is off: opening $500, closing $315.75; 6/3/26 deposit 200, 6/4 groceries -84.25, 6/4 groceries -84.25, 6/15 rent -300",
+              "tools_triggered": "summarize_transactions",
+              "expected_behavior": "Calls summarize_transactions with opening_balance 500 and closing_balance 315.75. Result: DIFFERENCE of $84.25: opening $500.00 + money in $200.00 - money out $468.50 = $231.50 versus statement closing $315.75. Rows 2 and 3 (2026-06-04 GROCERIES -$84.25) are flagged as a possible duplicate; removing one closes the gap. The widget shows a red badge listing those rows."
+            },
+            {
+              "description": "Credit card statement across December and January",
+              "prompt": "Check my credit card statement: previous balance $640, new balance $512.49. 12/14/25 Greenleaf Market -54.20, 12/20 Skyway Airlines -412.80, 12/28 payment 600, 1/3/26 Streamflix -15.49, 1/5/26 return 10",
+              "tools_triggered": "summarize_transactions",
+              "expected_behavior": "Calls summarize_transactions with account_type credit_card, opening_balance 640 and closing_balance 512.49. Result: PASS: previous balance $640.00 + charges $482.49 - payments and credits $610.00 = $512.49. Months 2025-12 and 2026-01 are totaled separately; the payment is categorized as Card payment."
+            },
+            {
+              "description": "Convert an attached bank statement PDF (starter prompt 1; attach a one-page text PDF checking statement, e.g. the sample at fixtures/checking-signed.pdf)",
+              "prompt": "Convert my bank statement PDF to Excel and check it balances",
+              "tools_triggered": "convert_bank_statement",
+              "expected_behavior": "Calls convert_bank_statement with the attached PDF. For the sample statement: 27 transactions with dates, descriptions, signed amounts and running balances; Reconciliation PASS to the cent: opening $4,123.55 + money in $3,792.12 - money out $2,881.20 = $5,034.47, matching the statement closing balance, and the running balance check passes on every row. The account number is masked to the last 4 digits. The widget shows a green PASS badge, the transaction table, suggested categories and Download Excel, CSV and QuickBooks CSV buttons."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Bank account lookup with no statement or transactions. Expected: the assistant answers or says it cannot look it up, and does not call any tool.",
+              "prompt": "What is the routing number for my checking account?"
+            },
+            {
+              "description": "Opening a bank account is out of scope. Expected: general advice, no tool call.",
+              "prompt": "Help me open a new business checking account online"
+            },
+            {
+              "description": "Generic PDF editing that is not a financial statement. Expected: no call to convert_bank_statement or summarize_transactions.",
+              "prompt": "Convert this signed lease agreement PDF to a Word document so I can edit it"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://statement-converter.zovo.one/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "The listing names the main job (bank statement PDF to Excel or CSV) and the skill tells the assistant what to do with a scanned or photographed statement: read the rows and reconcile them with summarize_transactions. Tools and their inputs and outputs are unchanged.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Wyci\u0105g bankowy PDF do Excela",
+            "description": "Zamie\u0144 wyci\u0105g z konta lub karty kredytowej w arkusz transakcji i sprawd\u017a co do grosza, czy si\u0119 bilansuje. Do\u0142\u0105cz wyci\u0105g z konta lub karty kredytowej (tekstowy PDF ze strony banku albo eksport CSV lub Excel), a Tallyproof wyodr\u0119bni kolejne transakcje: dat\u0119, opis, kwot\u0119 ze znakiem (wydatki ujemne), saldo bie\u017c\u0105ce, je\u015bli jest wydrukowane, oraz sugerowan\u0105 kategori\u0119.\n\nNajwa\u017cniejsza jest uzgodnienie salda. Narz\u0119dzie znajduje saldo pocz\u0105tkowe i ko\u0144cowe i sprawdza co do grosza, czy saldo pocz\u0105tkowe + wp\u0142ywy - wydatki = saldo ko\u0144cowe. Zobaczysz PASS albo r\u00f3\u017cnic\u0119 i wiersze do sprawdzenia: miejsce, w kt\u00f3rym saldo bie\u017c\u0105ce si\u0119 nie zgadza, prawdopodobnie brakuj\u0105c\u0105 wp\u0142at\u0119 lub wyp\u0142at\u0119, zdublowany wiersz albo odwr\u00f3cony znak.\n\nObs\u0142uguje r\u00f3\u017cne uk\u0142ady wyci\u0105g\u00f3w: jedn\u0105 kolumn\u0119 kwot ze znakiem, osobne kolumny wp\u0142at i wyp\u0142at, osobne sekcje, oznaczenia CR/DR, kwoty ujemne w nawiasach, wiele stron z powtarzanymi nag\u0142\u00f3wkami, opisy zawini\u0119te do drugiej linii i daty bez roku (tak\u017ce prze\u0142om grudnia i stycznia). Eksporty CSV i Excel z banku s\u0105 porz\u0105dkowane do tego samego formatu.\n\nPliki do pobrania: skoroszyt Excel (transakcje, uzgodnienie, sumy wed\u0142ug miesi\u0119cy i kategorii), czysty CSV i CSV gotowy do importu w QuickBooks. Mo\u017cesz te\u017c wklei\u0107 list\u0119 transakcji.\n\nOgraniczenia: tylko tekstowe pliki PDF (skany wymagaj\u0105 OCR), do 60 stron i 20 000 transakcji. Numery kont s\u0105 maskowane do 4 ostatnich cyfr. Linki do pobrania wygasaj\u0105 po oko\u0142o godzinie. Kategorie to sugestie, a nie porada ksi\u0119gowa ani podatkowa."
+          },
+          "de-DE": {
+            "subtitle": "Kontoauszug-PDF zu Excel",
+            "description": "Wandeln Sie einen Konto- oder Kreditkartenauszug in eine Tabelle der Buchungen um und pr\u00fcfen Sie auf den Cent, ob er aufgeht. H\u00e4ngen Sie einen Konto- oder Kreditkartenauszug an (ein Text-PDF von der Website Ihrer Bank oder deren CSV- bzw. Excel-Export), und Tallyproof liest die einzelnen Buchungen aus: Datum, Beschreibung, Betrag mit Vorzeichen (Ausgaben negativ), laufender Saldo, falls gedruckt, und eine vorgeschlagene Kategorie.\n\nDer wichtigste Schritt ist der Abgleich. Das Tool findet Anfangs- und Endsaldo und pr\u00fcft auf den Cent genau: Anfangssaldo + Eing\u00e4nge - Ausg\u00e4nge = Endsaldo. Sie sehen PASS oder die Differenz und die betroffenen Zeilen: wo der laufende Saldo bricht, eine wahrscheinlich fehlende Gutschrift oder Abbuchung, eine doppelte Zeile oder ein vertauschtes Vorzeichen.\n\nUnterst\u00fctzt werden typische Layouts: eine Betragsspalte mit Vorzeichen, getrennte Soll- und Haben-Spalten, getrennte Abschnitte, CR/DR-Kennzeichen, negative Betr\u00e4ge in Klammern, mehrseitige Ausz\u00fcge mit wiederholten Kopfzeilen, umbrochene Beschreibungen und Daten ohne Jahr (auch Dezember bis Januar). CSV- und Excel-Exporte werden in dasselbe Format gebracht.\n\nDownloads: Excel-Arbeitsmappe (Buchungen, Abgleich, Summen nach Monat und Kategorie), saubere CSV und eine CSV f\u00fcr den QuickBooks-Import. Sie k\u00f6nnen Buchungen auch einf\u00fcgen.\n\nEinschr\u00e4nkungen: nur Text-PDFs (Scans brauchen zuerst OCR), bis 60 Seiten und 20.000 Buchungen. Kontonummern werden bis auf die letzten 4 Ziffern maskiert. Download-Links verfallen nach etwa einer Stunde. Kategorien sind Vorschl\u00e4ge, keine Buchhaltungs- oder Steuerberatung."
+          },
+          "es-ES": {
+            "subtitle": "Extracto bancario PDF a Excel",
+            "description": "Convierte un extracto de cuenta o de tarjeta de cr\u00e9dito en una hoja de movimientos y comprueba al c\u00e9ntimo que cuadra. Adjunta un extracto de cuenta o de tarjeta de cr\u00e9dito (un PDF de texto de la web de tu banco, o su exportaci\u00f3n CSV o Excel) y Tallyproof extrae los movimientos uno a uno: fecha, descripci\u00f3n, importe con signo (salidas en negativo), saldo acumulado si aparece y una categor\u00eda sugerida.\n\nEl paso clave es la conciliaci\u00f3n. Encuentra el saldo inicial y el final y comprueba al c\u00e9ntimo que saldo inicial + entradas - salidas = saldo final. Ver\u00e1s PASS o la diferencia y las filas que revisar: d\u00f3nde se rompe el saldo acumulado, un ingreso o cargo que probablemente falta, una fila duplicada o un signo invertido.\n\nAdmite formatos reales: una columna de importe con signo, columnas separadas de cargos y abonos, secciones separadas, sufijos CR/DR, negativos entre par\u00e9ntesis, extractos de varias p\u00e1ginas con encabezados repetidos, descripciones en dos l\u00edneas y fechas sin a\u00f1o (incluido el paso de diciembre a enero). Las exportaciones CSV y Excel se limpian al mismo formato.\n\nDescargas: libro de Excel (movimientos, conciliaci\u00f3n, totales por mes y categor\u00eda), CSV limpio y un CSV listo para QuickBooks. Tambi\u00e9n puedes pegar una lista de movimientos.\n\nLimitaciones: solo PDF de texto (los escaneos necesitan OCR), hasta 60 p\u00e1ginas y 20.000 movimientos. Los n\u00fameros de cuenta se ocultan salvo los 4 \u00faltimos d\u00edgitos. Los enlaces caducan en una hora aproximadamente. Las categor\u00edas son sugerencias, no asesoramiento contable ni fiscal."
+          },
+          "fr-FR": {
+            "subtitle": "Relev\u00e9 bancaire PDF vers Excel",
+            "description": "Transformez un relev\u00e9 de compte ou de carte de cr\u00e9dit en tableau d'op\u00e9rations et v\u00e9rifiez au centime qu'il est \u00e9quilibr\u00e9. Joignez un relev\u00e9 de compte ou de carte de cr\u00e9dit (un PDF texte t\u00e9l\u00e9charg\u00e9 sur le site de votre banque, ou son export CSV ou Excel) et Tallyproof extrait les op\u00e9rations une \u00e0 une : date, libell\u00e9, montant sign\u00e9 (sorties en n\u00e9gatif), solde courant s'il est imprim\u00e9 et une cat\u00e9gorie sugg\u00e9r\u00e9e.\n\nL'\u00e9tape cl\u00e9 est le rapprochement. L'outil trouve le solde d'ouverture et de cl\u00f4ture et v\u00e9rifie au centime pr\u00e8s que solde d'ouverture + entr\u00e9es - sorties = solde de cl\u00f4ture. Vous obtenez PASS ou l'\u00e9cart et les lignes \u00e0 v\u00e9rifier : o\u00f9 le solde courant ne suit plus, un d\u00e9p\u00f4t ou un retrait probablement manquant, une ligne en double ou un signe invers\u00e9.\n\nIl g\u00e8re les mises en page courantes : une colonne de montants sign\u00e9s, des colonnes d\u00e9bit et cr\u00e9dit s\u00e9par\u00e9es, des sections s\u00e9par\u00e9es, les suffixes CR/DR, les n\u00e9gatifs entre parenth\u00e8ses, les relev\u00e9s de plusieurs pages avec en-t\u00eates r\u00e9p\u00e9t\u00e9s, les libell\u00e9s sur deux lignes et les dates sans ann\u00e9e (y compris de d\u00e9cembre \u00e0 janvier). Les exports CSV et Excel sont remis au m\u00eame format.\n\nT\u00e9l\u00e9chargements : classeur Excel (op\u00e9rations, rapprochement, totaux par mois et par cat\u00e9gorie), CSV propre et CSV pr\u00eat pour QuickBooks. Vous pouvez aussi coller une liste d'op\u00e9rations.\n\nLimites : PDF texte uniquement (les scans n\u00e9cessitent un OCR), jusqu'\u00e0 60 pages et 20 000 op\u00e9rations. Les num\u00e9ros de compte sont masqu\u00e9s sauf les 4 derniers chiffres. Les liens expirent apr\u00e8s environ une heure. Les cat\u00e9gories sont des suggestions, pas un conseil comptable ou fiscal."
+          },
+          "ja-JP": {
+            "subtitle": "\u9280\u884c\u660e\u7d30PDF\u3092Excel\u306b\u5909\u63db",
+            "description": "\u9280\u884c\u53e3\u5ea7\u3084\u30af\u30ec\u30b8\u30c3\u30c8\u30ab\u30fc\u30c9\u306e\u660e\u7d30\u66f8\u3092\u53d6\u5f15\u4e00\u89a7\u306e\u8868\u306b\u5909\u63db\u3057\u3001\u6b8b\u9ad8\u304c1\u30bb\u30f3\u30c8\u5358\u4f4d\u3067\u5408\u3063\u3066\u3044\u308b\u304b\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002\u9280\u884c\u53e3\u5ea7\u307e\u305f\u306f\u30af\u30ec\u30b8\u30c3\u30c8\u30ab\u30fc\u30c9\u306e\u660e\u7d30\u66f8\uff08\u9280\u884c\u30b5\u30a4\u30c8\u304b\u3089\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u3057\u305f\u30c6\u30ad\u30b9\u30c8PDF\u3001\u307e\u305f\u306fCSV\u30fbExcel\u306e\u66f8\u304d\u51fa\u3057\uff09\u3092\u6dfb\u4ed8\u3059\u308b\u3068\u3001Tallyproof \u304c\u53d6\u5f15\u30921\u4ef6\u305a\u3064\u62bd\u51fa\u3057\u307e\u3059\u3002\u65e5\u4ed8\u3001\u6458\u8981\u3001\u7b26\u53f7\u4ed8\u304d\u91d1\u984d\uff08\u51fa\u91d1\u306f\u30de\u30a4\u30ca\u30b9\uff09\u3001\u5370\u5b57\u3055\u308c\u3066\u3044\u308c\u3070\u6b8b\u9ad8\u3001\u305d\u3057\u3066\u63a8\u5b9a\u30ab\u30c6\u30b4\u30ea\u3067\u3059\u3002\n\n\u6700\u3082\u91cd\u8981\u306a\u306e\u306f\u7167\u5408\u3067\u3059\u3002\u671f\u9996\u6b8b\u9ad8\u3068\u671f\u672b\u6b8b\u9ad8\u3092\u898b\u3064\u3051\u3001\u671f\u9996\u6b8b\u9ad8 + \u5165\u91d1 - \u51fa\u91d1 = \u671f\u672b\u6b8b\u9ad8 \u304c1\u30bb\u30f3\u30c8\u5358\u4f4d\u3067\u4e00\u81f4\u3059\u308b\u304b\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002\u7d50\u679c\u306f PASS\u3001\u307e\u305f\u306f\u5dee\u984d\u3068\u78ba\u8a8d\u3059\u3079\u304d\u884c\uff08\u6b8b\u9ad8\u306e\u6d41\u308c\u304c\u5d29\u308c\u308b\u7b87\u6240\u3001\u629c\u3051\u3066\u3044\u308b\u53ef\u80fd\u6027\u306e\u3042\u308b\u5165\u91d1\u30fb\u51fa\u91d1\u3001\u91cd\u8907\u884c\u3001\u7b26\u53f7\u306e\u9006\u8ee2\uff09\u3067\u793a\u3055\u308c\u307e\u3059\u3002\n\n\u7b26\u53f7\u4ed8\u304d\u306e\u91d1\u984d\u5217\u3001\u5165\u91d1\u30fb\u51fa\u91d1\u306e\u5225\u5217\u3001\u5165\u91d1\u3068\u51fa\u91d1\u306e\u5225\u30bb\u30af\u30b7\u30e7\u30f3\u3001CR/DR \u8868\u8a18\u3001\u304b\u3063\u3053\u66f8\u304d\u306e\u30de\u30a4\u30ca\u30b9\u3001\u898b\u51fa\u3057\u304c\u7e70\u308a\u8fd4\u3055\u308c\u308b\u8907\u6570\u30da\u30fc\u30b8\u30012\u884c\u306b\u6298\u308a\u8fd4\u3055\u308c\u305f\u6458\u8981\u3001\u5e74\u306e\u306a\u3044\u65e5\u4ed8\uff0812\u6708\u304b\u30891\u6708\u3078\u306e\u5e74\u307e\u305f\u304e\u3092\u542b\u3080\uff09\u306b\u5bfe\u5fdc\u3057\u307e\u3059\u3002\u9280\u884c\u306eCSV\u30fbExcel\u66f8\u304d\u51fa\u3057\u3082\u540c\u3058\u5f62\u5f0f\u306b\u6574\u3048\u307e\u3059\u3002\n\n\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\uff1aExcel\u30d6\u30c3\u30af\uff08\u53d6\u5f15\u3001\u7167\u5408\u3001\u6708\u5225\u30fb\u30ab\u30c6\u30b4\u30ea\u5225\u306e\u96c6\u8a08\uff09\u3001\u6574\u7406\u6e08\u307fCSV\u3001QuickBooks\u53d6\u308a\u8fbc\u307f\u7528CSV\u3002\u53d6\u5f15\u3092\u8cbc\u308a\u4ed8\u3051\u3066\u7167\u5408\u3059\u308b\u3053\u3068\u3082\u3067\u304d\u307e\u3059\u3002\n\n\u5236\u9650\u4e8b\u9805\uff1a\u30c6\u30ad\u30b9\u30c8PDF\u306e\u307f\uff08\u30b9\u30ad\u30e3\u30f3\u753b\u50cf\u306fOCR\u304c\u5fc5\u8981\uff09\u30011\u30d5\u30a1\u30a4\u30eb60\u30da\u30fc\u30b8\u30fb20,000\u4ef6\u307e\u3067\u3002\u53e3\u5ea7\u756a\u53f7\u306f\u4e0b4\u6841\u4ee5\u5916\u3092\u4f0f\u305b\u307e\u3059\u3002\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u30ea\u30f3\u30af\u306f\u7d041\u6642\u9593\u3067\u5931\u52b9\u3057\u307e\u3059\u3002\u30ab\u30c6\u30b4\u30ea\u306f\u63d0\u6848\u3067\u3042\u308a\u3001\u4f1a\u8a08\u3084\u7a0e\u52d9\u306e\u52a9\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "Extrato banc\u00e1rio PDF p/ Excel",
+            "description": "Transforme um extrato de conta ou de cart\u00e3o de cr\u00e9dito em uma planilha de lan\u00e7amentos e confira, centavo por centavo, se ele fecha. Anexe um extrato de conta ou de cart\u00e3o de cr\u00e9dito (um PDF de texto baixado do site do banco, ou a exporta\u00e7\u00e3o CSV ou Excel) e o Tallyproof extrai os lan\u00e7amentos um a um: data, descri\u00e7\u00e3o, valor com sinal (sa\u00eddas negativas), saldo corrente quando impresso e uma categoria sugerida.\n\nA etapa principal \u00e9 a concilia\u00e7\u00e3o. Ele encontra o saldo inicial e o final e confere, centavo por centavo, se saldo inicial + entradas - sa\u00eddas = saldo final. Voc\u00ea v\u00ea PASS ou a diferen\u00e7a e as linhas a revisar: onde o saldo corrente quebra, um dep\u00f3sito ou saque que provavelmente falta, uma linha duplicada ou um sinal invertido.\n\nSuporta layouts reais: uma coluna de valor com sinal, colunas separadas de d\u00e9bito e cr\u00e9dito, se\u00e7\u00f5es separadas, sufixos CR/DR, negativos entre par\u00eanteses, extratos de v\u00e1rias p\u00e1ginas com cabe\u00e7alhos repetidos, descri\u00e7\u00f5es quebradas em duas linhas e datas sem ano (inclusive a virada de dezembro para janeiro). Exporta\u00e7\u00f5es CSV e Excel s\u00e3o organizadas no mesmo formato.\n\nDownloads: pasta de trabalho Excel (lan\u00e7amentos, concilia\u00e7\u00e3o, totais por m\u00eas e categoria), CSV limpo e um CSV pronto para o QuickBooks. Voc\u00ea tamb\u00e9m pode colar uma lista de lan\u00e7amentos.\n\nLimita\u00e7\u00f5es: apenas PDFs de texto (digitaliza\u00e7\u00f5es precisam de OCR), at\u00e9 60 p\u00e1ginas e 20.000 lan\u00e7amentos. N\u00fameros de conta s\u00e3o mascarados, exceto os 4 \u00faltimos d\u00edgitos. Os links expiram em cerca de uma hora. As categorias s\u00e3o sugest\u00f5es, n\u00e3o orienta\u00e7\u00e3o cont\u00e1bil ou tribut\u00e1ria."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

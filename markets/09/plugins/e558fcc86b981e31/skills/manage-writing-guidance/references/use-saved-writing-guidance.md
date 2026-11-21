@@ -1,0 +1,27 @@
+# Use saved company and personal writing guidance
+
+## Resolve, retrieve and assemble
+
+Resolve the connected company with `get_company_writing_guide`. For a requested person, use `list_named_voices` and the returned stable ID, then retrieve `get_voice_writing_context` with `target_profile_id` and the requested channel. Ask about duplicate names. Report missing, archived or inaccessible targets; do not silently substitute a company or different person. Tool unavailability does not prove a guide is absent.
+
+Use fresh published guidance instead of a competing static copy from an older skill or previous chat. If the user also supplies conflicting instructions, surface a consequential conflict rather than silently rewriting shared guidance. If no guide exists, disclose this and offer setup or use the user's supplied direction as an explicitly temporary alternative.
+
+Use `saved.applied_context` for the requested channel and resolve its `entry_ids` against canonical `saved.entries`. Respect service-resolved inheritance, overrides and requirement/preference distinctions. Canonical entries may include other channels: do not treat every returned entry as applicable. Missing entry references are a payload gap to report, not permission to guess.
+
+Read applicable `kind=example` entries, including their actual preferred/avoided text and annotations. `effective_instructions` does not inline all example prose; reading that array alone can lose the strongest voice evidence. Published illustrative examples remain illustrative, sourced excerpts remain attributed, and author approval must be explicit. Examples guide expression, not factual product claims or invented personal experiences. Do not recycle examples or catchphrases mechanically.
+
+Retain selected inspiration authors' names, selected qualities to borrow/avoid and blend direction. Do not reduce them to anonymous adjectives, invent attribution, or promote research-only names to active inspirations. A custom voice needs no external author if none is selected.
+
+## Apply the brief and check the writing
+
+Resolve audience, format, purpose, supplied facts and desired action from the brief. Ask only for consequential missing details. Buyer intelligence and current factual claims have their own evidence requirements; a voice guide is not evidence of product availability or customer results.
+
+Apply only format conditions that fit the task. Newsletter guidance should not turn a short post into an essay; company-only narration should not override a person's perspective. Choose a requested or appropriate tone within the identity without saving that choice as a permanent correction. Do not invent a format/tone parameter the tool does not support.
+
+Let the voice shape what the writer notices, how the argument develops, diction and rhythm throughout the body. A first-person opener, signature or enthusiastic adjective is insufficient. Compare the draft with the retrieved positive/negative examples and explicit corrections without inventing quirks, events or biography. Preserve meaningful audience differences when multiple editions are requested.
+
+Before drafting, translate the applicable saved guidance into a small working brief: binding requirements, selected voice preferences, relevant examples and this assignment's constraints. Carry concrete preferences such as question use, paragraph length, opening style, vocabulary, punctuation and calls to action into the prose rather than merely mentioning them in a source note. Preferences are defaults to follow when compatible with the assignment, not optional decoration; do not silently drop them in favor of generic writing habits. Apply each preference only to its stated target, channel and format. Do not turn a preference into a new shared requirement or force it where it conflicts with a binding rule or the user's explicit brief; surface consequential conflicts.
+
+Before returning the draft, make one editorial pass against that working brief and correct visible departures in the text. For a count or limit, budget that device across the whole artifact before drafting: choose the allowed questions, calls to action or other constrained elements and express the remaining ideas without adding more instances. Count actual occurrences, including rhetorical questions as well as closing questions; an intended single closing question does not mean the body contains no others. Revise excess instances into statements where suitable. Do not print a compliance count unless it has been checked against the finished text. Check the whole artifact, not just its opening or signature. Preserve factual boundaries and natural writing; do not add an AI judge, repeated generation loop, compliance score or a claim that voice matching has been independently validated. Keep this working check out of finished copy unless the user asks for an explanation. A later format change or rewrite carries forward the still-applicable preferences and retrieves the new channel context when needed.
+
+Drafting is read-only. Do not create a guide, update rules, save an example, store a private sample, publish a post or send a message merely to write. Use the existing reviewed mutation workflow only for explicit persistent changes. When reporting source use, identify the actual retrieved target/channel/revisions; do not claim a tool call or independent voice validation that did not occur.

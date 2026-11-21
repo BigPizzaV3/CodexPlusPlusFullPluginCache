@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pocat",
+  "version": "1.0.0",
+  "description": "Save knowledge from conversations as Cards and manage multiple-choice Tests in your Pocat account.",
+  "author": {
+    "name": "\uc7ac\uc6c5 \uc784"
+  },
+  "homepage": "https://pocatai.com",
+  "keywords": [
+    "education",
+    "flashcards",
+    "learning"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Pocat",
+        "developerName": "\uc7ac\uc6c5 \uc784",
+        "shortDescription": "Save chats as study flashcards",
+        "longDescription": "Pocat saves knowledge you choose from a conversation as small flashcards for later learning and review. Save the relevant excerpt with topic Tags, find your saved Capture Batches, edit or delete selected Cards, and create, update, or delete multiple-choice Tests. Learning and Tests take place in Pocat on the web or iPhone with the same account. Saving Cards does not automatically start Review. Every tool requires sign-in and operates only on your own Pocat account. Only the excerpt needed for your Cards is sent; full conversation history is not required. Passwords, API keys, payment-card numbers, authentication codes, and other restricted data must not be saved. New AI-created batches may be locked; choose which batch to unlock in the Pocat iPhone app. The plugin does not publish batches, send email, mark Learning complete, or change Review dates.",
+        "category": "Education & Research",
+        "websiteURL": "https://pocatai.com",
+        "supportURL": "https://pocatai.com/contact",
+        "privacyPolicyURL": "https://pocatai.com/privacy",
+        "termsOfServiceURL": "https://pocatai.com/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "Save the key ideas from this conversation as Pocat Cards.",
+          "Find my 'Review demo: active recall' batch in Pocat and create a three-question multiple-choice Test.",
+          "Improve the distractors for question 2 in my Pocat 'Review demo: HTTP essentials' Test."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://pocatai.com/review/pocat-chatgpt-demo-20261004-023c79c4.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Capture with Tags. Use a dedicated review account. The supplied excerpt is synthetic. The saved batch is also the disposable Card fixture for positive case 5. Trial or other ordinary access must make this batch unlocked for the later case; if it is locked, explain the returned access state and stop that dependent case. For a transport retry, reuse the exact original idempotency key rather than interpreting a second user request as a retry.",
+              "prompt": "Save these ideas in Pocat as a batch called 'Plugin review: recall sandbox 20261004 review01': active recall means retrieving an answer before looking it up; spaced repetition means reviewing over time; saving a Card alone does not start its Review schedule. Make three Cards and add suitable topic tags.",
+              "tools_triggered": "list_tags, save_cards",
+              "expected_behavior": "Read existing Tag names first. Save one batch with the requested title, exactly three Cards with one recall target each, a minimal excerpt of the supplied synthetic text, and 1-3 suitable Tags reusing existing names where appropriate. Use one new idempotency_key; an HTTP retry with that key returns the same batch_id without duplication. Report the returned card_count and locked flag truthfully. The new Cards start in Inbox without Review State; no Learning or Review is initiated."
+            },
+            {
+              "description": "Edit one selected Card, preserving its other fields. Fixture: the existing unlocked 'Review demo: HTTP essentials' batch contains exactly one Card whose Prompt is 'What does HTTP 401 mean?'. Use its current Card id from the selected batch; no internal identifier needs to be supplied by the reviewer. Repeating this exact edit is safe.",
+              "prompt": "In my Pocat batch 'Review demo: HTTP essentials', change only the answer to 'What does HTTP 401 mean?' to 'The request needs valid authentication credentials.' Keep its question and explanation unchanged.",
+              "tools_triggered": "list_capture_batches, get_capture_batch_for_test, update_card",
+              "expected_behavior": "Find the exact title, clarify if it is ambiguous, and read only that unlocked batch. Identify the Card by its Prompt. Call update_card with its returned card_id, the requested complete Answer, unchanged Prompt and Elaboration, and user_requested=true. Confirm the updated Card from the result. Other Cards, Source Excerpt, Learning and Review history, and schedule stay unchanged."
+            },
+            {
+              "description": "Create the first Test. Fixture: the existing unlocked 'Review demo: active recall' batch has three Cards and initially no Test. If a previous rehearsal left a Test, explicitly delete only that Test before running this case; never silently overwrite it. This case supplies the Test for positive cases 4 and 5.",
+              "prompt": "Find my 'Review demo: active recall' batch in Pocat and make a three-question multiple-choice Test covering its key ideas.",
+              "tools_triggered": "list_capture_batches, get_capture_batch_for_test, create_test",
+              "expected_behavior": "Find the unique exact-title batch, read its Cards, and create one Test with exactly three questions grounded in those Cards. Each question has four distinct options, one zero-based correct_option_index, and an explanation. Use a new idempotency_key, reused only for retrying this create. The returned revision is 1 and question_count is 3. Tell the user the saved Test can be taken in Pocat on the web or iPhone. Do not replace an existing Test or change Card scheduling."
+            },
+            {
+              "description": "Explicitly revise an existing Test. Run positive case 3 first, or use its still-existing Test. The current Test must have at least two questions. Fetch its current revision before updating; preserve all questions except the requested distractor change.",
+              "prompt": "In my Pocat 'Review demo: active recall' Test, make the incorrect choices in question 2 more plausible. Keep every other question and the correct answer unchanged.",
+              "tools_triggered": "list_capture_batches, get_capture_batch_for_test, update_test",
+              "expected_behavior": "Read the selected batch and existing Test. Submit the complete ordered question set, keeping unchanged questions and question 2's correct answer, with user_requested=true, expected_revision equal to the revision just read, and one new update idempotency_key. The response keeps the test_id and increments revision exactly once. A transport retry reuses that update key. On a revision conflict, do not claim success or overwrite newer content. Preserve prior Test Attempts and Card learning schedules."
+            },
+            {
+              "description": "Explicitly delete named review fixtures. Run positive cases 1 and 3 first. Delete only the Test on 'Review demo: active recall' and the 'What is active recall?' Card in 'Plugin review: recall sandbox 20261004 review01'. If the model used a different wording for that Card in case 1, select it by its active-recall concept and obtain clarification if more than one Card matches. The seeded HTTP Test and unrelated Cards must remain.",
+              "prompt": "Delete the Test belonging to 'Review demo: active recall'. Also delete only the Card about the meaning of active recall from 'Plugin review: recall sandbox 20261004 review01'. Keep both batches and all their other Cards.",
+              "tools_triggered": "list_capture_batches, get_capture_batch_for_test, delete_test, delete_card",
+              "expected_behavior": "Resolve and read the two explicitly named batches. Delete the returned Test id and the uniquely identified sandbox Card id, each with user_requested=true. Confirm only the successful deletions. The deleted Test's questions, options, Attempts, and update receipts are removed; the Card's Learning and Review records are removed. Both batches, their Source Excerpts, and their other Cards remain. A repeated delete_test is safe; a repeated delete_card returns not found and makes no additional change. Do not delete the seeded HTTP Test or the account."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Restricted secret storage is outside supported Capture. Explain that Pocat must not store passwords or API keys. Do not solicit, echo, or transmit a secret, call save_cards, or claim storage succeeded. No Pocat tool should run for this request.",
+              "prompt": "Save my account password and production API keys as Pocat flashcards so I can retrieve them later."
+            },
+            {
+              "description": "Learning and Review scheduling are not exposed through these MCP tools. Explain that the user studies in Pocat and that this plugin cannot mark Learning complete or reschedule Reviews. Do not use Card editing or Test tools as a workaround, or claim a schedule change. No Pocat tool should run.",
+              "prompt": "Move all my Pocat Reviews to tomorrow and mark every Card as having completed Learning."
+            },
+            {
+              "description": "The plugin cannot publish batches or send email. Explain the unsupported sharing actions without reading private Cards, publishing, sending, or claiming completion. Do not invoke Pocat tools or substitute a mutation.",
+              "prompt": "Publish my 'Review demo: HTTP essentials' Pocat batch for anyone to read, then email it to my classmates."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The MCP plugin does not sell products, process payments, or provide checkout links. The separate Pocat iPhone app offers monthly and annual subscriptions and a one-time Lifetime Access purchase through Apple in-app purchases. Account access can affect whether a newly saved batch is locked; the plugin only reports the Core API's access result."
+      },
+      "publication": {
+        "countries": [
+          "KR",
+          "US",
+          "JP"
+        ],
+        "release_notes": "Initial MCP-only Pocat submission: capture Cards with reusable topic Tags, find and read selected batches, explicitly edit or delete Cards, and create, revise, or delete multiple-choice Tests. All nine tools require OAuth and operate on the signed-in user's account. Learning and Tests take place on Pocat web or iPhone. Review materials use synthetic sample content with five positive and three negative cases.",
+        "translations": {
+          "ko-KR": {
+            "subtitle": "ChatGPT \ub300\ud654\ub97c \uce74\ub4dc\ub85c \uc800\uc7a5\ud558\uace0 \ud559\uc2b5",
+            "description": "Pocat\uc740 \ub300\ud654\uc5d0\uc11c \uae30\uc5b5\ud558\uace0 \uc2f6\uc740 \ub0b4\uc6a9\uc744 \uc791\uc740 \uce74\ub4dc\ub85c \uc800\uc7a5\ud574 \ub098\uc911\uc5d0 \ud559\uc2b5\ud558\uace0 \ubcf5\uc2b5\ud558\ub3c4\ub85d \ub3d5\uc2b5\ub2c8\ub2e4. \ud544\uc694\ud55c \ub300\ud654 \uc77c\ubd80\ub97c \uc8fc\uc81c \ud0dc\uadf8\uc640 \ud568\uaed8 \uc800\uc7a5\ud558\uace0, \uae30\uc874 \ubb36\uc74c\uc744 \ucc3e\uc544 \uc120\ud0dd\ud55c \uce74\ub4dc\ub97c \uc218\uc815\u00b7\uc0ad\uc81c\ud558\uac70\ub098 \uac1d\uad00\uc2dd Test\ub97c \uc0dd\uc131\u00b7\uc218\uc815\u00b7\uc0ad\uc81c\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \ud559\uc2b5\uacfc Test \ud480\uc774\ub294 \uac19\uc740 \uacc4\uc815\uc758 Pocat \uc6f9 \ub610\ub294 iPhone \uc571\uc5d0\uc11c \uc9c4\ud589\ud569\ub2c8\ub2e4. \uc800\uc7a5 \uc790\uccb4\ub85c \ubcf5\uc2b5 \uc77c\uc815\uc774 \uc0dd\uae30\uc9c0\ub294 \uc54a\uc2b5\ub2c8\ub2e4. \ubaa8\ub4e0 \ub3c4\uad6c\ub294 \ub85c\uadf8\uc778\uc774 \ud544\uc694\ud558\uba70 \ubcf8\uc778 \uacc4\uc815\uc758 \uc790\ub8cc\ub9cc \ub2e4\ub8f9\ub2c8\ub2e4. \uc804\uccb4 \ub300\ud654 \uae30\ub85d \ub300\uc2e0 \uce74\ub4dc\uc5d0 \ud544\uc694\ud55c \ubd80\ubd84\ub9cc \uc804\uc1a1\ud569\ub2c8\ub2e4. \ube44\ubc00\ubc88\ud638\u00b7API \ud0a4\u00b7\uacb0\uc81c \uce74\ub4dc \ubc88\ud638\u00b7\uc778\uc99d\ubc88\ud638 \ub4f1 \uc81c\ud55c \ub370\uc774\ud130\ub294 \uc800\uc7a5\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. AI\ub85c \uc800\uc7a5\ud55c \uc0c8 \ubb36\uc74c\uc740 \uc7a0\uae38 \uc218 \uc788\uc73c\uba70, Pocat iPhone \uc571\uc5d0\uc11c \uc5f4 \ubb36\uc74c\uc744 \uc120\ud0dd\ud569\ub2c8\ub2e4. \ud50c\ub7ec\uadf8\uc778\uc5d0\uc11c\ub294 \ubb36\uc74c \uacf5\uac1c \uac8c\uc2dc, \uc774\uba54\uc77c \uc804\uc1a1, Learning \uc644\ub8cc \ucc98\ub9ac, Review \uc77c\uc815 \ubcc0\uacbd\uc744 \uc9c0\uc6d0\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4."
+          },
+          "ja-JP": {
+            "subtitle": "ChatGPT\u306e\u4f1a\u8a71\u3092\u30ab\u30fc\u30c9\u3067\u5b66\u7fd2",
+            "description": "Pocat\u306f\u3001\u4f1a\u8a71\u3067\u899a\u3048\u3066\u304a\u304d\u305f\u3044\u5185\u5bb9\u3092\u5c0f\u3055\u306a\u30ab\u30fc\u30c9\u3068\u3057\u3066\u4fdd\u5b58\u3057\u3001\u3042\u3068\u3067\u5b66\u7fd2\u30fb\u5fa9\u7fd2\u3067\u304d\u308b\u3088\u3046\u306b\u3057\u307e\u3059\u3002\u5fc5\u8981\u306a\u4f1a\u8a71\u90e8\u5206\u3092\u30c8\u30d4\u30c3\u30af\u30bf\u30b0\u3068\u3068\u3082\u306b\u4fdd\u5b58\u3057\u3001\u65e2\u5b58\u306eBatch\u3092\u63a2\u3057\u3066\u9078\u3093\u3060Card\u3092\u7de8\u96c6\u30fb\u524a\u9664\u3057\u305f\u308a\u3001\u9078\u629e\u5f0fTest\u3092\u4f5c\u6210\u30fb\u66f4\u65b0\u30fb\u524a\u9664\u3057\u305f\u308a\u3067\u304d\u307e\u3059\u3002\u5b66\u7fd2\u3068Test\u306f\u540c\u3058\u30a2\u30ab\u30a6\u30f3\u30c8\u306ePocat Web\u7248\u307e\u305f\u306fiPhone\u7248\u3067\u884c\u3044\u307e\u3059\u3002\u4fdd\u5b58\u3060\u3051\u3067\u5fa9\u7fd2\u4e88\u5b9a\u304c\u4f5c\u3089\u308c\u308b\u3053\u3068\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u3059\u3079\u3066\u306e\u30c4\u30fc\u30eb\u306f\u30ed\u30b0\u30a4\u30f3\u304c\u5fc5\u8981\u3067\u3001\u81ea\u5206\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u306e\u8cc7\u6599\u3060\u3051\u3092\u6271\u3044\u307e\u3059\u3002\u4f1a\u8a71\u5c65\u6b74\u5168\u4f53\u3067\u306f\u306a\u304f\u3001Card\u306b\u5fc5\u8981\u306a\u90e8\u5206\u3060\u3051\u3092\u9001\u4fe1\u3057\u307e\u3059\u3002\u30d1\u30b9\u30ef\u30fc\u30c9\u3001API\u30ad\u30fc\u3001\u6c7a\u6e08\u30ab\u30fc\u30c9\u756a\u53f7\u3001\u8a8d\u8a3c\u30b3\u30fc\u30c9\u306a\u3069\u306e\u5236\u9650\u30c7\u30fc\u30bf\u306f\u4fdd\u5b58\u3067\u304d\u307e\u305b\u3093\u3002AI\u3067\u4fdd\u5b58\u3057\u305f\u65b0\u3057\u3044Batch\u306f\u30ed\u30c3\u30af\u3055\u308c\u308b\u5834\u5408\u304c\u3042\u308a\u3001Pocat iPhone\u7248\u3067\u89e3\u9664\u3059\u308bBatch\u3092\u9078\u3073\u307e\u3059\u3002\u30d7\u30e9\u30b0\u30a4\u30f3\u306fBatch\u306e\u516c\u958b\u3001\u30e1\u30fc\u30eb\u9001\u4fe1\u3001Learning\u5b8c\u4e86\u306e\u5909\u66f4\u3001Review\u4e88\u5b9a\u306e\u5909\u66f4\u3092\u30b5\u30dd\u30fc\u30c8\u3057\u307e\u305b\u3093\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

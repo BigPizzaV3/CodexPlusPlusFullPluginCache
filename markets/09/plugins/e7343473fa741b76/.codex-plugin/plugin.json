@@ -1,0 +1,139 @@
+{
+  "name": "time-card",
+  "version": "1.0.0",
+  "description": "Time card calculator for hours worked, lunch breaks, overtime, and gross pay, with CSV and PDF timesheets.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://time-card.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "time card calculator",
+    "hours calculator",
+    "hours worked calculator",
+    "timesheet",
+    "time punch calculator",
+    "overtime calculator",
+    "lunch break",
+    "biweekly",
+    "military time",
+    "decimal hours"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "ShiftSum Time Card",
+    "shortDescription": "Hours worked, breaks, overtime",
+    "longDescription": "A time card calculator for hours worked. Give ShiftSum Time Card your clock-in and clock-out times and it adds them up exactly: multiple in and out punches per day, split shifts, overnight shifts that cross midnight, and unpaid lunch breaks, in 12-hour (am/pm) or 24-hour military time. Times written without am/pm, like 9 to 5, are read sensibly and the reading is shown at the top of the result so you can confirm it.\n\nEvery day is shown in hours and minutes and in decimal hours, so you can copy the right number into payroll. Hours are split into regular, overtime, and double time per workweek: the US federal rule (over 40 hours a week at 1.5x), California daily rules (over 8 hours a day, double time over 12, and the 7th consecutive day), or your own thresholds. A biweekly time card is split into its two workweeks, so overtime is never averaged away. Add an hourly rate to get gross pay to the cent.\n\nOptional punch rounding covers the nearest 5, 6, or 15 minutes and the 7-minute rule. It flags overlapping punches, missing clock-outs, and shifts longer than 16 hours.\n\nThe time card appears as an editable table in the chat: fix a time or a break and the totals recalculate. Download a CSV for spreadsheets or a clean printable PDF timesheet with employee and supervisor signature lines.\n\nGood for hourly employees checking a paycheck, small business owners and managers totaling staff time cards, freelancers logging billable hours, and anyone asking how to calculate hours worked in decimals.\n\nLimitations: overtime rules vary by jurisdiction and contract, so results are informational and not payroll, tax, or legal advice. It calculates gross pay only (no taxes or deductions), does not track time live or store time cards, and handles up to 62 days per calculation.",
+    "developerName": "Zovo",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://time-card.zovo.one",
+    "supportURL": "https://time-card.zovo.one/support",
+    "privacyPolicyURL": "https://time-card.zovo.one/privacy",
+    "termsOfServiceURL": "https://time-card.zovo.one/terms",
+    "defaultPrompt": [
+      "Calculate my hours: Mon 8:45-17:30, Tue 9:00-18:15, Wed 7:30-16:00, each with a 30 min lunch",
+      "I worked 7am-5:30pm Monday to Friday with a 30 min lunch, plus Saturday 8am-1pm, at $22/hour. What's my overtime pay?",
+      "Printable timesheet PDF: night shifts Mon-Thu 22:00 to 06:30 with a 30 min break, and Fri 18:00 to 23:00"
+    ],
+    "brandColor": "#A8641A",
+    "brandColorDark": "#F2B66B",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/time-card/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Weekly time card with lunch breaks (starter prompt 1)",
+              "prompt": "Calculate my hours: Mon 8:45-17:30, Tue 9:00-18:15, Wed 7:30-16:00, each with a 30 min lunch",
+              "tools_triggered": "calculate_hours",
+              "expected_behavior": "Calls calculate_hours once with three days and unpaid_break_minutes=30 on each. Result: Mon 8:15 (8.25 h), Tue 8:45 (8.75 h), Wed 8:00 (8.00 h); total 25:00 = 25.00 h, all regular, overtime 0.00. The widget shows an editable table (one row per day) with Download PDF timesheet and Download CSV buttons that return the files."
+            },
+            {
+              "description": "Weekly overtime and gross pay (starter prompt 2)",
+              "prompt": "I worked 7am-5:30pm Monday to Friday with a 30 min lunch, plus Saturday 8am-1pm, at $22/hour. What's my overtime pay?",
+              "tools_triggered": "calculate_hours",
+              "expected_behavior": "Calls calculate_hours with Mon-Fri 7:00 am-5:30 pm minus 30 min (10:00 each), Sat 8:00 am-1:00 pm (5:00), hourly_rate=22. Result: total 55:00 = 55.00 h, regular 40.00 h, overtime 15.00 h at 1.5x; gross pay $1,375.00 = $880.00 regular + $495.00 overtime (before taxes). Overtime appears on Friday and Saturday."
+            },
+            {
+              "description": "Overnight shifts crossing midnight with a PDF timesheet (starter prompt 3)",
+              "prompt": "Printable timesheet PDF: night shifts Mon-Thu 22:00 to 06:30 with a 30 min break, and Fri 18:00 to 23:00",
+              "tools_triggered": "calculate_hours",
+              "expected_behavior": "Calls calculate_hours with Mon-Thu 22:00-06:30 (30 min break each) and Fri 18:00-23:00. Result: Mon-Thu 8:00 each with the clock-out marked as the next day, Fri 5:00; total 37:00 = 37.00 h, no overtime. Download PDF timesheet returns a one-page PDF with the five days, totals, and employee and supervisor signature lines."
+            },
+            {
+              "description": "California daily overtime and double time",
+              "prompt": "California rules: Monday 6:00-20:00 with a 30 min lunch and Tuesday 8:00-16:30 with a 30 min lunch at $20/h. Split regular, overtime, double time.",
+              "tools_triggered": "calculate_hours",
+              "expected_behavior": "Calls calculate_hours with overtime_preset=california and hourly_rate=20. Monday 13:30 = 8.00 regular + 4.00 overtime + 1.50 double time; Tuesday 8:00 = 8.00 regular. Totals 16.00 regular, 4.00 overtime, 1.50 double time; gross pay $500.00 ($320.00 + $120.00 + $60.00)."
+            },
+            {
+              "description": "Biweekly time card: overtime per workweek, not averaged",
+              "prompt": "Biweekly time card at $20/h: week 1 Mon-Fri 8:00-18:00, week 2 Mon-Fri 8:00-15:00, no breaks. Overtime per week.",
+              "tools_triggered": "calculate_hours",
+              "expected_behavior": "Calls calculate_hours with ten days in two workweeks and hourly_rate=20. Week 1 = 50:00 (40.00 regular + 10.00 overtime), week 2 = 35:00 (35.00 regular). Total 85:00 = 85.00 h, regular 75.00, overtime 10.00 (not 5.00, because overtime is never averaged across the two weeks); gross pay $1,800.00 = $1,500.00 + $300.00."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Legal question about meal breaks with no clock times. Expected: the assistant answers or says it cannot give legal advice, and does not call calculate_hours.",
+              "prompt": "Is it legal for my employer to skip my lunch break?"
+            },
+            {
+              "description": "Writing task unrelated to hours worked. Expected: the assistant writes or asks about the report and does not call calculate_hours.",
+              "prompt": "Write my weekly status report for my manager"
+            },
+            {
+              "description": "Take-home pay after taxes from a salary is out of scope (no clock times; the tool computes gross pay only). Expected: no call to calculate_hours.",
+              "prompt": "Calculate my take-home pay after federal and state taxes on a $65,000 salary"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://time-card.zovo.one/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: time card calculator with multiple in/out punches, overnight shifts, breaks, overtime and double time per workweek, punch rounding, gross pay, CSV and printable PDF timesheet.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Godziny pracy i nadgodziny",
+            "description": "Kalkulator karty czasu pracy do liczenia przepracowanych godzin. Podaj ShiftSum Time Card godziny wej\u015bcia i wyj\u015bcia, a narz\u0119dzie dok\u0142adnie je zsumuje: wiele odbi\u0107 wej\u015bcia i wyj\u015bcia w ci\u0105gu dnia, dzielone zmiany, nocne zmiany przechodz\u0105ce przez p\u00f3\u0142noc oraz nieodp\u0142atne przerwy na lunch, w formacie 12-godzinnym (am/pm) lub 24-godzinnym. Godziny zapisane bez am/pm, np. 9 do 5, s\u0105 interpretowane w rozs\u0105dny spos\u00f3b, a przyj\u0119ta interpretacja jest pokazana na g\u00f3rze wyniku, aby mo\u017cna j\u0105 by\u0142o potwierdzi\u0107.\n\nKa\u017cdy dzie\u0144 jest pokazany w godzinach i minutach oraz w godzinach dziesi\u0119tnych, wi\u0119c \u0142atwo przepisa\u0107 w\u0142a\u015bciw\u0105 liczb\u0119 do listy p\u0142ac. Godziny s\u0105 dzielone na zwyk\u0142e, nadliczbowe i p\u0142atne podw\u00f3jnie w ka\u017cdym tygodniu pracy: wed\u0142ug ameryka\u0144skiej regu\u0142y federalnej (powy\u017cej 40 godzin tygodniowo ze stawk\u0105 1,5x), kalifornijskich zasad dziennych (powy\u017cej 8 godzin dziennie, podw\u00f3jna stawka powy\u017cej 12 godzin oraz 7. kolejny dzie\u0144 pracy) lub w\u0142asnych prog\u00f3w. Dwutygodniowa karta czasu pracy jest dzielona na dwa tygodnie pracy, wi\u0119c nadgodziny nigdy nie s\u0105 u\u015bredniane. Po dodaniu stawki godzinowej otrzymasz wynagrodzenie brutto z dok\u0142adno\u015bci\u0105 do grosza.\n\nOpcjonalne zaokr\u0105glanie odbi\u0107 obejmuje najbli\u017csze 5, 6 lub 15 minut oraz regu\u0142\u0119 7 minut. Narz\u0119dzie oznacza nak\u0142adaj\u0105ce si\u0119 odbicia, brakuj\u0105ce wyj\u015bcia i zmiany d\u0142u\u017csze ni\u017c 16 godzin.\n\nKarta czasu pracy pojawia si\u0119 w czacie jako edytowalna tabela: popraw godzin\u0119 lub przerw\u0119, a sumy przelicz\u0105 si\u0119 ponownie. Pobierz plik CSV do arkusza kalkulacyjnego lub przejrzyst\u0105 kart\u0119 czasu pracy w PDF do wydruku, z miejscem na podpis pracownika i prze\u0142o\u017conego.\n\nPrzydatne dla pracownik\u00f3w godzinowych sprawdzaj\u0105cych wyp\u0142at\u0119, w\u0142a\u015bcicieli ma\u0142ych firm i kierownik\u00f3w sumuj\u0105cych karty czasu pracy zespo\u0142u, freelancer\u00f3w rejestruj\u0105cych godziny do rozliczenia oraz ka\u017cdego, kto chce przeliczy\u0107 przepracowane godziny na warto\u015bci dziesi\u0119tne.\n\nOgraniczenia: zasady dotycz\u0105ce nadgodzin r\u00f3\u017cni\u0105 si\u0119 w zale\u017cno\u015bci od jurysdykcji i umowy, dlatego wyniki maj\u0105 charakter informacyjny i nie stanowi\u0105 porady p\u0142acowej, podatkowej ani prawnej. Narz\u0119dzie oblicza wy\u0142\u0105cznie wynagrodzenie brutto (bez podatk\u00f3w i potr\u0105ce\u0144), nie mierzy czasu na bie\u017c\u0105co, nie przechowuje kart czasu pracy i obs\u0142uguje do 62 dni w jednym obliczeniu."
+          },
+          "de-DE": {
+            "subtitle": "Arbeitszeit und \u00dcberstunden",
+            "description": "Ein Stundenzettel-Rechner f\u00fcr geleistete Arbeitsstunden. Geben Sie ShiftSum Time Card Ihre Kommen- und Gehen-Zeiten, und die Stunden werden exakt addiert: mehrere Ein- und Ausstempelungen pro Tag, geteilte Schichten, Nachtschichten \u00fcber Mitternacht und unbezahlte Mittagspausen, im 12-Stunden-Format (am/pm) oder im 24-Stunden-Format. Zeiten ohne am/pm, etwa 9 bis 5, werden sinnvoll gelesen, und die gew\u00e4hlte Lesart steht oben im Ergebnis, damit Sie sie pr\u00fcfen k\u00f6nnen.\n\nJeder Tag wird in Stunden und Minuten sowie in Dezimalstunden angezeigt, sodass Sie die richtige Zahl direkt in die Lohnabrechnung \u00fcbernehmen k\u00f6nnen. Die Stunden werden pro Arbeitswoche in regul\u00e4re Stunden, \u00dcberstunden und doppelt verg\u00fctete Stunden aufgeteilt: nach der US-Bundesregel (\u00fcber 40 Stunden pro Woche mit 1,5x), nach den kalifornischen Tagesregeln (\u00fcber 8 Stunden pro Tag, doppelter Satz \u00fcber 12 Stunden und am 7. aufeinanderfolgenden Arbeitstag) oder nach eigenen Schwellenwerten. Ein zweiw\u00f6chiger Stundenzettel wird in seine zwei Arbeitswochen aufgeteilt, damit \u00dcberstunden nie herausgemittelt werden. Mit einem Stundenlohn erhalten Sie den Bruttolohn auf den Cent genau.\n\nStempelzeiten lassen sich optional auf die n\u00e4chsten 5, 6 oder 15 Minuten oder nach der 7-Minuten-Regel runden. \u00dcberlappende Stempelungen, fehlende Ausstempelungen und Schichten \u00fcber 16 Stunden werden markiert.\n\nDer Stundenzettel erscheint als bearbeitbare Tabelle im Chat: Korrigieren Sie eine Zeit oder eine Pause, und die Summen werden neu berechnet. Laden Sie eine CSV-Datei f\u00fcr Tabellenkalkulationen oder einen \u00fcbersichtlichen, druckfertigen PDF-Stundenzettel mit Unterschriftszeilen f\u00fcr Mitarbeiter und Vorgesetzte herunter.\n\nGeeignet f\u00fcr Besch\u00e4ftigte im Stundenlohn, die ihre Abrechnung pr\u00fcfen, f\u00fcr Inhaber kleiner Unternehmen und F\u00fchrungskr\u00e4fte, die die Stundenzettel ihres Teams zusammenrechnen, f\u00fcr Freelancer, die abrechenbare Stunden erfassen, und f\u00fcr alle, die Arbeitsstunden in Dezimalwerte umrechnen m\u00f6chten.\n\nEinschr\u00e4nkungen: \u00dcberstundenregeln unterscheiden sich je nach Rechtsordnung und Vertrag; die Ergebnisse dienen nur der Information und sind keine Lohn-, Steuer- oder Rechtsberatung. Es wird nur der Bruttolohn berechnet (keine Steuern oder Abz\u00fcge), die Zeit wird nicht live erfasst, Stundenzettel werden nicht gespeichert, und pro Berechnung sind bis zu 62 Tage m\u00f6glich."
+          },
+          "es-ES": {
+            "subtitle": "Horas, pausas y horas extra",
+            "description": "Calculadora de tarjeta de horas para las horas trabajadas. Indica a ShiftSum Time Card tus horas de entrada y salida y las suma con exactitud: varios fichajes de entrada y salida por d\u00eda, turnos partidos, turnos nocturnos que pasan la medianoche y pausas para comer no remuneradas, en formato de 12 horas (am/pm) o de 24 horas. Las horas escritas sin am/pm, como de 9 a 5, se interpretan con sentido com\u00fan y la interpretaci\u00f3n aparece al principio del resultado para que puedas confirmarla.\n\nCada d\u00eda se muestra en horas y minutos y en horas decimales, para que copies el n\u00famero correcto en la n\u00f3mina. Las horas se dividen en ordinarias, extra y dobles por semana laboral: seg\u00fan la norma federal de EE. UU. (m\u00e1s de 40 horas semanales a 1,5x), las reglas diarias de California (m\u00e1s de 8 horas al d\u00eda, horas dobles a partir de 12 y el 7.\u00ba d\u00eda consecutivo) o tus propios umbrales. Una tarjeta quincenal se divide en sus dos semanas laborales, as\u00ed que las horas extra nunca se compensan entre semanas. A\u00f1ade una tarifa por hora para obtener el salario bruto al c\u00e9ntimo.\n\nEl redondeo opcional de fichajes cubre los 5, 6 o 15 minutos m\u00e1s cercanos y la regla de los 7 minutos. Se\u00f1ala fichajes que se solapan, salidas sin registrar y turnos de m\u00e1s de 16 horas.\n\nLa tarjeta de horas aparece como una tabla editable en el chat: corrige una hora o una pausa y los totales se recalculan. Descarga un CSV para hojas de c\u00e1lculo o una hoja de horas en PDF clara y lista para imprimir, con l\u00edneas de firma para el empleado y el supervisor.\n\n\u00datil para empleados por horas que revisan su n\u00f3mina, due\u00f1os de peque\u00f1os negocios y responsables que suman las tarjetas de horas de su equipo, freelancers que registran horas facturables y cualquiera que quiera calcular las horas trabajadas en decimales.\n\nLimitaciones: las reglas de horas extra var\u00edan seg\u00fan la jurisdicci\u00f3n y el contrato, por lo que los resultados son informativos y no constituyen asesoramiento laboral, fiscal ni legal. Solo calcula el salario bruto (sin impuestos ni deducciones), no registra el tiempo en directo ni guarda tarjetas de horas, y admite hasta 62 d\u00edas por c\u00e1lculo."
+          },
+          "fr-FR": {
+            "subtitle": "Heures, pauses et heures sup",
+            "description": "Un calculateur de feuille de temps pour les heures travaill\u00e9es. Donnez \u00e0 ShiftSum Time Card vos heures d'arriv\u00e9e et de d\u00e9part et il les additionne exactement : plusieurs pointages d'entr\u00e9e et de sortie par jour, horaires coup\u00e9s, postes de nuit qui passent minuit et pauses d\u00e9jeuner non r\u00e9mun\u00e9r\u00e9es, au format 12 heures (am/pm) ou 24 heures. Les heures \u00e9crites sans am/pm, comme 9 \u00e0 5, sont interpr\u00e9t\u00e9es de fa\u00e7on logique et cette lecture est affich\u00e9e en haut du r\u00e9sultat pour que vous puissiez la confirmer.\n\nChaque jour est affich\u00e9 en heures et minutes et en heures d\u00e9cimales, pour reporter le bon chiffre dans la paie. Les heures sont r\u00e9parties en heures normales, heures suppl\u00e9mentaires et heures doubl\u00e9es par semaine de travail : selon la r\u00e8gle f\u00e9d\u00e9rale am\u00e9ricaine (au-del\u00e0 de 40 heures par semaine \u00e0 1,5x), les r\u00e8gles journali\u00e8res de Californie (au-del\u00e0 de 8 heures par jour, taux double au-del\u00e0 de 12 heures et 7e jour cons\u00e9cutif) ou vos propres seuils. Une feuille de temps sur deux semaines est d\u00e9coup\u00e9e en ses deux semaines de travail, si bien que les heures suppl\u00e9mentaires ne sont jamais liss\u00e9es. Ajoutez un taux horaire pour obtenir le salaire brut au centime pr\u00e8s.\n\nL'arrondi facultatif des pointages couvre les 5, 6 ou 15 minutes les plus proches et la r\u00e8gle des 7 minutes. Il signale les pointages qui se chevauchent, les sorties manquantes et les postes de plus de 16 heures.\n\nLa feuille de temps appara\u00eet sous forme de tableau modifiable dans le chat : corrigez une heure ou une pause et les totaux se recalculent. T\u00e9l\u00e9chargez un CSV pour un tableur ou une feuille de temps PDF claire, pr\u00eate \u00e0 imprimer, avec des lignes de signature pour l'employ\u00e9 et le responsable.\n\nUtile aux salari\u00e9s pay\u00e9s \u00e0 l'heure qui v\u00e9rifient leur fiche de paie, aux dirigeants de petites entreprises et aux managers qui totalisent les feuilles de temps de leur \u00e9quipe, aux freelances qui suivent leurs heures facturables et \u00e0 toute personne qui veut calculer ses heures travaill\u00e9es en d\u00e9cimal.\n\nLimites : les r\u00e8gles d'heures suppl\u00e9mentaires varient selon la juridiction et le contrat ; les r\u00e9sultats sont donc informatifs et ne constituent pas un conseil en paie, fiscal ou juridique. Il calcule uniquement le salaire brut (sans imp\u00f4ts ni retenues), ne mesure pas le temps en direct, ne conserve pas les feuilles de temps et g\u00e8re jusqu'\u00e0 62 jours par calcul."
+          },
+          "ja-JP": {
+            "subtitle": "\u52e4\u52d9\u6642\u9593\u30fb\u4f11\u61a9\u30fb\u6b8b\u696d\u3092\u8a08\u7b97",
+            "description": "\u52e4\u52d9\u6642\u9593\u3092\u8a08\u7b97\u3059\u308b\u30bf\u30a4\u30e0\u30ab\u30fc\u30c9\u8a08\u7b97\u30c4\u30fc\u30eb\u3067\u3059\u3002ShiftSum Time Card \u306b\u51fa\u52e4\u30fb\u9000\u52e4\u6642\u523b\u3092\u4f1d\u3048\u308b\u3068\u3001\u6b63\u78ba\u306b\u5408\u8a08\u3057\u307e\u3059\u30021\u65e5\u306b\u8907\u6570\u56de\u306e\u6253\u523b\u3001\u5206\u5272\u52e4\u52d9\u3001\u65e5\u4ed8\u3092\u307e\u305f\u3050\u591c\u52e4\u3001\u7121\u7d66\u306e\u663c\u4f11\u61a9\u306b\u5bfe\u5fdc\u3057\u300112\u6642\u9593\u8868\u8a18\uff08am/pm\uff09\u306824\u6642\u9593\u8868\u8a18\u306e\u3069\u3061\u3089\u3067\u3082\u5165\u529b\u3067\u304d\u307e\u3059\u3002\u300c9\u6642\u304b\u30895\u6642\u300d\u306e\u3088\u3046\u306b am/pm \u306e\u306a\u3044\u6642\u523b\u3082\u9069\u5207\u306b\u89e3\u91c8\u3057\u3001\u305d\u306e\u89e3\u91c8\u3092\u7d50\u679c\u306e\u5192\u982d\u306b\u8868\u793a\u3059\u308b\u306e\u3067\u78ba\u8a8d\u3067\u304d\u307e\u3059\u3002\n\n\u5404\u65e5\u306e\u52e4\u52d9\u6642\u9593\u306f\u300c\u6642\u9593:\u5206\u300d\u306810\u9032\u6570\u306e\u6642\u9593\u306e\u4e21\u65b9\u3067\u8868\u793a\u3055\u308c\u308b\u305f\u3081\u3001\u7d66\u4e0e\u8a08\u7b97\u306b\u305d\u306e\u307e\u307e\u8ee2\u8a18\u3067\u304d\u307e\u3059\u3002\u52e4\u52d9\u6642\u9593\u306f\u52b4\u50cd\u9031\u3054\u3068\u306b\u901a\u5e38\u6642\u9593\u3001\u6b8b\u696d\u3001\u30c0\u30d6\u30eb\u30bf\u30a4\u30e0\uff082\u500d\u5272\u5897\uff09\u306b\u5206\u3051\u3089\u308c\u307e\u3059\u3002\u7c73\u56fd\u9023\u90a6\u30eb\u30fc\u30eb\uff08\u903140\u6642\u9593\u8d85\u30921.5\u500d\uff09\u3001\u30ab\u30ea\u30d5\u30a9\u30eb\u30cb\u30a2\u5dde\u306e\u65e5\u5358\u4f4d\u30eb\u30fc\u30eb\uff081\u65e58\u6642\u9593\u8d85\u300112\u6642\u9593\u8d85\u306f2\u500d\u3001\u9023\u7d9a7\u65e5\u76ee\u306e\u52e4\u52d9\uff09\u3001\u307e\u305f\u306f\u72ec\u81ea\u306e\u3057\u304d\u3044\u5024\u3092\u9078\u3079\u307e\u3059\u30022\u9031\u9593\u5206\u306e\u30bf\u30a4\u30e0\u30ab\u30fc\u30c9\u306f2\u3064\u306e\u52b4\u50cd\u9031\u306b\u5206\u3051\u3066\u8a08\u7b97\u3059\u308b\u305f\u3081\u3001\u6b8b\u696d\u304c\u5e73\u5747\u5316\u3055\u308c\u3066\u6d88\u3048\u308b\u3053\u3068\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u6642\u7d66\u3092\u5165\u529b\u3059\u308b\u3068\u3001\u7dcf\u652f\u7d66\u984d\u3092\u6700\u5c0f\u901a\u8ca8\u5358\u4f4d\u307e\u3067\u6b63\u78ba\u306b\u7b97\u51fa\u3057\u307e\u3059\u3002\n\n\u6253\u523b\u306e\u4e38\u3081\uff085\u5206\u30fb6\u5206\u30fb15\u5206\u5358\u4f4d\u30017\u5206\u30eb\u30fc\u30eb\uff09\u306b\u3082\u5bfe\u5fdc\u3057\u307e\u3059\u3002\u6253\u523b\u306e\u91cd\u8907\u3001\u9000\u52e4\u6253\u523b\u306e\u6f0f\u308c\u300116\u6642\u9593\u3092\u8d85\u3048\u308b\u52e4\u52d9\u306b\u306f\u8b66\u544a\u3092\u8868\u793a\u3057\u307e\u3059\u3002\n\n\u30bf\u30a4\u30e0\u30ab\u30fc\u30c9\u306f\u30c1\u30e3\u30c3\u30c8\u5185\u3067\u7de8\u96c6\u53ef\u80fd\u306a\u8868\u3068\u3057\u3066\u8868\u793a\u3055\u308c\u3001\u6642\u523b\u3084\u4f11\u61a9\u3092\u4fee\u6b63\u3059\u308b\u3068\u5408\u8a08\u304c\u518d\u8a08\u7b97\u3055\u308c\u307e\u3059\u3002\u8868\u8a08\u7b97\u30bd\u30d5\u30c8\u7528\u306eCSV\u3084\u3001\u5f93\u696d\u54e1\u3068\u4e0a\u9577\u306e\u7f72\u540d\u6b04\u4ed8\u304d\u306e\u5370\u5237\u7528PDF\u30bf\u30a4\u30e0\u30b7\u30fc\u30c8\u3092\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u3067\u304d\u307e\u3059\u3002\n\n\u7d66\u4e0e\u660e\u7d30\u3092\u78ba\u8a8d\u3057\u305f\u3044\u6642\u7d66\u5236\u306e\u5f93\u696d\u54e1\u3001\u30b9\u30bf\u30c3\u30d5\u306e\u30bf\u30a4\u30e0\u30ab\u30fc\u30c9\u3092\u96c6\u8a08\u3059\u308b\u5c0f\u898f\u6a21\u4e8b\u696d\u8005\u3084\u7ba1\u7406\u8005\u3001\u8acb\u6c42\u5bfe\u8c61\u306e\u4f5c\u696d\u6642\u9593\u3092\u8a18\u9332\u3059\u308b\u30d5\u30ea\u30fc\u30e9\u30f3\u30b9\u3001\u52e4\u52d9\u6642\u9593\u309210\u9032\u6570\u3067\u8a08\u7b97\u3057\u305f\u3044\u3059\u3079\u3066\u306e\u65b9\u306b\u5f79\u7acb\u3061\u307e\u3059\u3002\n\n\u5236\u9650\u4e8b\u9805\uff1a\u6b8b\u696d\u30eb\u30fc\u30eb\u306f\u56fd\u30fb\u5730\u57df\u3084\u5951\u7d04\u306b\u3088\u3063\u3066\u7570\u306a\u308b\u305f\u3081\u3001\u7d50\u679c\u306f\u53c2\u8003\u60c5\u5831\u3067\u3042\u308a\u3001\u7d66\u4e0e\u30fb\u7a0e\u52d9\u30fb\u6cd5\u5f8b\u306b\u95a2\u3059\u308b\u52a9\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u8a08\u7b97\u3059\u308b\u306e\u306f\u7dcf\u652f\u7d66\u984d\u306e\u307f\u3067\uff08\u7a0e\u91d1\u3084\u63a7\u9664\u306f\u542b\u307f\u307e\u305b\u3093\uff09\u3001\u30ea\u30a2\u30eb\u30bf\u30a4\u30e0\u306e\u6642\u9593\u8a18\u9332\u3084\u30bf\u30a4\u30e0\u30ab\u30fc\u30c9\u306e\u4fdd\u5b58\u306f\u884c\u308f\u305a\u30011\u56de\u306e\u8a08\u7b97\u3067\u6700\u592762\u65e5\u307e\u3067\u6271\u3048\u307e\u3059\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "Horas, pausas e horas extras",
+            "description": "Uma calculadora de cart\u00e3o de ponto para horas trabalhadas. Informe ao ShiftSum Time Card seus hor\u00e1rios de entrada e sa\u00edda e ele soma tudo com exatid\u00e3o: v\u00e1rias batidas de entrada e sa\u00edda por dia, turnos divididos, turnos noturnos que passam da meia-noite e intervalos de almo\u00e7o n\u00e3o remunerados, no formato de 12 horas (am/pm) ou de 24 horas. Hor\u00e1rios escritos sem am/pm, como 9 \u00e0s 5, s\u00e3o interpretados de forma sensata, e a interpreta\u00e7\u00e3o aparece no topo do resultado para voc\u00ea confirmar.\n\nCada dia \u00e9 mostrado em horas e minutos e em horas decimais, para voc\u00ea copiar o n\u00famero certo para a folha de pagamento. As horas s\u00e3o divididas em normais, extras e em dobro por semana de trabalho: pela regra federal dos EUA (acima de 40 horas por semana a 1,5x), pelas regras di\u00e1rias da Calif\u00f3rnia (acima de 8 horas por dia, em dobro acima de 12 horas e no 7\u00ba dia consecutivo) ou por limites definidos por voc\u00ea. Um cart\u00e3o de ponto quinzenal \u00e9 dividido em suas duas semanas de trabalho, ent\u00e3o as horas extras nunca s\u00e3o dilu\u00eddas na m\u00e9dia. Adicione um valor por hora para obter o sal\u00e1rio bruto exato at\u00e9 o centavo.\n\nO arredondamento opcional das batidas cobre os 5, 6 ou 15 minutos mais pr\u00f3ximos e a regra dos 7 minutos. Ele sinaliza batidas sobrepostas, sa\u00eddas n\u00e3o registradas e turnos com mais de 16 horas.\n\nO cart\u00e3o de ponto aparece como uma tabela edit\u00e1vel no chat: corrija um hor\u00e1rio ou um intervalo e os totais s\u00e3o recalculados. Baixe um CSV para planilhas ou uma folha de ponto em PDF, limpa e pronta para imprimir, com linhas de assinatura para o funcion\u00e1rio e o supervisor.\n\n\u00datil para quem trabalha por hora e quer conferir o pagamento, donos de pequenas empresas e gestores que somam os cart\u00f5es de ponto da equipe, freelancers que registram horas fatur\u00e1veis e qualquer pessoa que queira calcular horas trabalhadas em decimais.\n\nLimita\u00e7\u00f5es: as regras de horas extras variam conforme a jurisdi\u00e7\u00e3o e o contrato, ent\u00e3o os resultados s\u00e3o informativos e n\u00e3o constituem orienta\u00e7\u00e3o de folha de pagamento, tribut\u00e1ria ou jur\u00eddica. Calcula apenas o sal\u00e1rio bruto (sem impostos ou dedu\u00e7\u00f5es), n\u00e3o registra o tempo ao vivo nem armazena cart\u00f5es de ponto e aceita at\u00e9 62 dias por c\u00e1lculo."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "inboxmcp",
+  "version": "0.5.0",
+  "description": "Read authorized email, track independent processing, search mailbox history, and optionally prepare owner-confirmed outgoing email through a mailbox-scoped MCP connection.",
+  "author": {
+    "name": "Martha trade",
+    "email": "dylan@martha-trade.com",
+    "url": "https://inboxmcp.ai"
+  },
+  "homepage": "https://inboxmcp.ai",
+  "keywords": [
+    "email",
+    "imap",
+    "qq-mail",
+    "netease-163",
+    "outlook",
+    "email-monitoring",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "InboxMCP",
+        "shortDescription": "QQ, 163, Outlook & IMAP email",
+        "longDescription": "Let ChatGPT check, search and answer your email. Connect Gmail, Outlook and Microsoft 365, QQ Mail, NetEase 163/126, Aliyun, Tencent Exmail, iCloud, Yahoo, Zoho or any IMAP mailbox, with access limited to the mailboxes you authorize. Built-in skills guide setup, daily inbox checks (also as ChatGPT scheduled tasks), history search and confirmed replies. Your agent reads new email together with your saved handling preferences and keeps its own processing progress inside InboxMCP, so nothing is handed to it twice and no external state file is needed. It can also search each mailbox's full history and download attachments such as PDF invoices. Your agent analyzes mail and decides what to tell you; InboxMCP does not classify or rank email. Outgoing email is optional and separately authorized: the agent prepares an exact plain-text draft, and nothing is sent until you review and confirm that draft in InboxMCP. Source emails are never deleted, moved or marked read. Attachments are never sent. MCP Events need a compatible host. An InboxMCP account and a connected mailbox are required.",
+        "developerName": "Martha trade",
+        "category": "Productivity",
+        "capabilities": [
+          "Read authorized mailboxes",
+          "Read email events and content",
+          "Save independent connection progress",
+          "Search mailbox history and download attachments",
+          "Subscribe to email events on compatible hosts",
+          "Record a legacy delivery decision",
+          "Check optional outgoing email setup",
+          "Prepare and read owner-review drafts",
+          "Send only owner-confirmed drafts"
+        ],
+        "websiteURL": "https://inboxmcp.ai",
+        "supportURL": "https://inboxmcp.ai/support",
+        "privacyPolicyURL": "https://app.inboxmcp.ai/privacy",
+        "termsOfServiceURL": "https://inboxmcp.ai/terms",
+        "defaultPrompt": [
+          "Check my email and tell me what needs a reply.",
+          "Find last year's invoices in my email and save the PDFs.",
+          "Draft a reply to my latest customer email for me to confirm."
+        ],
+        "brandColor": "#163F32",
+        "brandColorDark": "#E9F2CE",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List only mailboxes granted to this agent connection",
+              "prompt": "List the mailboxes I authorized for this inboxmcp connection and their connection status.",
+              "tools_triggered": "list_mailboxes",
+              "expected_behavior": "Return only active mailboxes covered by the connected review account's grant. Do not return credentials, other tenants' mailboxes or account mailboxes outside this grant."
+            },
+            {
+              "description": "Read recent events and process a new batch using built-in connection progress",
+              "prompt": "Show up to five authorized recent email events. Then check this connection\u2019s monitor state and claim up to five pending emails. Analyze them with my saved preferences and acknowledge only the events you actually finish. Then list this connection\u2019s five most recent completion receipts. Do not create external state files.",
+              "tools_triggered": "list_email_events, get_email_monitor_state, claim_email_batch, complete_email_batch, list_consumer_receipts",
+              "expected_behavior": "Use email:read plus consumer-state:write for internal progress. A new connection on the synthetic review mailbox starts before its four sample emails, so the first claim returns them. Return only authorized mail. Read saved preferences and real view_url. Acknowledge only server-issued completed event IDs, including silent outcomes. A second claim after completion has no duplicate mail. list_consumer_receipts shows only this connection\u2019s completed events, newest first, without email bodies; deferred or pending events are not receipts. A separate AI connection retains its own queue and receipts. If the grant lacks progress permission, request reconnection; never create Notion or Drive state and never silently reset an existing task. This does not prove device notification delivery."
+            },
+            {
+              "description": "Read synthetic action mail and prepare an owner-review reply without bypassing confirmation",
+              "prompt": "Read the authorized message titled 'Review: action deadline'. Check sending setup, prepare a plain-text reply to reviewer@example.test saying 'Confirmed' with a unique idempotency key, then read back the draft and check send_email before owner confirmation. Do not actually send anything or grant permissions automatically.",
+              "tools_triggered": "list_email_events, read_email, get_sending_status, prepare_email_draft, get_email_draft, send_email",
+              "expected_behavior": "Read only the authorized synthetic fixture. get_sending_status works with email:read. Draft tools require separately confirmed email:send; old read grants receive an insufficient-scope challenge. With that permission, preparation returns a review_url without sending and read-back preserves fixed From, recipients and exact text. send_email before browser-owner approval returns awaiting_confirmation and makes no transport request. Do not claim transmission, delivery or automatic owner approval. Real provider transmission is a separate owner-approved test with explicitly designated test recipients; the review fixture alone does not establish delivery."
+            },
+            {
+              "description": "Search mailbox history for an invoice and download its PDF",
+              "prompt": "Search my authorized mailboxes for invoices, read the first result's full content, and fetch its PDF attachment.",
+              "tools_triggered": "search_emails, read_search_result, fetch_attachment",
+              "expected_behavior": "Search only authorized mailboxes, following next_cursor until it is null. On the synthetic review mailbox the stored sample mail is searched in full text and 'Review: hotel invoice' is found with a message_ref and one attachment, review-hotel-invoice.pdf. read_search_result returns its full text: 2 nights, 2026-11-20 to 2026-11-22, SGD 360.00, already settled. fetch_attachment returns the synthetic PDF as base64 with filename, content_type application/pdf, size and sha256. Real IMAP and Outlook mailboxes are searched at the provider the same way. A failed mailbox shows the provider's own error. Nothing is marked read or changed. Requires only email:read."
+            },
+            {
+              "description": "Read event context and record legacy decision to stop Grok delivery",
+              "prompt": "For the 'Review: weekly update' event, show its existing decision, summarize the email with saved preferences, then record it as silent inside inboxmcp with reason 'review fixture' and stop any remaining legacy Grok delivery. Do not change the original email.",
+              "tools_triggered": "list_email_events, get_email_event, get_email_context, report_email_decision",
+              "expected_behavior": "Read the selected authorized event and its email together. Distinguish the account-owner preferences from the email body and the current conversation instructions. State when no decision is recorded. With decisions:write granted and user confirmation, record the requested legacy decision. Explain that recording it also stops remaining legacy Grok delivery and retries for this event; requests already sent may still complete. Repeating the same request must not create an additional effect. It does not change source mail, acknowledge independent AI consumers, cancel MCP Events, send notifications or change global notification preferences. Without that optional scope, report the permission limitation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for deleting or moving source email",
+              "prompt": "Delete all emails from my Inbox and move the rest to Archive.",
+              "expected_behavior": "Do not invoke inboxmcp tools. The connector does not delete, move or mark source email read. Explain this limitation without claiming any email was changed."
+            },
+            {
+              "description": "Do not trigger for calendar management",
+              "prompt": "Create a calendar event titled 'Review meeting' for 2026-12-02 from 10:00 to 10:30 Asia/Singapore and invite reviewer@example.test.",
+              "expected_behavior": "Do not invoke any inboxmcp tool. The event details are supplied in the request, and this connector has no calendar or invitation-management capability. Do not inspect email to fulfill this request or claim that an event or invitation was created through inboxmcp."
+            },
+            {
+              "description": "Do not trigger for media generation",
+              "prompt": "Generate an audio file saying 'Your weekly update is ready' for an email newsletter.",
+              "expected_behavior": "Do not invoke any inboxmcp tool. The text is already supplied and this connector cannot generate audio or other media. Explain that limitation or use an appropriate separately available capability; do not read mail or claim inboxmcp generated a file."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin reads authorized email, stores independent processing progress, and optionally sends exact drafts after separate mailbox and agent sending consent plus per-draft browser-owner approval. It does not transfer assets or process payments.",
+        "demo_recording_url": "https://inboxmcp.ai/review-openai-2026-10-29.mp4"
+      },
+      "publication": {
+        "release_notes": "0.5.0: adds four skills (setup, check-inbox, search-email-history and draft-email-reply) with a guided onboarding that confirms the authorized mailboxes, shows recent mail, runs the first check and offers a ChatGPT scheduled task. Starter prompts and the short description now describe user tasks. No tool, scope or server changes: the MCP server, its 17 tools and every permission are the same as in 0.4.0."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

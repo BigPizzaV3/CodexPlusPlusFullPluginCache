@@ -1,0 +1,88 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "seats-aero",
+  "version": "0.4.0",
+  "description": "Find award flights, explore points-transfer options and upgrade space, run live searches, and manage award alerts with seats.aero.",
+  "homepage": "https://seats.aero",
+  "keywords": [
+    "travel",
+    "award flights",
+    "points"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "seats.aero",
+        "shortDescription": "Find award flights with points",
+        "longDescription": "Find award flights with your airline miles and credit card points. Search seats.aero\u2019s cached award availability by route, dates, cabin, mileage program and points price, explore itinerary details, and open matching results on seats.aero.\n\nCompare points-transfer partners, ratios and listed bonuses. Connect your account to run live searches, discover award deals, explore United upgrade space, and view, create or expire your award alerts. Alert changes happen when you request them and grant permission.",
+        "websiteURL": "https://seats.aero",
+        "privacyPolicyURL": "https://seats.aero/privacy",
+        "termsOfServiceURL": "https://seats.aero/terms",
+        "defaultPrompt": [
+          "Find business-class award flights from SFO to Tokyo next month.",
+          "Which mileage programs can I use with Chase points?",
+          "Show my active award alerts."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "category": "Travel",
+        "supportURL": "https://docs.seats.aero"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Filtered cached award search. Use the connected Pro review account. Resolve \u201cnext month\u201d to the full calendar month following the execution date and record the resulting dates. Availability is variable; an honest empty result is valid for this case. A nonempty result is needed for P2.",
+              "prompt": "Find up to five nonstop business-class award flights from New York to London Heathrow next month for at most 100,000 points each.",
+              "tools_triggered": "search_airports as needed to resolve New York; get_flights",
+              "expected_behavior": "Call get_flights with resolved New York origins, destinations [\"LHR\"], cabin \"business\", max_stops 0, max_points 100000, max_results 5 and the resolved start_date/end_date. Return only matching flights supplied by the tool, with date, program, points price and seats.aero attribution/link. Preserve returned freshness and uncertainty warnings. Explain an empty result without inventing flights or implying a live search."
+            },
+            {
+              "description": "P2: Follow-up itinerary retrieval. Run in the same conversation after P1 produces at least one flight. If P1 is empty, prepare an allowed route/date with current cached results and rerun the search before this case. Mark blocked until that prerequisite is satisfied; do not invent a flight_ref.",
+              "prompt": "Show the itinerary and seats.aero link for the first flight you found, including its latest recorded availability.",
+              "tools_triggered": "get_flight_details",
+              "expected_behavior": "Use the exact flight_ref from the preceding get_flights response. Explain the returned itinerary and available segment details, use the returned seats.aero link, and describe freshness as cached. If the flight has become unavailable, state that and offer a new search; do not fabricate details or claim a booking or live revalidation."
+            },
+            {
+              "description": "P3: Transfer information in both directions. Requires the reference permission. Program lists, ratios and bonuses must be judged against actual tool output at execution time, not a fixed expected bonus.",
+              "prompt": "Which airline programs can I transfer Chase points to? Also, which credit card points transfer to Aeroplan? Include the listed ratios and any current bonuses.",
+              "tools_triggered": "list_transfer_program_mileage_programs; list_transfer_partners",
+              "expected_behavior": "Look up Chase using the transfer_program identifier published by the tool schema and Aeroplan using mileage_program \"aeroplan\". Summarize only the returned allowed programs, base ratios and bonuses, including any returned expiry dates. Do not claim account balances, guarantee that a transfer will arrive in time, or initiate a transfer."
+            },
+            {
+              "description": "P4: Read the connected account\u2019s alerts. Use a dedicated review account with one recognizable active alert nicknamed ChatGPT review baseline; provision it using normal product behavior before executing the case. Other accounts\u2019 data must not be present.",
+              "prompt": "Show my active award alerts with \u201cChatGPT review\u201d in the name, including their routes, travel dates and notification channel.",
+              "tools_triggered": "list_active_alerts",
+              "expected_behavior": "Use nickname \"ChatGPT review\". Show only the authenticated account\u2019s matching alerts and the returned route, date range and channel. Preserve truncation if reported. Do not expose email addresses or phone numbers, invent alerts, modify alerts, or claim to have checked future availability."
+            },
+            {
+              "description": "P5: Explicit alert creation and verification. Use the dedicated review account with a saved test email, available alert capacity, both alert scopes and a currently tracked JFK-LHR Aeroplan route. Inspect existing review alerts before execution and remove previous test artifacts through the Seats.aero UI. This case may cause future email notifications; do not use a customer account.",
+              "prompt": "Create an email alert named \u201cChatGPT review JFK-LHR\u201d for nonstop business-class Aeroplan awards from JFK to LHR next month, at least one seat and at most 100,000 points. Then show me the alert you created.",
+              "tools_triggered": "create_alert; list_active_alerts",
+              "expected_behavior": "Call create_alert once with origins [\"JFK\"], destinations [\"LHR\"], mileage_programs [\"aeroplan\"], cabins [\"business\"], resolved next-month dates, min_seats 1, max_point_cost 100000, direct_only true, channel \"email\", nickname \"ChatGPT review JFK-LHR\" and continuous false. Do not set contradictory max_stops. Confirm success only from the tool response, then list_active_alerts filtered by that nickname and reconcile returned records with the creation result. Explain future notifications use the saved email. On an uncertain write result, inspect existing alerts before any retry; on a definite failure, explain it without claiming creation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Booking is unsupported. After a search, explain that the plugin cannot reserve or buy a ticket. It may reuse an existing seats.aero result link, but must not invoke unrelated tools to simulate booking or claim a reservation/payment.",
+              "prompt": "Book the first flight you found and charge my saved card."
+            },
+            {
+              "description": "N2: Points transfers are unsupported. Explain that the user must transfer through their financial institution or loyalty program. No tool may transfer points, request bank credentials or claim a transfer was completed.",
+              "prompt": "Transfer 80,000 Chase points to my Aeroplan account now."
+            },
+            {
+              "description": "N3: Hotel reservations are outside this flight-award tool catalog. Explain the limitation without invoking flight or alert tools to simulate a hotel reservation, requesting payment credentials, or claiming a booking.",
+              "prompt": "Reserve a hotel room near Heathrow for the night I arrive and charge my saved card."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1nWy9GEoTWttFl-Kp9a6osLWIW23Bte2_/view"
+      },
+      "publication": {
+        "release_notes": "Initial public submission of seats.aero for ChatGPT. Search cached award availability, inspect itineraries, and explore points-transfer options. Connect your account for live searches, award deals, United upgrade space, and scoped alert reading, creation and expiry."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

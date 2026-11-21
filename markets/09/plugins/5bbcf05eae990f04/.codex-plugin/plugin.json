@@ -1,0 +1,140 @@
+{
+  "name": "bank-reconciliation",
+  "version": "1.0.2",
+  "description": "Reconcile a bank export against your books and list the unmatched items.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://bank-reconciliation.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "reconcile bank statement",
+    "bank reconciliation",
+    "reconcile bank statements online",
+    "reconcile bank statement against books",
+    "outstanding checks",
+    "deposits in transit",
+    "bank reconciliation excel",
+    "cash account reconciliation",
+    "why is my bank reconciliation off",
+    "match bank transactions to ledger"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Zovo Bank Reconciliation",
+    "shortDescription": "Bank vs books reconciliation",
+    "longDescription": "Reconcile a bank account against your books and see which items do not match. Attach the bank's transaction export (CSV or Excel, or a text PDF statement) and the cash account register or general ledger export from accounting software or a spreadsheet. Zovo Bank Reconciliation matches the two sides and lists the unmatched rows on both sides, each with a reason.\n\nMatching runs in clear steps: check number and amount, then the same amount on the same date, then the same amount within a date window (5 days by default; checks can take longer to clear), then one bank deposit that equals several book entries (or one book entry that equals several bank rows), with a bounded search. When an amount appears more than once, the closest date wins, then the closer description, then file order, and the result says so.\n\nUnmatched rows are classified: outstanding checks, outstanding payments, deposits in transit, bank fees, interest, NSF or returned items, automatic payments not yet in the books, checks the books do not have, likely duplicate entries, and likely amount typos (transposed digits, one wrong digit, a reversed sign, a decimal slip, or a check number with a different amount). Items that cross the period end are shown as timing differences.\n\nThe reconciliation uses the standard format: balance per bank plus deposits in transit minus outstanding checks, against balance per books plus bank-only items and corrections. The result is PASS only when the difference is zero to the cent. PASS needs both the statement ending balance and the book balance. Without them the result is \"Activity explained, balances needed\": the unmatched items are listed, but the reconciliation is not proven. The same file twice is refused. Files with little overlap are refused unless both ending balances are given or read from the files; with both balances, they are reconciled so you can review the unmatched items. If it does not balance, it looks for the smallest set of items that accounts for the difference.\n\nDownloads: an Excel workbook (Matched, Bank only, Book only, Suggested adjustments, Summary) and a PDF reconciliation statement.\n\nGood for bookkeepers, accountants and small-business owners doing the monthly bank reconciliation.\n\nLimitations: text PDFs only for bank statements (scans need OCR first); up to 20,000 rows per file; CSV and text tables have a 2,000,000-cell limit, including empty cells. Account numbers are masked. Files are read once and downloads expire after about an hour. Suggested adjustments are for review, not accounting advice.",
+    "developerName": "Zovo",
+    "category": "Finance",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://bank-reconciliation.zovo.one",
+    "supportURL": "https://bank-reconciliation.zovo.one/support",
+    "privacyPolicyURL": "https://bank-reconciliation.zovo.one/privacy",
+    "termsOfServiceURL": "https://bank-reconciliation.zovo.one/terms",
+    "defaultPrompt": [
+      "Reconcile my bank statement against my books for September and list what doesn't match (bank CSV and books export attached)",
+      "Match my attached bank CSV to my cash account register export and list outstanding checks and deposits in transit",
+      "Why is my bank reconciliation off at 09/30/2026? Bank balance $1,055, book balance $1,100; bank CSV and ledger attached."
+    ],
+    "brandColor": "#1F5FAE",
+    "brandColorDark": "#6EA8F0",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/bank-reconciliation/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Reconcile bank vs books and list what doesn't match (attach fixtures/regression/o-bank-sept.csv as the bank file and fixtures/regression/o-books-sept.csv as the books file)",
+              "prompt": "Reconcile my bank statement against my books for September and list what doesn't match.",
+              "tools_triggered": "reconcile_bank_to_books",
+              "expected_behavior": "Calls reconcile_bank_to_books with both attached files. Result: 400 bank rows and 390 book rows, period end 2026-09-30, status Activity explained, balances needed (no ending balances were given, so it is not a proven reconciliation). Matched 381. Bank-only 19 rows: 10 automatic payment or debit -$5,455.40, 3 bank fee -$75.40, 3 interest $31.82, 1 NSF / returned item -$533.04, 2 likely amount typo. Book-only rows include 6 outstanding check -$8,892.56 and 1 likely duplicate entry -$243.18. The widget shows a blue \"Activity explained, balances needed\" badge, the bank and book sides, counts by class and Download Excel / PDF statement buttons."
+            },
+            {
+              "description": "Outstanding checks (attach fixtures/regression/o-bank-sept.csv as the bank file and fixtures/regression/o-books-sept.csv as the books file)",
+              "prompt": "Which checks in my books haven't cleared the bank yet? Here are my September bank CSV and my books export.",
+              "tools_triggered": "reconcile_bank_to_books",
+              "expected_behavior": "Calls reconcile_bank_to_books with both files. Result: activity explained, balances needed (no ending balances given), period end 2026-09-30. Book-only rows include 6 outstanding check totalling -$8,892.56, listed in the Book only sheet of the Excel file. Matched 381 of 400 bank rows and 390 book rows."
+            },
+            {
+              "description": "Bank fees and charges missing from the books (attach fixtures/regression/o-bank-sept.csv as the bank file and fixtures/regression/o-books-sept.csv as the books file)",
+              "prompt": "Find the bank fees, interest and automatic payments that are on my bank statement but not in my books for September.",
+              "tools_triggered": "reconcile_bank_to_books",
+              "expected_behavior": "Calls reconcile_bank_to_books with both files. Result: bank-only 19 rows, including 3 bank fee -$75.40, 3 interest $31.82, 1 NSF / returned item -$533.04 and 10 automatic payment or debit -$5,455.40. These appear in the Suggested adjustments sheet as entries to record in the books. Status: activity explained, balances needed."
+            },
+            {
+              "description": "Explain a reconciliation difference (attach fixtures/regression/explain-bank.csv as the bank file and fixtures/regression/explain-books.csv as the books file)",
+              "prompt": "Why is my bank reconciliation off? Bank statement ending balance $47,216.75, book balance $49,515.94 at 9/30/26. Bank CSV and books export attached.",
+              "tools_triggered": "explain_reconciliation_difference",
+              "expected_behavior": "Calls explain_reconciliation_difference with both files, bank_ending_balance 47216.75 and book_ending_balance 49515.94. Result: DIFFERENCE $612.50: adjusted bank balance $49,219.33 vs adjusted book balance $48,606.83. The item that explains it is bank row 6, 2026-09-04 \"CHECK 990\" -$612.50 (check not in books, for example a check already recorded in an earlier period). The widget shows a red DIFFERENCE badge with that item, and Excel and PDF downloads are returned."
+            },
+            {
+              "description": "Excel and PDF reconciliation files (attach fixtures/regression/o-bank-sept.csv as the bank file and fixtures/regression/o-books-sept.csv as the books file)",
+              "prompt": "Reconcile these two files and give me an Excel workbook and a PDF bank reconciliation statement for September.",
+              "tools_triggered": "reconcile_bank_to_books",
+              "expected_behavior": "Calls reconcile_bank_to_books with both files. Result: activity explained, balances needed (no ending balances given), period end 2026-09-30; 400 bank rows, 390 book rows, matched 381. Returns an Excel download with the sheets Matched, Bank only, Book only, Suggested adjustments and Summary, and a PDF reconciliation statement; links expire in about an hour."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Choosing a bank is general advice. Expected: no tool call.",
+              "prompt": "What is a good bank for a small business checking account?"
+            },
+            {
+              "description": "Converting a single statement with no books file is not a reconciliation. Expected: no call to reconcile_bank_to_books or explain_reconciliation_difference.",
+              "prompt": "Convert this bank statement PDF to Excel"
+            },
+            {
+              "description": "Setting up a bank feed is an accounting software question. Expected: general guidance, no tool call.",
+              "prompt": "How do I connect my bank feed to my accounting software?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://bank-reconciliation.zovo.one/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Clarifies full-export match counts and period-end reconciling rows, including matched book rows that cleared later, through the existing note, workbook and PDF while preserving the queued result schema. Adds third-party notices and the detected host download helper.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Uzgadnianie banku z ksi\u0119gami",
+            "description": "Uzgodnij rachunek bankowy z ksi\u0119gami i zobacz, kt\u00f3re pozycje si\u0119 nie zgadzaj\u0105. Do\u0142\u0105cz eksport transakcji z banku (CSV lub Excel albo tekstowy wyci\u0105g PDF) oraz rejestr rachunku kasowego lub eksport ksi\u0119gi g\u0142\u00f3wnej z oprogramowania ksi\u0119gowego lub arkusza. Zovo Bank Reconciliation dopasowuje obie strony i wypisuje niedopasowane wiersze po obu stronach, ka\u017cdy z powodem.\n\nDopasowanie przebiega etapami: numer czeku i kwota, ta sama kwota w tym samym dniu, ta sama kwota w oknie dat oraz jedna wp\u0142ata r\u00f3wna kilku zapisom w ksi\u0119gach (lub odwrotnie). Niedopasowane pozycje s\u0105 klasyfikowane: czeki w obiegu, wp\u0142aty w drodze, op\u0142aty bankowe, odsetki, zwroty NSF, p\u0142atno\u015bci automatyczne, prawdopodobne duplikaty i liter\u00f3wki w kwotach (przestawione cyfry, odwr\u00f3cony znak).\n\nUzgodnienie ma standardowy uk\u0142ad: saldo wg banku plus wp\u0142aty w drodze minus czeki w obiegu wobec salda wg ksi\u0105g plus pozycje tylko bankowe i korekty. Wynik PASS tylko przy r\u00f3\u017cnicy 0,00 USD. Gdy r\u00f3\u017cnica istnieje, narz\u0119dzie szuka najmniejszego zestawu pozycji, kt\u00f3ry j\u0105 wyja\u015bnia.\n\nPliki: skoroszyt Excel (Dopasowane, Tylko bank, Tylko ksi\u0119gi, Sugerowane korekty, Podsumowanie) i wyci\u0105g uzgodnienia w PDF. Ograniczenia: tylko tekstowe PDF, do 20 000 wierszy na plik. Numery kont s\u0105 maskowane, linki wygasaj\u0105 po oko\u0142o godzinie. Limit tabel CSV i tekstowych: 2 000 000 kom\u00f3rek, w tym pustych."
+          },
+          "de-DE": {
+            "subtitle": "Bankabstimmung mit B\u00fcchern",
+            "description": "Stimmen Sie ein Bankkonto mit Ihrer Buchhaltung ab und sehen Sie, welche Posten nicht \u00fcbereinstimmen. H\u00e4ngen Sie den Umsatzexport der Bank (CSV oder Excel, oder einen Text-PDF-Auszug) und das Kassenkonto bzw. den Hauptbuchexport aus Buchhaltungssoftware oder einer Tabelle an. Zovo Bank Reconciliation ordnet beide Seiten zu und listet die offenen Zeilen auf beiden Seiten mit Begr\u00fcndung auf.\n\nDie Zuordnung erfolgt in Schritten: Schecknummer und Betrag, gleicher Betrag am gleichen Tag, gleicher Betrag innerhalb eines Datumsfensters und eine Bankgutschrift, die mehreren Buchungen entspricht (oder umgekehrt). Offene Posten werden eingeordnet: ausstehende Schecks, unterwegs befindliche Einzahlungen, Bankgeb\u00fchren, Zinsen, R\u00fccklastschriften, automatische Zahlungen, wahrscheinliche Doppelbuchungen und Tippfehler (vertauschte Ziffern, falsches Vorzeichen).\n\nDie Abstimmung folgt dem Standardformat: Saldo laut Bank plus Einzahlungen unterwegs minus ausstehende Schecks gegen Saldo laut B\u00fcchern plus reine Bankposten und Korrekturen. PASS nur bei einer Differenz von 0,00 USD. Bei einer Differenz sucht das Tool die kleinste Gruppe von Posten, die sie erkl\u00e4rt.\n\nDownloads: Excel-Arbeitsmappe (Zugeordnet, Nur Bank, Nur B\u00fccher, Vorgeschlagene Korrekturen, \u00dcbersicht) und ein PDF-Abstimmungsbericht. Einschr\u00e4nkungen: nur Text-PDFs, bis 20.000 Zeilen pro Datei. Kontonummern werden maskiert, Links verfallen nach etwa einer Stunde. CSV- und Texttabellen: h\u00f6chstens 2.000.000 Zellen einschlie\u00dflich leerer Zellen."
+          },
+          "es-ES": {
+            "subtitle": "Conciliaci\u00f3n banco y libros",
+            "description": "Concilia una cuenta bancaria con tu contabilidad y ve qu\u00e9 partidas no coinciden. Adjunta la exportaci\u00f3n de movimientos del banco (CSV o Excel, o un extracto PDF de texto) y el registro de la cuenta de caja o la exportaci\u00f3n del libro mayor de software contable o una hoja de c\u00e1lculo. Zovo Bank Reconciliation empareja ambos lados y lista las filas sin emparejar de cada lado, cada una con su motivo.\n\nEl emparejamiento sigue pasos: n\u00famero de cheque e importe, mismo importe en la misma fecha, mismo importe dentro de un margen de d\u00edas y un ingreso bancario igual a varios asientos (o al rev\u00e9s). Las partidas pendientes se clasifican: cheques pendientes, dep\u00f3sitos en tr\u00e1nsito, comisiones bancarias, intereses, devoluciones, pagos autom\u00e1ticos, posibles duplicados y posibles errores de importe (d\u00edgitos transpuestos, signo invertido).\n\nLa conciliaci\u00f3n usa el formato est\u00e1ndar: saldo seg\u00fan banco m\u00e1s dep\u00f3sitos en tr\u00e1nsito menos cheques pendientes frente a saldo seg\u00fan libros m\u00e1s partidas solo del banco y correcciones. PASS solo con una diferencia de 0,00 USD. Si hay diferencia, busca el conjunto m\u00e1s peque\u00f1o de partidas que la explica.\n\nDescargas: libro de Excel (Emparejadas, Solo banco, Solo libros, Ajustes sugeridos, Resumen) y un informe de conciliaci\u00f3n en PDF. Limitaciones: solo PDF de texto, hasta 20.000 filas por archivo. Los n\u00fameros de cuenta se ocultan y los enlaces caducan en una hora aproximadamente. Tablas CSV y de texto: hasta 2.000.000 de celdas, incluidas las vac\u00edas."
+          },
+          "fr-FR": {
+            "subtitle": "Rapprochement banque-livres",
+            "description": "Rapprochez un compte bancaire de votre comptabilit\u00e9 et voyez quelles op\u00e9rations ne correspondent pas. Joignez l'export des op\u00e9rations de la banque (CSV ou Excel, ou un relev\u00e9 PDF texte) et le journal du compte de tr\u00e9sorerie ou l'export du grand livre de logiciel comptable ou d'un tableur. Zovo Bank Reconciliation associe les deux c\u00f4t\u00e9s et liste les lignes non rapproch\u00e9es de chaque c\u00f4t\u00e9, avec une raison.\n\nLe rapprochement suit des \u00e9tapes : num\u00e9ro de ch\u00e8que et montant, m\u00eame montant \u00e0 la m\u00eame date, m\u00eame montant dans une fen\u00eatre de dates, puis un d\u00e9p\u00f4t bancaire \u00e9gal \u00e0 plusieurs \u00e9critures (ou l'inverse). Les \u00e9carts sont class\u00e9s : ch\u00e8ques en circulation, d\u00e9p\u00f4ts en transit, frais bancaires, int\u00e9r\u00eats, impay\u00e9s, pr\u00e9l\u00e8vements automatiques, doublons probables et erreurs de montant probables (chiffres invers\u00e9s, signe invers\u00e9).\n\nLe rapprochement suit le format standard : solde selon la banque plus d\u00e9p\u00f4ts en transit moins ch\u00e8ques en circulation, face au solde selon les livres plus op\u00e9rations bancaires seules et corrections. PASS seulement avec un \u00e9cart de 0,00 USD. En cas d'\u00e9cart, l'outil cherche le plus petit ensemble d'op\u00e9rations qui l'explique.\n\nT\u00e9l\u00e9chargements : classeur Excel (Rapproch\u00e9es, Banque seule, Livres seuls, Ajustements sugg\u00e9r\u00e9s, Synth\u00e8se) et un \u00e9tat de rapprochement PDF. Limites : PDF texte uniquement, jusqu'\u00e0 20 000 lignes par fichier. Les num\u00e9ros de compte sont masqu\u00e9s et les liens expirent apr\u00e8s environ une heure. Tableaux CSV et texte : limite de 2 000 000 de cellules, cellules vides comprises."
+          },
+          "ja-JP": {
+            "subtitle": "\u9280\u884c\u52d8\u5b9a\u8abf\u6574\uff08\u5e33\u7c3f\u3068\u7167\u5408\uff09",
+            "description": "\u9280\u884c\u53e3\u5ea7\u3068\u5e33\u7c3f\u3092\u7167\u5408\u3057\u3001\u4e00\u81f4\u3057\u306a\u3044\u9805\u76ee\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002\u9280\u884c\u306e\u53d6\u5f15\u30a8\u30af\u30b9\u30dd\u30fc\u30c8\uff08CSV\u30fbExcel\u3001\u307e\u305f\u306f\u30c6\u30ad\u30b9\u30c8PDF\u306e\u660e\u7d30\u66f8\uff09\u3068\u3001\u4f1a\u8a08\u30bd\u30d5\u30c8\u3084\u30b9\u30d7\u30ec\u30c3\u30c9\u30b7\u30fc\u30c8\u306e\u73fe\u91d1\u52d8\u5b9a\u307e\u305f\u306f\u7dcf\u52d8\u5b9a\u5143\u5e33\u306e\u30a8\u30af\u30b9\u30dd\u30fc\u30c8\u3092\u6dfb\u4ed8\u3059\u308b\u3068\u3001Zovo Bank Reconciliation \u304c\u4e21\u8005\u3092\u7a81\u304d\u5408\u308f\u305b\u3001\u53cc\u65b9\u306e\u672a\u7167\u5408\u884c\u3092\u7406\u7531\u4ed8\u304d\u3067\u4e00\u89a7\u306b\u3057\u307e\u3059\u3002\n\n\u7167\u5408\u306f\u6bb5\u968e\u7684\u306b\u884c\u3044\u307e\u3059\uff1a\u5c0f\u5207\u624b\u756a\u53f7\u3068\u91d1\u984d\u3001\u540c\u65e5\u540c\u984d\u3001\u65e5\u4ed8\u306e\u8a31\u5bb9\u7bc4\u56f2\u5185\u306e\u540c\u984d\u3001\u305d\u3057\u30661\u4ef6\u306e\u5165\u91d1\u304c\u8907\u6570\u306e\u5e33\u7c3f\u8a18\u9332\u306e\u5408\u8a08\u306b\u7b49\u3057\u3044\u5834\u5408\uff08\u307e\u305f\u306f\u305d\u306e\u9006\uff09\u3002\u672a\u7167\u5408\u9805\u76ee\u306f\u3001\u672a\u6c7a\u6e08\u5c0f\u5207\u624b\u3001\u672a\u9054\u9810\u91d1\u3001\u9280\u884c\u624b\u6570\u6599\u3001\u5229\u606f\u3001\u4e0d\u6e21\u308a\u3001\u81ea\u52d5\u5f15\u843d\u3057\u3001\u91cd\u8907\u306e\u53ef\u80fd\u6027\u3001\u91d1\u984d\u306e\u5165\u529b\u30df\u30b9\u306e\u53ef\u80fd\u6027\uff08\u6841\u306e\u5165\u308c\u66ff\u308f\u308a\u3001\u7b26\u53f7\u306e\u9006\u8ee2\uff09\u306b\u5206\u985e\u3055\u308c\u307e\u3059\u3002\n\n\u8abf\u6574\u306f\u6a19\u6e96\u5f62\u5f0f\u3067\u3059\uff1a\u9280\u884c\u6b8b\u9ad8\uff0b\u672a\u9054\u9810\u91d1\uff0d\u672a\u6c7a\u6e08\u5c0f\u5207\u624b\u3068\u3001\u5e33\u7c3f\u6b8b\u9ad8\uff0b\u9280\u884c\u306e\u307f\u306e\u9805\u76ee\uff0b\u8a02\u6b63\u3092\u6bd4\u8f03\u3057\u3001\u5dee\u984d\u304c0.00\u30c9\u30eb\u306e\u5834\u5408\u306e\u307f PASS \u3067\u3059\u3002\u5dee\u984d\u304c\u3042\u308b\u5834\u5408\u306f\u3001\u305d\u308c\u3092\u8aac\u660e\u3059\u308b\u6700\u5c0f\u306e\u9805\u76ee\u306e\u7d44\u307f\u5408\u308f\u305b\u3092\u63a2\u3057\u307e\u3059\u3002\n\n\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\uff1aExcel\u30d6\u30c3\u30af\uff08\u7167\u5408\u6e08\u307f\u3001\u9280\u884c\u306e\u307f\u3001\u5e33\u7c3f\u306e\u307f\u3001\u4fee\u6b63\u306e\u63d0\u6848\u3001\u6982\u8981\uff09\u3068PDF\u306e\u9280\u884c\u52d8\u5b9a\u8abf\u6574\u8868\u3002\u5236\u9650\u4e8b\u9805\uff1a\u30c6\u30ad\u30b9\u30c8PDF\u306e\u307f\u30011\u30d5\u30a1\u30a4\u30eb20,000\u884c\u307e\u3067\u3002\u53e3\u5ea7\u756a\u53f7\u306f\u4f0f\u305b\u3001\u30ea\u30f3\u30af\u306f\u7d041\u6642\u9593\u3067\u5931\u52b9\u3057\u307e\u3059\u3002 CSV\u30fb\u30c6\u30ad\u30b9\u30c8\u8868\u306f\u7a7a\u306e\u30bb\u30eb\u3092\u542b\u3081\u30662,000,000\u30bb\u30eb\u307e\u3067\u3067\u3059\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "Concilia\u00e7\u00e3o banco x livros",
+            "description": "Concilie uma conta banc\u00e1ria com a sua contabilidade e veja quais itens n\u00e3o batem. Anexe a exporta\u00e7\u00e3o de transa\u00e7\u00f5es do banco (CSV ou Excel, ou um extrato PDF de texto) e o raz\u00e3o da conta caixa ou a exporta\u00e7\u00e3o do livro raz\u00e3o do software cont\u00e1bil ou de uma planilha. O Zovo Bank Reconciliation casa os dois lados e lista as linhas sem correspond\u00eancia de cada lado, cada uma com o motivo.\n\nA correspond\u00eancia segue etapas: n\u00famero do cheque e valor, mesmo valor na mesma data, mesmo valor dentro de uma janela de dias e um dep\u00f3sito igual \u00e0 soma de v\u00e1rios lan\u00e7amentos (ou o inverso). Os itens pendentes s\u00e3o classificados: cheques em aberto, dep\u00f3sitos em tr\u00e2nsito, tarifas banc\u00e1rias, juros, devolu\u00e7\u00f5es, d\u00e9bitos autom\u00e1ticos, prov\u00e1veis duplicidades e prov\u00e1veis erros de valor (d\u00edgitos trocados, sinal invertido).\n\nA concilia\u00e7\u00e3o usa o formato padr\u00e3o: saldo do banco mais dep\u00f3sitos em tr\u00e2nsito menos cheques em aberto, contra saldo dos livros mais itens s\u00f3 do banco e corre\u00e7\u00f5es. PASS apenas com diferen\u00e7a de US$ 0,00. Havendo diferen\u00e7a, a ferramenta procura o menor conjunto de itens que a explica.\n\nDownloads: pasta de trabalho Excel (Conciliados, S\u00f3 banco, S\u00f3 livros, Ajustes sugeridos, Resumo) e um demonstrativo de concilia\u00e7\u00e3o em PDF. Limita\u00e7\u00f5es: apenas PDFs de texto, at\u00e9 20.000 linhas por arquivo. N\u00fameros de conta s\u00e3o mascarados e os links expiram em cerca de uma hora. Tabelas CSV e de texto: limite de 2.000.000 de c\u00e9lulas, incluindo as vazias."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

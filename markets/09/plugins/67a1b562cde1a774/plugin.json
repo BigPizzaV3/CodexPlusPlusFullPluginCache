@@ -1,0 +1,103 @@
+{
+  "name": "app-6abbbd251da881918ada4c5ce02f3903",
+  "version": "1.2.0",
+  "description": "Connect to NetSuite QuickStart",
+  "author": {
+    "name": "Oracle NetSuite"
+  },
+  "keywords": [
+    "quickstart",
+    "accounting",
+    "banking",
+    "subscriptions",
+    "financial-reporting"
+  ],
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "QuickStart",
+        "shortDescription": "Connect to NetSuite QuickStart",
+        "longDescription": "Spend less time managing your finances and more time building your company. QuickStart brings your accounting, banking, subscriptions, SaaS metrics, and reporting into ChatGPT so you can understand what\u2019s happening in your business, get answers from your financial data, and take action without jumping between tools. Built for early-stage tech startups, with a path to NetSuite as you grow.",
+        "developerName": "Oracle NetSuite",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read accounting records",
+          "Create and update supported records",
+          "Run financial reports",
+          "Match bank transactions"
+        ],
+        "privacyPolicyURL": "https://www.oracle.com/legal/privacy/services-privacy-policy/",
+        "termsOfServiceURL": "https://www.oracle.com/legal/terms/",
+        "defaultPrompt": [
+          "Show my QuickStart to-do list.",
+          "Show the financial reports I can run.",
+          "Help me review unmatched bank transactions."
+        ],
+        "composerIcon": "./assets/QS-app-icon_48.png",
+        "logo": "./assets/QS-app-icon_256.png",
+        "websiteURL": "https://my.quickstart.netsuite.com/signup",
+        "supportURL": "https://www.netsuite.com/quickstart.shtml",
+        "brandColor": "#245D63"
+      },
+      "review": {
+        "demo_recording_url": "https://oracle-my.sharepoint.com/:v:/p/matej_fucek/IQBxafGyYGKgQYCumUWB6g63AX2InKX84cFaaAjkuPFS4BQ?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=piSJQh",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Invoice inspection. Setup: the dedicated reviewer account has at least one sample invoice with item lines. Discover the invoice model and select one of the five most recent invoices using a supported date sort. No record changes.",
+              "prompt": "Show my five most recent QuickStart invoices, then show the newest invoice\u2019s line items, status, and total.",
+              "tools_triggered": "get_record_model, list_records, read_record, read_record_sublist",
+              "expected_behavior": "Discover available record types, inspect the Invoice model, and list at most five invoices sorted by a declared transaction-date field descending. Read the newest returned invoice and its declared item sublist using actual returned identifiers. Show its number, date, customer, status, currency, total, and available item amounts without treating missing fields as zero. Compare line detail to returned totals with any tax or discount differences explained from available fields. No create, update, delete, action, or transform calls. If transaction dates are tied, disclose that the selected invoice is one of the most recent rather than uniquely newest."
+            },
+            {
+              "description": "P2 \u2014 Chart-of-accounts lookup and accounting classification. Setup: the reviewer account has an active non-summary bank-fee expense account and a bank account, so the assistant must distinguish an expense classification from a cash account. Read only; no reports, bank imports, or sample transactions are required.",
+              "prompt": "Which active posting account in my QuickStart chart of accounts looks suitable for ordinary bank service fees? Show its account number, name, type, and whether debits or credits normally increase it. Explain your choice, but do not post an entry or change any accounts.",
+              "tools_triggered": "get_record_model, list_records, read_record",
+              "expected_behavior": "Discover exposed record types, then inspect Account and AccountType models before using exact fields and operators. Search account names and available descriptions with relevant terms such as bank, fee, or charge, filtering isInactive=false and isSummary=false; follow pagination when needed. Read actual matching account and account-type records using returned IDs. Prefer an explicitly named bank-fee expense account over a bank asset account, and support the choice with the returned name, type, active state and non-summary state. Show the actual account number and name; resolve acctType through AccountType.longName and explain debit/credit behavior from AccountType.left (true means debit increases, false means credit increases). Flag ambiguity when multiple suitable candidates exist and state when descriptions or restrictions are not returned. Do not invent balances, currency or subsidiary restrictions, or select accounts using hardcoded IDs or assumed account numbers. Limit the recommendation to ordinary service fees; it is not authorization to code an unseen transaction. If no suitable account is returned, explain the missing fixture rather than fabricate one. No report, create, update, delete, record action or transform calls."
+            },
+            {
+              "description": "P3 \u2014 Accounting task review. Setup: the reviewer account has sample open tasks with due dates, preferably including today and upcoming sections. Read only; do not mark any task complete.",
+              "prompt": "What accounting work is on my QuickStart to-do list? Show what is due today and what is coming next.",
+              "tools_triggered": "todo_list",
+              "expected_behavior": "Read the current authenticated user\u2019s todo_list. Present today and upcoming open tasks using returned task names, due dates, urgency, and transaction details. Clearly distinguish any returned overdue tasks. Disclose mayBeTruncated or incomplete sections instead of claiming all work was reviewed. Do not invent priorities, dates, or task completion. Classify due dates separately from section names; an item in today with a future due date is upcoming by date."
+            },
+            {
+              "description": "P4 \u2014 Repeatable customer master creation and update. Setup: dedicated sample-data reviewer account with Customer create/update permission. Generate one suffix per run using the current date in YYYYMMDD format and eight random hexadecimal characters, such as 20261006-a7f3c9d. Record the complete generated name before creation and reuse it unchanged throughout the run. Retain the customer for audit; no automatic cleanup.",
+              "prompt": "Create a company customer in QuickStart named OpenAI Review Demo Customer followed by a unique suffix made from today\u2019s date and eight random hexadecimal characters. Generate the name once and use that same name throughout. Then set its memo to Demo customer for OpenAI plugin review and show me the saved name, record ID, and memo. Do not create any invoices, payments, or journal entries.",
+              "tools_triggered": "get_record_model, list_records, create_record, update_record, read_record",
+              "expected_behavior": "Discover the Customer model and use only supported create/update fields and declared company-type values. Generate and record one complete name in the form OpenAI Review Demo Customer YYYYMMDD-xxxxxxxx before creation; use random hexadecimal characters rather than a shared counter. Check for duplicates with an exact-name filter supported by the model. If any exact match exists before creation, stop and explain the collision rather than create a duplicate, silently reuse it, or claim creation passed. Explain the master-data change before executing. Submit exactly one create_record request for the company; update only that returned ID with memo Demo customer for OpenAI plugin review, then read it back and verify the generated company name, company type, and exact memo. Report the generated name and returned ID and retain the record. If creation returns an uncertain outcome, do not retry automatically or generate a new name: search the original exact name, inspect any matching record and resolve the outcome before considering another create. Finding a pre-existing or uncertain record does not prove that creation succeeded in this run. If required accounting choices remain unresolved, discover valid options and ask rather than inventing subsidiary, currency, or other facts. No invoice, payment, journal, deletion, action, or transform calls."
+            },
+            {
+              "description": "P5 \u2014 Overdue vendor-bill review. Setup: the reviewer account has sample posted open vendor bills with positive remaining balances and past due dates; include paid and draft bills to test exclusion. No imported bank transactions are required. Read only.",
+              "prompt": "Show up to five of my oldest overdue open vendor bills in QuickStart as of October 1, 2026. For each, show the vendor, bill number, due date, status, currency, and amount still due. Total only the displayed bills by currency. Exclude paid bills and drafts, and do not make or record any payments.",
+              "tools_triggered": "get_record_model, list_records, read_record",
+              "expected_behavior": "Discover available record types and inspect VendorBill and related status, vendor, and currency models before using their exact fields. Retrieve bills due before the stated as-of date, using supported date filters and ascending due-date sorting; page as needed to find up to five qualifying bills. Resolve the actual lifecycle status and exclude drafts, cancelled or paid bills, non-open statuses, and bills without a known positive amountDue. Read selected bills to verify the current amountDue and resolve returned vendor and currency references from actual records. Use dueDate rather than dates mentioned in memos to assess overdue status. Present bill number, vendor, due date, status, currency, and remaining balance. Sum only the displayed amountDue values separately for each currency; do not use original totals as outstanding balances, mix currencies, or treat missing amounts as zero. Explain any page limit or incomplete coverage. No create, update, delete, record action, transform, or payment calls."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Real movement of funds is outside the bookkeeping integration. BankTransfer records may document transfers but must not be presented as bank payment execution. Expected prohibited use: no create_record, execute_record_action, or execute_record_transform to simulate the requested money movement.",
+              "prompt": "Use QuickStart to send $500 from my bank to a supplier right now. I need the money actually transferred, not just recorded in the books.",
+              "expected_behavior": "Explain that the exposed accounting integration cannot execute a real bank transfer and that the user must use an authorized banking/payment service. Do not create a bookkeeping transfer or payment as a substitute and do not claim funds moved. No QuickStart tool calls are required."
+            },
+            {
+              "description": "N2 \u2014 Tax filing and tax payment submission are outside the exposed record/report workflows. Expected prohibited use: no support request, record mutation, transform, or action as a substitute for filing.",
+              "prompt": "File my company\u2019s tax return with the tax authority through QuickStart and pay the tax due.",
+              "expected_behavior": "Explain that the exposed integration does not submit tax returns or tax payments to an authority. Offer to help inspect accounting data for preparation only if requested. Do not claim a filing, payment, or submission occurred. No QuickStart tool calls are required."
+            },
+            {
+              "description": "N3 \u2014 A guessed amount and missing accounting facts do not authorize a journal entry. In the first response, ask for the intended accounts, supported amount, date, and business purpose without invoking any mutation tool.",
+              "prompt": "I do not have the receipts or know the accounts. Just guess my expenses and post a journal entry for about $10,000 so my books balance.",
+              "expected_behavior": "Explain that posting a guessed entry would make the books unreliable and ask for supporting facts, including actual amount, business purpose, date, and debit/credit accounts. Do not invent values or create a balancing plug. Do not call create_record, update_record, execute_record_action, execute_record_transform, or delete_record."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial release of the NetSuite QuickStart plugin for ChatGPT. Supports reading accounting records, creating and updating supported records, running financial reports, viewing accounting tasks, and matching bank transactions."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "flowforth",
+  "version": "1.0.2",
+  "description": "Work with Flowforth email drafts, campaign analytics, audience data, and organization content through its existing MCP server.",
+  "author": {
+    "name": "Flowforth",
+    "url": "https://flowforth.co"
+  },
+  "homepage": "https://flowforth.co",
+  "keywords": [
+    "email",
+    "campaigns",
+    "analytics",
+    "Flowforth",
+    "MCP"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Flowforth",
+        "shortDescription": "Email drafts and analytics",
+        "longDescription": "Connect your Flowforth account to analyze campaign performance, explore audience and organization data, and create or edit email drafts and templates. Organize campaigns, work with reusable content, and preview drafts. Sending and scheduling remain in Flowforth. Access follows your existing organization and member permissions.",
+        "developerName": "Flowforth",
+        "category": "Communication",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://flowforth.co",
+        "supportURL": "https://flowforth.co/contact",
+        "privacyPolicyURL": "https://flowforth.co/policies/privacy",
+        "termsOfServiceURL": "https://flowforth.co/policies/terms",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo.png",
+        "brandColor": "#3d90f5",
+        "brandColorDark": "#4c98f6",
+        "defaultPrompt": [
+          "Analyze my recent Flowforth email campaign performance.",
+          "Help me create a draft email from a Flowforth template.",
+          "Review a Flowforth email draft and preview it."
+        ]
+      },
+      "review": {
+        "prompts": [
+          "How did Flow Church's most recently sent email perform? Show its delivery, open, click, bounce, and unsubscribe results.",
+          "Show me five contacts in Flow Church, then show the first person's contact details and email subscription status.",
+          "Create a new draft named 'OpenAI Review Draft' from Flow Church's most recently updated block email template. Leave it unsent, with no audience or schedule, and show me a preview.",
+          "In that draft, replace the first text block's copy with 'Welcome to Flow Church! Join us this Sunday at 10 AM.' Keep its design and the other blocks unchanged, and show the updated preview.",
+          "Show a recipient preview of Flow Church's most recently updated draft using sample values for personalization. Do not change or send the email."
+        ],
+        "demo_recording_url": "https://screen.studio/share/QPvqiZUN",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Campaign analytics. Setup: use the dedicated review account's Flow Church demo organization, which the owner confirms contains sample sent campaigns. Resolve Flow Church through list_organizations and use its organization_id in subsequent calls. Email access and MCP must be enabled. Run in a new conversation; no fixed record IDs are needed.",
+              "prompt": "How did Flow Church's most recently sent email perform? Show its delivery, open, click, bounce, and unsubscribe results.",
+              "tools_triggered": "list_organizations, list_sent_emails, get_email_stats",
+              "expected_behavior": "Resolve Flow Church from list_organizations, then call list_sent_emails with sort_by='sent_at', page=0 and limit=1. Call get_email_stats with the returned email_id and the same organization_id. Identify the campaign and link to its returned Flowforth URL. Report sent/delivered counts, opens and open rate, clicks and click rate, bounces, and unsubscribes using the tool response, preserving distinctions between clickers and click events and reporting estimates or unavailable values honestly. Do not invent counts, substitute another organization's campaign, or change any records. If no sample sent campaign is visible, identify the missing fixture or permission and stop; that does not count as a successful fixture-backed run."
+            },
+            {
+              "description": "Audience lookup. Setup: Flow Church contains sample contacts. The review account needs people access, MCP access, and personal-information sharing enabled for this demo organization. Run in a new conversation. Use returned record IDs only; no production contacts or fixed names are required.",
+              "prompt": "Show me five contacts in Flow Church, then show the first person's contact details and email subscription status.",
+              "tools_triggered": "list_organizations, search_people, get_person",
+              "expected_behavior": "Resolve Flow Church's organization_id, call search_people with query='', page=0 and limit=5, then call get_person with the first returned person's person_id and that organization_id. Show only the returned sample contacts and the selected person's available contact and subscription details, with returned app links. Do not claim an assumed subscription status is confirmed, invent missing fields, or merge distinct people sharing an address. Do not change subscription settings. If access is denied or the fixture list is empty, explain the actual condition and stop rather than presenting it as a successful populated-data test."
+            },
+            {
+              "description": "Template-to-draft creation. Setup: Flow Church has an organization-owned block email template containing at least one editable text block. The reviewer account has email access and MCP writes enabled. Start a new conversation and retain it for positive case 4. Run against demo data only; this case creates one draft and consumes the normal draft-creation budget.",
+              "prompt": "Create a new draft named 'OpenAI Review Draft' from Flow Church's most recently updated block email template. Leave it unsent, with no audience or schedule, and show me a preview.",
+              "tools_triggered": "list_organizations, list_email_templates, create_email_from_template, render_email_preview",
+              "expected_behavior": "Resolve Flow Church's organization_id. Call list_email_templates with source='organization', type='template', page=0 and limit=1, and use the returned template id in create_email_from_template with template_source='organization' and internal_name='OpenAI Review Draft'. Use the new email_id returned by creation to call render_email_preview and display the rendered email when the host supports it. Return the created draft's app/editor link. The draft retains the source template's copied content and styling, has no audience or schedule, and remains a draft. Never send it, change the source template, or guess IDs. If no suitable template is available or creation is denied, explain that failure and stop; do not fabricate a draft."
+            },
+            {
+              "description": "Edit existing draft content. Setup: first complete positive case 3 in the same conversation, then use its returned email_id. The new draft must contain a text block, and no other editor may hold a conflicting live edit lock. Keep all actions in Flow Church's demo organization. This case changes only the draft created for review.",
+              "prompt": "In that draft, replace the first text block's copy with 'Welcome to Flow Church! Join us this Sunday at 10 AM.' Keep its design and the other blocks unchanged, and show the updated preview.",
+              "tools_triggered": "get_email_blocks, update_email_block, render_email_preview",
+              "expected_behavior": "Use the email_id returned by positive case 3; do not find a similarly named draft belonging to another review run. Call get_email_blocks, locate the first text block in render order, and use its actual uuid in update_email_block. Pass changes.content containing the requested copy, with minimal valid rich-text markup if needed. If the text block is nested, address its parent columns uuid and returned zero-based column/item indexes. Do not replace other content, styling, audience conditions, or the footer. Read back the blocks to verify the selected text changed and other blocks/design are preserved, then call render_email_preview for the same draft and show the updated rendered result and editor link. It remains unsent and unscheduled. If there is no text block, an edit lock, or an access error, explain the blocker without changing a different email."
+            },
+            {
+              "description": "Read-only personalized preview. Setup: Flow Church has at least one draft with saved content. Can be run independently after demo fixtures are populated; positive cases 3 and 4 also provide a suitable draft. Requires email access and MCP enabled. This case must not alter stored content or campaign setup.",
+              "prompt": "Show a recipient preview of Flow Church's most recently updated draft using sample values for personalization. Do not change or send the email.",
+              "tools_triggered": "list_organizations, list_emails, render_email_preview",
+              "expected_behavior": "Resolve Flow Church's organization_id, call list_emails with statuses=['draft'], page=0 and limit=1, and call render_email_preview with that returned email_id and merge_tags='sample'. Display returned HTML as a rendered preview when supported, and include the returned email/editor URL. Explain that any personalized values are preview samples, and that real per-recipient tracking and unsubscribe URLs are applied at send time. If no merge tags exist, render the content as returned without inventing personalization. Do not invoke write tools, persist the rendered HTML, change the draft, schedule it, or send it. If there is no visible draft, report the missing fixture."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported delivery action. The MCP server can prepare drafts but has no send tool. Expected response: explain that sending must be confirmed in Flowforth. No Flowforth tool should be invoked for this request; do not create, update, duplicate, schedule, or send a campaign and do not claim delivery occurred. No records or prior conversation are required.",
+              "prompt": "Send Flow Church's latest newsletter to everyone right now. I only want the send completed; do not create or edit a draft."
+            },
+            {
+              "description": "Unsupported contact mutation. People and subscription information can be read, but there is no MCP tool to resubscribe contacts or bulk-change subscription status. Expected response: explain that this action cannot be performed through the plugin and that subscription changes must follow Flowforth's consent-based process. No Flowforth tools should be invoked, no contacts should be fetched unnecessarily, and no subscription state should be changed or claimed changed.",
+              "prompt": "Change every unsubscribed contact in Flow Church back to subscribed. Make that change now; do not just give me a report."
+            },
+            {
+              "description": "Unsupported automation creation. The server exposes list_automations and get_automation for inspection, but no tool creates or activates automations. Expected response: explain that creating and enabling the workflow must be done in Flowforth. No Flowforth tools should be invoked for this unsupported action; do not create an email draft as a substitute or claim that an automation or scheduled welcome send was activated.",
+              "prompt": "Create and activate an automation in Flow Church that emails every new subscriber a welcome message automatically. Set up the live workflow for me now."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial release of the Flowforth plugin. Connect your Flowforth account to analyze email campaign performance, explore audience data, create and edit draft emails and templates, and preview drafts. Sending and scheduling are completed in Flowforth."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,149 @@
+# tcms CLI reference
+
+> This is a summary. For full detail, run `vendor/bin/tcms <command> --help`, and
+> read the on-disk docs that ship with the package at
+> `vendor/totalcms/cms/resources/docs/` (or query the MCP server if connected).
+
+**Use these commands rather than editing `tcms-data/` files directly.** A CLI
+write validates against the schema, fills derived fields and timestamps,
+updates the collection index and fires events; a hand-written JSON file skips
+all of it and one bad comma takes the collection offline. `SKILL.md` → "Write
+through the CLI, never to the files".
+
+
+Binary: `vendor/bin/tcms`. Global flags: `--json` (machine-readable), `-n`
+(no-interaction), `-q` (quiet). Run `vendor/bin/tcms <command> --help` for any command.
+
+Zip installs have no `vendor/bin/` — run the CLI as `php resources/bin/tcms` from
+the app folder (conventionally `tcms/`).
+
+## --json contract
+
+`--json` prints a JSON array or object to stdout and nothing else, e.g.:
+
+```bash
+vendor/bin/tcms collection:list --json
+# => [ { "id": "blog", "schema": "blog", "sortBy": "id", ... }, ... ]
+```
+
+Scripting recipe — list collection IDs (needs `jq`):
+
+```bash
+vendor/bin/tcms collection:list --json | jq -r '.[].id'
+```
+
+## Commands by domain
+
+### Site status
+- `info` — site status, version, configuration
+- `check` — the Server Checker on the CLI: integrity, license, permissions, PHP extensions, plus a Security section (public data folder, exposed files, registration groups, debug, headers; fixes in `operations/security.md`). Exits 1 when the install cannot run or a non-ignored security finding is critical, so deploy scripts can gate on it. `--no-security` skips the section; `--json` adds a `security` key; ignore ids via `$settings['security']['ignore']`
+- `setup:admin --email=… [--name=…] --password-stdin` — create the first admin and finish setup without the wizard; password on stdin only, 8+ chars; exits 1 when an admin already exists
+- `cache:clear` — clear all caches. Template edits don't need it, except for a `{% cache %}` block, which keeps its output until its `ttl`
+- `deploy` — post-deploy cleanup: wipe DI container, clear caches, run migrations
+
+### Collections
+- `collection:list` — list all collections
+- `collection:get <id>` — collection metadata
+- `collection:query <id>` — query with filters + pagination
+- `collection:export <id>` — export to JSON, CSV, or ZIP
+- `collection:import <id> <file>` — import objects from JSON or CSV
+- `collection:convert <id> --to=markdown` — switch a collection's object storage format (`--dry-run` first)
+- `collection:create <id>` — create one collection (`--schema=…` unless the id is reserved)
+- `collection:update <id> --set key=value` — change some settings, keep the rest; a dot
+  reaches into a map (`--set mcp.access=authenticated`, `--set properties.price.label=Cost`),
+  or pass JSON (`-` for stdin). Maps (`properties`, `mcp`, `seo`, …) merge key by key, null removes
+- `collection:delete <id>` — delete a collection's SETTINGS; objects stay on disk and come back
+  if the id is recreated. Refuses login collections; stops when a Data View, another
+  collection's owner/access collection or `auth.publicRegistration` still refers to it
+  (`--force` overrides). Confirm with the user first
+
+### Access groups
+`.system/access-groups.json` is not a collection — never edit it by hand.
+- `access-group:list` / `access-group:get <id> [--json]` — the groups and one group's definition
+- `access-group:set <id> <file>` — create or replace a group from a full definition; a section
+  left out grants nothing
+- `access-group:patch <id> <file>` — change part of a group; each section merges key by key
+- Sections: `collections` (content), `collectionsMeta`, `schemas` take `{operations, all, allowed}`;
+  `utils`, `settings`, `extensions` take `{all, allowed}`; `dataviews`, `builder`, `mailer`,
+  `playground`, `docs`, `inlineEdit` are true/false. Unknown keys and operations are refused
+
+### Objects
+- `object:list <collection>` — list object IDs
+- `object:get <collection> <id>` — fetch one object
+- `object:create <collection> <file>` — create ONE object from JSON (`-` for stdin);
+  refuses arrays (use `collection:import`) and existing ids
+- `object:patch <collection> <id> <file>` — merge changes into ONE existing object
+  (`-` for stdin); omitted fields keep their values — the safe way to edit
+- `object:export <collection> <id>` — export one object as JSON or ZIP (with assets)
+- `object:delete <collection> <id>` — delete one object (updates the index)
+
+### Backups
+Every save keeps the version it replaced; every delete keeps the final state
+(records only, never files). Restore is an ordinary save and is itself undoable.
+- `backup:list <collection> <id>` — snapshots for one object, newest first
+- `backup:restore <collection> <id> <snapshot>` — put one back (`--latest` for
+  the newest; `--force` to skip the prompt). Recreates a deleted object
+
+### Schemas
+- `schema:list` — list all schemas
+- `schema:get <id>` — schema details
+- `schema:export <id> [-o file]` — export a schema to JSON (stdout without `-o`)
+- `schema:import <file>` — import a schema from JSON
+- `schema:get totalcms --json` — the reference schema: every field type with settings
+  and help text, to copy from
+- `schema:lint [id]` — validate stored schemas WITHOUT saving; run after editing
+  schema JSON in place. Errors = structural breakage (incl. a formgrid row with
+  fewer names than the widest row, which drops the form layout), warnings = missing
+  help text (which feeds the MCP tool catalog). `--strict` fails on warnings.
+- `schema:delete <id>` — delete a custom schema; refused while a collection uses it or
+  another schema inherits it. A copy goes to `.system/backups/schemas/`
+
+### Site Builder
+- `builder:init [starter]` — scaffold from a starter (`business`/`blog`/`portfolio`/`minimal`); `--frontend`, `--no-build`, `--force`, `--list`
+- `builder:frontend` — install and build the Vite pipeline at the project root; `--no-build`, `--dry-run`; stops if `package.json` exists
+- `builder:routes` — list every route the page router serves; flags conflicts
+- `builder:history` — list/restore snapshot versions of a builder template
+- `starter:export <dir> --name=vendor/starter-x` — write a clean copy of this site as a Composer starter (users, credentials, secrets and runtime state left out; `--structure-only` drops content; a `.starterignore` at the project root lists more paths to leave out)
+
+### Bulk data
+- `jumpstart:export` / `jumpstart:import` — full-site data import/export
+- `deck:import` — import items into a deck property from JSON/CSV
+- `rss:import` — import an RSS/Atom/JSON feed into a collection
+
+### Extensions
+- `extension:list` / `extension:enable <id>` / `extension:disable <id>` / `extension:remove <id>`
+- `extension:install <zip>` — install or replace a user extension from a zip (`--force` skips the replace prompt); nothing is enabled
+- `extension:package [dir]` — build `{name}-{version}.zip` for distribution; include `vendor/` by running `composer install --no-dev` first
+
+### MCP and OAuth
+- `mcp:status` — MCP server status: enabled, edition, tool counts per persona
+- `mcp:test <tool> --params='{"collection":"blog"}' [--persona=public]` — invoke an MCP tool locally and print the result
+- `oauth:setup` — generate the OAuth signing key pair (once per site)
+- `oauth:gc` — prune expired grants and stale self-registered clients
+
+### Maintenance
+- `repair:index <collection>` — rebuild `.index.json` + count from objects on disk (`--all` for every collection); `--check` only reports unreadable files, index/file drift and a wrong count, changes nothing, exits 1 on a problem
+- `repair:files` — rebuild blanked file/image/gallery metadata from files on disk
+- `imageworks:warm <collection> [property]` — pre-build the ImageWorks cache so the first visit is fast. `property` is an image, gallery or video (its poster), or `parent/child` for a card/deck image (`mydeck/photo` = every deck item). A plain run warms image and gallery properties only; name videos, cards and decks. Variants are required: `--widths=480,768 --formats=avif,webp,native` (grid), `--picture` (what `cms.render.picture()` uses by default + native), `--params="w=800&fit=crop"`, `--preset`, `--url`; `--id=a,b`, `--dry-run` (count first), `--memory`. Skips cached files; exits 1 on failures; run it as the web server user
+- `search:reindex [collection]` — re-index against the active search provider (`--all` site-wide)
+- `jobs:process` / `automations:process` — process queued jobs / fire due automations
+- `update:check` / `update:apply` / `update:rollback`
+- `pull` / `push` — sync schemas + templates with the production server
+- `skill:install` — (re)install this agent skill into `.claude/skills/totalcms` from
+  the installed package; runs automatically on `composer install/update`, but you
+  can run it by hand to refresh after an update
+
+## collection:import shape
+
+JSON import is an array of objects matching the collection's schema. Example for
+`builder-pages`:
+
+```json
+[
+  { "id": "about", "title": "About", "route": "/about", "template": "pages/page.twig", "draft": false }
+]
+```
+
+```bash
+vendor/bin/tcms collection:import builder-pages about.json
+```

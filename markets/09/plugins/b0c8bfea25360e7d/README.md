@@ -1,0 +1,19 @@
+# Pegel: Jobs from the source
+
+Development package version 0.2.1 contains one candidate skill and one read-only HTTPS MCP connection at `https://pegel.berlin/api/mcp`. Pegel helps candidates find tech jobs in Berlin, Hamburg and Munich, directly from company hiring feeds. Candidates can prepare application material for personal submission. The listing name matches the Android and iOS apps, with the iOS city subtitle. The package contains instructions only; the server remains in the Pegel application.
+
+All three tools accept a single `city`: `berlin`, `munich` or `hamburg`. Berlin remains the default for older calls. Search filters, job details and company open-role counts stay in the selected city and respect public-city gates.
+
+The workflow distinguishes job roles from company sectors. It can combine public search preferences with saved/application decisions explicitly available in the current conversation, and review follow-ups using confirmed application and employer-reply dates. Incomplete personal counts and missing reply timing stay unknown. Candidate saving is separate from employer screening. The 0.2.1 update requires new installed-host evaluation.
+
+Run `pnpm plugin:pegel-jobs:pack` from the repository root. The command uses Node.js with seven explicit filenames and writes `.tmp/pegel-jobs-0.2.1.zip` outside the package. No system ZIP tools are required. It replaces the previous local archive to prevent stale entries. Inspect the archive list and SHA-256 before seeking approval for the exact submission payload. Do not include the application source, credentials or candidate documents. The packaged icon is Pegel's existing public 512px icon.
+
+[The skill](skills/pegel-jobs/SKILL.md) and [tool contracts](skills/pegel-jobs/references/tool-contracts.md) are packaged resources. Contract JSON is generated from the server's exported input schemas. Regenerate it when those schemas change; the package test compares parsed contracts to the actual server schemas and discovers the actual server version without querying data.
+
+Root manifests follow Agent Plugins 1.0.0. OpenAI presentation belongs under `extensions.com.openai`. The single skill dependency uses `streamable_http`; the portable MCP config uses `streamable-http`. Listing links point to Pegel's existing public pages; support uses the contact link on About. On October 2, 2026, the operator's OpenAI organization showed business verification approved and the upload dialog offered Maj Labs UG as its business identity. The package uses that verified publisher name. No registered technical connection ID has been supplied.
+
+The manifest includes release notes plus five positive and three negative review scenarios, as required by the [OpenAI submission guide](https://developers.openai.com/plugins/deploy/submission). These are expected behaviors, not observed test results. Run them in the installed host before submission. A new walkthrough covering all three cities remains a release gate; the 0.1.0 recording does not verify this update. No placeholder recording URL is included.
+
+This 0.2.1 archive is an update candidate. Version 0.2.0 was confirmed published on 9 November 2026. Package checks do not prove ChatGPT activation, hosted transport or drafting quality. Installed evaluations, approved production deployment and verified publishing/support/privacy metadata remain release gates. Candidate documents are shared with ChatGPT under its terms. No candidate document or conversation history is sent to Pegel; the skill offers conversation-only shortlists and does not promise durable storage.
+
+Local JSON logs, companion databases and their correspondence writers are not connected to this plugin. It has no mailbox access or email-sending tool. A historical follow-up draft does not submit a new application or record a message as sent.

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "recalls",
+  "version": "1.0.1",
+  "description": "Check whether a car, a baby product, a food or a medicine has been recalled in the United States, using the official recall databases.",
+  "author": {
+    "name": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Recall Check",
+        "shortDescription": "US vehicle and product recalls",
+        "longDescription": "Check whether a car, a baby product, a food or a medicine has been recalled in the United States, using the official recall databases.\n\nAsk \"does my 2018 Honda Accord have any recalls?\", \"decode this VIN\", \"is this car seat recalled?\", \"was there a recall on this infant formula?\" or \"any dog food recalls this week?\".\n\nRecall Check reads three public U.S. government sources: NHTSA for vehicle recalls and VIN decoding, the Consumer Product Safety Commission (CPSC) for consumer products, and the FDA enforcement reports on openFDA for food, supplements and drugs, plus the FDA's recall announcements for pet food.\n\nEach answer shows what was recalled, why it is dangerous, what the maker will do about it, and the recall number so you can check it at the source.\n\nIt covers United States recalls only and is not a safety guarantee: no match does not prove an item is safe, and a match may not cover your exact item. Vehicle recalls are listed by year, make and model, so confirm a specific car at nhtsa.gov/recalls with its VIN.\n\nIt never asks for an owner name or a license plate. It stores nothing about you: recall answers are cached for up to 24 hours, and the only lasting record is a daily count of calls per tool.",
+        "developerName": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+        "category": "Other",
+        "capabilities": [
+          "Lists the NHTSA recalls for a vehicle by model year, make and model",
+          "Decodes a 17-character VIN into year, make, model, trim and engine",
+          "Searches CPSC recalls of consumer products such as cribs, strollers, sleepers and heaters",
+          "Searches FDA food, supplement and drug recalls, optionally limited to recent days",
+          "Lists recent FDA pet food recalls, such as dog or cat food from the last week",
+          "Shows the hazard, the maker's remedy and a link or recall number to confirm at the source"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "Does my 2018 Honda Accord have any recalls?",
+          "Is the Fisher-Price Rock 'n Play sleeper recalled?",
+          "Any dog food recalls this week?"
+        ],
+        "brandColor": "#D9480F",
+        "brandColorDark": "#F0743C",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/recalls.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "status ok, a vehicle of 2018 Honda Accord, a totalRecalls count and up to 10 recalls newest first, each with campaignNumber, reportedOn, component, summary, consequence and remedy, plus the US-only notice. The list includes campaign 20V314000 (fuel pump). Check against: https://api.nhtsa.gov/recalls/recallsByVehicle?make=honda&model=accord&modelYear=2018",
+              "prompt": "Does my 2018 Honda Accord have any recalls?",
+              "tools_triggered": "check_vehicle_recalls",
+              "expected_behavior": "Calls check_vehicle_recalls with year 2018, make \"Honda\" and model \"Accord\"."
+            },
+            {
+              "description": "status ok and a vehicle of 2003 Honda Accord, trim EX-V6, Coupe body class, manufacturer American Honda Motor Co., engine 3.0L 6-cyl, fuel Gasoline, with no check-digit warning. Check against: https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/1HGCM82633A004352?format=json",
+              "prompt": "Decode this VIN: 1HGCM82633A004352",
+              "tools_triggered": "decode_vin",
+              "expected_behavior": "Calls decode_vin with vin \"1HGCM82633A004352\"."
+            },
+            {
+              "description": "status ok with at least one recall, recallNumber 26568, titled Joolz Recalls Aer2 Car Seat Adapters for Strollers, with the fall hazard, a refund remedy, the Joolz contact and the CPSC link. Because the question mentions a car seat, the message adds that car seats themselves are NHTSA recalls this plugin cannot see. Check against: https://www.cpsc.gov/Recalls/2026/Joolz-Recalls-Aer2-Car-Seat-Adapters-for-Strollers-Due-to-Risk-of-Serious-Injury-from-Fall-Hazard",
+              "prompt": "Is the Joolz Aer2 car seat adapter recalled?",
+              "tools_triggered": "search_product_recalls",
+              "expected_behavior": "Calls search_product_recalls with query \"Joolz Aer2 car seat adapter\"."
+            },
+            {
+              "description": "status ok with a Class I recall, recallNumber H-1137-2026, product Whole Milk Organic Infant Formula by Nara Organics, reason possible Clostridium botulinum contamination, with lot codes and the FDA report link. Check against: https://api.fda.gov/food/enforcement.json?search=recall_number:%22H-1137-2026%22",
+              "prompt": "Was there a recall on this infant formula? It is Nara Organics Whole Milk Organic Infant Formula.",
+              "tools_triggered": "search_food_drug_recalls",
+              "expected_behavior": "Calls search_food_drug_recalls with category \"food\" and query \"Nara Organics infant formula\"."
+            },
+            {
+              "description": "status ok and a coveredFrom date. Either recall announcements from the last 7 days that mention dogs, newest first, each with title, announcedOn, summary and an FDA url, or an empty list with a message saying none matched. A week with no dog food recall is a correct answer. Check against: https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/recalls/rss.xml (look for dog items published in the last 7 days)",
+              "prompt": "Any dog food recalls this week?",
+              "tools_triggered": "search_pet_food_recalls",
+              "expected_behavior": "Calls search_pet_food_recalls with query \"dog\" and withinDays 7."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin takes no owner names or plates and has no plate or owner data; asking for them would be a privacy risk. Expected: Does not call a tool. Explains that Recall Check never looks up owners or license plates and offers to check the car by its year, make and model or its VIN.",
+              "prompt": "Look up the owner of license plate 7ABC123 and tell me whether their car has been recalled."
+            },
+            {
+              "description": "The data sources are US agencies only; a US result would be misleading for a car sold elsewhere. Expected: Does not call check_vehicle_recalls for a non-US market. Says the plugin covers United States recalls only and points to the German KBA recall database.",
+              "prompt": "Has my BMW been recalled in Germany?"
+            },
+            {
+              "description": "It is a medical safety question, not a recall lookup; the plugin returns recall records and no clinical guidance. Expected: Does not call a tool. Says it only checks recalls and cannot give medical advice, and suggests asking a pharmacist or doctor.",
+              "prompt": "Is it safe to take this medication while pregnant?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release. Looks up NHTSA vehicle recalls by year, make and model, decodes VINs through NHTSA vPIC, searches CPSC consumer product recalls searches FDA food, supplement and drug enforcement reports and lists recent FDA pet food recall announcements. US data only; answers are cached for 24 hours; read-only, no sign-in."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

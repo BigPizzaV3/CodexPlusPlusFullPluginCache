@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6aa3283306d48191891c53c0546824f3",
+  "version": "1.0.2",
+  "description": "Find charities and manage charitable giving through your Daffy donor-advised fund.",
+  "author": {
+    "name": "Daffy Charitable Fund",
+    "email": "support@daffy.org",
+    "url": "https://daffy.org/"
+  },
+  "homepage": "https://daffy.org/",
+  "keywords": [
+    "charity",
+    "donations",
+    "giving",
+    "donor-advised fund",
+    "daffy"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Daffy",
+        "shortDescription": "Give from your Daffy fund",
+        "longDescription": "Daffy is a donor-advised fund: one account for all your giving. Add cash, stock, or crypto, get your tax deduction when you contribute, invest it to grow tax-free, and give to any of 1.5 million+ US charities whenever you're ready.\n\nWith Daffy in ChatGPT, your giving is one question away:\n\n\u2022 Know where you stand. Ask for your balance, how much you can give right now, how your fund is invested, and how it has performed.\n\u2022 See your giving history. Pull up donations by year or charity, review your contributions, and export a fund statement as CSV for tax time.\n\u2022 Give in the moment. Say \"give $100 to the local food bank\" and Daffy recommends the donation from your fund to that charity. ChatGPT confirms the charity and amount before anything happens, and you can cancel a donation until it's paid out.\n\u2022 Find the right charity. Search 1.5M+ US nonprofits by name or cause, or look one up by EIN, and get its mission, location, website, and Daffy profile.\n\nEverything runs through your existing Daffy account with your normal login. Read-only questions never change anything, and no donation is ever made without your explicit approval.\n\nYou'll need a Daffy account (daffy.org). Available to Daffy members in the US.",
+        "developerName": "Daffy Charitable Fund",
+        "category": "Finance",
+        "capabilities": [
+          "Search charities",
+          "Read fund activity",
+          "Export statements",
+          "Make donations",
+          "Cancel eligible donations"
+        ],
+        "websiteURL": "https://daffy.org/",
+        "supportURL": "https://daffy.org/support",
+        "privacyPolicyURL": "https://www.daffy.org/legal/privacy",
+        "termsOfServiceURL": "https://www.daffy.org/legal/agreement",
+        "defaultPrompt": [
+          "How much can I donate from my Daffy fund?",
+          "Find charities supporting education.",
+          "Show my donations from last year."
+        ],
+        "brandColor": "#353B4B",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1_eCIWfY9XgwwDTjSFwCS_0bdHYMwzl1I/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check the member's Daffy fund balance and how it is invested",
+              "prompt": "What's my Daffy fund balance and how is it invested?",
+              "tools_triggered": "get_fund_balance, get_portfolio",
+              "expected_behavior": "get_fund_balance returns total_balance, available_to_donate, pending_contributions, and illiquid_balance (assets awaiting liquidation), in USD. get_portfolio returns the investment allocation and performance. Report total_balance as the fund balance, available_to_donate as the donation limit, and summarize the investment allocation without double-counting components. Requires the reviewer account provided separately in the dashboard."
+            },
+            {
+              "description": "Review the member's donation and contribution history",
+              "prompt": "Show my recent Daffy donations and how much I've contributed to my fund this year",
+              "tools_triggered": "list_donations, list_contributions",
+              "expected_behavior": "list_donations returns donations with charity, amount, timestamps, and status; its meta.last is the final page number. list_contributions uses meta.count, meta.page, and meta.page_size for pagination, and valuation is the USD contribution amount. Summarize recent donations and the current calendar year's completed contributions using year and statuses: [SUCCESS]. Retrieve all matching contribution pages before reporting a year-to-date total; distinguish any pending contributions from completed ones. Requires the reviewer account provided separately in the dashboard."
+            },
+            {
+              "description": "Download the fund's activity statement as CSV",
+              "prompt": "Export my Daffy fund activity statement as a CSV",
+              "tools_triggered": "get_statement_csv",
+              "expected_behavior": "Ask for the statement date range because date_start and date_end are required and must fall within the same calendar year. After the reviewer supplies the dates, call get_statement_csv and present its filename, covered range, and CSV content or a downloadable file. The statement covers contributions, donations, fees, and other balance changes with opening and closing balances. Respect the settlement cooldown and report server errors accurately. Requires a reviewer account with statements enabled, provided separately in the dashboard."
+            },
+            {
+              "description": "Find a specific charity's tax ID and registered location",
+              "prompt": "I want to give to the American Red Cross \u2014 what's their EIN and where are they based?",
+              "tools_triggered": "search_charities, get_charity",
+              "expected_behavior": "Use search_charities to resolve the national American Red Cross organization by name, then get_charity with the returned EIN. Report its EIN, registered location, website, and cause categories from the returned data. The directory information is public, but this MCP endpoint still requires the connected reviewer account to authenticate. Do not make a donation."
+            },
+            {
+              "description": "Review how the fund is invested and how those investments have performed",
+              "prompt": "How has my Daffy portfolio performed, and what's it invested in?",
+              "tools_triggered": "get_portfolio, get_fund_balance",
+              "expected_behavior": "get_portfolio returns investment allocation and performance; get_fund_balance returns total_balance, available_to_donate, pending_contributions, and illiquid_balance in USD. Describe the allocation, report the returned performance periods, and state the current total balance without double-counting invested assets. Percentage fields are already percentages. Explain null portfolio or performance values for an account without investment history instead of inventing returns. Requires the reviewer account provided separately in the dashboard."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Moving money into the Daffy fund. The server can read contribution history but has no tool to create a contribution, so it should not attempt one.",
+              "prompt": "Add $500 to my Daffy fund from my checking account",
+              "expected_behavior": "Explain that the plugin can read contribution history but cannot add money from a bank account. Do not create a contribution or substitute a donation; direct the member to Daffy to add funds."
+            },
+            {
+              "description": "Investment performance for accounts outside Daffy. The portfolio and balance tools cover only the member's donor-advised fund, not brokerage, retirement or other holdings.",
+              "prompt": "How is my 401k performing this year compared to the S&P 500?",
+              "expected_behavior": "Explain that Daffy tools only cover the connected donor-advised fund and cannot access a 401k or other external investments. Do not report Daffy portfolio returns as 401k performance or invent account data."
+            },
+            {
+              "description": "Charity evaluation data the directory does not carry. Search returns EIN, name, location, website and cause categories only \u2014 no ratings, overhead ratios, executive compensation or financial statements.",
+              "prompt": "Which animal welfare charities have the lowest overhead ratio and best Charity Navigator scores?",
+              "expected_behavior": "Explain that the charity directory does not provide overhead ratios, executive compensation, financial statements, or Charity Navigator scores. Do not fabricate ratings or rank charities on those missing metrics. Offer a basic animal-welfare directory search if useful."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial release. Connect your Daffy donor-advised fund to ChatGPT and ask about your giving in plain language.\n\n- Search Daffy's directory of over 1.5 million US 501(c)(3) charities by name or keyword, and look up any charity by EIN\n- See your fund balance, how it's invested, and how the portfolio has performed\n- Review your donation and contribution history, and export activity statements as CSV\n- Recommend a donation from your fund, or cancel one that hasn't paid out yet \u2014 ChatGPT confirms the charity and amount with you first\n\nSign in with your existing Daffy account. No API keys or client IDs to configure."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

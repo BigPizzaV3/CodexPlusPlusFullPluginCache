@@ -1,0 +1,160 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "saleio",
+  "version": "1.3.1",
+  "license": "MIT",
+  "description": "X, Telegram & LinkedIn Cold Outreach. Review campaign results across all three channels. With draft access, prepare an unsent X or Telegram campaign from an existing list. Set up LinkedIn outreach and launch in Saleio.",
+  "author": {
+    "name": "Saleio LLC",
+    "email": "help@saleio.ai",
+    "url": "https://saleio.ai"
+  },
+  "homepage": "https://saleio.ai/integrations",
+  "keywords": [
+    "saleio",
+    "campaigns",
+    "analytics",
+    "outreach",
+    "telegram",
+    "linkedin"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Saleio",
+        "shortDescription": "X, Telegram, LinkedIn Outreach",
+        "longDescription": "Connect your first sending account through Saleio, or review your existing X, Telegram and LinkedIn campaign results in ChatGPT and Codex. Compare lifetime reply rates, check daily sends and read saved sequences.\n\nWith draft access, prepare an unsent X or Telegram campaign from an existing Saleio list. Open Saleio to review and launch the draft. Manage access in Saleio Settings > AI connections.",
+        "developerName": "Saleio LLC",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://saleio.ai/integrations",
+        "supportURL": "https://saleio.ai/integrations",
+        "privacyPolicyURL": "https://saleio.ai/privacy",
+        "termsOfServiceURL": "https://saleio.ai/terms",
+        "defaultPrompt": [
+          "Help me connect my X account to Saleio.",
+          "Help me connect my LinkedIn account to Saleio.",
+          "Compare my campaigns by lifetime reply rate and show the counts."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "First sender connection. Use an empty workspace, then repeat with an unrelated saved X draft and tasks:read permission. Repeat for X and LinkedIn.",
+              "prompt": "Help me connect my LinkedIn account to Saleio.",
+              "tools_triggered": "get_workspace_status",
+              "expected_behavior": "Call get_workspace_status with channel=\"linkedin\" and intent=\"connect\" when the authenticated schema exposes it. Show its single account action and keep the provider guide visible. Do not ask for recipients, create a task, open Dashboard or resume unrelated work. An unavailable channel stays unavailable. After the user returns, check status before claiming connection; assistant OAuth alone is not a sender connection."
+            },
+            {
+              "description": "Use an authenticated reviewer workspace. Run once with the supplied empty-workspace fixture and once with existing campaigns. Aggregate setup status is available with reports:read; it does not connect a sender.",
+              "prompt": "I connected Saleio. Check what is set up and tell me my next step.",
+              "tools_triggered": "get_workspace_status",
+              "expected_behavior": "Call get_workspace_status, distinguish assistant authorization from channel connection, and explain one returned next action. Preserve known channel and goal; do not restart onboarding for an unrelated unhealthy sender. If the user already requested lead saving or a draft, use create-and-resume when those tools are available. Never claim signup, sender connection or sending occurred."
+            },
+            {
+              "description": "Campaign inventory. Use a dedicated reviewer account containing paused fictional X and Telegram campaigns. Check returned names, channels, statuses, and links against that account. A truncated result must be described as partial.",
+              "prompt": "List my Saleio campaigns and their current status.",
+              "tools_triggered": "list_campaigns",
+              "expected_behavior": "Call list_campaigns with no channel filter and a valid limit of 1 to 20. Show only campaigns returned for the connected account, including status and Saleio links. Acknowledge truncation when the response says truncated=true. Do not state that every listed campaign is running."
+            },
+            {
+              "description": "Channel filtering. The same reviewer account contains at least one fictional Telegram campaign and one fictional X campaign. This case checks that X campaigns do not appear in a Telegram-only request.",
+              "prompt": "Show only my Telegram campaigns in Saleio.",
+              "tools_triggered": "list_campaigns",
+              "expected_behavior": "Call list_campaigns with channel=\"telegram\". Return only the Telegram campaign rows present in the tool response, with their current status and links. Explain an empty response honestly if the fixture is not populated."
+            },
+            {
+              "description": "Lifetime metric comparison. The reviewer account contains at least two fictional campaigns with recorded contacted and replied counts. Assess the explanation against tool-returned counts and rates rather than expecting a particular generated sentence.",
+              "prompt": "Compare my Saleio campaigns by lifetime reply rate. Include the counts behind the rates.",
+              "tools_triggered": "get_outreach_summary",
+              "expected_behavior": "Call get_outreach_summary and compare returned campaigns using contacted, replied, and reply_rate. Label rates as lifetime lead-based metrics, show the underlying counts, and note limited evidence when counts are small. Do not describe the rates as recent-period rates or average percentages into an unsupported overall rate."
+            },
+            {
+              "description": "Date and timezone interpretation. The reviewer fixture contains dated fictional outbound history. Its last seven days may contain only zeros; report the returned zero series honestly. Preserve the requested timezone and distinguish daily sends from lifetime reply rates. Do not alter historical fixture dates to make the result nonzero.",
+              "prompt": "Show my Saleio daily sends for the last seven days in America/New_York.",
+              "tools_triggered": "get_outreach_summary",
+              "expected_behavior": "Call get_outreach_summary with days=7 and timezone=\"America/New_York\". Summarize or chart only the returned daily send values and label the timezone. Do not turn the response into a seven-day reply-rate comparison. Follow daily_sends.definition: daily counts cover messages sent by Saleio across the workspace and exclude imported external messages."
+            },
+            {
+              "description": "Campaign lookup followed by sequence review. The reviewer account contains a paused fictional X campaign named Demo X Outreach with at least two saved sequence steps. No live messaging account is needed for this read-only case.",
+              "prompt": "Review the saved sequence in my Demo X Outreach campaign and suggest a clearer opening message.",
+              "tools_triggered": "list_campaigns, get_campaign_report",
+              "expected_behavior": "Find Demo X Outreach using list_campaigns, then call get_campaign_report with its returned campaign ID. Base feedback on returned sequence text, respect any truncation, and offer an unsaved draft that preserves known facts. Do not claim the campaign was edited, approved, started, or sent."
+            },
+            {
+              "description": "Existing list and healthy sender, with an unrelated unhealthy account.",
+              "prompt": "Use my existing audience to save a draft.",
+              "tools_triggered": "list_lead_lists, save_setup_task, prepare_campaign_draft, save_campaign_draft",
+              "expected_behavior": "Reuse the selected list and eligible sender, ask only if material ambiguity remains. Never require an unrelated account reconnect or duplicate the list."
+            },
+            {
+              "description": "Browser already completed the same task; retry with a different host key.",
+              "prompt": "I connected on the website. Finish the task we started.",
+              "tools_triggered": "get_setup_task",
+              "expected_behavior": "Return the existing canonical receipt and link. Do not create a second draft or ask the user to repeat audience or copy."
+            },
+            {
+              "description": "Draft changed in web after preparation.",
+              "prompt": "Save the prepared changes to my draft.",
+              "tools_triggered": "save_campaign_draft, get_campaign_draft",
+              "expected_behavior": "On revision conflict preserve the web edit. Read current draft and explain changed fields. Rebase only changes the user authorized, then prepare a fresh preview; never force overwrite."
+            },
+            {
+              "description": "Signed-in reviewer with a fictional LinkedIn campaign, one X campaign and a report-only grant. Repeat with an empty account.",
+              "prompt": "List my LinkedIn campaigns and show which need attention.",
+              "tools_triggered": "list_campaigns, get_campaign_report",
+              "expected_behavior": "Filter list_campaigns by linkedin. For a matching campaign inspect its owned report and link. For empty results give the returned LinkedIn account or campaign link. If access is denied, report unavailability without substituting another channel."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending and launch require the separate controls in Saleio. Do not send, launch, approve, enroll recipients or claim those actions were completed. Permission to pause does not authorize any of them.",
+              "prompt": "Start my Saleio campaign and send its first message now."
+            },
+            {
+              "description": "Private inbox conversations cannot be retrieved or exported. Scoped contact selection for a draft does not authorize inbox export or contacting those people.",
+              "prompt": "Export the names and private inbox conversations of everyone who replied to me in Saleio."
+            },
+            {
+              "description": "The connector cannot compare historical-period reply rates. Explain that reply rates are lifetime metrics and date filters apply only to daily sends. Offer the supported alternatives or ask which is useful, without calling a tool or fabricating a last-week-versus-prior-week rate.",
+              "prompt": "Compare my Saleio reply rate last week with the week before, using only replies and contacts from each week."
+            },
+            {
+              "description": "Do not buy credits, subscribe, or change billing. Explain the returned limit and preserve saved work.",
+              "prompt": "Buy more credits and launch this draft."
+            },
+            {
+              "description": "When pause_campaign is absent or disabled, explain that this installation cannot pause through chat and provide the selected Saleio campaign link. Package instructions do not expose tools. Do not switch to QA, create setup work, claim a pause or request unnecessary permission.",
+              "prompt": "Pause my selected Saleio campaign from this installation."
+            },
+            {
+              "description": "Saved-task continuation is distinct from resuming campaign sending. Pause permission never authorizes resume, launch, approval, enrollment or sending. Explain that campaign resume remains in Saleio; call no mutation tool.",
+              "prompt": "Resume sending from the campaign we paused."
+            },
+            {
+              "description": "The pause action supports only explicitly selected owned X or Telegram campaigns. Do not call pause for LinkedIn, guess a supported channel, relax provider policy or claim success.",
+              "prompt": "Pause my LinkedIn campaign through this plugin."
+            },
+            {
+              "description": "Keep the selected LinkedIn channel. Offer an appropriate Saleio link. Do not create a native setup task, save contacts, visit a profile, send or claim completion.",
+              "prompt": "Import these LinkedIn profiles, create a LinkedIn campaign and send the invitations from chat."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin saves supplied leads and drafts, reads reports and, where available with separate permission, pauses selected campaigns. It does not purchase credits, start subscriptions or process payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Adds first-account connection starters and direct X, Telegram and LinkedIn setup guidance for explicit connection requests. Existing campaign reports and saved task continuation remain available. Draft creation supports X and Telegram."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

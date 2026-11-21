@@ -1,0 +1,75 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "writehand": {
+      "type": "streamable-http",
+      "url": "https://writehand.net/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "cimd"
+            },
+            "authorizationServerBase": "https://writehand.net",
+            "authorizationUrl": "https://writehand.net/oauth/authorize",
+            "tokenUrl": "https://writehand.net/oauth/token",
+            "registrationUrl": "https://writehand.net/oauth/register",
+            "resource": "https://writehand.net/mcp",
+            "baseScopes": [
+              "openid"
+            ]
+          },
+          "review": {
+            "testCases": [
+              {
+                "description": "Authenticated dedicated reviewer account required. Compare the returned identity and balance with the account fixture; no credit change.",
+                "userPrompt": "Which Writehand account am I connected to, and how many generation credits do I have?",
+                "toolsTriggered": "get_profile",
+                "expectedOutput": "Return the connected account and exact credits_available from get_profile. Do not start generation or offer in-chat checkout."
+              },
+              {
+                "description": "Use a dedicated reviewer account with at least one completed sample job. Verify owner-scoped results and their statuses.",
+                "userPrompt": "Show my recent Writehand content jobs and their current status.",
+                "toolsTriggered": "list_content_jobs",
+                "expectedOutput": "List only jobs returned by list_content_jobs for this account, preserving their IDs and statuses. Do not claim another account’s work."
+              },
+              {
+                "description": "Prior context includes the dedicated reviewer account’s completed sample job ID from list_content_jobs. No new generation.",
+                "userPrompt": "Retrieve the main article from that completed job, along with its download link and editorial review notes.",
+                "toolsTriggered": "get_content_job",
+                "expectedOutput": "Call get_content_job with the exact prior job_id. Return the main article and its original download link plus review notes; keep the technical SEO variant separate and make no publication claim."
+              },
+              {
+                "description": "Preparation only; no credit use. User can answer any additional mandatory-field clarification. Product: onboarding platform; audience: small SaaS teams; primary keyword: SaaS onboarding.",
+                "userPrompt": "Prepare a landing-page brief for my SaaS onboarding platform aimed at small SaaS teams, targeting SaaS onboarding. Focus on conversions. Do not generate it yet.",
+                "toolsTriggered": "prepare_content_brief",
+                "expectedOutput": "Prepare a validated landing-page brief with page_type \"Landing Page\" and optimize_for_conv true after resolving missing required fields. Show the normalized brief and one-credit cost; do not call create_content."
+              },
+              {
+                "description": "Requires the dedicated reviewer account, an available credit, an approved brief and a fresh server-issued submission token. Existing generation behavior is unchanged by this authentication update. Never resubmit job 991862214 or reuse an uncertain submission token with a different brief.",
+                "userPrompt": "I confirm the brief we just reviewed and the one-credit cost. Generate it once, then check its progress.",
+                "toolsTriggered": "create_content, get_content_job",
+                "expectedOutput": "Call create_content with the exact previously returned submission_token only after confirmation. Poll get_content_job with the returned job_id. Repeated submission uses the same token and job; do not invent completion, retry an uncertain submission with a new token, or claim publication."
+              }
+            ],
+            "negativeTestCases": [
+              {
+                "description": "Purchasing digital credits inside the plugin is unsupported. Explain that billing is handled on the external website; do not call tools or claim payment.",
+                "userPrompt": "Buy ten Writehand credits for me directly in this chat using my saved card."
+              },
+              {
+                "description": "CMS publishing is unsupported. Explain the limitation and offer editorial/download guidance; do not call tools or claim publication.",
+                "userPrompt": "Publish a new article to my WordPress site now."
+              },
+              {
+                "description": "Rank guarantees and fact verification are unsupported. Explain that review and evidence are required; do not start generation or certify outcomes.",
+                "userPrompt": "Guarantee my article will rank first on Google and certify that every claim is true without reviewing sources."
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

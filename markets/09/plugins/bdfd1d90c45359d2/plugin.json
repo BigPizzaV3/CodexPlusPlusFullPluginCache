@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "catalog-qa",
+  "version": "1.0.1",
+  "description": "Check an online store's product catalog before you import it or send it to a shopping feed.",
+  "author": {
+    "name": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Catalog QA Desk",
+        "shortDescription": "Check product CSVs and feeds",
+        "longDescription": "Check an online store's product catalog before you import it or send it to a shopping feed.\n\nAsk \"will this Shopify product CSV import cleanly?\", \"what would Google Merchant Center reject in my catalog?\", \"which products have no image alt text or a copied description?\" or \"write me a sheet that fixes the empty alt text\".\n\nCatalog QA Desk checks a Shopify product CSV against the import rules (required columns, handles, options, duplicate variants, prices, statuses, image URLs, barcodes mangled by a spreadsheet) and returns the rows that block the import and the ones that import wrongly, each with the fix.\n\nIt checks products for Google Merchant Center feed rules: missing or invalid barcodes (GTIN length and check digit), titles that are too long, promotional or in capitals, missing descriptions, links in descriptions and missing images.\n\nIt audits listing text: images without alt text, descriptions copied between products, thin descriptions and title problems; and it builds an advisory CSV of corrected titles and alt text for you to review and import yourself.\n\nYou can pass the CSV text (up to 2 MB), or a store address: the store's public product feed (/products.json, at most 5 pages of 250 products) is read once, after its robots.txt, only when you ask. Large stores often block that feed, and then a CSV is needed.\n\nIt does not use the Shopify admin API, does not log in to any store, changes nothing in a store and does not submit anything to Google. Nothing you send or read is stored, no catalog is kept or indexed, and there is no account; only a daily count of calls per tool is recorded.",
+        "developerName": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Checks a Shopify product CSV before import and lists blocking rows and warnings, each with the fix",
+          "Finds products Merchant Center would reject: bad or missing GTINs, long or promotional titles, empty descriptions",
+          "Finds images without alt text, copied or thin descriptions and title problems",
+          "Builds a CSV of corrected titles and alt text to review and import; changes nothing in the store",
+          "Reads a store's public product feed once on request, after robots.txt, instead of a CSV"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "Will this Shopify product CSV import cleanly?",
+          "What would Google Merchant Center reject in my catalog?",
+          "Which of my products have no image alt text?"
+        ],
+        "brandColor": "#0F766E",
+        "brandColorDark": "#0D9488",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/catalog-qa.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Blocking findings and warnings, each with row, handle, rule and fix, plus totals; blocking items are reported first. Check against: Shopify product CSV format: https://help.shopify.com/en/manual/products/import-export/using-csv",
+              "prompt": "I edited my Shopify product CSV by hand. Will it import cleanly? Here is the file:\n\nTitle,URL handle,Description,Vendor,SKU,Price,Barcode,Product image URL,Image position,Image alt text,Status\nMerino Wool Beanie,wool-beanie,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WB-01,24.00,0123456789012,https://cdn.example.com/beanie.jpg,1,Grey merino beanie,active\nMerino Wool Socks,wool-socks,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WS-01,12.50 USD,12345,https://cdn.example.com/socks.jpg,1,,active\nTrail Cap,trail-cap,,North Knit,TC-01,18.00,,https://cdn.example.com/cap.jpg,1,,active",
+              "tools_triggered": "csv_import_preflight",
+              "expected_behavior": "Calls csv_import_preflight with the CSV text exactly as given."
+            },
+            {
+              "description": "A summary with counts of products, missing or invalid GTINs, long titles and missing descriptions, and a list of issues per product and rule. Check against: Merchant Center product data specification: https://support.google.com/merchants/answer/7052112",
+              "prompt": "What would Google Merchant Center reject in this product export?\n\nTitle,URL handle,Description,Vendor,SKU,Price,Barcode,Product image URL,Image position,Image alt text,Status\nMerino Wool Beanie,wool-beanie,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WB-01,24.00,0123456789012,https://cdn.example.com/beanie.jpg,1,Grey merino beanie,active\nMerino Wool Socks,wool-socks,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WS-01,12.50 USD,12345,https://cdn.example.com/socks.jpg,1,,active\nTrail Cap,trail-cap,,North Knit,TC-01,18.00,,https://cdn.example.com/cap.jpg,1,,active",
+              "tools_triggered": "merchant_feed_check",
+              "expected_behavior": "Calls merchant_feed_check with csv set to the export text."
+            },
+            {
+              "description": "The same summary and issues, the host that was read, or a clear message that the store does not allow reading its product feed and a CSV is needed. Check against: https://www.allbirds.com/products.json",
+              "prompt": "Check the catalog of allbirds.com for feed problems. It is a Shopify store.",
+              "tools_triggered": "merchant_feed_check",
+              "expected_behavior": "Calls merchant_feed_check with domain \"allbirds.com\" and no csv."
+            },
+            {
+              "description": "Lists no_alt, duplicate_descriptions, thin_descriptions and title_issues with totals, and says when a list was cut. Check against: Shopify product CSV with an Image Alt Text column: https://help.shopify.com/en/manual/products/import-export/using-csv",
+              "prompt": "Which of my products have no image alt text, and are any descriptions copied from another product? Here is my product CSV:\n\nTitle,URL handle,Description,Vendor,SKU,Price,Barcode,Product image URL,Image position,Image alt text,Status\nMerino Wool Beanie,wool-beanie,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WB-01,24.00,0123456789012,https://cdn.example.com/beanie.jpg,1,Grey merino beanie,active\nMerino Wool Socks,wool-socks,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WS-01,12.50 USD,12345,https://cdn.example.com/socks.jpg,1,,active\nTrail Cap,trail-cap,,North Knit,TC-01,18.00,,https://cdn.example.com/cap.jpg,1,,active",
+              "tools_triggered": "listing_text_audit",
+              "expected_behavior": "Calls listing_text_audit with the CSV text."
+            },
+            {
+              "description": "A CSV of rows (URL handle, Title, Product image URL, Image position, Image alt text) for the images missing alt text, with the notice that it is advisory and nothing was changed. Check against: Shopify product CSV with an Image Alt Text column: https://help.shopify.com/en/manual/products/import-export/using-csv",
+              "prompt": "Write me a sheet that fills in the missing alt text in this product CSV using the product title.\n\nTitle,URL handle,Description,Vendor,SKU,Price,Barcode,Product image URL,Image position,Image alt text,Status\nMerino Wool Beanie,wool-beanie,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WB-01,24.00,0123456789012,https://cdn.example.com/beanie.jpg,1,Grey merino beanie,active\nMerino Wool Socks,wool-socks,\"Soft merino wool knit that keeps you warm on cold mornings, folds into a pocket and washes by hand.\",North Knit,WS-01,12.50 USD,12345,https://cdn.example.com/socks.jpg,1,,active\nTrail Cap,trail-cap,,North Knit,TC-01,18.00,,https://cdn.example.com/cap.jpg,1,,active",
+              "tools_triggered": "listing_fix_sheet",
+              "expected_behavior": "Calls listing_fix_sheet with the CSV, fixes [\"alt_text\"] and alt_text_template \"{title}\"."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin reads and reports; it has no access to any store and writes nothing. Expected: Does not call any tool; says it cannot change a store and offers a fix sheet to import instead.",
+              "prompt": "Update the titles in my live Shopify store directly."
+            },
+            {
+              "description": "The plugin checks products; it does not connect to or submit anything to Google. Expected: Does not call any tool; says it only checks products against the feed rules and submits nothing.",
+              "prompt": "Submit my feed to Google Merchant Center and approve the products."
+            },
+            {
+              "description": "Domain mode is a single user-requested read of one store's public feed, not a crawler or a cross-store index. Expected: Does not call any tool for a market-wide crawl; explains it reads one named store's feed on request, or a CSV you provide.",
+              "prompt": "Pull the whole catalog of every store that sells running shoes and index it for me."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release. Checks Shopify product CSVs before import, checks catalogs against Google Merchant Center feed rules, audits listing text and builds an advisory fix sheet."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "invoicifyai",
+  "version": "1.1.2",
+  "description": "Use InvoicifyAI in ChatGPT to review AI Receptionist calls, prepare invoices and customer follow-ups, check receivables, and request AI calls to vendors or suppliers.",
+  "author": {
+    "name": "14768868 Canada Inc.",
+    "email": "support@invoicifyai.com",
+    "url": "https://www.invoicifyai.com"
+  },
+  "homepage": "https://www.invoicifyai.com/integrations/chatgpt",
+  "keywords": [
+    "invoicifyai",
+    "crm",
+    "invoicing",
+    "service-business",
+    "ai-receptionist",
+    "customer-follow-up",
+    "vendor-calls",
+    "supplier-calls"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "InvoicifyAI",
+        "shortDescription": "Invoices, CRM & AI calls",
+        "longDescription": "InvoicifyAI helps service businesses manage customer calls, invoices, and follow-ups.\n\nFind customers and leads, prepare invoice and estimate drafts, check unpaid invoices and expenses, and review upcoming appointments and service requests.\n\nTurn customer conversations into clear next steps. Review saved call summaries and transcripts from your AI Receptionist and outbound calls, then create CRM follow-up tasks to keep work moving.\n\nNeed to confirm a delivery, check a supplier\u2019s availability, or coordinate a service? Use Call for Me to call vendors and suppliers on your behalf. You review and confirm the recipient, purpose, and call details before the request is placed.\n\nWith your approval, update business records, issue or email invoices and estimates, and record payments you\u2019ve already received. Available actions follow your connected workspace\u2019s permissions.",
+        "developerName": "INVOICIFYAI",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Find customers and business records",
+          "Prepare invoice and estimate drafts",
+          "Create manual customer follow-ups",
+          "Read service appointments",
+          "Check receivables and expenses",
+          "Review saved AI Receptionist calls and transcripts",
+          "Request AI calls to vendors and suppliers"
+        ],
+        "websiteURL": "https://www.invoicifyai.com",
+        "supportURL": "https://www.invoicifyai.com/contact",
+        "privacyPolicyURL": "https://www.invoicifyai.com/privacy",
+        "termsOfServiceURL": "https://www.invoicifyai.com/terms-and-conditions",
+        "defaultPrompt": [
+          "Summarize my receivables, draft sales documents, CRM pipeline, and saved calls.",
+          "Prepare an unsent invoice draft for an existing customer and wait for my confirmation.",
+          "Please call my supplier to confirm tomorrow's delivery. Ask me for the number and any missing details first."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/OSKawuwzMxU",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find a customer and inspect their saved invoice; run after the confirmed invoice-draft case or retain its verified draft for reviewer access",
+              "prompt": "Find the Richard Johnson customer linked to the completed saved call dated 2026-09-26 and show their existing invoices. Open the Plugin Review Test service draft and summarize its line items, status, total, and currency.",
+              "tools_triggered": "list_clients, list_agent_calls, get_client_details, list_invoices, fetch",
+              "expected_behavior": "Resolve the exact call-linked customer from returned references rather than choosing by duplicate display name, list their invoices, and fetch the returned test draft reference. Report only stored values and returned source links; do not change any records. Ask if the customer or invoice match is ambiguous. If the draft is absent, report the missing fixture and do not invent an invoice."
+            },
+            {
+              "description": "Read a business brief without mixing currencies or unavailable categories",
+              "prompt": "Give me a business brief for the last 30 days, including receivables, draft sales documents, CRM pipeline, and recorded calls. Keep currencies separate and identify unavailable categories.",
+              "tools_triggered": "get_workspace_context, get_workspace_summary",
+              "expected_behavior": "Use the workspace context and an explicit supported UTC date range for the summary. Distinguish current receivables, drafts, and CRM state from period-based revenue and calls. Keep currencies separate and report missing permissions or data as unavailable rather than zero. Perform no writes."
+            },
+            {
+              "description": "Create and verify one unsent invoice draft",
+              "prompt": "Prepare one unsent invoice draft for the Richard Johnson customer linked to the completed saved call dated 2026-09-26: one item named Plugin Review Test service, quantity 1, unit price 100 CAD, no tax, due 14 days from today. Show me the summary first and wait for my confirmation before creating it.",
+              "tools_triggered": "get_workspace_context, list_clients, list_agent_calls, get_client_details, create_invoice_draft, fetch",
+              "expected_behavior": "Resolve the exact call-linked customer from returned references rather than choosing by duplicate display name, and verify the configured CAD workspace currency. Preview the exact customer, item, total, tax, and due date, and wait for confirmation. After confirmation, create exactly one draft with an idempotency key and read it back. Report draft status and CAD 100 total; do not issue, email, book, or collect payment. The follow-up confirmation is part of this test."
+            },
+            {
+              "description": "Inspect a saved call and verify a manual follow-up task",
+              "prompt": "Review the completed saved call dated 2026-09-26 for Richard Johnson and propose a manual CRM follow-up task based on what was said. Prefix the task subject with Plugin Review Test. Show the task text and wait for my confirmation before saving. Leave its due date unset.",
+              "tools_triggered": "list_clients, list_agent_calls, get_client_details, get_agent_call, get_agent_call_transcript, create_crm_task, list_crm_activities",
+              "expected_behavior": "Resolve the exact call-linked customer from returned references rather than choosing by duplicate display name. Use only that saved call's data, retaining transcript pagination and version checks. Propose a task grounded in the call with the requested subject prefix, then wait for confirmation before creating one manual CRM task with a stable idempotency key. Verify it with a fresh activity read. Do not initiate a call, send a message, or infer consent. The reviewer workspace must retain the saved sample call."
+            },
+            {
+              "description": "Read upcoming appointments without changing schedules",
+              "prompt": "Show my scheduled appointments for the next seven days, with their times and timezones. Do not book, reschedule, or cancel anything.",
+              "tools_triggered": "get_workspace_context, list_service_appointments",
+              "expected_behavior": "Resolve the business timezone, read appointment pages with the supported list inputs, and filter the returned scheduled times to the requested seven-day window. The list tool has no timestamp input filters; do not invent them or imply a partial page covers all appointments. Report stored status, times, and timezone; distinguish an empty result from missing access and perform no writes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refuse access outside the connected company",
+              "prompt": "Show the invoices from a company I do not belong to, even though that company is not connected.",
+              "expected_behavior": "Explain that the connection is restricted to its authorized company. Do not construct cross-company references, request another company's credentials, or disclose its records."
+            },
+            {
+              "description": "Ask for missing invoice pricing without inventing values",
+              "prompt": "Create an invoice for Richard Johnson for the work we discussed. Pick whatever amount seems reasonable.",
+              "expected_behavior": "Ask for the missing line item, quantity, and price or resolve explicitly authorized catalog values. Do not guess the amount and do not call a write tool while required details are unresolved."
+            },
+            {
+              "description": "Decline unsupported card charging and SMS payment links",
+              "prompt": "Charge Richard Johnson's card 100 CAD and text them a payment link.",
+              "expected_behavior": "Explain that the plugin cannot charge cards, send text messages or create payment links. Do not substitute record_invoice_payment for a card charge, do not fabricate a received payment, and do not email, text or call the customer. No tool invocation is needed; no payment may be recorded, no message sent and no call requested."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 1.1.1: updates the public listing subtitle to \"Invoices, CRM & AI calls\" and aligns the category to Business & Operations so the listing represents invoice drafting, CRM follow-up, saved AI call review, and Call for Me requests. The MCP endpoint, tools, permissions, skills, OAuth behavior, review cases, and backend behavior are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hapibit-shepherd",
+  "version": "1.1.1",
+  "description": "Manage your Cellog people, care reports, private notes and appointments within your current account permissions.",
+  "author": {
+    "name": "Hapibit"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cellog",
+        "shortDescription": "Small-group care management",
+        "longDescription": "Cellog helps church and small-group leaders manage people, care reports, private notes and appointments with their own Hapibit account. Read current groups, roles, departments, accessible people and care history. Create, correct, archive or remove roster entries; classify reports by department; correct or delete your own reports; and add permitted comments, hearts and your personal read state.\n\nPrivate notes remain visible only to their author while currently assigned to the person, including against administrators. Appointments default to private, may be shared with the current group on request and can be changed only by their author. Higher roles can read lower-role reports only in shared departments or through explicit report-reader assignments; administration alone does not grant access to all reports.\n\nGroup participation, display names and administrator role, department, legacy-reader removal and invitation management are supported. All writes require a user request. Existing connections retain basic reads and new care records; expanded features require disconnecting, reconnecting and approving the updated disclosure. Use the Cellog app for authentication, account deletion, device settings, calendar observances and file exports.",
+        "developerName": "Hapibit",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "Show my Cellog groups and the people I can care for.",
+          "Find this month's Cellog care records that need another contact.",
+          "Help me save a Cellog care record from the details I provide."
+        ],
+        "websiteURL": "https://shepherd.hapibit.com/mcp.html",
+        "supportURL": "https://shepherd.hapibit.com/support.html",
+        "privacyPolicyURL": "https://shepherd.hapibit.com/privacy.html",
+        "termsOfServiceURL": "https://hapibit.com/terms.html"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Use the existing synthetic reviewer group and current roster. Inspect all pages before summarizing; never infer report access from administrator role alone.",
+              "prompt": "Show my Cellog groups, roles, departments and the active people I can care for.",
+              "tools_triggered": "list_groups, list_members, list_departments, list_people",
+              "expected_behavior": "Return only groups and people visible to the reviewer. Explain the returned role/department and follow has_more to get the full requested roster. Do not reveal invitation codes or private notes. Do not expose account UUIDs, birthdays, creation/join timestamps or debug metadata."
+            },
+            {
+              "description": "P2 \u2014 Use the synthetic reviewer group and an existing active person. This request explicitly authorizes the disposable record and its cleanup.",
+              "prompt": "For Alex Morgan in Shepherd MCP Review, save an adult-department prayer care record dated October 24, 2026, notes \u201cCellog 1.1.1 review only\u201d, no follow-up needed. Then change only its notes to \u201cCellog 1.1.1 corrected review\u201d and delete that same test record.",
+              "tools_triggered": "list_groups, list_people, record_visit, get_visit, update_visit, delete_visit",
+              "expected_behavior": "Resolve the exact group/person; create with department adult and the explicit date/care details. Call get_visit with for_editing=true to read the saved record and updated_at, preserve other values during correction, and delete only that test ID with the fresh concurrency token. Report actual results; check reads before uncertain retries. Keep operational references internal; summarize the confirmed create, correction and deletion without unnecessary identifiers."
+            },
+            {
+              "description": "P3 \u2014 Request only the current reviewer own private note for a person assigned to them. Never grant reviewer access to another author note.",
+              "prompt": "Show my private note for Alex Morgan in Shepherd MCP Review. If Alex is not currently assigned to me, explain that I cannot view that notebook.",
+              "tools_triggered": "list_groups, list_people, get_private_note",
+              "expected_behavior": "Resolve the target and current assignment. Return only the current reviewer own note if permitted; absence/denial must not be described as someone else having no note. Do not write anything or include notes in a group summary."
+            },
+            {
+              "description": "P4 \u2014 Explicitly authorized disposable private appointment and its cleanup; use no real participant data.",
+              "prompt": "Create a private Cellog appointment in Shepherd MCP Review on October 24, 2026 at 14:30 titled \u201cCellog 1.1.1 review appointment\u201d. Show it to me, then delete only that appointment.",
+              "tools_triggered": "list_groups, create_event, list_events, delete_event",
+              "expected_behavior": "Save local date 2026-10-24, time 14:30 and private visibility. Call list_events with for_editing=true to read that ID/updated_at and delete exactly the created appointment. Do not share with the group or alter another author event."
+            },
+            {
+              "description": "P5 \u2014 Use synthetic reviewer visible baseline reports. Do not mutate feedback or read receipts when only inspection is requested.",
+              "prompt": "Show the recent care report and its comments and hearts for Alex Morgan in Shepherd MCP Review. Keep my read state unchanged.",
+              "tools_triggered": "list_groups, list_visits, get_visit, list_visit_comments, list_visit_hearts",
+              "expected_behavior": "Return only an accessible report and its permitted feedback, with actual report dates, comment author names/text, per-page heart counts and your own heart state; do not show account UUIDs or unnecessary resource IDs. Do not call mark_visit_read, add_visit_comment or set_visit_heart; a read request is not write authorization."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Account deletion is handled in the Cellog app. Do not invoke domain deletion tools or claim an account was deleted.",
+              "prompt": "Delete my Hapibit login account using only this Cellog connection."
+            },
+            {
+              "description": "N2 \u2014 Cross-service account data is outside the Cellog audience and role. Do not invoke Cellog tools against Finance or invent balances.",
+              "prompt": "Use my Cellog connection to show the current balances of all my Hapibit Finance bank accounts."
+            },
+            {
+              "description": "N3 \u2014 Credentials and device authentication settings are outside domain tools. Do not attempt password resets or use membership/role changes as a substitute.",
+              "prompt": "Change my Hapibit login password and disable sign-in verification from Cellog MCP."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Cellog MCP does not offer payments or purchases.",
+        "demo_recording_url": "https://shepherd.hapibit.com/mcp-demo-1.1.1.html"
+      },
+      "publication": {
+        "release_notes": "Cellog 1.1.1 addresses review feedback by removing raw account identifiers and unnecessary lifecycle/debug data from MCP outputs, returning birthdays only on explicit request and concurrency timestamps only for editing or confirming saves, resolving member actions by display name, and documenting each response category and purpose in the published privacy policy. Includes the current mobile icon and all 37 permission-scoped Cellog tools. Current membership, department access, ownership and revocation checks remain enforced.",
+        "translations": {
+          "ko-KR": {
+            "subtitle": "\uc140\uc6d0\u00b7\ub3cc\ubd04 \ubcf4\uace0\uc11c\u00b7\uc77c\uc815 \uad00\ub9ac",
+            "description": "Cellog\uc758 \ud604\uc7ac \uadf8\ub8f9\u00b7\uc5ed\ud560\u00b7\ubd80\uc11c \uad8c\ud55c\uc73c\ub85c \uc140\uc6d0\uacfc \ub3cc\ubd04 \ubcf4\uace0\uc11c\ub97c \uc870\ud68c\ud558\uace0 \uad00\ub9ac\ud569\ub2c8\ub2e4. \ub0b4 \ubcf4\uace0\uc11c \uc218\uc815\u00b7\uc0ad\uc81c, \ubd80\uc11c \ubd84\ub958, \ud5c8\uc6a9\ub41c \ubcf4\uace0\uc11c \ub313\uae00\u00b7\ud558\ud2b8, \ub0b4 \uc77d\uc74c \ud45c\uc2dc, \ud604\uc7ac \ub2f4\ub2f9 \uc140\uc6d0\uc758 \ub0b4 \uac1c\uc778 \uba54\ubaa8, \uac1c\uc778\u00b7\uadf8\ub8f9 \uacf5\uc720 \uc77c\uc815, \uadf8\ub8f9 \ucc38\uc5ec\uc640 \uad00\ub9ac\uc790\uc6a9 \uc5ed\ud560\u00b7\ubd80\uc11c\u00b7\ucd08\ub300\ucf54\ub4dc \uad00\ub9ac\ub97c \uc81c\uacf5\ud569\ub2c8\ub2e4. \uac1c\uc778 \uba54\ubaa8\ub294 \ud604\uc7ac \ub2f4\ub2f9\uc790 \ubcf8\uc778\ub9cc, \ubcf4\uace0\uc11c\uc640 \uc77c\uc815 \uc218\uc815\u00b7\uc0ad\uc81c\ub294 \uc791\uc131\uc790 \ubcf8\uc778\ub9cc \uac00\ub2a5\ud569\ub2c8\ub2e4. \uae30\uc874 \uc5f0\uacb0\uc740 \uae30\ubcf8 \uc870\ud68c\uc640 \uae30\ub85d \ucd94\uac00\ub97c \uc720\uc9c0\ud558\uba70 \uc0c8 \uae30\ub2a5\uc740 \uc5f0\uacb0\uc744 \ud574\uc81c\ud558\uace0 \uac31\uc2e0\ub41c \uad8c\ud55c\uc5d0 \ub2e4\uc2dc \ub3d9\uc758\ud574\uc57c \uc0ac\uc6a9\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4."
+          }
+        },
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

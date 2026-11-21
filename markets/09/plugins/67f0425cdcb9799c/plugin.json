@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "huddle-up-learning",
+  "version": "0.1.5",
+  "description": "Connect to Huddle Up Learning to view and manage courses, sections, assignments, and learner workflows within your account permissions.",
+  "homepage": "https://huddleuplearning.com",
+  "repository": "https://github.com/Jetlag-Learning/huddle-up-backend/tree/84500613d982d1b9d09dff113ccbefc19490fbb9",
+  "keywords": [
+    "education",
+    "learning",
+    "courses",
+    "assignments",
+    "collaboration"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Huddle Up Learning",
+        "shortDescription": "Manage Huddle Up Projects",
+        "longDescription": "Use Huddle Up Learning to view courses and related sections and assignments, and perform supported course-management actions. Access is limited by the permissions of your connected Huddle Up account.",
+        "developerName": "Huddle Up Learning",
+        "category": "Education & Research",
+        "capabilities": [
+          "View courses and course content",
+          "Manage supported course sections and assignments",
+          "Work with learner information available to your account"
+        ],
+        "websiteURL": "https://huddleuplearning.com",
+        "composerIcon": "./assets/huddleuplearning_square.png",
+        "logo": "./assets/huddleuplearning_square.png",
+        "defaultPrompt": [
+          "Show my Huddle Up profile.",
+          "List my accessible courses and open one I am enrolled in.",
+          "Help me review a course's sections and assignments."
+        ],
+        "privacyPolicyURL": "https://huddleuplearning.com/privacy",
+        "termsOfServiceURL": "https://huddleuplearning.com/terms",
+        "supportURL": "https://huddleuplearning.com/knowledge-center"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Confirm the connected Project Leader account, organization roles, and Project Leader visibility. Run on PROD as PROJECT_LEADER_ACCOUNT; the listed IDs are PROD fixtures.",
+              "prompt": "Show the HuddleUp guide, identify my connected account, list my organizations, and show the Projects I lead in Organizations 4 and 35.",
+              "tools_triggered": "getContext, getCurrentUser, getOrganizationsWithRoles(page=0, size=100), searchProjects(target=LEADER, organizationId=4, page=0, size=100), searchProjects(target=LEADER, organizationId=35, page=0, size=100)",
+              "expected_behavior": "The guide uses Project, Project Leader, Learner, To-Do List, and Component terminology. The connected account is active. Organization results are read from items and show Owner for Organizations 3 and 4 and Teacher for Organization 35. Leader search returns Projects 1927 and 1926 for Organization 4, and Projects 1631 and 1630 for Organization 35. Keep organization membership roles separate from Project roles. Do not display the account email."
+            },
+            {
+              "description": "Open an authorized Project and review its ordered sections. Run on PROD as PROJECT_LEADER_ACCOUNT; Project 1927 is in Organization 4.",
+              "prompt": "Open Project 1927 and show its details and ordered sections.",
+              "tools_triggered": "getProject(projectId=1927), listSections(projectId=1927, page=0, size=100)",
+              "expected_behavior": "Project 1927 is returned with Organization 4 as its organization. The paged section response contains items, page, size, totalItems, totalPages, and hasNext; it contains 7 sections. Summarize section names and indexes in order without adding unrelated participant or profile data."
+            },
+            {
+              "description": "Verify that the two named synthetic Learners are active in an authorized Project. Run on PROD as PROJECT_LEADER_ACCOUNT; Project 1927 is the fixture.",
+              "prompt": "For Project 1927, confirm Dwight and Stanley are active Learners, and tell me the total number of active participants.",
+              "tools_triggered": "findProjectParticipants(projectId=1927, deleted=false, page=0, size=100)",
+              "expected_behavior": "The paged result has 4 active participant rows: the Project owner and 3 Learners. Dwight and Stanley each appear with role STUDENT and banned=false. Report only the requested confirmation and count; do not disclose participant email addresses, birth dates, or full profiles."
+            },
+            {
+              "description": "Review the Project To-Do List and its Components. Run on PROD as PROJECT_LEADER_ACCOUNT; Project 1927 is the fixture.",
+              "prompt": "Show the To-Do List for Project 1927. Summarize its sections and count the Components.",
+              "tools_triggered": "getToDoListForProject(projectId=1927)",
+              "expected_behavior": "The tool returns 7 sections containing 20 Components. Read Components from sections[].assignments in the backend-compatible response and describe them to the user as Components. Summarize the returned structure and status values without claiming that the Project changed."
+            },
+            {
+              "description": "Export an authorized Project as a portable definition. Run on PROD as PROJECT_LEADER_ACCOUNT; Project 1926 is the fixture in Organization 4.",
+              "prompt": "Export Project 1926 as a portable backup. Count the sections and Components, and tell me whether Learner memberships, grades, or submissions are included.",
+              "tools_triggered": "exportProject(projectId=1926)",
+              "expected_behavior": "The server returns a CourseDefinition containing 7 sections and 20 Components, represented as sections[].assignments. Runtime Learner memberships, grades, and submissions are not included. Do not claim a Project was created or changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not expose administrative data to a Project Leader account.",
+              "prompt": "As a Project Leader, show me admin-only license, organization-member, or user-review data.",
+              "expected_behavior": "Do not invoke an admin-only HuddleUp tool. Explain that the requested data requires an authorized administrator. Do not expose organization-member contact data, license data, or admin user overviews."
+            },
+            {
+              "description": "Do not claim unsupported MCP file-upload functionality.",
+              "prompt": "Upload this image and set it as the cover image for Project 1927.",
+              "expected_behavior": "Do not invoke an upload tool, guess a stored file path, or claim the image was uploaded. Explain that MCP file upload is unavailable and that a HuddleUp-supported upload flow must first provide a stored backend path."
+            },
+            {
+              "description": "Keep unrelated email drafting outside the HuddleUp MCP.",
+              "prompt": "Write a friendly email inviting my team to next week's planning meeting.",
+              "expected_behavior": "Do not invoke any HuddleUp MCP tool. Draft only from the information in the prompt; do not search Projects, participants, organizations, or profiles to invent recipients or context."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://huddle-up-mcp-demo.web.app/"
+      },
+      "publication": {
+        "release_notes": "Initial release of the Huddle Up Learning plugin. Connect your Huddle Up Learning account to view projects and learning content and use supported project-management tools, subject to your account permissions.",
+        "countries": [],
+        "translations": {}
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

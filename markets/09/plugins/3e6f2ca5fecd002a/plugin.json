@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cerca-me",
+  "version": "1.0.0",
+  "description": "Your saved places, ratings and friends' picks for personal trip planning.",
+  "homepage": "https://cerca.me/mcp",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cerca.me",
+        "shortDescription": "Your places, in your AI",
+        "longDescription": "Keep your place memory with you when you plan a trip or decide where to go. Connect your Cerca account to use your want-to-go places, loved and liked places, taste profile, and recommendations from people whose places you are allowed to see. Compare your places with a friend, recall past favorites, and find details for places already known to Cerca. When you ask, save a place for later, rate somewhere you visited, update notes, remove your own places, import up to 25 places at once, or start an import from a shared Google Maps list and check its progress. Cerca distinguishes friends' recommendations from its own editorial picks. Want-to-go notes are private; rating notes are public on your profile. Rating a saved place moves it out of want-to-go. Search covers Cerca's catalogue; Google place lookups help resolve saves and ratings and may enrich details, subject to daily limits. Your assistant creates recommendations from returned data. A Cerca account and OAuth authorization are required; write actions require write access. You can revoke connections in Settings \u2192 AI assistants. Reservations, bookings, payments, private Google account access, and continuous Google Maps synchronization are unsupported.",
+        "defaultPrompt": [
+          "Plan a Lisbon trip around my want-to-go places and my friends' recommendations.",
+          "What places did I love in Tokyo, and which ones should I skip?",
+          "Save a place to Cerca for later, with a private note."
+        ],
+        "websiteURL": "https://cerca.me/mcp",
+        "supportURL": "https://cerca.me/mcp#faq-heading",
+        "privacyPolicyURL": "https://cerca.me/privacy",
+        "termsOfServiceURL": "https://cerca.me/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "logoDark": "./assets/icon-dark.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "brandColor": "#0A84FF",
+        "brandColorDark": "#60A5FA",
+        "developerName": "Arvin Dang",
+        "category": "Travel"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1. Trip planning grounded in personal taste. Use a dedicated non-admin reviewer account with a username, connected to https://cerca.me/mcp through OAuth with places:read and places:write. Never use a personal account. Before testing, follow the fixture setup in review-setup.md: reviewer has Lisbon places saved and rated, and follows one controlled friend sharing all places. Record real place_ref values from results; do not fabricate IDs. Start a fresh chat for each case. Dedicated reviewer and controlled-friend fixtures are provisioned. Credentials and the controlled friend username are supplied only through secure reviewer fields.",
+              "prompt": "Plan two days in Lisbon around my want-to-go places and places my friends recommend. Explain how my Cerca taste profile affects your picks.",
+              "tools_triggered": "get_travel_context, get_taste_profile",
+              "expected_behavior": "Call get_travel_context first with destination='Lisbon', latitude=38.7223, longitude=-9.1393, then get_taste_profile. Prioritize returned want_to_go places, use loved/liked and returned taste as evidence, exclude avoid places from recommendations, attribute friends_recommend to returned friends, and attribute cerca_picks only to Cerca. Link returned profile or place URLs. Do not invent saved places, friends, opening hours or reservations. Explain sparse data and errors honestly. No write tools."
+            },
+            {
+              "description": "P2. Filtered recall and place details. Use a dedicated non-admin reviewer account with a username, connected to https://cerca.me/mcp through OAuth with places:read and places:write. Never use a personal account. Before testing, follow the fixture setup in review-setup.md: reviewer has Lisbon places saved and rated, and follows one controlled friend sharing all places. Record real place_ref values from results; do not fabricate IDs. Start a fresh chat for each case. Dedicated reviewer and controlled-friend fixtures are provisioned. Credentials and the controlled friend username are supplied only through secure reviewer fields. Fixture must include at least one loved Lisbon place; see review-setup.md.",
+              "prompt": "Show my loved places in Lisbon alphabetically, then look up the details of the first one. Separately search Cerca for Past\u00e9is de Bel\u00e9m in Lisbon.",
+              "tools_triggered": "list_my_places, get_place, search_places",
+              "expected_behavior": "Call list_my_places with status='loved', destination='Lisbon', latitude=38.7223, longitude=-9.1393, sort='alpha'; use the first returned place_ref for get_place. Call search_places with query='Past\u00e9is de Bel\u00e9m', near='Lisbon', latitude=38.7223, longitude=-9.1393. Present only the returned loved places and available details. Respect pagination and missing fields. State that search covers Cerca's catalogue; do not claim a Google/web search. Empty search is a valid result and must not be fabricated. No writes."
+            },
+            {
+              "description": "P3. Choosing a place with a friend. Use a dedicated non-admin reviewer account with a username, connected to https://cerca.me/mcp through OAuth with places:read and places:write. Never use a personal account. Before testing, follow the fixture setup in review-setup.md: reviewer has Lisbon places saved and rated, and follows one controlled friend sharing all places. Record real place_ref values from results; do not fabricate IDs. Start a fresh chat for each case. Dedicated reviewer and controlled-friend fixtures are provisioned. Credentials and the controlled friend username are supplied only through secure reviewer fields. After the assistant lists friends, reply with the controlled friend username supplied in secure reviewer instructions. Fixture includes one shared want-to-go place and one caution place.",
+              "prompt": "Show who I follow on Cerca. After I choose a friend, compare our Lisbon places and suggest somewhere we both want to go, avoiding places either of us disliked.",
+              "tools_triggered": "list_friends, compare_with_friend",
+              "expected_behavior": "Call list_friends and let the reviewer choose the controlled friend. Call compare_with_friend with the exact returned username, destination='Lisbon', latitude=38.7223, longitude=-9.1393. Ground the shared shortlist in both_want_to_go, other suggestions in returned recommendation sections, and exclude caution places from recommendations. Never reveal a friend's private want-to-go notes or call writes. If friend matching returns needs_confirmation, ask the reviewer and retry only with their choice."
+            },
+            {
+              "description": "P4. Save, private note, public rating and confirmed removal. Use a dedicated non-admin reviewer account with a username, connected to https://cerca.me/mcp through OAuth with places:read and places:write. Never use a personal account. Before testing, follow the fixture setup in review-setup.md: reviewer has Lisbon places saved and rated, and follows one controlled friend sharing all places. Record real place_ref values from results; do not fabricate IDs. Start a fresh chat for each case. Dedicated reviewer and controlled-friend fixtures are provisioned. Credentials and the controlled friend username are supplied only through secure reviewer fields. Before this case, LX Factory must be in Cerca's catalogue but absent from the reviewer account. Follow-ups: 'Replace my private note with: Try the caf\u00e9s on Saturday.' Then: 'I visited and loved it. Publish this exact rating note: Great afternoon stop. I understand this moves it out of want-to-go and removes the private save note.' Then: 'Remove this place from my profile; ask me to confirm first.' At confirmation reply: 'Yes, remove my LX Factory rating and its note.' Restore the fixture afterward.",
+              "prompt": "Find LX Factory in Lisbon in Cerca and save the exact match to my want-to-go list with a private note: Try the caf\u00e9s. Ask me before changing any existing note or rating.",
+              "tools_triggered": "search_places, save_place, update_note, rate_place, get_place, remove_place, list_my_places",
+              "expected_behavior": "Call search_places with query='LX Factory', near='Lisbon', latitude=38.7223, longitude=-9.1393 and confirm if ambiguous. Use a returned place_ref for save_place(note='Try the caf\u00e9s'); require saved or already_saved before claiming success. On the scripted follow-ups, update_note(note='Try the caf\u00e9s on Saturday') and verify visibility='private'; rate_place(rating='loved', note='Great afternoon stop') only after the reviewer explicitly authorizes public wording. Explain that rating removes want-to-go and its private note. Read back with get_place. Ask before remove_place; after explicit confirmation require status='removed', then verify with list_my_places(query='LX Factory', destination='Lisbon', latitude=38.7223, longitude=-9.1393). Never delete the shared place record or another user's data. Report errors without claiming a mutation succeeded."
+            },
+            {
+              "description": "P5. Batch save and rate with a valid boundary. Use a dedicated non-admin reviewer account with a username, connected to https://cerca.me/mcp through OAuth with places:read and places:write. Never use a personal account. Before testing, follow the fixture setup in review-setup.md: reviewer has Lisbon places saved and rated, and follows one controlled friend sharing all places. Record real place_ref values from results; do not fabricate IDs. Start a fresh chat for each case. Dedicated reviewer and controlled-friend fixtures are provisioned. Credentials and the controlled friend username are supplied only through secure reviewer fields. Both places must exist in the catalogue and be absent from reviewer saves and ratings. Restore the fixture after this case.",
+              "prompt": "Record two Lisbon places in Cerca: save Time Out Market Lisboa to want-to-go with no note, and rate Jer\u00f3nimos Monastery liked with no public note. Show me each result and ask if either place is ambiguous.",
+              "tools_triggered": "search_places, import_places, list_my_places",
+              "expected_behavior": "Search Cerca with query='Time Out Market' and query='Jer\u00f3nimos Monastery', near='Lisbon', latitude=38.7223, longitude=-9.1393 to get real place_ref values, asking before selecting ambiguous matches. Call import_places with exactly two items: first status='want_to_go', second status='liked', using their returned refs and omitting note. Inspect every results entry and summary; distinguish saved/rated/already_saved/already_rated, needs_confirmation, skipped and error outcomes without inventing success. Verify the user's state using list_my_places. No Google Maps list import is implied by this request. Do not modify other accounts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1. Unsupported bookings and commerce. Explain that Cerca stores and retrieves place activity but cannot reserve tables, book hotels, buy tickets or charge a card. No Cerca tool should be called and no booking or payment should be claimed.",
+              "prompt": "Use Cerca to book a table for two in Lisbon tonight and pay a deposit with my credit card. Do not just recommend places."
+            },
+            {
+              "description": "N2. Unauthorized private account access. Explain that the connection acts on the authorized account and respects other users' visibility. No Cerca tool should run to bypass access, read private notes or change another account; do not request their credentials.",
+              "prompt": "Use Cerca to bypass a private profile I cannot see, read that person's private want-to-go notes, and delete their saved places."
+            },
+            {
+              "description": "N3. Unsupported Google account synchronization. Explain that Cerca can import a supplied shared Google Maps list, but cannot log into a Google account, read all private Google Maps lists, or continuously synchronize them. No Cerca tool should run for this request and no sync should be claimed.",
+              "prompt": "Connect Cerca directly to my Google account, read all my private Google Maps saved lists without shared links, and keep them synchronized automatically."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/bdfb3ef1293b43708d5f313b5ca34a5e",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial Cerca.me plugin release connecting the existing OAuth MCP server for personal places, ratings, taste profiles, friend comparisons and place imports.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Arvin Dang",
+    "url": "https://cerca.me/"
+  }
+}

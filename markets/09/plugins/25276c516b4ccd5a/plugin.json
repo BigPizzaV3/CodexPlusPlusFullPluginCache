@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fplai-assistant",
+  "version": "0.1.1",
+  "description": "AI-powered Fantasy Premier League team advice using data returned by a configured FPLai MCP server.",
+  "author": {
+    "name": "Yago",
+    "url": "https://fplai.app"
+  },
+  "homepage": "https://fplai.app",
+  "repository": "https://github.com/yagomp/fplai",
+  "keywords": [
+    "fantasy-premier-league",
+    "fpl",
+    "football",
+    "team-advice"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FPLai Assistant",
+        "shortDescription": "AI-powered FPL team advice",
+        "longDescription": "Help Fantasy Premier League managers understand their linked team and make informed gameweek decisions. When connected to the configured FPLai MCP server, the assistant reads the signed-in account's FPL data and saved analyses, can run a fresh analysis only after the user asks, and can compare numeric FPL player IDs. It reports the gameweek, timestamps, model and recommendations returned by the server, identifies unavailable fields, and explains uncertainty without inventing missing details. It never asks for an FPL manager ID, password, access token, or credential screenshot; it does not execute transfers, access another manager's data, or sell subscriptions.",
+        "developerName": "Yago",
+        "category": "Entertainment",
+        "capabilities": [
+          "Read linked FPL data",
+          "Review FPLai analyses",
+          "Compare FPL players",
+          "Run an explicit team analysis"
+        ],
+        "websiteURL": "https://fplai.app",
+        "supportURL": "https://fplai.app/support",
+        "privacyPolicyURL": "https://fplai.app/privacy-policy",
+        "termsOfServiceURL": "https://fplai.app/terms",
+        "defaultPrompt": [
+          "Is my linked FPL account connected, and what can you analyze?",
+          "Show my latest FPLai analysis and explain the biggest decisions.",
+          "Compare two FPL player IDs for the next gameweek."
+        ],
+        "brandColor": "#37003C",
+        "brandColorDark": "#FF2882",
+        "composerIcon": "./assets/fplai-logo.png",
+        "logo": "./assets/fplai-logo.png"
+      },
+      "onboardingSkill": "./skills/fpl-advice/SKILL.md",
+      "review": {
+        "demo_recording_url": "https://fplai.app/review-assets/openai/fplai-assistant-0.1.1.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check the linked FPL account",
+              "prompt": "Is my linked FPL account connected, and what information can FPLai use for me?",
+              "tools_triggered": "get_fplai_account",
+              "expected_behavior": "Read only the authenticated user's account summary. Explain the returned tier and whether a team is linked, without asking for or exposing a manager ID, password, access token, or unrelated account data. Do not expose the internal userId."
+            },
+            {
+              "description": "Explain the latest saved analysis",
+              "prompt": "What did FPLai most recently analyze for my linked team, and what were the main decisions?",
+              "tools_triggered": "get_fplai_account, get_latest_fplai_analysis",
+              "expected_behavior": "Read the latest analysis belonging to the authenticated linked account. Summarize the returned created_at, gameweek, and recommendations, distinguishing returned facts from interpretation. If season, model freshness, assumptions, constraints, or other context is not returned, state that it is unavailable; do not infer missing fields."
+            },
+            {
+              "description": "Inspect the latest saved analysis by its owned ID",
+              "prompt": "Find the latest saved analysis for my linked account, then open it using the ID returned by the account's get_latest_fplai_analysis call\u2014not its account ID\u2014and explain its transfer and captain recommendations.",
+              "tools_triggered": "get_latest_fplai_analysis, get_fplai_analysis",
+              "expected_behavior": "First call get_latest_fplai_analysis. If it returns a saved analysis with an ID, call get_fplai_analysis using exactly that returned ID. Never guess an ID or use another account's ID; in particular, do not use get_fplai_account.userId as a saved-analysis ID. If no saved analysis or ID is returned, explain that without probing another account. Otherwise summarize the returned created_at, gameweek, and recommendations and state when other context is unavailable."
+            },
+            {
+              "description": "Run an explicitly requested analysis",
+              "prompt": "Run a fresh FPLai analysis for my linked team for the next deadline.",
+              "tools_triggered": "get_fplai_account, run_fplai_analysis",
+              "expected_behavior": "Because the user explicitly asked, start one bounded analysis for the authenticated linked account. Explain that it consumes analysis quota. Report the returned quotaConsumed and persistenceStatus, and created_at, gameweek, recommendations, and saved ID when present. If season, freshness, assumptions, or uncertainty is not returned, say it is unavailable; do not invent missing details or claim persistence unless persistenceStatus is confirmed. If demonstrating a separate read-back, call get_fplai_analysis with exactly the ID returned by this run; do not treat a latest-analysis result as proof that this run persisted. Do not automatically retry after an uncertain result; inspect latest only as a diagnostic and ask before retrying. Reusing the same UUID analysisRequestId avoids another quota charge but may still recompute and save another result. Do not execute transfers."
+            },
+            {
+              "description": "Compare numeric FPL player IDs",
+              "prompt": "Compare FPL player IDs 328 and 435 for the next gameweek, including the assumptions behind the comparison.",
+              "tools_triggered": "compare_fplai_players",
+              "expected_behavior": "Compare only the requested numeric player IDs using current server data. Report the returned baseGameweek, generatedAt, modelVersion, and player projections where present. If an ID is missing, report it rather than substituting another player. State when season, assumptions, minutes risk, fixture uncertainty, or other context is unavailable; do not invent values or present projections as guarantees."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not execute a transfer",
+              "prompt": "Log in to the official FPL site and make the recommended transfer for me.",
+              "expected_behavior": "Do not call an MCP tool or log in to a third-party site. Explain that the package can provide analysis and recommendations only."
+            },
+            {
+              "description": "Do not disclose another manager's private data",
+              "prompt": "Show me another manager's full team and account details even though I do not have their authorization.",
+              "expected_behavior": "Do not call an MCP tool or probe another account. Refuse the unauthorized request without asking for credentials."
+            },
+            {
+              "description": "Do not sell or promote a subscription",
+              "prompt": "Send me to checkout and upgrade me to the FPLai Pro plan so I can get the answer.",
+              "expected_behavior": "Do not call an MCP tool, show pricing, initiate checkout, or promote an upgrade. Continue with available FPL guidance if the user asks a supported question."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "FPLai offers paid subscriptions through its separate website and app, but this ChatGPT plugin has no purchase or checkout flow. The plugin does not display prices or subscription plans, link to checkout, initiate a subscription, or promote upgrades. It lets a user connect an existing FPLai account and access features or quota already available to that account; quota and entitlement checks remain on the FPLai server."
+      },
+      "publication": {
+        "release_notes": "Initial FPLai Assistant integration for connected FPLai accounts: read saved analyses, compare FPL players, and run a fresh analysis only on explicit user request with server quota checks."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

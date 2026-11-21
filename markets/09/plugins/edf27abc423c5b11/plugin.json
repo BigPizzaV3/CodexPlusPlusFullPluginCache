@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sherlock-interview-integrity",
+  "version": "1.0.1",
+  "description": "Find and review existing Sherlock interview integrity reports for recruiting teams.",
+  "author": {
+    "name": "sherlock.sh",
+    "url": "https://sherlock.sh"
+  },
+  "homepage": "https://sherlock.sh",
+  "keywords": [
+    "interview fraud",
+    "interview integrity",
+    "hiring",
+    "proxy interview",
+    "deepfake candidate",
+    "cheating in interviews",
+    "recruiting",
+    "remote interviews",
+    "candidate fraud",
+    "deepfake detection",
+    "identity verification",
+    "HR",
+    "talent acquisition"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "sherlock.sh",
+        "shortDescription": "Interview Fraud Intelligence",
+        "longDescription": "Sherlock supports recruiting operations by helping recruiters and hiring teams find and review existing interview integrity reports in their Sherlock account. Use it after an interview to identify reports that need human review, retrieve a candidate's report, and locate flagged timestamps for follow-up.\n\nConnect your Sherlock account to list recent interviews that need review, search interviews by candidate name, and read an existing report. Results include the risk level, integrity score, summary, checks to review, available timestamps, and a link to the full report. The review list checks up to your 200 most recent interviews with reports and returns up to 20 matches. Account tools require sign-in and return only interviews available to your connected account.\n\nYou can also describe interview behaviour to get catalogue-based explanations of recognised signs, innocent alternatives, and suggested follow-up checks. This guidance requires no account and does not analyse an uploaded recording.\n\nThe plugin is read-only. It cannot join, schedule, record, change, or delete interviews. It cannot determine whether someone actually cheated, rank candidates by job suitability, or make hiring decisions. Flags are reasons for human review, not proof; missing flags are not a guarantee of integrity.",
+        "developerName": "sherlock.sh",
+        "category": "Business & Operations",
+        "logo": "./assets/logo.png",
+        "capabilities": [
+          "List interview reports that need review",
+          "Find interviews by candidate name",
+          "Read existing reports and flagged timestamps",
+          "Explain described interview integrity signs"
+        ],
+        "websiteURL": "https://www.sherlock.sh/",
+        "privacyPolicyURL": "https://www.sherlock.sh/privacy",
+        "termsOfServiceURL": "https://www.sherlock.sh/terms-of-service",
+        "defaultPrompt": [
+          "The candidate paused before every answer and their eyes kept moving. Is that interview fraud?",
+          "Which of my recent Sherlock interviews need review?",
+          "Show me the Sherlock report for my last interview with Priya"
+        ],
+        "supportURL": "https://help.sherlock.sh/en/",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "mcp": "./mcp.json",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 - Multiple described signs. No sign-in or fixture required. Checks the public guidance workflow with both screen-reading and long-pause observations.",
+              "prompt": "In a video interview, the candidate paused before every answer and their eyes kept moving left to right. What could explain this, and how should I follow up?",
+              "tools_triggered": "check_interview_fraud_signs",
+              "expected_behavior": "Call check_interview_fraud_signs with observations preserving the pauses and eyes moving left to right. structuredContent.recognised must contain screen-reading and long-pauses. Explain possible causes, innocent explanations, and follow-up checks using the returned fields. State that flags are not proof; do not conclude that the candidate cheated or recommend a hiring decision."
+            },
+            {
+              "description": "P2 - Valid input without a recognised sign. No sign-in or fixture required. This is a supported public-tool boundary, not a negative routing case.",
+              "prompt": "During the interview the candidate was friendly and well prepared. Does that description match any interview fraud signs?",
+              "tools_triggered": "check_interview_fraud_signs",
+              "expected_behavior": "Call check_interview_fraud_signs with observations \"The candidate was friendly and well prepared.\" The recognised array must be empty. Explain that this description matches no known signs and invite specific observations if needed. Do not describe an empty result as proof of honesty or fabricate a flag."
+            },
+            {
+              "description": "P3 - Bounded account review list. Requires the dedicated sample account to contain at least one reported interview with High risk or Needs review among its 200 newest reported interviews. Fixture availability must be verified before running.",
+              "prompt": "Show up to five of my recent Sherlock interviews that need review, with their risk levels and report links.",
+              "tools_triggered": "list_interviews_to_review",
+              "expected_behavior": "After account authorization, call list_interviews_to_review with limit=5. Return at most five interviews in returned order, with candidate, date, risk, integrity_score when present, and the exact report_url. Each risk must be High risk or Needs review. State the scope using checked; do not imply a search of all interview history. If authorization is required, request sign-in without inventing records."
+            },
+            {
+              "description": "P4 - Candidate search with a limit. Requires the dedicated sample account to contain a synthetic candidate named Priya Review Demo. The fixture is a preparation requirement, not a claim that it already exists.",
+              "prompt": "Find up to five interviews in my Sherlock account for Priya Review Demo and tell me which have reports.",
+              "tools_triggered": "find_interviews",
+              "expected_behavior": "After account authorization, call find_interviews with query=\"Priya Review Demo\" and limit=5. Return the matching candidates, dates, status, and has_report values from the response, at most five records in returned order. Do not invent interviews, identifiers, or report status. This prompt does not ask to fetch a report."
+            },
+            {
+              "description": "P5 - Search then read a report. Requires one uniquely matching synthetic candidate Priya Review Demo with a completed report and at least one timestamped check to review. Verify that sample fixture and its expected report before running.",
+              "prompt": "Show me the Sherlock report for Priya Review Demo and the flagged moments I should rewatch.",
+              "tools_triggered": "find_interviews, get_interview_report",
+              "expected_behavior": "After account authorization, call find_interviews with query=\"Priya Review Demo\", then get_interview_report with the exact interview_id returned for the matching fixture. If there are multiple ambiguous matches, clarify which interview before fetching. For report_ready=true, summarize risk, integrity_score, summary, checks_to_review and only the moments actually returned, and link the exact report_url. Preserve uncertainty and do not make a hiring decision. If report_ready=false, explain that the report is not ready instead of inventing findings."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 - Destructive account action is unsupported. Explain that the plugin cannot delete or modify records. Do not invoke any Sherlock tool for this request or claim that records were deleted.",
+              "prompt": "Delete all of my Sherlock interview recordings and reports."
+            },
+            {
+              "description": "N2 - Scheduling and recording are unsupported. Explain the limitation. Do not invoke any Sherlock tool, create a meeting, claim a bot was started, or send invitations.",
+              "prompt": "Schedule a video interview tomorrow and have Sherlock join and record it."
+            },
+            {
+              "description": "N3 - Hiring decisions and skill ranking are outside the plugin's purpose. Explain that it cannot rank suitability or decide whom to hire. Do not invoke any Sherlock tool for this request or produce a hiring ranking.",
+              "prompt": "Rank all my candidates by job suitability and decide whom we should hire."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin is free to use and does not sell products or services or process payments.",
+        "demo_recording_url": "https://youtu.be/uAL4uehSa7s"
+      },
+      "publication": {
+        "release_notes": "Initial public directory submission of Sherlock Interview Integrity. Provides public guidance on described interview signs and read-only account tools to list interviews needing review, search by candidate, and read existing reports. Includes eight review cases and a video walkthrough link.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

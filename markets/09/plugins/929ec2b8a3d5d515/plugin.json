@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gakudo-sagashi",
+  "version": "0.2.3",
+  "description": "Find and compare after-school childcare facilities in Tokyo using official data from gakudosagashi.jp.",
+  "author": {
+    "name": "\u5b66\u7ae5\u3055\u304c\u3057\uff08\u904b\u55b6\uff1a\u30a2\u30c7\u30a3\u30c6\u30a3\u30e4\u30fb\u30b7\u30f3\uff09"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "\u5b66\u7ae5\u3055\u304c\u3057",
+        "shortDescription": "Find Tokyo childcare",
+        "longDescription": "Help families in Tokyo find and compare after-school childcare facilities using published facility data from gakudosagashi.jp. Search by area or school pickup and compare published fees, hours, holiday care, Saturday care, subsidies, and facility features. Availability and eligibility are not guaranteed; users should confirm details with the facility.",
+        "developerName": "\u5b66\u7ae5\u3055\u304c\u3057\uff08\u904b\u55b6\uff1a\u30a2\u30c7\u30a3\u30c6\u30a3\u30e4\u30fb\u30b7\u30f3\uff09",
+        "category": "Education & Research",
+        "capabilities": [],
+        "defaultPrompt": [
+          "\u6771\u4eac\u90fd\u3067\u6761\u4ef6\u306b\u5408\u3046\u5b66\u7ae5\u3092\u63a2\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+          "\u5b50\u3069\u3082\u306e\u5b66\u6821\u304b\u3089\u9001\u8fce\u3057\u3066\u304f\u308c\u308b\u5b66\u7ae5\u3092\u63a2\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+          "\u5b66\u7ae5\u3092\u6599\u91d1\u3001\u5229\u7528\u6642\u9593\u3001\u9001\u8fce\u3001\u571f\u66dc\u30fb\u9577\u671f\u4f11\u6687\u5bfe\u5fdc\u3067\u6bd4\u8f03\u3057\u3066\u304f\u3060\u3055\u3044\u3002"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "websiteURL": "https://gakudosagashi.jp/about",
+        "supportURL": "https://gakudosagashi.jp/contact",
+        "privacyPolicyURL": "https://gakudosagashi.jp/privacy",
+        "termsOfServiceURL": "https://gakudosagashi.jp/terms"
+      },
+      "review": {
+        "demo_recording_url": "https://gakudosagashi.jp/demo/chatgpt-walkthrough.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search one covered ward for facilities open late.",
+              "prompt": "Find after-school childcare in Setagaya (\u4e16\u7530\u8c37\u533a) that is open until at least 21:00.",
+              "tools_triggered": "search_facilities",
+              "expected_behavior": "Calls search_facilities with ward \u4e16\u7530\u8c37\u533a and open_until 21:00, and lists the facilities returned (14 at the time of writing) with each one's closing time and page URL. Facilities whose closing time is unpublished are not included."
+            },
+            {
+              "description": "Find facilities that pick up from a named elementary school.",
+              "prompt": "Which after-school childcare facilities pick up children from Toyosu Elementary School (\u8c4a\u6d32\u5c0f\u5b66\u6821)?",
+              "tools_triggered": "search_facilities",
+              "expected_behavior": "Calls search_facilities with school \u8c4a\u6d32\u5c0f\u5b66\u6821 and presents only the facilities returned (9 at the time of writing). It does not claim pickup coverage the tool did not return."
+            },
+            {
+              "description": "Combine a feature, a ward and a budget; unpublished fees must not count as cheap.",
+              "prompt": "Show me English-focused after-school care in Meguro (\u76ee\u9ed2\u533a) costing 70,000 yen a month or less.",
+              "tools_triggered": "search_facilities",
+              "expected_behavior": "Calls search_facilities with ward \u76ee\u9ed2\u533a, tag \u82f1\u8a9e and max_monthly_fee 70000. Returns only facilities that publish a fee within the budget (2 at the time of writing). Facilities that publish no fee are excluded, and the answer says their fees are not published rather than treating them as zero."
+            },
+            {
+              "description": "Retrieve full details of one facility, with its source.",
+              "prompt": "Tell me the fees, opening hours, pickup and listing page for \u5b66\u7ae5\u30af\u30e9\u30d6 \u307f\u3093\u3077\u308c\u4e0a\u99ac.",
+              "tools_triggered": "search_facilities or search, then get_facility",
+              "expected_behavior": "Finds the facility, then calls get_facility. Reports the published monthly fee (5,000 yen), the hours, pickup information or that it is unpublished, the date the information was last verified, and the facility page URL where a parent applies."
+            },
+            {
+              "description": "Explain which areas the service covers.",
+              "prompt": "Which areas of Tokyo does Gakudo Sagashi cover?",
+              "tools_triggered": "list_wards",
+              "expected_behavior": "Calls list_wards and lists the 12 covered wards with their facility counts. It does not imply the service covers all of Tokyo or Japan."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Asking the plugin to enrol a child. It is read-only and cannot apply to a facility.",
+              "prompt": "Enrol my child at \u5b66\u7ae5\u30af\u30e9\u30d6 \u307f\u3093\u3077\u308c\u4e0a\u99ac starting next week.",
+              "expected_behavior": "Does not attempt to apply or collect the child's details. Explains that the plugin only provides facility information and points the user to the facility page to apply."
+            },
+            {
+              "description": "Asking for a guarantee of admission, which the data cannot support.",
+              "prompt": "Guarantee that my child will be accepted at the cheapest facility you can find.",
+              "expected_behavior": "Does not guarantee admission or availability. Explains that places and eligibility must be confirmed with the facility."
+            },
+            {
+              "description": "An unrelated request, which should not use the plugin.",
+              "prompt": "Plan a three-day sightseeing trip around Tokyo for my family.",
+              "expected_behavior": "Does not call the Gakudo Sagashi tools. Explains that the plugin is for finding after-school childcare."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 0.2.3 aligns the review test cases with the server's tools (search_facilities, get_facility, list_wards) and its 12 covered Tokyo wards, and adds the demo recording."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

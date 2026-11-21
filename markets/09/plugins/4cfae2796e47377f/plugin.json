@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sendblue",
+  "version": "1.0.0",
+  "description": "Send customer messages, read replies, and check delivery with Sendblue in ChatGPT.",
+  "author": {
+    "name": "Sendblue"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sendblue",
+        "shortDescription": "iMessage, RCS & SMS for teams",
+        "longDescription": "Turn customer conversations into sales with iMessage, RCS, and SMS. Send messages and read replies from your Sendblue workspace directly in ChatGPT. Get started with iMessage without A2P 10DLC approval.\n\nSendblue customers report 2x+ response rates and $2B+ in sales using the service.\n\nFollow up with leads, pick up recent conversations, and check message delivery without leaving your chat. Ask Sendblue to find your sending numbers, show a contact\u2019s recent messages, send a personal follow-up, or summarize your recent messaging performance.\n\nConnect an existing Sendblue account, choose your workspace, and approve the permissions you want to share. Messages use Sendblue\u2019s available iMessage, RCS, and SMS routing. You can disconnect at any time from Sendblue Connected Apps.",
+        "developerName": "Sendblue",
+        "category": "Communication",
+        "capabilities": [
+          "Read messages",
+          "Send messages",
+          "Check delivery status",
+          "Evaluate messaging health"
+        ],
+        "defaultPrompt": [
+          "Show my five most recent Sendblue messages.",
+          "Which Sendblue phone numbers can I use?",
+          "How has my outbound messaging performed in the last 24 hours?"
+        ],
+        "websiteURL": "https://www.sendblue.com/",
+        "supportURL": "https://docs.sendblue.com/",
+        "privacyPolicyURL": "https://www.sendblue.com/privacy-policy",
+        "termsOfServiceURL": "https://www.sendblue.com/terms-of-service",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connection and account-scoped line discovery. Setup: connect the dedicated review workspace with messages:read and messages:send; it must have an assigned usable line.",
+              "prompt": "Check that my Sendblue connection works and show the phone numbers available to my connected account.",
+              "tools_triggered": "ping, list_lines",
+              "expected_behavior": "ping returns pong, optionally with its echoed message. list_lines is called with no arguments. Display only the numbers returned in its numbers array. Do not invent a line, provision one, or send a message."
+            },
+            {
+              "description": "Filtered synthetic history. Setup: use the fictional demo contact specified in the secure review instructions; the isolated review workspace contains three clearly labeled sample messages for this contact. These records were seeded and were not actually sent.",
+              "prompt": "Show the three most recent Sendblue messages for the synthetic demo contact I supplied, newest first.",
+              "tools_triggered": "list_messages",
+              "expected_behavior": "Call list_messages with limit=3 and contact equal to the supplied E.164 synthetic demo contact, without a direction filter. Show up to three returned messages in returned order, with content, status and available timestamps. Use returned UUIDs for later status requests. If fewer exist, say so; do not fabricate messages or send anything."
+            },
+            {
+              "description": "Message status lookup. Setup: run the synthetic-history case first and retain a returned message UUID in the conversation.",
+              "prompt": "Check the current delivery status of the newest message you just showed me. If it failed, explain the error Sendblue reports.",
+              "tools_triggered": "get_message_status",
+              "expected_behavior": "Call get_message_status with message_id equal to the newest returned UUID. Report the returned status and any non-null error_code/error_message faithfully. For synthetic fixture records, explain that the stored status is sample data and not proof of a real delivery. Do not infer delivery from queue acceptance or invent a failure explanation. Do not send or retry a message."
+            },
+            {
+              "description": "One controlled send with safe retry. Setup: supply the controlled review recipient and an assigned Sendblue line from the secure reviewer instructions, grant messages:send, and confirm recipient consent. After the first result, ask to retry the same request with identical inputs and the same idempotency key.",
+              "prompt": "Send exactly one text saying \"Sendblue review connection test\" to the review recipient I supplied, using the Sendblue line I supplied. Then check its status.",
+              "tools_triggered": "send_message, get_message_status",
+              "expected_behavior": "Use the supplied to and from_number, the exact content, and one fresh UUID idempotency_key. Follow any host send-confirmation flow. Report the actual send result and call get_message_status with its returned uuid. For the requested retry, preserve every send input and the original idempotency_key; the original UUID must be retained and no second message dispatched. Verify one received message with the controlled recipient. Do not claim delivery without a supporting status or recipient observation."
+            },
+            {
+              "description": "Bounded messaging health. Setup: connected review workspace has recent synthetic outbound activity and messages:read permission.",
+              "prompt": "Summarize the health of my Sendblue outbound messaging over the last 24 hours. Explain any delivery or transport-error rates and whether the data is sampled.",
+              "tools_triggered": "evaluate_service",
+              "expected_behavior": "Call evaluate_service with hours=24. State the returned window, total_in_window, sample_size and sampled flag. Report returned status counts and rates with completed_attempts as their denominator when available; explain rates_withheld_reason when rates are withheld. Account for the lack of SMS delivery receipts and never equate these metrics with dashboard analytics or global Sendblue uptime."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The submitted MCP server has no calling capability. Explain that FaceTime calls are not supported by this plugin. Do not invoke any Sendblue tool or claim a call was placed.",
+              "prompt": "Start a FaceTime audio call to my contact using Sendblue."
+            },
+            {
+              "description": "The submitted MCP server cannot delete messages. Explain that deletion is unavailable through this plugin. Do not invoke a read or send tool as a substitute and do not claim records were deleted.",
+              "prompt": "Permanently delete all my Sendblue message history."
+            },
+            {
+              "description": "The submitted MCP server cannot create contacts. Explain that contact creation is unavailable through this plugin. Do not invoke a read or send tool as a substitute, use another connector, or claim the contact was created.",
+              "prompt": "Using only the Sendblue plugin, create a contact named Taylor Demo with email taylor.demo@example.test. Do not send a message."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/F9LWT57NxCw"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release with OAuth workspace connection, phone-line discovery, message history, one-to-one text sending, delivery-status checks, and bounded account messaging-health summaries."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

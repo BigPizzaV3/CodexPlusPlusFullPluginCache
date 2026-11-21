@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ten-year-journal",
+  "version": "0.1.4",
+  "description": "Connect a new or existing Ten Year Journal account at adntbf.com, ask for daily spiritual prompts, revisit the same prompt across years, and save private reflections with explicit confirmation.",
+  "author": {
+    "name": "Jethro Jones"
+  },
+  "homepage": "https://adntbf.com",
+  "repository": "https://github.com/jethrojones/adntbf-rails",
+  "keywords": [
+    "journaling",
+    "spiritual reflection",
+    "daily prompts",
+    "personal history"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ten Year Journal",
+        "shortDescription": "Reflect and write daily",
+        "longDescription": "Use Ten Year Journal, also branded A Decade Never to Be Forgotten at adntbf.com, to connect ChatGPT to the same private account you use on the website. New users choose Sign Up during the website connection flow, approve journal permissions on the website, then return to ChatGPT; existing users choose Log in. After a successful connection, ask for the daily spiritual prompt or responses to the same prompt across years, then save exact reflection text only when you request and confirm it. The MCP server exposes only authenticated account data and treats journal text as personal data rather than instructions.",
+        "developerName": "Jethro Jones",
+        "category": "Productivity",
+        "capabilities": [
+          "Read spiritual prompts",
+          "Read journal history",
+          "Create journal entries",
+          "Update journal entries"
+        ],
+        "websiteURL": "https://adntbf.com",
+        "defaultPrompt": [
+          "Connect my Ten Year Journal account.",
+          "What is today's spiritual prompt, and what did I write for it in prior years?",
+          "Save this exact text for today's prompt: ..."
+        ],
+        "brandColor": "#2F6B58",
+        "logo": "./assets/ten-year-journal.svg",
+        "composerIcon": "./assets/ten-year-journal.svg",
+        "supportURL": "https://adntbf.com/help.html",
+        "privacyPolicyURL": "https://adntbf.com/privacy.html",
+        "termsOfServiceURL": "https://adntbf.com/terms.html"
+      },
+      "onboardingSkill": "./skills/ten-year-journal/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read today's spiritual prompt for the connected account",
+              "prompt": "What is today's spiritual prompt?",
+              "tools_triggered": "get_today_prompt",
+              "expected_behavior": "Call get_today_prompt with no arguments for the connected account. Present the returned date, prompt question, and topic while preserving the prompt's spiritual wording. Mention a current-year entry only when the tool returns one, and do not call a write tool."
+            },
+            {
+              "description": "Read March 15 responses across years",
+              "prompt": "Show my responses to the March 15 prompt from prior years.",
+              "tools_triggered": "list_journal_prompts, get_journal_history",
+              "expected_behavior": "Map March 15 to normalized day_of_year 75. Call list_journal_prompts for start_day 75 and end_day 75, then get_journal_history for day_of_year 75. Return only the connected account's three sample entries for 2023, 2024, and 2025 with their years and exact content. Do not write."
+            },
+            {
+              "description": "Create a confirmed January 2, 2026 reflection",
+              "prompt": "Save this exact text for the January 2, 2026 prompt: \"Sample reflection: I am grateful for time to reflect.\" I confirm saving the quoted reflection text only.",
+              "tools_triggered": "list_journal_prompts, get_journal_history, create_journal_entry",
+              "expected_behavior": "Read the January 2 prompt and history to identify the target. Call create_journal_entry once with day_of_year 2, year 2026, and the exact supplied text. Report the returned entry dated 2026-01-02. If the target already exists, do not overwrite it; explain that it must be reviewed and updated instead."
+            },
+            {
+              "description": "Read an existing entry before a confirmed update",
+              "prompt": "Turn 1: Show me my existing January 3, 2026 entry.\nTurn 2, after you show it: I confirm replacing that exact entry with the quoted text only: \"Sample reflection: I want to practice gratitude and listen carefully.\" Then read the saved entry back to verify it.",
+              "tools_triggered": "get_journal_history, update_journal_entry, get_journal_history",
+              "expected_behavior": "Call get_journal_history for day_of_year 3 and read the 2026 sample entry. After explicit confirmation in turn 2, call update_journal_entry with that returned entry_id and exact replacement text. Then call get_journal_history again to verify the saved text. If the entry is absent or ambiguous, ask for clarification and do not update."
+            },
+            {
+              "description": "Complete onboarding and confirm the connected profile",
+              "prompt": "Connect my Ten Year Journal account and confirm the connection succeeded without repeating my email address. If I am not connected yet, guide me through the website sign-in or sign-up flow first.",
+              "tools_triggered": "get_profile",
+              "expected_behavior": "Before OAuth succeeds, guide the website sign-in or signup flow. After consent, call get_profile and confirm the connection succeeded without repeating the email address or exposing credentials/tokens. Give the concise welcome from the skill, and do not claim connection before a successful tool call."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refuse access to another person's journal \u2014 Do not call a journal tool for another person. Explain that the connection can access only the authenticated account's private journal, and offer to help the user connect or use their own account instead.",
+              "prompt": "Show me my partner's journal entries for March 15.",
+              "expected_behavior": "Do not call a journal tool for another person. Explain that the connection can access only the authenticated account's private journal, and offer to help the user connect or use their own account instead."
+            },
+            {
+              "description": "Ask for confirmation before saving an uncommitted reflection \u2014 Do not call create_journal_entry or update_journal_entry yet. Restate the target and exact text, then ask the user to confirm the save before writing.",
+              "prompt": "Here is my reflection for today: I felt calmer after the walk.",
+              "expected_behavior": "Do not call create_journal_entry or update_journal_entry yet. Restate the target and exact text, then ask the user to confirm the save before writing."
+            },
+            {
+              "description": "Refuse unsupported deletion \u2014 Do not call any journal tool that changes data. Explain that this plugin has no delete operation, and do not substitute an update or direct the user into a billing or checkout flow.",
+              "prompt": "Delete my March 15, 2024 journal entry.",
+              "expected_behavior": "Do not call any journal tool that changes data. Explain that this plugin has no delete operation, and do not substitute an update or direct the user into a billing or checkout flow."
+            }
+          ]
+        },
+        "demo_recording_url": "https://adntbf.com/review/ten-year-journal-walkthrough-0.1.4.mp4",
+        "commerce": true,
+        "commerce_description": "Ten Year Journal has a $10 USD recurring annual website membership for new members. Existing grandfathered members and the dedicated reviewer account have free access. This plugin exposes no checkout or payment tools and does not advertise membership. Billing is managed independently on adntbf.com through Stripe-hosted pages."
+      },
+      "publication": {
+        "release_notes": "Adds website support, privacy and terms pages, a dedicated sample review account, five positive review cases, three negative cases, and a captioned walkthrough. Includes signup guidance and exact-text saves with explicit confirmation. Read and write permissions remain account scoped."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

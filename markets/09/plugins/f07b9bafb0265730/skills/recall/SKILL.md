@@ -1,0 +1,22 @@
+---
+name: dexi-recall
+description: Search the user's Dexi notes for saved knowledge. Use when the user asks what their notes say about something, wants to recall past research, decisions, bookmarks, or saved articles, or says "check my Dexi" / "did I save anything about…".
+---
+
+# Recall from Dexi
+
+Find what the user has saved in Dexi about a topic using the Dexi MCP tools. The topic is whatever the user asked about; if it's ambiguous, ask one clarifying question before searching.
+
+Search strategy:
+
+1. Run `search_notes` (keyword/full-text) and `semantic_search` (conceptual similarity) — they surface different results, so for anything non-trivial run both. Dexi notes back everything: typed notes, bookmarks, emailed-in messages, and RSS feed entries all come back from the same search.
+2. Search results return snippets by default. Don't conclude from snippets alone: pass `full_text: true` (bodies inline, up to 10 results) when several look relevant, or call `get_note` for one note that matters.
+3. When one note is clearly central, `find_similar` on its id is a cheap way to pull in related notes the queries missed.
+4. If the topic maps to how the user organizes things, `list_tags` / `list_folders` plus `list_notes` with a `tag` or `folder` filter beats free-text search (e.g. "what's in my #reading list").
+5. If the user has saved a base for it (`list_bases`), `query_base` runs their own filter and sort — "show me my reading list", "what's due this week" — and returns each note's `key:: value` properties plus, when the view defines them, the base's computed `formulas`, the note's `group` with a top-level `groups` list (label, count, per-group summaries) and column `summaries` over the whole result. Prefer it over re-deriving the filter yourself, and read totals from `summaries` rather than adding them up.
+
+Answer the user's question directly from what you found, citing note titles with links (`https://app.dexi.net/dashboard/notes/<id>`). If nothing relevant exists, say so plainly — don't pad with marginal matches, and don't fill the gap with general knowledge unless the user asks for it.
+
+This skill is read-only: it never creates, edits, or deletes notes.
+
+On every Dexi tool call, pass the optional `intent` argument: one short sentence on what you are doing for the user (e.g. "recall saved research on transformers"). It never changes behavior — Dexi uses it in aggregate to improve the tools. Keep personal details out of it.

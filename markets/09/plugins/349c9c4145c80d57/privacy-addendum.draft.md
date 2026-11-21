@@ -1,0 +1,33 @@
+# RTA integration privacy
+
+Published for the hosted RTA review at https://rta-chatgpt-practice-review.zjudn2013.workers.dev/privacy.
+Generated from worker/policies.json; the filename is retained for earlier draft links.
+Updated October 4, 2026.
+
+## Scope
+
+The Influence Company operates this Realtime Avatar ChatGPT integration, previously called Realtime Avatar Practice. This notice describes its actual collection and storage. It supplements the general RTA policy for this experience; the age and retention statements on this page govern the integration described here.
+
+## Information processed
+
+The integration processes the conversation mode and optional topic you select, temporary connection and plan identifiers, session status and the media credentials needed to connect. A topic is limited to 500 characters and is retained with the temporary plan for the same one-hour period. Your typed messages and optional microphone audio go directly through the live RTA media service to generate replies. The Worker does not receive the full ChatGPT conversation, collect names or email addresses, accept file uploads, or publish camera video.
+
+## Purpose and recipients
+
+Cloudflare hosts the Worker, static interface and temporary state. RTA and its active media, speech-recognition, speech-generation and language-model providers process the conversation to supply the call. ChatGPT/OpenAI receives the tool arguments and results that its host exchanges, plus a completion message only if you choose to send it. We do not send RTA API keys or live media grants in model-visible tool content. Browser permission tests remain local and their tracks stop immediately.
+
+## Integration retention
+
+MCP connection records and session plans expire one hour after creation. Expired records cannot be accessed; a Durable Object alarm removes them on the next scheduled cleanup, normally within one minute. Connection termination deletes that connection's plans. Live media grants are removed on End or when the safety cleanup runs, at most 150 seconds after an attempt begins plus the next cleanup interval. Cleanup failures can delay physical deletion; expired records remain inaccessible. The shared call counter contains no conversation or user identity and is retained for the hosted review's lifetime so redeploying cannot reset its budget. Worker request logging and sampling are disabled for this deployment.
+
+## Recordings, transcripts and upstream retention
+
+This integration explicitly disables RTA recording and does not request a transcript webhook or archive a conversation. RTA request diagnostics and normalized operational events expire after seven days and are removed by the platform cleanup. Session admission, metering and billing records still exist in the underlying RTA account: they are outside the one-hour integration-state deletion window and currently have no automatic maximum retention configured for this review. They are retained while that operator account is maintained, subject to necessary security, legal and accounting records. Speech/model provider retention is governed by their service arrangements, not the Worker's timer. We do not promise zero provider retention or deletion from all systems when you disconnect. Contact privacy@realtimeavatar.ai for an access or deletion request and the applicable provider details.
+
+## Your choices
+
+You may leave microphone access off, use typed messages, stop a call, revoke browser permissions, or disconnect the integration. The review's deletion endpoint uses the current MCP connection capability and deletes that connection's temporary plans. Disconnecting does not delete ChatGPT's conversation history or RTA accounting records. You can request access, correction or deletion through privacy@realtimeavatar.ai without posting private information into the avatar conversation.
+
+## Age, advertising and public evidence
+
+This Realtime Avatar integration is intended for a general audience aged 13 and over, subject to the local minimum age and guardian permission for minors. It is not directed to children under 13. No advertising pixel is included in this Worker UI. Published technical test recordings use developer-authored sample conversations; user calls are not published or recorded by this integration.

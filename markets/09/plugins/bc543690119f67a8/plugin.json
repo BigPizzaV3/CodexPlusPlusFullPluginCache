@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jobcheck",
+  "version": "0.1.3",
+  "description": "Use this when two structured job-status snapshots disagree and you want an exact-ID reconciliation and a follow-up checklist.",
+  "author": {
+    "name": "Sun Ryse Software LLC"
+  },
+  "homepage": "https://jobcheck-mcp.sunrysetech.com/",
+  "keywords": [
+    "jobs",
+    "status",
+    "reconciliation"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Job Status Checker",
+        "shortDescription": "Compare job status snapshots",
+        "longDescription": "Use this when two structured job-status snapshots disagree and you want an exact-ID reconciliation and a follow-up checklist. Up to 100 rows in each supplied snapshot, matched only by exact job ID. Staleness uses an explicit threshold of 0\u20133,650 days and the caller's date. No job-system connection, outbound follow-up message or verified real-world completion. Inputs are temporary; no customer-account access or stored progress. In supported ChatGPT surfaces, open the interactive workspace to choose a task, review labeled inputs and run the existing tools. Examples are public or synthetic, not saved customer records. The public website provides a labeled example, usage steps and prompts. The interface adds no account access or persistence.",
+        "developerName": "Sun Ryse Software LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Compare job status snapshots",
+          "Build a job review checklist",
+          "Open a guided interactive workspace"
+        ],
+        "websiteURL": "https://jobcheck-mcp.sunrysetech.com/",
+        "supportURL": "https://jobcheck-mcp.sunrysetech.com/support",
+        "privacyPolicyURL": "https://jobcheck-mcp.sunrysetech.com/privacy",
+        "termsOfServiceURL": "https://jobcheck-mcp.sunrysetech.com/terms",
+        "defaultPrompt": [
+          "Open Job Status Checker so I can choose a task and review its inputs.",
+          "Compare these two job status snapshots by exact ID and make a checklist for conflicts and missing entries."
+        ],
+        "brandColor": "#345ce3",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the interactive workspace, then expose a status conflict alongside stale and overdue evidence",
+              "prompt": "Open Job Status Checker's interactive workspace. Then Compare these two synthetic job snapshots without treating either system as authoritative.\nUse these supplied inputs: {\"today\":\"2026-10-01\",\"staleAfterDays\":14,\"left\":[{\"jobId\":\"JOB-1\",\"status\":\"open\",\"updatedAt\":\"2026-09-01T12:00:00Z\",\"dueDate\":\"2026-09-30\"}],\"right\":[{\"jobId\":\"JOB-1\",\"status\":\"completed\",\"updatedAt\":\"2026-09-30T14:00:00Z\",\"dueDate\":\"2026-09-30\"}]}",
+              "tools_triggered": "open_app, reconcile_job_snapshots",
+              "expected_behavior": "Call open_app with no arguments. It returns ready for jobcheck and the host can display the associated interactive workspace with task selection, labeled inputs and clearly identified sample inputs. Opening the workspace alone must not run a data lookup or claim a completed result. Run reconcile_job_snapshots only for the explicit request and supplied inputs that follow. Return one status conflict, one stale job, and one overdue job. Keep the two reported statuses and realWorldCompletion not_verified; do not choose completed as truth. Interface rendering, host tool selection and interaction must be checked in a supported ChatGPT surface; direct MCP results alone do not establish those host behaviors."
+            },
+            {
+              "description": "Treat job IDs as case-sensitive exact identifiers",
+              "prompt": "Compare these snapshots using exact case-sensitive job identifiers.\nUse these supplied inputs: {\"today\":\"2026-10-01\",\"left\":[{\"jobId\":\"JOB-A\",\"status\":\"open\",\"updatedAt\":\"2026-10-01T10:00:00Z\"}],\"right\":[{\"jobId\":\"job-a\",\"status\":\"open\",\"updatedAt\":\"2026-10-01T11:00:00Z\"}]}",
+              "tools_triggered": "reconcile_job_snapshots",
+              "expected_behavior": "Return two distinct jobs, each missing from the other snapshot, and no status conflict inferred across the differently cased IDs. Do not fuzzy-match them."
+            },
+            {
+              "description": "Flag due-date disagreement while preserving matching statuses",
+              "prompt": "Check these same-ID snapshots for date disagreement.\nUse these supplied inputs: {\"today\":\"2026-10-01\",\"left\":[{\"jobId\":\"JOB-D\",\"status\":\"in_progress\",\"updatedAt\":\"2026-10-01T10:00:00Z\",\"dueDate\":\"2026-10-15\"}],\"right\":[{\"jobId\":\"JOB-D\",\"status\":\"in_progress\",\"updatedAt\":\"2026-10-01T11:00:00Z\",\"dueDate\":\"2026-10-16\"}]}",
+              "tools_triggered": "reconcile_job_snapshots",
+              "expected_behavior": "Report matching_reported_status with dueDateConflict true and a due_date_conflict review flag. Preserve both dates and do not select an authoritative due date."
+            },
+            {
+              "description": "Separate agreement from real-world completion",
+              "prompt": "Compare these snapshots that both report completion.\nUse these supplied inputs: {\"today\":\"2026-10-01\",\"left\":[{\"jobId\":\"JOB-C\",\"status\":\"completed\",\"updatedAt\":\"2026-10-01T10:00:00Z\",\"dueDate\":\"2026-09-30\"}],\"right\":[{\"jobId\":\"JOB-C\",\"status\":\"completed\",\"updatedAt\":\"2026-10-01T11:00:00Z\",\"dueDate\":\"2026-09-30\"}]}",
+              "tools_triggered": "reconcile_job_snapshots",
+              "expected_behavior": "Report matching statuses and closed_in_snapshot, zero overdue jobs, and realWorldCompletion not_verified. Agreement between snapshots does not prove the work was performed."
+            },
+            {
+              "description": "Build a follow-up checklist without external actions",
+              "prompt": "Build review checklist items from this missing and stale synthetic job entry.\nUse these supplied inputs: {\"today\":\"2026-10-01\",\"left\":[{\"jobId\":\"JOB-3\",\"status\":\"blocked\",\"updatedAt\":\"2026-09-01T12:00:00Z\"}],\"right\":[]}",
+              "tools_triggered": "build_followup_checklist",
+              "expected_behavior": "Return checklist actions to add or confirm the missing snapshot entry and refresh the stale snapshot, both incomplete. Return messagesSent false and jobsModified false."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported direct job-system retrieval",
+              "prompt": "Use Job Status Checker to log into our private dispatch system and retrieve the latest jobs.",
+              "expected_behavior": "Do not claim access to a private dispatch system. This plugin accepts caller-supplied structured snapshots and has no job-system connection or credentials flow."
+            },
+            {
+              "description": "Unsupported job updates and notifications",
+              "prompt": "Mark every disputed job completed and text the assigned workers through Job Status Checker.",
+              "expected_behavior": "Do not call reconciliation or checklist tools to imply updates or messages. Explain that the plugin cannot modify jobs or send notifications."
+            },
+            {
+              "description": "Unsupported real-world completion certification",
+              "prompt": "Certify that job JOB-99 was physically completed without me supplying any snapshots or evidence.",
+              "expected_behavior": "Do not invent a snapshot or certify completion. Explain that this plugin only compares supplied reported statuses and cannot verify physical work."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only public-source lookups or calculations over supplied inputs. This plugin does not sell products, process payments or execute transactions.",
+        "demo_recording_url": "https://jobcheck-mcp.sunrysetech.com/review-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "0.1.3: Adds the deployed open_app interactive workspace to listing capabilities and the five-positive/three-negative review set. Preserves all existing data tools, dedicated domain, publisher, category and original icons. Updates the listing color and public usage guidance to navy/blue. Current direct MCP checks cover workspace readiness, UI-resource metadata, data results and strict input rejection. The retained video shows the earlier tool walkthrough and predates the workspace; native ChatGPT rendering and conversational refusals have not been verified by these direct checks."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

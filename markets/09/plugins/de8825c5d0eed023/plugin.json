@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "chefsense",
+  "version": "1.2.0",
+  "description": "Work with your ChefSense kitchen from ChatGPT and Codex: check your pantry, find meals your whole household can eat, save and adapt recipes, and keep your shopping list up to date.",
+  "author": {
+    "name": "Avana.ai Inc.",
+    "email": "support@chefsense.ai",
+    "url": "https://chefsense.ai"
+  },
+  "homepage": "https://chefsense.ai/connectors/chatgpt",
+  "keywords": [
+    "recipes",
+    "pantry",
+    "meal planning",
+    "cooking",
+    "shopping list"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ChefSense",
+        "shortDescription": "Pantry, recipes & shopping",
+        "longDescription": "ChefSense is a kitchen assistant that keeps track of what's in your pantry, who you're cooking for, and the recipes you love. This plugin lets ChatGPT and Codex work with your ChefSense account directly.\n\nWhat you can do:\n- See what you have: your pantry (including what's expiring soon), saved recipes, shopping list, and each household member's diets, allergies and dislikes.\n- Keep it up to date: add, update or remove pantry items, save a recipe from the conversation or from a URL, edit a recipe, and add or check off shopping list items.\n- Cook for everyone: generate recipes from what's on hand with ChefSense's recipe engine, which respects every household member's diet profile, or refine a saved recipe step by step.\n- Scan photos: turn a photo of your pantry shelf, a grocery receipt or a recipe card into pantry items or a saved recipe.\n- Undo anything: pantry, recipe and diet changes are recorded, so \"undo that\" rolls back the last one.\n\nYou're asked before anything changes your data. You sign in on ChefSense's own page, the assistant never sees your password, and you can disconnect at any time.\n\nRequires a ChefSense account. The shopping list is a list only; ChefSense doesn't place orders.",
+        "developerName": "Avana.ai Inc.",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://chefsense.ai",
+        "supportURL": "https://chefsense.ai/connectors/chatgpt",
+        "privacyPolicyURL": "https://chefsense.ai/privacy-policy",
+        "termsOfServiceURL": "https://chefsense.ai/terms-of-service",
+        "defaultPrompt": [
+          "I have chicken, spinach and rice. Make me 3 recipes.",
+          "What can I make tonight with eggs, tomatoes and feta?",
+          "I'm vegetarian and allergic to nuts. What should I make tonight?"
+        ],
+        "brandColor": "#8A1F3B",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Turn three ingredients into three saved recipes. Write, non-destructive. Uses one ChefSense recipe generation.",
+              "prompt": "I have chicken, spinach and rice. Make me 3 recipes.",
+              "tools_triggered": "add_pantry_items_bulk, generate_recipe, list_recipes",
+              "expected_behavior": "Adds chicken, spinach and rice to the pantry with add_pantry_items_bulk, then calls generate_recipe once with a prompt built around those three items. Polls list_recipes until three new recipes appear and shows each one's title, time and which of the three items it uses. All three recipes are saved to the recipe book; asking \"What recipes do I have?\" afterwards lists them alongside the six seeded recipes."
+            },
+            {
+              "description": "Read the pantry and report what expires soon. Read-only.",
+              "prompt": "What's in my pantry that's expiring soon?",
+              "tools_triggered": "list_pantry",
+              "expected_behavior": "Calls list_pantry and lists the items with the nearest expiry dates. On the test account these are baby spinach, chicken thighs, tomatoes and Greek yogurt, all expiring within about 3 days of the last account reset. Nothing is changed."
+            },
+            {
+              "description": "Suggest a meal that respects every household member's diets and dislikes. Read-only.",
+              "prompt": "Suggest a dinner my whole household can eat using what I have.",
+              "tools_triggered": "get_household, list_pantry",
+              "expected_behavior": "Calls get_household and list_pantry (it may also call list_recipes or search_recipes). The suggestion accounts for the three household members on the test account: the reviewer (Mediterranean; dislikes anchovies), Sam (Vegetarian; dislikes mushrooms) and Jordan (Gluten-Free, Nut-Free; dislikes olives and cilantro), and uses pantry items such as chickpeas, spinach, tomatoes, eggs or rice. It suggests a dish in the conversation and does not save or change anything unless asked."
+            },
+            {
+              "description": "Add pantry items after confirmation. Write, non-destructive.",
+              "prompt": "Add 2 limes and a bag of rice to my pantry.",
+              "tools_triggered": "add_pantry_item",
+              "expected_behavior": "Confirms what will be added, then calls add_pantry_item with two items (limes, quantity 2; rice, 1 bag). Reports both items as added. A follow-up \"Undo that\" calls undo_last_change and removes both items."
+            },
+            {
+              "description": "Read the shopping list and check an item off. Read plus write.",
+              "prompt": "Show my shopping list and check off coconut milk.",
+              "tools_triggered": "list_shopping_list, check_shopping_list_items",
+              "expected_behavior": "Calls list_shopping_list and shows the Groceries list: butter, coconut milk, fresh basil, scallions, maple syrup and flour (maple syrup and flour already checked). Then calls check_shopping_list_items with the coconut milk item id and confirms it is checked off."
+            },
+            {
+              "description": "Save a recipe the user dictates. Write, non-destructive. Uses the assistant's own text, not ChefSense's recipe engine.",
+              "prompt": "Save this to my recipe book as Garlic Butter Noodles, serves 2: 8 oz spaghetti, 3 tbsp butter, 4 garlic cloves, salt. Boil the pasta, melt the butter with the minced garlic, then toss together.",
+              "tools_triggered": "save_recipe",
+              "expected_behavior": "Confirms, then calls save_recipe with the title Garlic Butter Noodles, 2 portions, the four ingredients and the steps in order. Returns the new recipe id and confirms it was saved. Asking \"What recipes do I have?\" afterwards (list_recipes) shows Garlic Butter Noodles alongside the six seeded recipes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated request. ChefSense should not be used.",
+              "prompt": "What's the weather in Chicago this weekend?",
+              "expected_behavior": "No ChefSense tool is called. The assistant answers without the plugin or says it can't help with weather through ChefSense."
+            },
+            {
+              "description": "Purchasing is out of scope. ChefSense has no ordering or payment tools.",
+              "prompt": "Order everything on my shopping list for delivery tonight and pay with my saved card.",
+              "expected_behavior": "No order is placed and no payment is attempted, because ChefSense has no tools for either. The assistant explains that ChefSense only keeps the shopping list. It may call list_shopping_list to show the list, but makes no changes."
+            },
+            {
+              "description": "Account deletion is not available through the plugin.",
+              "prompt": "Delete my ChefSense account and all my data.",
+              "expected_behavior": "No tool is called to delete the account, because none exists, and no pantry items or recipes are removed as a substitute. The assistant tells the user to delete their account from their ChefSense profile settings at chefsense.ai or to email support@chefsense.ai."
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "New to ChefSense? Name three things in your fridge or pantry and ChefSense turns them into three recipes saved to your recipe book. Share a recipe link and get its shopping list, send a receipt or fridge photo to see what to use first, or say what you eat and get a dinner that fits. The suggested prompts now work on a brand-new account."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

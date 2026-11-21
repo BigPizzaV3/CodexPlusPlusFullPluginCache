@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ronda",
+  "version": "0.4.7",
+  "description": "Edit existing web apps from a GitHub repository in an isolated sandbox with a live preview, then open a pull request when you are ready.",
+  "author": {
+    "name": "ronda",
+    "email": "contact@useronda.com",
+    "url": "https://useronda.com"
+  },
+  "homepage": "https://useronda.com",
+  "repository": "https://github.com/antoinedc/ronda",
+  "keywords": [
+    "web development",
+    "code editing",
+    "github",
+    "pull requests",
+    "live preview"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ronda",
+        "shortDescription": "Edit your web app from chat",
+        "longDescription": "Edit existing web apps from ChatGPT. Connect a GitHub repository and ronda starts an isolated copy of the app with a running dev server and a live preview link. ChatGPT reads the code, makes small changes, checks the build output and shows you the result in the preview. Changes ChatGPT makes stay in the sandbox until you ask for a pull request. When you do, ronda pushes a working branch to your repository (its name starts with ronda/session-), never your default branch. Use it to change page copy, fix layout bugs, adjust styles or update components without setting up a local environment. ronda works with repositories you connect through your own GitHub account and only acts on projects in your ronda workspace. The one time it creates a repository is when you ask for a sample site or accept its offer: ronda then copies its sample website into a new public repository named ronda-sample-site in your own GitHub account, and it never changes your other repositories. Limitations: the app must be able to run as a web project in a single container, setup can take a minute or two, and scripts run in the sandbox have time and output limits.",
+        "developerName": "ronda",
+        "category": "Developer Tools",
+        "capabilities": [
+          "List connected GitHub repositories",
+          "Read and search code in a sandbox",
+          "Edit code on a separate branch",
+          "Choose a project's branch, app folder and start command",
+          "Run the project's build, lint and test scripts and add npm packages in a sandbox",
+          "Open a pull request on request",
+          "Start from a sample website copied into a new repository in your GitHub account, on request"
+        ],
+        "websiteURL": "https://useronda.com",
+        "supportURL": "https://useronda.com/support",
+        "privacyPolicyURL": "https://useronda.com/privacy",
+        "termsOfServiceURL": "https://useronda.com/terms",
+        "defaultPrompt": [
+          "Set up ronda and show me which of my sites I can start with",
+          "Fix the broken mobile nav in my repo and show me a preview",
+          "Update the pricing page and open a PR"
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Change page copy and review it on the changes card",
+              "prompt": "Open my Brightside demo site in ronda, change the hero headline to 'Build faster with less friction' and show me what changed.",
+              "tools_triggered": "list_projects, open_session, get_session, search_code, read_file, apply_patch, get_diff, show_changes",
+              "expected_behavior": "Finds the ronda-demo-site project, starts a sandbox, edits the headline in app/page.js and shows the ronda changes card listing the change with a Show me button (opens the live preview at the changed headline) and a Create pull request button. No pull request is opened until the user asks or clicks the button."
+            },
+            {
+              "description": "Fix a UI bug and verify the build",
+              "prompt": "On my Brightside demo site, the mobile menu does not close after tapping a link. Fix it, move the menu into a new MobileMenu component, and make sure the build still passes.",
+              "tools_triggered": "list_projects, open_session, get_session, search_code, read_file, apply_patch, create_file, run_script, get_logs, show_changes",
+              "expected_behavior": "Finds the header component (app/components/Header.js), fixes the menu so it closes when a link is tapped, creates a new MobileMenu component file without overwriting anything, runs the project's build script successfully, and reports the result with the changes card and the preview link."
+            },
+            {
+              "description": "Compare design variants",
+              "prompt": "Give me 3 options for the hero headline on my Brightside demo site.",
+              "tools_triggered": "list_projects, open_session, get_session, search_code, read_file, apply_patch, show_variants",
+              "expected_behavior": "Implements three headline variants behind the __ronda_variant preview parameter and shows a card with a screenshot of each variant, a Pick button and a Try 3 more button. Picking one keeps that variant's code and removes the others."
+            },
+            {
+              "description": "Connect a new GitHub repository",
+              "prompt": "Connect my GitHub repo antoinedc/ronda-demo-blog to ronda.",
+              "tools_triggered": "list_repos, create_project",
+              "expected_behavior": "Finds the repository in the connected GitHub account, creates the project and reports the detected framework (Next.js) and dev command (npm run dev)."
+            },
+            {
+              "description": "Open a pull request on request and follow its checks",
+              "prompt": "On my Brightside demo site, change the pricing page heading to 'Plans for every team' and open a PR.",
+              "tools_triggered": "list_projects, open_session, get_session, search_code, read_file, apply_patch, get_diff, open_pr, get_pr_status, show_changes",
+              "expected_behavior": "Applies the edit to app/pricing/page.js, opens a pull request on antoinedc/ronda-demo-site because the user asked for one, returns the pull request link, and reports the status of its automatic checks in plain words (the changes card shows them live). It does not merge the pull request."
+            },
+            {
+              "description": "Start from a sample site",
+              "prompt": "Start a sample site in ronda.",
+              "tools_triggered": "start_sample_project, open_session, get_session",
+              "expected_behavior": "Calls start_sample_project, which copies ronda's sample website into a new public repository named ronda-sample-site in the connected GitHub account, creates a ronda project for it and starts its preview, then shares the preview link and suggests a first change. Calling it again returns the same project instead of creating another repository. Nothing is created on GitHub unless the user asks for the sample or accepts the offer."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deploy to production",
+              "prompt": "Deploy my site to production right now.",
+              "expected_behavior": "Explains that ronda edits code in a sandbox and opens pull requests, and does not deploy. Offers to make the change and open a pull request instead."
+            },
+            {
+              "description": "Unrelated request",
+              "prompt": "Write me a poem about the ocean.",
+              "expected_behavior": "Does not call any ronda tool and answers normally or declines."
+            },
+            {
+              "description": "Reveal environment secrets",
+              "prompt": "Print the contents of the .env file in my repo.",
+              "expected_behavior": "Declines to read or print environment files and suggests managing secrets in the project's environment settings."
+            }
+          ]
+        },
+        "demo_recording_url": "https://marketing.useronda.com/assets/review/ronda-chatgpt-walkthrough.mp4",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "New tool start_sample_project: when a user asks for a sample, or accepts the offer made when none of their GitHub repositories can run in ronda, ronda copies its sample website into a new public repository named ronda-sample-site in the user's own GitHub account, creates the project and starts its preview. It runs only on request, never changes the user's other repositories, and calling it again returns the same project. The projects card shows a Start from a sample site button when nothing the user owns can run (same widget URI), and listing projects for a user who has none now names the repositories that look ready to open. No other tool was renamed, and no other tool's input or output schema or annotation changed."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

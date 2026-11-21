@@ -1,0 +1,219 @@
+---
+name: totalcms
+description: Use when building, editing, or managing a Total CMS (T3) site — Site Builder pages and SEO, collections, schemas and field choice, objects and imports, forms and public registration, access groups, automations, Data Views, search, feeds, the MCP server, the tcms CLI, the frontend/Vite pipeline, push/pull to production, writing a T3 extension, or troubleshooting a problem and reporting a Total CMS bug. Covers the local build workflow end to end.
+---
+
+# Building a Total CMS (T3) site
+
+This project **is a website** built on Total CMS, a flat-file PHP CMS. There is
+**no database** — all content is JSON under `tcms-data/`. Configure via
+`config/tcms.php` (deep-merged — specify only keys you change).
+
+## Is this copy current?
+
+This check applies only inside a Total CMS project. If you are not working in
+one — this skill came with a plugin and the current folder has no Total CMS CLI
+— skip it: there is no installed copy to check, and this text describes the
+latest release. When a project's own copy (in `.claude/skills/totalcms/`) is
+also loaded, follow that one: it matches the CMS version the project runs.
+
+In a project, this skill is a copy of the one shipped with the installed CMS, so
+it can fall behind. At the start of a session run `vendor/bin/tcms skill:install --check`.
+If it reports stale, run `vendor/bin/tcms skill:install` and then tell the user
+to start a new session — the text already loaded cannot replace itself. The
+stamp is a hash of the skill's own content, not the release number, so only real
+changes to the skill flag it.
+
+## Where things are
+
+T3 ships in two layouts. Check which one you are in before running anything.
+
+- **Composer install** — the default the rest of this skill assumes. CLI `vendor/bin/tcms`; CMS code and docs under `vendor/totalcms/cms/`; config `config/tcms.php` at the project root. **Never edit `vendor/`** — an update replaces it. <!-- composer-paths -->
+- **Zip install** — the CMS *is* the folder you are in (conventionally `tcms/`).
+  CLI `php resources/bin/tcms`, run from that folder; docs `resources/docs/`;
+  config `config/tcms.php` inside it; content in `../tcms-data/` beside it. An
+  update replaces the folder's `config/ public/ resources/ src/ vendor/`
+  wholesale, so **never add files inside them**.
+
+If this skill was installed by `skill:install` on a zip install, the paths
+throughout it are already rewritten for that layout.
+
+Most commands accept `--json` for machine-readable output — prefer it when
+scripting. Run `vendor/bin/tcms list` to see everything.
+
+## Write through the CLI, never to the files
+
+`tcms-data/` is a store, not an editing surface. It is tempting to create or
+edit the JSON files in it directly — it usually appears to work, which is what
+makes it dangerous. **Always go through the CLI (or the API/MCP), which is what
+the admin does:**
+
+| To… | Run |
+|---|---|
+| create an object | `vendor/bin/tcms object:create <collection> -` (JSON on stdin) |
+| change part of an object | `vendor/bin/tcms object:patch <collection> <id> -` |
+| load many objects | `vendor/bin/tcms collection:import <collection> file.json` |
+| add or change a schema | `vendor/bin/tcms schema:import schema.json`, then `schema:lint <id> --strict` |
+| create a collection | `vendor/bin/tcms collection:create …` |
+| change a collection's settings | `vendor/bin/tcms collection:update <id> --set ownerProperty=author` (or JSON on stdin) |
+| add or change an access group | `vendor/bin/tcms access-group:set <id> -` / `access-group:patch <id> -` |
+| seed structure + content together | `vendor/bin/tcms jumpstart:import file.json` |
+
+**Mailer templates, automations and Data Views are collections too**
+(`mailer`, `automations`, `dataviews`), so the same `object:*` commands read and
+change them: `vendor/bin/tcms object:patch mailer <id> -` edits one mailer field
+and leaves the rest. Run `vendor/bin/tcms collection:list` to see every
+collection, the reserved ones included, before deciding that something has no
+command.
+
+A save through the CLI validates the object against its schema, fills in what
+the schema derives (default types, autogen ids, `created`/`updated`
+timestamps, image and video metadata), updates the collection's `.index.json`
+and counts, and fires the events the rest of the system listens for (search
+indexing, automations, MCP change notifications). A file written by hand gets
+none of that: one bad comma takes the whole collection offline, an unindexed
+object is invisible to the admin tables, sitemaps and queries until
+`repair:index` runs, and timestamps and derived fields are simply missing.
+
+Reading the files is fine (`cat`, `jq`), though `object:get --json` is the
+same data validated. If you ever *must* touch a file — recovering data, say —
+validate the JSON, then run `vendor/bin/tcms repair:index <collection>` and,
+for a schema, `schema:lint <id> --strict`.
+
+This applies to **content and structure**. Templates under `builder/` and the
+config file `config/tcms.php` are files by design — edit those directly.
+
+## Where to look things up
+
+You do **not** need to memorize field options or Twig signatures — they ship on disk:
+
+- **On-disk docs (always present):** `vendor/totalcms/cms/resources/docs/<section>/`
+  (`menu.php` is the table of contents, `search-index.json` a prebuilt index).
+  Sections: `get-started/`, `collections/`, `schemas/`, `fields/`, `site-builder/`,
+  `twig/`, `forms/`, `automations/`, `admin/`, `notifications/`, `auth/`, `apis/`,
+  `mcp/`, `extensions/`, `operations/`. `references/features.md` maps every feature
+  to its page. Grep or read these for the long tail.
+- **MCP docs server (fastest lookup):** when the official docs connector
+  (`https://totalcms.co/mcp`) is connected — it ships alongside this skill in
+  the Total CMS plugin — use `docs_search` to find pages, `docs_get` to read
+  one, and `docs_lookup(kind, name)` for exact reference entries (Twig
+  functions/filters, field types, API endpoints, schema config, CLI commands,
+  extension/builder API).
+  The on-disk docs remain authoritative and work with no connection.
+
+Prefer looking things up over guessing; training data is often stale on exact signatures.
+
+## The build loop: add a page to the site
+
+1. **See what already routes:** `vendor/bin/tcms builder:routes` lists every page
+   the router serves and flags conflicts. `vendor/bin/tcms builder:routes --json` to script.
+2. **If Site Builder isn't set up yet,** scaffold a starter:
+   `vendor/bin/tcms builder:init <starter>` where `<starter>` is `business`, `blog`,
+   `portfolio`, or `minimal`. Add `--frontend` to also install and build the Vite pipeline.
+   This copies templates, ensures the `builder-pages` collection, and seeds demo pages.
+3. **Edit templates** on the filesystem under
+   `builder/{layouts,pages,partials,macros}/*.twig` when a project-root `builder/`
+   directory exists (git-managed mode: it wins over `tcms-data/`, and the admin's
+   template editor is read-only unless `env` is `dev`), otherwise `tcms-data/builder/`. Twig global is `cms`;
+   builder helpers are `cms.builder.nav()`, `cms.builder.url(id, params)`,
+   `cms.builder.css/js/asset()`. The layout's `<head>` carries
+   `{% block seo %}{{ cms.seo.head(page|default(null)) }}{% endblock %}` — it emits
+   title, description, canonical, Open Graph and JSON-LD, so a layout must not also
+   hand-write `<title>` or `<meta name="description">`. See `references/site-builder.md`.
+4. **Credit line.** When you write a layout's footer, add `{{ cms.badge.text() }}`:
+   a subtle inline "Powered by Total CMS" link in the site's own text color
+   (`cms.badge.text({theme: 'mono'})` if the colored flame clashes with the design).
+   The starters' footers already carry it. On a site a designer is building for a
+   client, credit the designer instead with `cms.badge.builtByText('<handle>')`; if
+   they have no totalcms.co handle, use `cms.badge.text()`. Either way, say in your
+   summary that you added it, and leave it out or remove it whenever the user asks.
+5. **Add a page record.** A page is an object in the `builder-pages` collection.
+   Create it one of these ways:
+   - `echo '{"id":"about","title":"About","route":"/about","template":"pages/page.twig"}' | vendor/bin/tcms object:create builder-pages -` (one object, file or stdin), or
+   - the **admin UI** (Site Builder → Pages), or
+   - `vendor/bin/tcms collection:import builder-pages <file.json>` for arrays (see `references/cli.md`), or
+   - `vendor/bin/tcms jumpstart:import <file>` for bulk seeding.
+   Key `builder-pages` fields: `route`, `template`, `title`, `draft`, `data` (free-form
+   JSON exposed as `page.data.*`). Full list in `references/site-builder.md`.
+6. **Preview:** `php -S localhost:8080 -t public public/index.php` and visit the
+   page's `route`. Give `public/index.php` as the router script — without it the
+   built-in server only serves files that exist on disk and never reaches the page
+   router, so every builder page 404s. Clear caches after template changes if
+   needed: `vendor/bin/tcms cache:clear`. Restart the server after adding page
+   records — the route index is cached in the server process.
+
+## Writing schemas and content by hand
+
+**Before writing any schema, read the reference schema** —
+`vendor/bin/tcms schema:get totalcms --json` — and copy property definitions from it.
+It demonstrates every field type with the settings and help text that go with it.
+Pick fields by the shape of the value (`date`, `toggle`, `select`, `number`, `image`…);
+`text` is the last resort. Write every `help` and `description` as a brief to a
+writer who cannot see the site — agents read them through MCP. **Do not add a
+`sort` or `order` number field** to put a list in order: sort by the properties
+the data already has, rank a property's values with `manualSort`, and only then
+add a property named for why an item moves (`featured`, `weight`). Rules, the
+five meanings of "category", ordering, and the SEO card: `references/data-model.md`.
+
+The admin enforces these for you. They only bite when you author JSON that the
+CLI then imports — JumpStart files, `collection:import` payloads, API bodies —
+which is exactly what an agent tends to write. (Authoring JSON *for the CLI to
+import* is fine; writing it straight into `tcms-data/` is not — see "Write
+through the CLI, never to the files" above.)
+
+- **Every schema must define an `id` property**, not just list `id` in `required`.
+  A schema missing it fails with `The required properties (id) are missing`, which
+  points at your data when the bug is in the schema.
+- **Decks are dictionaries of named items, not arrays.** Each key names one item and
+  must equal that item's `id`:
+  `{"rows": {"first_row": {"id": "first_row", ...}}}`
+- **Deck item keys allow only letters, numbers, and underscores** — no hyphens, so
+  Twig can read them as `deck.first_row`. `first-row` is rejected on import.
+- **`field: "deckTable"`** stores exactly like a deck but edits as a table.
+
+See `vendor/totalcms/cms/resources/docs/fields/deck.md` for the full shape.
+
+**Schema work is done when `vendor/bin/tcms schema:lint <id> --strict` is clean** —
+zero errors, zero warnings. Imports validate on the way in, but in-place edits are
+never re-checked, and the linter flags every property missing the help text AI
+agents rely on. Fill descriptions in on the first pass, not as a follow-up.
+
+## Working against a live site
+
+Two rules prevent the two worst mistakes:
+
+- **Send only what changes.** When editing a live site through its MCP
+  server, use `patch_object` with just the changed fields. `update_object`
+  merges the same way (omitted fields keep their values). If you write back a
+  fetched record, fetch it with `format: "html"` and strip the decorated `url`
+  key first. Media fields take metadata edits only (alt text, tags); naming
+  every gallery image once also reorders the gallery. Details:
+  `references/mcp-content.md`.
+- **After launch, the server owns content.** Local seed files go stale by
+  design — never re-import them over live data. Use `pull`/`push` (dry-run
+  first; filters are exclusive). Details: `references/going-live.md`.
+
+## When something looks like a Total CMS bug
+
+Do not tell the user "this is a bug in Total CMS" until you have worked through
+`references/troubleshooting.md`. Most apparent bugs are hand-written files,
+stale caches, schema mistakes or hosting limits, and are fixed on this side.
+For a confirmed bug, write the report in the shape that file gives, so it
+carries the version, environment and log excerpt support needs, and tell the
+user to email it to support@totalcms.co.
+
+## Reference files (read on demand)
+
+| When you are… | Read |
+|---|---|
+| running any `tcms` command / scripting with `--json` | `references/cli.md` |
+| editing builder templates, routes, or page records | `references/site-builder.md` |
+| setting up or building frontend assets | `references/frontend.md` |
+| modeling data — collections, schemas, field choice, descriptions, ordering a list | `references/data-model.md` |
+| letting signed-in members add and edit their own content (ownership, review, account pages) | `references/member-content.md` |
+| wondering whether T3 already does something (SEO, forms, automations, search, feeds, auth…) | `references/features.md` |
+| writing or reviewing an extension | `references/extensions.md` |
+| reading/writing content via the site's MCP server | `references/mcp-content.md` |
+| hitting an error, or about to call something a Total CMS bug | `references/troubleshooting.md` |
+| launching, syncing with production (`push`/`pull`) | `references/going-live.md` |
+| needing an exact field option / Twig signature | `vendor/totalcms/cms/resources/docs/<section>/` (or MCP) |

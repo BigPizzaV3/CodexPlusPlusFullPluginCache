@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "can-you-beat-ai",
+  "version": "1.1.1",
+  "description": "Play Connect Four against ChatGPT. ChatGPT chooses its moves; the backend validates and saves each turn.",
+  "author": {
+    "name": "Rust solutions ltd",
+    "email": "lodestonegames.support@gmail.com",
+    "url": "https://canyoubeatai.co.uk"
+  },
+  "homepage": "https://canyoubeatai.co.uk",
+  "keywords": [
+    "game",
+    "Connect Four",
+    "strategy",
+    "turn-based"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Can You Beat AI?",
+        "shortDescription": "Connect Four vs ChatGPT",
+        "longDescription": "Play Connect Four against ChatGPT in an interactive board. You choose your move; ChatGPT receives the saved board and legal moves, chooses its move, and the backend validates it.\n\nSee the turn, result and your personal wins, losses and draws. The board includes brief rules. Rematches alternate the starting player.\n\nConnect through OAuth to an anonymous game profile. No name, email, password or payment details are required. Games and move histories are saved. Connecting from another browser or clearing its profile cookie may create a separate profile. Playing strength and response time depend on ChatGPT.",
+        "developerName": "Rust solutions ltd",
+        "category": "Entertainment",
+        "websiteURL": "https://canyoubeatai.co.uk",
+        "supportURL": "https://canyoubeatai.co.uk/support.html",
+        "privacyPolicyURL": "https://canyoubeatai.co.uk/privacy.html",
+        "termsOfServiceURL": "https://canyoubeatai.co.uk/terms.html",
+        "defaultPrompt": [
+          "Open Can You Beat AI?",
+          "Let's play Connect Four."
+        ],
+        "brandColor": "#237A68",
+        "brandColorDark": "#78DBC3",
+        "composerIcon": "./assets/logo.svg",
+        "logo": "./assets/logo.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://canyoubeatai.co.uk/review/walkthrough-1.1.1.mp4",
+        "commerce": false,
+        "commerce_description": "No purchases, payments, subscriptions or paid features are provided by this game.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use a dedicated test profile with no active round. Connect using OAuth if needed, then open the plugin in a fresh chat. A fresh chat alone does not create a new game profile. No email, password or preconfigured game account is needed.",
+              "prompt": "Open Can You Beat AI?",
+              "tools_triggered": "open_game from ChatGPT; open_game again from the widget when it loads",
+              "expected_behavior": "If unconnected, ChatGPT offers connection authorization before accessing games. With no active round, Home shows Connect Four and the connected profile\u2019s statistics. If this profile already has an active round, opening resumes that board instead; use Home to start a new round. Opening does not start or replace a round. Game tool arguments and responses contain no playerKey, playerId, access token or refresh token."
+            },
+            {
+              "description": "Start Connect Four and click a legal column in the board. A first round on a new profile starts with the human; later rounds alternate.",
+              "prompt": "Let's play Connect Four.",
+              "tools_triggered": "start_game; open_game when the new card loads; make_player_move from the widget after a column click; apply_ai_move for ChatGPT\u2019s turn; get_game for polling or canonical refresh",
+              "expected_behavior": "A 7-column, 6-row board shows the saved turn. The widget saves the human click through the authenticated tool bridge before asking ChatGPT to choose its move. A successful AI commit adds its disc and returns human controls. If ChatGPT starts, it commits its opening first. ChatGPT chooses the AI move; no backend solver does so. A failed save sends no AI request."
+            },
+            {
+              "description": "Complete a Connect Four round, request statistics, then reload that game card. Before reloading, do not start another round anywhere on the same connected profile.",
+              "prompt": "Show my game stats.",
+              "tools_triggered": "get_player_stats; open_game on card reload, then get_game for the referenced completed round when no active round exists",
+              "expected_behavior": "The statistics response contains statistics only and leaves the final board visible. With no active round, reload reads the referenced completed board and restores its result. If a newer active round exists, that active round is shown instead; the completed round remains saved. The completed round is counted once. Unfinished or abandoned rounds are not counted as completed."
+            },
+            {
+              "description": "With a completed Connect Four round visible and no newer round on this profile, request a rematch.",
+              "prompt": "Rematch this Connect Four game.",
+              "tools_triggered": "start_game with rematchOf identifying the completed round; open_game when the new card loads; apply_ai_move if AI starts",
+              "expected_behavior": "A new round has a different game ID and the opposite starting player. The completed round and statistics remain saved and unchanged. If AI starts, ChatGPT commits one opening move and returns control to the human; otherwise the empty board is ready for the human."
+            },
+            {
+              "description": "With an active Connect Four round, no AI response currently running and no concurrent play, reload the existing card and reopen the plugin in a fresh chat using the same connected profile. Also reload an older card if one exists. Separately, if an AI turn was interrupted, use Resume AI turn only after ChatGPT has stopped.",
+              "prompt": "Open my current saved board without starting a new game or playing any moves.",
+              "tools_triggered": "open_game to open the board and whenever the widget loads; get_game for polling and before an explicit Resume AI turn request; apply_ai_move only if that resumed AI move is still needed",
+              "expected_behavior": "Loading shows a spinner until the backend read succeeds; an old snapshot is not displayed while loading. All reopened cards and panes select the connected profile\u2019s active round, even if an older card references another round. With no concurrent moves, the active game ID, revision, pieces and turn remain unchanged. Reload alone neither saves a move nor starts a round. A paused AI turn remains resumable. Resume reads the current state first: if the AI move already arrived, it displays that move without requesting another; otherwise ChatGPT is asked to commit the missing AI move. Refreshing the browser does not guarantee that an outstanding ChatGPT response continues."
+            }
+          ],
+          "negative": [
+            {
+              "description": "During an unfinished Connect Four round, wait until a column contains six discs and it is the human's turn. Type this request in ChatGPT, identifying that full column.",
+              "prompt": "Drop my disc into the full column.",
+              "expected_behavior": "Explain that the column is full and ask for another column. Do not substitute a move or request an AI turn. The backend rejects any attempted move into the full column; the saved board, revision, turn, move history and statistics remain unchanged."
+            },
+            {
+              "description": "During Connect Four, a displayed column outside 1 through 7 is illegal.",
+              "prompt": "Drop my disc into column 8.",
+              "expected_behavior": "Explain the valid column range and ask for a legal choice. Do not substitute a column. Invalid arguments or an illegal move leave the saved board, revision and statistics unchanged."
+            },
+            {
+              "description": "A completed round cannot accept more moves.",
+              "prompt": "The game is over, but put another disc into this same board.",
+              "expected_behavior": "Explain that the round is finished and offer a rematch. Do not alter the completed board, result or statistics. The backend rejects a move on the completed round."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "1.1.1: Connect Four with OAuth credentials outside gameplay, minimal tool outputs, explicit action annotations, saved game restoration and move histories. Removes diagnostic and analytics tracking, clarifies consent and privacy, and includes five positive and three negative review scenarios. Walkthrough shows the Dev connection running the same game code as production."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

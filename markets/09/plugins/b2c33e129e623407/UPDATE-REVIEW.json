@@ -1,0 +1,81 @@
+{
+  "status": "NOT RUN",
+  "test_cases": {
+    "positive": [
+      {
+        "description": "Create and read a document from an ask that names no app. Start a new chat with Rapier connected and no existing workspace. Use the exact sample text in the prompt; it contains no private data. The other positive cases use a fresh copy of this fixture unless stated otherwise.",
+        "prompt": "Make this a document I can keep editing, named garden-plan.md, and tell me its structure:\n\n# Garden plan\n\nWe will plant tomatos on Friday.\n\n## Steps\n\n1. Prepare the bed.\n2. Plant the seedlings.\n3. Water the soil.\n",
+        "tools_triggered": "open, read",
+        "expected_behavior": "open receives the supplied Markdown and filename garden-plan.md, and returns revision 0 with the whole text. The document value is kept private; editor_url may be shared. read with as \"outline\" (or the text open returned) gives the Garden plan and Steps headings. The Rapier editor appears inline with the exact text. A successful call alone is not proof that the editor appeared."
+      },
+      {
+        "description": "Correct, compare, export and undo only the assistant's change. First complete case 1 with the unmodified fixture so tomatos appears exactly once. The reviewer must see both versions' text in the actual inline comparison, not only its title or controls. Between the two prompts, type a new last step in the editor by hand; that later human line must survive.",
+        "prompt": "Fix only tomatos to tomatoes in the garden plan. Then show me, side by side, what the plan would look like without step 1, but don't change it.\n\n(After typing a new last step by hand:) Save the garden plan, give me a Markdown file and an offline HTML copy, then undo only your tomatoes correction and keep what I added.",
+        "tools_triggered": "read, edit, show, export, undo",
+        "expected_behavior": "The assistant may read with query tomatos first. edit sends one exact change (old: the sentence with tomatos, new: the same sentence with tomatoes) at the current revision and reports applied with an act id; the inline editor visibly shows the correction. show with target \"comparison\", a name and the whole alternative plan as text opens the comparison without changing the source. The reviewer sees readable original and proposed text side by side, including the omitted first step. A title, receipt or blank comparison body does not pass this visible-content check; report it as unverified or failed. read afterwards returns the corrected plan with all three steps. export with to \"save\" reports saved, verified and destination workspace; the assistant explains that this is a hosted workspace save, not a download. export with to \"file\" and format markdown returns a link to a file whose bytes are the exact source, and with format html a link to one offline page that is the whole editor with the document inside. undo receives the correction's act id and reports applied: tomatos is restored and the person's typed line is kept, as read confirms. A conflict is reported, not hidden."
+      },
+      {
+        "description": "Create a diagram the person drags by hand, from an ask that names no app. Start a new chat with Rapier connected and no existing workspace. The reviewer moves a box in the actual ChatGPT editor; this is a manual interaction check.",
+        "prompt": "Draw this as a diagram I can rearrange by dragging the boxes: Prepare the bed, then Plant the seedlings, then Water the soil, with arrows in that order.",
+        "tools_triggered": "read, open",
+        "expected_behavior": "read with guide \"draw\" returns the drawing instructions. open creates a document whose text holds a rapier-draw block with three labeled boxes and arrows from Prepare to Plant and Plant to Water. The diagram appears in the inline editor. The reviewer selects the diagram, chooses Draw, drags one box and chooses Done; the arrows stay attached. A later read shows only that box's position changed in the drawing data."
+      },
+      {
+        "description": "Convert a picture to JPEG XL with the converter's own picker. Start a new chat with Rapier connected and attach no picture; the person picks one in the converter. Run in the actual ChatGPT host.",
+        "prompt": "Open the Rapier JPEG XL converter so I can pick a photo and convert it.",
+        "tools_triggered": "convert",
+        "expected_behavior": "convert is called without files and the converter appears inline with its own picker. The reviewer picks any picture on the device; it converts there and a .jxl file can be saved. The picture does not reach Rapier's server. A converter link in text alone does not pass."
+      },
+      {
+        "description": "Paint watercolor in the chat, then keep painting in a browser paired with nothing typed. Start a new chat with Rapier connected, on a phone or computer whose browser has WebGPU (current Chrome or Edge, or ChatGPT's app on a recent phone). The reviewer touches the chat's view, then opens editor_url in a second browser.",
+        "prompt": "Paint me a small watercolor of a sunset over green hills, here in the chat.",
+        "tools_triggered": "read, open, edit",
+        "expected_behavior": "read with guide \"water\" returns the Water instructions. open creates a document (in one call, or followed by edit with an operation_id that lays a rapier-water fence). Rapier's view in the chat paints the watercolor itself, with no link or code; the reviewer's first touch opens it full screen, the note says Painting while the paint lands, and Paint beside Undo hands the person the brush on the same sheet. Where Water is unavailable in the chat, the assistant gives editor_url to open in a browser with WebGPU and never paints it another way. Pairing: the reviewer opens editor_url in a second browser. That browser shows a code and the line \"This code should match the one in the chat.\", with nothing to type or paste; the chat's view asks \"Allow this browser?\" with the same code. Allowing it lets that browser edit the document; a stroke painted there and the assistant's strokes are on one sheet, as read confirms. CANCEL in the chat leaves the browser unpaired. A successful call alone is not proof that the painting appeared."
+      }
+    ],
+    "negative": [
+      {
+        "description": "Unsupported device-wide retrieval. Start a new chat without uploaded files or a shared document. Rapier cannot search unshared files on the person's phone. Make no Rapier tool calls: do not open an empty workspace, call read/search, invent a document value or claim that local files were found. Explain the limit and ask the person to provide a file or paste the text.",
+        "prompt": "Find every Markdown note on my phone and open the one about my garden. I haven't uploaded or shared any files."
+      },
+      {
+        "description": "Unsupported email delivery. Rapier edits and exports documents but has no email-sending tool. Explain that it cannot send email through Rapier. Do not claim that the document was sent. This case does not authorize another connected service.",
+        "prompt": "Use Rapier to email my garden plan to alex@example.com now. Don't use any other app."
+      },
+      {
+        "description": "Unsupported purchasing. Rapier has no product ordering, checkout or payment tools. Explain that it cannot buy or pay for the seedlings; do not invoke Rapier tools or claim a purchase. Do not request card details.",
+        "prompt": "Use Rapier to buy the tomato seedlings in my plan and pay for them."
+      }
+    ]
+  },
+  "host_acceptance": {
+    "status": "NOT RUN",
+    "target": "Installed ChatGPT package 1.2.5 or later at the approved /mcp URL. Run in the actual host; a fixed-iframe harness is not acceptance.",
+    "cases": [
+      {
+        "id": "inline-first-editor",
+        "status": "NOT RUN",
+        "description": "Open the supplied Markdown fixture in a new chat with one intended Rapier installation selected.",
+        "expected_behavior": "A populated editor appears inline with one active document surface. A launcher or pill alone does not pass. Record the installed version, tool name, resource URI and actual initial display mode."
+      },
+      {
+        "id": "repeated-open",
+        "status": "NOT RUN",
+        "description": "Resume the same document twice across turns, then read and make one focused edit.",
+        "expected_behavior": "One authoritative editor remains, with no duplicate controls or stale second document. Readback contains the edit and later human work; caret and scroll do not reset unexpectedly."
+      },
+      {
+        "id": "bounded-scroll",
+        "status": "NOT RUN",
+        "description": "Open a document longer than the viewport. Scroll to the last paragraph and back, type there and read back the exact source.",
+        "expected_behavior": "One bounded scrolling editor keeps all text reachable and the conversation usable. Exercise desktop wheel or trackpad and phone touch separately; record actual-host results."
+      },
+      {
+        "id": "fullscreen-return",
+        "status": "NOT RUN",
+        "description": "Expand the same editor through a host-supported mode, type, collapse and navigate back.",
+        "expected_behavior": "The same document, source and selection remain coherent. No second unsynchronized editor or human edit is lost. Record unavailable modes honestly; metadata alone is not proof."
+      }
+    ]
+  }
+}

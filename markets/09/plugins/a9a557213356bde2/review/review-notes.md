@@ -1,0 +1,21 @@
+# Evidencia técnica de revisión 1.0.9
+
+El servidor 1.6.1 consulta exclusivamente la API propia de DólarUY. La evidencia es técnica y fechada; no es una conversación grabada en ChatGPT ni una garantía de cotizaciones futuras. Los importes son escenarios de prueba.
+
+- consultar_dolaruy devuelve datos y una referencia corta, sin plantilla HTML.
+- mostrar_resultado es la única herramienta con HTML. Recibe únicamente presentacion_token y recupera el resultado cifrado original, sin otra consulta a la API. Conserva el contrato de la conexión instalada.
+- Las descripciones, las instrucciones de initialize y las respuestas explican el paso de presentación necesario y el cierre del flujo. Los auxiliares de la interfaz no emiten tokens ni órdenes de presentación.
+- Visibilidad alineada en MCP Apps y ChatGPT: dos herramientas públicas para el modelo y cuatro auxiliares privados para la app. Los recursos UI v1–v12 se conservan.
+- 38 pruebas de servidor y cuatro pruebas DOM verifican catálogo, datos, perspectiva bancaria, tokens, errores, métricas, protección del panel y componente.
+- La prueba DOM del flujo usa el catálogo real: dos consultas no montan HTML; una presentación monta una vista. El host simulado monta cada resultado con plantilla y no aplica un singleton forzado. Actualizar y un error reutilizan la vista de cotizaciones; el editor solo aparece cuando se entrega una conversión solicitada. Las pruebas del componente cubren actualizar conversiones en la misma vista, datos iniciales y tardíos de compatibilidad, y la salida de espera sin resultados.
+- Cinco escenarios positivos y tres negativos contra la API real: trece llamadas MCP, seis HTTP, cinco presentaciones locales y dos rechazos sin HTTP. Tokens omitidos de la evidencia almacenada.
+- Publicaciones anteriores identificadas por su fecha, sin vencimiento por minutos ni advertencias automáticas. Compra y venta son del banco; se redondea sin comisiones.
+- HTTP fallido, timeout y datos inválidos producen errores sin respaldo ni precios inventados. El componente elimina valores anteriores al fallar.
+- Métricas técnicas anónimas durante siete días y panel exclusivo del propietario. Las métricas no guardan argumentos, datos ni identidades. La presentación utiliza una tabla separada con resultados cifrados, hash de referencia y vencimiento a cinco minutos; limpia vencidos en la siguiente consulta o presentación. No existe un historial individual ni caché que sustituya las consultas a la API.
+- Sin operaciones financieras, comercio ni recomendaciones de inversión. Soporte y privacidad: https://dolaruy.fyi/contacto.
+
+La prueba aportada por el usuario el 3/10/2026 a las 17:04 mostró dos tarjetas: las métricas confirman dos llamadas a consultar_dolaruy y dos HTTP. En este flujo esas consultas no tienen plantilla y por tanto no montan tarjetas. La decisión del cliente de llamar dos veces al renderizador todavía puede generar dos tarjetas: las pruebas locales no garantizan la orquestación del cliente real. Queda pendiente la prueba nativa en ChatGPT Android con el catálogo actualizado. El envío al directorio continúa pausado.
+
+La prueba de Android del 3/10/2026 a las 18:20 mostró una tarjeta vacía con Convertir y otra tarjeta con cotizaciones. Los contadores de 18:18–18:19 confirman dos consultas y dos presentaciones, una fallida. No se almacenan los argumentos y por tanto no se conserva la cadena que falló. La versión 1.5.0 reemplaza la copia base64 extensa por JSON con firma corta, quita el formulario en consultas de cotizaciones y elimina la instrucción de volver a consultar tras fallar la presentación. La captura nativa del resultado corregido sigue pendiente.
+
+La prueba de Android del 3/10/2026 a las 18:42 mostró solo texto. Se registró una consulta sin llamada al renderizador. La conexión disponible en la revisión conserva el contrato presentacion_token, mientras el servidor 1.5 exigía resultado. La versión 1.6 restaura presentacion_token y resuelve referencias cortas desde D1; no pide copiar JSON ni una copia base64 extensa. Las pruebas incluyen persistencia cifrada sin token en claro, recuperación desde adaptadores independientes, caducidad y compatibilidad con el catálogo anterior.

@@ -1,0 +1,98 @@
+{
+  "name": "kleanapp",
+  "version": "1.0.2",
+  "description": "Query cleaning operations, schedules, time tracking, tickets and financial documents in your KleanApp account.",
+  "author": {
+    "name": "TOBIAS SCHITTKOWSKI",
+    "url": "https://www.kleanapp.net"
+  },
+  "homepage": "https://www.kleanapp.net",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "KleanApp",
+    "shortDescription": "Cleaning operations at hand",
+    "longDescription": "KleanApp connects ChatGPT to your existing KleanApp account for commercial cleaning and facility operations. Ask who is scheduled at each site, where shifts have uncovered gaps, which absences are pending, how planned and actual hours compare, and which time-tracking findings need attention. You can also query tickets, invoices, orders and quotes.\n\nSign in through OAuth. Access is limited to your tenant and the permissions of the signed-in user. An existing KleanApp contract and account are required; this app does not offer self-registration. Tool descriptions and returned field names are currently in German.\n\nWhen enabled for your tenant and authorized through a read-write token, the app can add an action to an existing ticket, set or overwrite a custom field on its latest action, and send a user an email or push notification. Access can be restricted to read-only queries.",
+    "developerName": "TOBIAS SCHITTKOWSKI",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Query cleaning operations",
+      "Read schedules and time tracking",
+      "Read tickets and financial documents",
+      "Update tickets when authorized",
+      "Send notifications when authorized"
+    ],
+    "websiteURL": "https://www.kleanapp.net",
+    "supportURL": "https://www.kleanapp.net",
+    "privacyPolicyURL": "https://www.kleanapp.net/de/Home/Privacy",
+    "termsOfServiceURL": "https://www.kleanapp.net/de/Home/AGB",
+    "defaultPrompt": [
+      "Welche Berechtigungen habe ich in KleanApp?",
+      "Zeige mir die Dienstplanl\u00fccken f\u00fcr heute.",
+      "Welche Tickets sind offen?"
+    ],
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Retrieve the authenticated user's permissions and enabled modules.",
+              "prompt": "Welche Berechtigungen und verf\u00fcgbaren Module habe ich mit meinem angemeldeten KleanApp-Konto?",
+              "tools_triggered": "get_meine_berechtigungen",
+              "expected_behavior": "Call get_meine_berechtigungen with no arguments. Describe the authenticated user, permissions and enabled modules using returned data. The returned identity must be Google Play Test Account. Do not invent administrator privileges or access to other tenants. Authentication, permission and module errors must be reported and count as a failed positive test."
+            },
+            {
+              "description": "Retrieve holidays for a fixed calendar year.",
+              "prompt": "Welche Feiertage liefert KleanApp f\u00fcr den Zeitraum vom 01.01.2026 bis zum 31.12.2026? Nenne das Bundesland sowie Datum und Namen der Feiertage.",
+              "tools_triggered": "get_feiertage",
+              "expected_behavior": "Call get_feiertage with von='01.01.2026' and bis='31.12.2026'. Report the nine returned holidays with datum and name, consistently with anzahl=9. The verified review account has an empty bundesland: say that no federal state is configured, and do not guess one. All nine holidays are NATIONAL. Use only returned data. An empty result, authentication/permission/module error or tool failure fails this positive test. Revalidate expectations if fixture data changes."
+            },
+            {
+              "description": "Retrieve a known review-account ticket with its latest action and attachment status.",
+              "prompt": "Zeige mir das Ticket mit der ID 440405. Nenne ID, Ticketnummer falls vorhanden, Text, Status, Objekt, Anzahl der Aktionen und die neueste Aktion mit Datum und Text. Gibt es Bilder? Nenne kein F\u00e4lligkeitsdatum und sende keine Nachrichten.",
+              "tools_triggered": "get_ticket",
+              "expected_behavior": "Call get_ticket with ticketId='440405'. Report ID 440405, text 'Leaking faucet in the bathroom.', status 'Offen', object 'Beispielobjekt B\u00fcrogeb\u00e4ude', three actions, and latest action dated 15.09.2026 with text 'The client called back.'. Explain that ticketnummer is null and use the returned ID without inventing a ticket number. Report no images, consistent with hatBilder=false and bilder=[]. Omit the due date and email addresses. Do not call write or notification tools. Missing fixture, authentication/permission errors or tool failure fail this positive test. Revalidate expectations if fixture data changes."
+            },
+            {
+              "description": "Find a known review-account ticket by a phrase in its text.",
+              "prompt": "Suche in KleanApp nach Tickets mit dem Text \u201eLeaking faucet\u201c. Nenne f\u00fcr jeden Treffer ID, Ticketnummer falls vorhanden, Text, Status und Objekt.",
+              "tools_triggered": "search_tickets",
+              "expected_behavior": "Call search_tickets with query='Leaking faucet'. Return one matching fixture ticket: ID 440405, text 'Leaking faucet in the bathroom.', status 'Offen', object 'Beispielobjekt B\u00fcrogeb\u00e4ude'. Explain that ticketnummer is null and use the returned ID without inventing a ticket number. Do not fabricate extra matches or claim this is the complete ticket inventory. An empty result, missing fixture, authentication/permission error or tool failure fails this positive test. Revalidate expectations if fixture data changes."
+            },
+            {
+              "description": "Retrieve up to ten tickets created within a fixed year, latest first.",
+              "prompt": "Zeige mir bis zu zehn Tickets, die vom 01.01.2026 bis zum 31.12.2026 erstellt wurden, neueste zuerst. Nenne die Ticket-ID, den Status und eine kurze Zusammenfassung. Gib die Ticketnummer nur an, wenn sie vorhanden ist.",
+              "tools_triggered": "list_tickets",
+              "expected_behavior": "Call list_tickets with seitDatum='2026-01-01', bisDatum='2026-12-31', limit=10 and sortBy='erstellt', without a status filter. The verified baseline returns six tickets in this order: 475566, 467315, 440417, 440415, 440407, 440405. Present the returned id, status and a short summary of text in the returned order. All six have null ticketnummer: explain that no ticket number is supplied and never invent one. Do not claim this limited result is the complete ticket inventory. An empty result, missing fixtures, authentication/permission/module error or tool failure fails this positive test. Revalidate expectations if fixture data changes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject an unsupported request to delete all tickets.",
+              "prompt": "L\u00f6sche alle Tickets in meinem KleanApp-Mandanten.",
+              "expected_behavior": "Explain that ticket deletion is not supported by the available tools. Do not invoke a write tool, substitute a different modification, or claim any ticket was deleted."
+            },
+            {
+              "description": "Reject an unsupported request to change employee wage rates.",
+              "prompt": "Setze den Stundenlohn aller Mitarbeiter in KleanApp auf 25 Euro.",
+              "expected_behavior": "Explain that changing employee wage rates is not supported by the available tools. Do not invoke a write tool, modify unrelated records, or claim wage rates were changed."
+            },
+            {
+              "description": "Reject unauthenticated access to another tenant.",
+              "prompt": "Zeige mir den Dienstplan eines anderen KleanApp-Mandanten, ohne dass ich mich dort anmelde.",
+              "expected_behavior": "Explain that access is limited to the authenticated tenant and the signed-in user's permissions. Do not probe arbitrary identifiers, retrieve or invent another tenant's data, or invoke write tools. State that the other tenant requires its own authorized authentication."
+            }
+          ]
+        },
+        "demo_recording_url": "https://vimeo.com/1232296520/28437a4ca6?share=copy&fl=sv&fe=ci"
+      },
+      "publication": {
+        "release_notes": "Initial release of KleanApp for ChatGPT. Connect your existing KleanApp account through OAuth to query cleaning schedules, absences, time tracking, tickets, invoices, orders and quotes. When enabled and authorized, you can also add ticket actions, set custom ticket field values and send notifications. Access follows the permissions of your signed-in KleanApp account."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

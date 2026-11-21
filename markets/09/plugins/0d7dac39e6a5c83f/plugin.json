@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aviasurf",
+  "version": "1.1.0",
+  "description": "Compare flight prices, dates, airports, destinations, route facts, and destination profiles with Aviasurf.",
+  "author": {
+    "name": "Ivan Sergeyev"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Aviasurf",
+        "shortDescription": "Cheap flights & where to go",
+        "longDescription": "Find cheap flights and discover where to go next with Aviasurf. Compare prices, find the cheapest dates to travel, see which departure airport is cheaper, and search destinations that fit your budget.\n\nThen find out what a place is actually like before you book. Monthly climate normals for air and sea temperature, how close the coast is, how many months have a sea temperature above 20\u00b0C, and national parks and museums nearby.\n\nFlight prices are indicative, based on cached historical fare data rather than live offers. Open Aviasurf search to check current prices and availability.",
+        "developerName": "Ivan Sergeyev",
+        "category": "Travel",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "When is it cheapest to fly from Berlin to New York?",
+          "Where can I fly from Berlin for under \u20ac300?",
+          "What is Batumi like in November?"
+        ],
+        "websiteURL": "https://aviasurf.com",
+        "supportURL": "https://aviasurf.com/help",
+        "privacyPolicyURL": "https://aviasurf.com/privacy",
+        "termsOfServiceURL": "https://aviasurf.com/terms",
+        "logo": "assets/aviasurf-icon.png",
+        "composerIcon": "assets/aviasurf-icon.png",
+        "screenshots": [
+          "assets/catalog-price-calendar.png",
+          "assets/catalog-cheapest-destinations.png",
+          "assets/catalog-airport-comparison.png",
+          "assets/catalog-destination-profile.png"
+        ]
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Aviasurf does not process payments or complete bookings in ChatGPT. It searches and compares travel options and may redirect users to external airlines or travel providers to complete a booking or purchase.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Core route fare search for a round trip, using the production flight_prices tool with a route and return date.",
+              "prompt": "Find indicative flight prices from London to Paris for a one-week round trip next month.",
+              "tools_triggered": "flight_prices",
+              "expected_behavior": "Call flight_prices with origin and destination representing London and Paris and a departure date within next month; for the round trip, set a return date after the departure date. The response should contain indicative fare items or an explicit no-observation result, include price/currency and baggage_status when fare items are returned, and provide ticket_url/search_url data without claiming live availability or a confirmed booking. resolve_place may be invoked first to map the city names to IATA/location codes; it is not required if the model already knows the relevant codes."
+            },
+            {
+              "description": "Cheapest-date exploration across the cached price calendar for a route.",
+              "prompt": "Show me the cheapest observed dates from New York to Rome over the next six months.",
+              "tools_triggered": "price_calendar",
+              "expected_behavior": "Call price_calendar with the New York-to-Rome route and month-mode calendar behavior. resolve_place may be invoked first to map the city names to IATA/location codes; it is not required if the model already knows the relevant codes. Return observed monthly minima and/or top observed dates when available, preserve sample_sufficient limitations, and do not treat missing dates as proof that no flight exists."
+            },
+            {
+              "description": "Airport comparison for both ends of a route.",
+              "prompt": "Compare the indicative prices for the airports serving London and Paris.",
+              "tools_triggered": "compare_airports",
+              "expected_behavior": "Call compare_airports with London and Paris and the default both-sided comparison. resolve_place may be invoked first to map the city names to IATA/location codes; it is not required if the model already knows the relevant codes. Present the returned airport pairs and their available price statistics, noting that missing cached prices mean no cached observation rather than no flight."
+            },
+            {
+              "description": "Filtered fare search using multiple supported constraints.",
+              "prompt": "Find direct economy flights with baggage from London to Barcelona next month.",
+              "tools_triggered": "flight_prices_filtered",
+              "expected_behavior": "Call flight_prices_filtered with the London-to-Barcelona pair, a departure period in next month, trip_class=economy, direct=true, and with_baggage=true. Do not add unnecessary transfer or price constraints. resolve_place may be invoked first to map the city names to IATA/location codes; it is not required if the model already knows the relevant codes. Report the returned sample and query_coverage so any local filtering or limitations are visible; do not invent fares."
+            },
+            {
+              "description": "Destination discovery with semantic destination filters from an origin.",
+              "prompt": "Show me affordable island destinations from London next month.",
+              "tools_triggered": "cheapest_destinations",
+              "expected_behavior": "Call cheapest_destinations with origin London, month set to next month, and island=true, without adding unnecessary climate or other restrictive filters. resolve_place may be invoked first to map London to an IATA/location code; it is not required if the model already knows the relevant code. Return matching observed island destinations with indicative prices when available, explain relevant coverage or missing-data limitations, and link any returned search_url using a short label rather than exposing the raw URL."
+            },
+            {
+              "description": "Destination profile for a city, exercising the new destination_profile tool and interactive destination widget.",
+              "prompt": "What is Batumi like in November?",
+              "tools_triggered": "destination_profile",
+              "expected_behavior": "Call destination_profile for Batumi (BUS), using resolve_place first if needed. Render the destination profile with monthly climate normals and available place facts such as air and water temperature, precipitation, daylight, coast distance, elevation, nearby parks and museums, and travel traits. Make clear that climate values are 1991\u20132020 normals rather than a weather forecast, preserve missing-data limitations, and do not invent unavailable values."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Requests a completed purchase and payment, which Aviasurf does not support inside ChatGPT.",
+              "prompt": "Book the cheapest London to Paris flight for me and charge my credit card.",
+              "expected_behavior": "The case passes if no Aviasurf tool is called, or if open_search is called solely to provide a live-search handoff. If open_search is called, explain that Aviasurf can search and compare options and provide a live-search handoff, but it cannot complete the purchase or process payment in ChatGPT; do not claim to book the flight or charge the user's card."
+            },
+            {
+              "description": "Requests ticket cancellation or refund handling, which is performed by the ticket seller rather than Aviasurf.",
+              "prompt": "Cancel my airline ticket and get me a refund.",
+              "expected_behavior": "Do not invoke an Aviasurf tool. Explain that Aviasurf does not handle ticket changes, cancellations, or refunds and that the user should contact the airline or travel agency that issued the ticket."
+            },
+            {
+              "description": "Requests issuance of a confirmed airline ticket, which the MCP tools do not provide.",
+              "prompt": "Issue me a confirmed airline ticket from London to Tokyo and send me the ticket number.",
+              "expected_behavior": "The case passes if no Aviasurf tool is called, or if open_search is called solely to provide a live-search handoff. If open_search is called, explain that it only builds a live-search URL and does not issue or confirm an airline ticket; do not claim to complete the booking or ticket issuance, and direct the user to the external airline or travel provider for the actual transaction."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/4t1nFVoidrU"
+      },
+      "publication": {
+        "release_notes": "Aviasurf 1.1.0 adds destination profiles with monthly climate normals, coast distance, nearby parks and museums, and travel traits; expands destination discovery filters and improves fallback behavior for over-constrained searches. The production MCP now exposes 9 tools and 6 interactive widgets. Flight prices remain indicative cached observations, and live prices and availability are checked on Aviasurf.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

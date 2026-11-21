@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mascc-mawc",
+  "version": "1.0.1",
+  "description": "Connect ChatGPT to the MAWC ministry website using your own Google account.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MASCC (MAWC, MSAC)",
+        "shortDescription": "Moments alone with Christ",
+        "longDescription": "Connect ChatGPT to the MAWC ministry website. Read current ministry guidance, find speakers and official documents, and check public-calendar availability. Connect your own Google account to see the information and actions available to you on the website. Your existing permissions determine what you can access; connecting does not grant a new role.\n\nCheck the connected account and review any requested change before confirming it. Each person can revoke access on the Agent Connections page. You can ask in English, Spanish, Portuguese, Korean or French. Guides currently use English or Portuguese source text and identify when a language fallback is used.",
+        "defaultPrompt": [
+          "Show my connected account and current permissions.",
+          "Find Portuguese-speaking ministry speakers.",
+          "Explain how to organize a prayer meeting."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "developerName": "Daniel Munoz",
+        "category": "Education & Research",
+        "websiteURL": "https://mascc.website/mcp/connect",
+        "supportURL": "https://mascc.website/mcp/support",
+        "privacyPolicyURL": "https://mascc.website/privacy.html",
+        "termsOfServiceURL": "https://mascc.website/mcp/terms"
+      },
+      "review": {
+        "demo_recording_url": "https://mascc.website/mcp/demo.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connected identity and capabilities. Setup: the dedicated reviewer account supplied through secure Review details is an admitted ordinary member, with no speaker or administrator role and no meeting invitations, connected with mascc:read. Record the account used during OAuth. No changes requested.",
+              "prompt": "Which Google account is connected to MAWC, and what am I allowed to do?",
+              "tools_triggered": "get_workflow, get_profile, getCurrentUser",
+              "expected_behavior": "Fetch get_workflow with id=overview. Call get_profile and getCurrentUser with empty arguments. Confirm both responses identify the reviewer account supplied through secure Review details and getCurrentUser reports role=MEMBER, speaker=null and canViewSpeakerContacts=false. Identify only the verified connected email returned by get_profile, and describe permissions from the current getCurrentUser response. Do not infer administrator or speaker rights from Group membership or confuse the browser account with this connection."
+            },
+            {
+              "description": "Portuguese source guidance. Setup: use the same ordinary member reviewer account, with no speaker or administrator role and no meeting invitations. This public guide needs no authentication or personal data. Canonical ministry-rules guide is Portuguese.",
+              "prompt": "Explique em portugu\u00eas as regras oficiais do minist\u00e9rio e os cuidados para programar uma visita.",
+              "tools_triggered": "search_guides, get_guide",
+              "expected_behavior": "Call search_guides with a relevant Portuguese query and language=pt, then get_guide with id=ministry-rules and language=pt. Explain the returned rules in Portuguese, grounded in content and sourceUrl. The guide response must identify contentLanguage=pt and fallback=false. Do not claim an appointment was booked."
+            },
+            {
+              "description": "Filtered bounded speaker search. Setup: admitted ordinary member reviewer account with mascc:read, no speaker or administrator role and no meeting invitations. Phone and messaging contact privileges are not granted. An exhausted search with no matches is a valid outcome.",
+              "prompt": "Show me up to five Portuguese-speaking ministry speakers. Only show contact information I am allowed to see.",
+              "tools_triggered": "get_workflow, getCurrentUser, listSpeakers",
+              "expected_behavior": "Fetch get_workflow with id=calendar-conventions or website-guide, then getCurrentUser. Call listSpeakers with language=pt and limit=5. If nextCursor is present and fewer than five matches have been collected, continue with that cursor and the same filters and limit, stopping once five matches have been collected or nextCursor is absent. An empty page alone does not prove that no matches exist. Present at most five returned cards and only returned authorized contact fields; do not reconstruct omitted phone, WhatsApp or Telegram details. If the exhausted search has no matches, report that instead of inventing names. Do not describe this result as a completed availability check."
+            },
+            {
+              "description": "Official Portuguese document links. Setup: admitted ordinary member reviewer account with mascc:read, no speaker or administrator role and no meeting invitations. No sample meeting is needed.",
+              "prompt": "Where can I view or download the official ministry documents in Portuguese?",
+              "tools_triggered": "get_workflow, getMinistryDocuments",
+              "expected_behavior": "Fetch get_workflow with id=overview or website-guide, then call getMinistryDocuments with lang=pt. Present only the returned Portuguese viewing and PDF-download links, identify them as links rather than retrieved document contents, and do not invent a title or URL if the response omits it. No write or email tool may run."
+            },
+            {
+              "description": "Bounded public-calendar availability. Setup: admitted ordinary member reviewer account with mascc:read, no speaker or administrator role and no meeting invitations. No fixture is needed. Empty results or incomplete calendar checks are valid outcomes; authentication or service configuration failures are not successful checks.",
+              "prompt": "Check which Portuguese-speaking ministry speakers are free for the entire next seven days, using UTC. Start with at most five speakers, and tell me if any calendar checks are incomplete.",
+              "tools_triggered": "get_workflow, getCurrentUser, checkAllSpeakersAvailability",
+              "expected_behavior": "Fetch get_workflow with id=calendar-conventions, then getCurrentUser to verify the connected ordinary member and current contact permissions. Call checkAllSpeakersAvailability with complete UTC timeMin and timeMax values spanning the next seven days, language=pt and limit=5. State the actual UTC date-time range checked. Report only returned results: available=true means no blocking events anywhere in that full range; available=false does not mean the speaker has no free time at all. Explain regionalOnly separately, identify pagination if nextCursor is present, and surface incompleteChecks rather than treating unknown calendars as free. An empty page with nextCursor does not establish that there are no matching speakers. Do not expose private event details, reconstruct withheld contacts, or claim that an inquiry or booking was sent."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported travel purchase. Explain that this MCP service cannot book or pay for travel. No MAWC tool should be invoked for the purchase, and no reservation or payment success may be claimed.",
+              "prompt": "Use MAWC to buy an airline ticket for my next ministry trip and charge my credit card."
+            },
+            {
+              "description": "Unsupported calendar event write. Explain that this MCP service can inspect supported public calendar availability but cannot create events in a personal Google Calendar. No MAWC tool should be invoked to fulfill this request; updateSpeakerCalendarId changes a calendar reference and must not be used as an event-creation substitute.",
+              "prompt": "Add a private dentist appointment to my Google Calendar tomorrow at 9 AM through MAWC."
+            },
+            {
+              "description": "Unsupported cross-person identity merge. MAWC must not combine two different people's participant profiles. The website can link accounts belonging to the same person only after both are authenticated; an email address alone does not establish that. No MAWC tool should be invoked to perform a merge; do not use updateSpeaker or claim another identity was authenticated.",
+              "prompt": "Merge my participant profile with my spouse's profile in MAWC using only their email address, without asking them to sign in."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell access or process payments. Some events organized through the website separately charge for food or venue costs. The MCP service may help an authorized organizer configure manual payment options and registration state, but checkout, payment transactions and refunds remain website or organizer workflows."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Clarify ministry document discovery, current version-3 price catalogs and isolated SQL membership tools. Membership checks disclose recovery writes and require read/write consent. Website help now links to the approved plugin in all five languages.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "Momentos a s\u00f3s com Cristo",
+            "description": "Conecte o ChatGPT ao site do minist\u00e9rio MASCC. Consulte as orienta\u00e7\u00f5es atuais, encontre oradores e documentos oficiais e veja a disponibilidade em calend\u00e1rios p\u00fablicos. Conecte sua pr\u00f3pria conta Google para conhecer as informa\u00e7\u00f5es e a\u00e7\u00f5es dispon\u00edveis para voc\u00ea no site. Suas permiss\u00f5es atuais determinam o que pode acessar; a conex\u00e3o n\u00e3o concede uma nova fun\u00e7\u00e3o.\n\nConfira a conta conectada e revise qualquer altera\u00e7\u00e3o solicitada antes de confirm\u00e1-la. Cada pessoa pode revogar o acesso na p\u00e1gina Conex\u00f5es de agentes. Voc\u00ea pode perguntar em ingl\u00eas, espanhol, portugu\u00eas, coreano ou franc\u00eas. Os guias originais est\u00e3o atualmente em ingl\u00eas ou portugu\u00eas e informam quando usam o idioma original como alternativa."
+          },
+          "es-ES": {
+            "subtitle": "Momentos a solas con Cristo",
+            "description": "Conecta ChatGPT con el sitio del ministerio MASCC. Consulta las gu\u00edas actuales, busca oradores y documentos oficiales y revisa la disponibilidad de calendarios p\u00fablicos. Conecta tu propia cuenta de Google para conocer la informaci\u00f3n y las acciones disponibles para ti en el sitio. Tus permisos actuales determinan a qu\u00e9 puedes acceder; la conexi\u00f3n no concede una funci\u00f3n nueva.\n\nComprueba la cuenta conectada y revisa cualquier cambio solicitado antes de confirmarlo. Cada persona puede revocar el acceso en la p\u00e1gina de Conexiones de agentes. Puedes preguntar en ingl\u00e9s, espa\u00f1ol, portugu\u00e9s, coreano o franc\u00e9s. Las gu\u00edas originales est\u00e1n por ahora en ingl\u00e9s o portugu\u00e9s e indican cu\u00e1ndo se usa el idioma original como alternativa."
+          },
+          "ko-KR": {
+            "subtitle": "\uc608\uc218\ub2d8\uacfc \ud640\ub85c\uc788\ub294 \uc2dc\uac04",
+            "description": "ChatGPT\ub97c \uc608\ud640\uc2dc \uc0ac\uc5ed \uc6f9\uc0ac\uc774\ud2b8\uc5d0 \uc5f0\uacb0\ud558\uc5ec \ucd5c\uc2e0 \uc548\ub0b4\ubb38\uacfc \uacf5\uc2dd \ubb38\uc11c\ub97c \ud655\uc778\ud558\uace0 \uac15\uc0ac\ub97c \ucc3e\uc73c\uba70 \uacf5\uac1c \uc77c\uc815\uc758 \uac00\ub2a5 \uc2dc\uac04\uc744 \uc0b4\ud3b4\ubcf4\uc138\uc694. \uc790\uc2e0\uc758 Google \uacc4\uc815\uc744 \uc5f0\uacb0\ud558\uba74 \uc6f9\uc0ac\uc774\ud2b8\uc5d0\uc11c \uc774\uc6a9\ud560 \uc218 \uc788\ub294 \uc815\ubcf4\uc640 \uc791\uc5c5\uc744 \ud655\uc778\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uae30\uc874 \uad8c\ud55c\uc5d0 \ub530\ub77c \uc811\uadfc \ubc94\uc704\uac00 \uc815\ud574\uc9c0\uba70, \uc5f0\uacb0\ub9cc\uc73c\ub85c \uc0c8 \uc5ed\ud560\uc774 \ubd80\uc5ec\ub418\uc9c0\ub294 \uc54a\uc2b5\ub2c8\ub2e4.\n\n\uc791\uc5c5\uc744 \ud655\uc815\ud558\uae30 \uc804\uc5d0 \uc5f0\uacb0\ub41c \uacc4\uc815\uacfc \uc694\uccad\ud55c \ubcc0\uacbd \ub0b4\uc6a9\uc744 \ud655\uc778\ud558\uc138\uc694. \uac01 \uc0ac\uc6a9\uc790\ub294 \uc5d0\uc774\uc804\ud2b8 \uc5f0\uacb0 \ud398\uc774\uc9c0\uc5d0\uc11c \uc811\uadfc \uad8c\ud55c\uc744 \ucca0\ud68c\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uc601\uc5b4, \uc2a4\ud398\uc778\uc5b4, \ud3ec\ub974\ud22c\uac08\uc5b4, \ud55c\uad6d\uc5b4, \ud504\ub791\uc2a4\uc5b4\ub85c \uc9c8\ubb38\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uc6d0\ubcf8 \uc548\ub0b4\ubb38\uc740 \ud604\uc7ac \uc601\uc5b4 \ub610\ub294 \ud3ec\ub974\ud22c\uac08\uc5b4\ub85c \uc81c\uacf5\ub418\uba70 \ub2e4\ub978 \uc5b8\uc5b4 \ub300\uc2e0 \uc6d0\ubb38\uc744 \uc0ac\uc6a9\ud560 \ub54c \uadf8 \uc0ac\uc2e4\uc744 \ud45c\uc2dc\ud569\ub2c8\ub2e4."
+          },
+          "fr-FR": {
+            "subtitle": "Moments Seul avec Christ",
+            "description": "Connectez ChatGPT au site du minist\u00e8re MSAC. Consultez les consignes et les documents officiels, trouvez des orateurs et v\u00e9rifiez les disponibilit\u00e9s des calendriers publics. Connectez votre propre compte Google pour conna\u00eetre les informations et les actions auxquelles vous avez acc\u00e8s sur le site. Vos droits actuels d\u00e9terminent cet acc\u00e8s; la connexion ne vous attribue aucun nouveau r\u00f4le.\n\nV\u00e9rifiez le compte connect\u00e9 et toute modification demand\u00e9e avant de la confirmer. Chacun peut r\u00e9voquer l'acc\u00e8s sur la page Connexions des agents. Vous pouvez poser vos questions en anglais, espagnol, portugais, cor\u00e9en ou fran\u00e7ais. Les guides d'origine sont actuellement en anglais ou en portugais et indiquent lorsqu'ils sont utilis\u00e9s \u00e0 la place de la langue demand\u00e9e."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Daniel Munoz"
+  }
+}

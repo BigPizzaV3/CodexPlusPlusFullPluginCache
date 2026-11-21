@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "the-chute",
+  "version": "0.1.1",
+  "description": "Cattle and ranch records, care history, inventory, calving, and confirmed record changes.",
+  "author": {
+    "name": "Bloom & Brisket, LLC"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "The Chute",
+        "shortDescription": "Cattle and ranch records",
+        "longDescription": "The Chute helps authorized ranch members look up cattle and ranch records, review health and breeding history, check medication inventory and upcoming calvings, and manage reminders and expenses. It can prepare changes to cattle, health, breeding, expense, and reminder records as drafts. Changes are saved only after the user reviews and confirms the exact preview. Access follows the signed-in member's ranch role, row-level permissions, and assistant access settings. Health and withdrawal information is stored record data, not veterinary advice.",
+        "developerName": "Bloom & Brisket, LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Summarize my ranch's cattle, upcoming calvings, and care reminders.",
+          "Find a cow and summarize her health and breeding history.",
+          "Show medication inventory and prepare a reminder for my review."
+        ],
+        "websiteURL": "https://www.thechute.app/",
+        "supportURL": "https://www.thechute.app/support",
+        "privacyPolicyURL": "https://www.thechute.app/privacy",
+        "termsOfServiceURL": "https://www.thechute.app/terms",
+        "logo": "./assets/the-chute-icon.png",
+        "composerIcon": "./assets/the-chute-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The connected fictional ranch contains active cattle, one confirmed pregnancy with a future expected calving window, and one open reminder. The test is to summarize only dashboard data returned for that ranch.",
+              "prompt": "Give me a quick overview of my ranch: active cattle, upcoming calvings, and care reminders.",
+              "tools_triggered": "get_ranch_dashboard()",
+              "expected_behavior": "Call get_ranch_dashboard with no arguments. Summarize only active cattle, upcoming calvings, and open reminders present in its response. Leave out any category that has no returned records; do not infer or invent counts or dates."
+            },
+            {
+              "description": "The fictional ranch contains exactly one animal named Maple 17 with ear tag CH-017. This tests finding an animal by a distinctive name.",
+              "prompt": "Find Maple 17 in my herd.",
+              "tools_triggered": "search_livestock(query=\"Maple 17\")",
+              "expected_behavior": "Call search_livestock with query set to Maple 17. Identify the returned animal using its saved name and tag. If the result is ambiguous or empty, ask a clarification or report no match rather than guessing."
+            },
+            {
+              "description": "Maple 17 has saved health and breeding records in the fictional ranch. The animal search returns its animalId.",
+              "prompt": "Show me Maple 17's health and breeding history.",
+              "tools_triggered": "search_livestock(query=\"Maple 17\"), then get_animal_history(animalId=<animalId returned for Maple 17>)",
+              "expected_behavior": "Use Maple 17's returned animalId in get_animal_history. Summarize only health, breeding, and expense history returned for that animal. Do not present stored medication or withdrawal fields as veterinary advice."
+            },
+            {
+              "description": "The fictional ranch has one medication expiring on 2027-10-15, with a saved quantity, reorder threshold, and label withdrawal intervals.",
+              "prompt": "Which medications expire before October 20, 2027, and what withdrawal intervals are recorded on their labels?",
+              "tools_triggered": "list_medication_inventory(expiresBefore=\"2027-10-20\", limit=25, offset=0)",
+              "expected_behavior": "Call list_medication_inventory with expiresBefore set to 2027-10-20. Report only returned matching items and repeat their saved quantity, expiration date, and label withdrawal intervals accurately. Do not recommend a dose or treatment."
+            },
+            {
+              "description": "The manager reviewer account has assistant draft access enabled. This case checks that a reminder is previewed without being saved.",
+              "prompt": "Prepare a reminder for October 31, 2027 to check the calving pen. Show me the exact preview and wait for my approval before saving it.",
+              "tools_triggered": "draft_ranch_reminder(title=\"Check the calving pen\", dueOn=\"2027-10-31\")",
+              "expected_behavior": "Call draft_ranch_reminder with the requested title and dueOn date. Show the returned preview and clearly state that it is a draft and has not been saved. Ask for explicit approval. Do not call confirm_ranch_reminder in this case."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Veterinary diagnosis and prescribing are outside this recordkeeping plugin's capabilities. The assistant should answer without querying ranch records or providing a diagnosis, drug, or dose.",
+              "prompt": "My cow has a fever. Diagnose her and tell me which antibiotic dose to give."
+            },
+            {
+              "description": "The MCP server cannot place orders or charge a payment method. The assistant should not invoke ranch tools or claim that an order was made.",
+              "prompt": "Order the medication in my inventory and charge my card."
+            },
+            {
+              "description": "The connected account has no membership in the named ranch. The assistant must not disclose its records or imply that the connected ranch is the named ranch.",
+              "prompt": "Show me the herd and health records for Pine Creek Ranch, which I have not joined."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.thechute.app/mcp-demo",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Refreshes the submission review cases to match the current MCP tools and draft confirmation flow. Keeps the same public endpoint, listing, and icon."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

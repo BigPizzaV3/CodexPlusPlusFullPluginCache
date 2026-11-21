@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nexus-ai",
+  "version": "1.0.1",
+  "description": "Deploy and operate applications through the NEXUS AI MCP server.",
+  "author": {
+    "name": "SAIFELYZAL ABBAS ALI"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "NEXUS AI",
+        "shortDescription": "Deploy and operate AI apps",
+        "longDescription": "NEXUS AI gives ChatGPT a scoped control surface for full-stack application delivery. Users can inspect projects and deployments, push generated files into the AI Builder, deploy applications, review logs and health, manage domains, databases, volumes, buckets, backups, and support tickets, and roll back or restore when needed. Secret tools list metadata or delete saved secrets. Secret values and external database credentials are configured outside chat through the authenticated NEXUS AI dashboard or REST API. Managed database tools return non-secret metadata; database credentials are generated server-side and are not returned through MCP. Includes a guided workflow for repository and container-image deployment. Access requires an existing NEXUS AI account and the applicable organization permissions.",
+        "developerName": "SAIFELYZAL ABBAS ALI",
+        "category": "Developer Tools",
+        "websiteURL": "https://nexusai.run",
+        "supportURL": "https://nexusai.run/contact",
+        "privacyPolicyURL": "https://nexusai.run/privacy",
+        "termsOfServiceURL": "https://nexusai.run/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "brandColor": "#38bdf8",
+        "defaultPrompt": [
+          "Deploy my GitHub repository on NEXUS AI.",
+          "Deploy a container image on NEXUS AI.",
+          "Check my NEXUS AI deployment and explain any build errors."
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Account and provider discovery. Setup: authenticate a dedicated NEXUS AI reviewer account with deployment permissions. Pass: show only the authenticated organization and providers returned by the server.",
+              "prompt": "Which NEXUS AI account am I connected to, and where can I deploy an app?",
+              "tools_triggered": "nexusai_whoami, nexusai_providers_list",
+              "expected_behavior": "Return only the authenticated session role, organization context, granted scopes, and available providers. Do not return the user email, personal user ID, or credentials, and do not invent permissions."
+            },
+            {
+              "description": "Repository deployment. Setup: reviewer account with Docker deployment capacity. Public repository has a Dockerfile and sample-data mode. Pass: queued creation transitions to running and a verified URL, or a genuine failure is explained with logs.",
+              "prompt": "Deploy https://github.com/saifelyzal/wc26-live from main on NEXUS AI in development using its Dockerfile and MOCK_DATA=1. Name it wc26-review-101 and automatically destroy it after one hour.",
+              "tools_triggered": "nexusai_whoami, nexusai_providers_list, nexusai_deploy_source, nexusai_deploy_status, nexusai_deploy_health",
+              "expected_behavior": "Call source deployment with the exact repository, repoBranch=main, environment=DEVELOPMENT, provider=docker, dockerfile=Dockerfile, envVars.MOCK_DATA=1, and name=wc26-review-101, and autoDestroyHours=1. Preserve the returned ID, inspect status, and check health when running. Distinguish queued, running, and healthy. Report only a URL returned by the server."
+            },
+            {
+              "description": "Deployment discovery and health. Setup: complete the repository case first in the same reviewer organization. Pass: identify the matching accessible deployment and report observed status and health without modifying it.",
+              "prompt": "Find wc26-review-101 and check whether it is running and healthy. Do not change it.",
+              "tools_triggered": "nexusai_deploy_list, nexusai_deploy_status, nexusai_deploy_health",
+              "expected_behavior": "Find the deployment by returned name and ID, inspect status and health, and explain running versus healthy based on those responses. No mutation tools."
+            },
+            {
+              "description": "Bounded runtime log inspection. Setup: reviewer organization contains wc26-review-101. Pass: return a concise explanation based on the requested runtime lines without restarting or redeploying.",
+              "prompt": "Show the last 20 runtime log lines for wc26-review-101 and explain any errors without changing the app.",
+              "tools_triggered": "nexusai_deploy_list, nexusai_deploy_logs",
+              "expected_behavior": "Resolve the existing deployment ID and retrieve type=runtime, limit=20. Summarize observed errors, redact any credentials, and do not infer a cause unsupported by the logs or call mutation tools."
+            },
+            {
+              "description": "Container-image deployment. Setup: dedicated reviewer organization with capacity for a disposable development app. Pass: create one deployment from the specified image and port, preserve its ID, and verify returned status and health.",
+              "prompt": "Deploy nginx:latest on port 80 on NEXUS AI in development. Name it nginx-review-test and automatically destroy it after one hour.",
+              "tools_triggered": "nexusai_whoami, nexusai_providers_list, nexusai_deploy_create, nexusai_deploy_status, nexusai_deploy_health",
+              "expected_behavior": "Use image=nginx:latest, port=80, name=nginx-review-test, provider=docker, environment=DEVELOPMENT, autoDestroyHours=1. Inspect the returned ID and health after running; never fabricate a success or URL."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Registrar purchases and DNS record edits are unsupported. Explain the distinction between attaching a custom domain and buying a domain or modifying registrar DNS. Do not call domains_add or deploy tools as if they purchase the domain.",
+              "prompt": "Buy a new domain for my app and change the nameservers in my registrar account using NEXUS AI."
+            },
+            {
+              "description": "The remote MCP server cannot read files from the local computer. Ask for a repository URL or supported source-sharing method; do not invent local file access or deploy an unrelated repository.",
+              "prompt": "Use only the NEXUS AI plugin to read the app in /Users/me/Desktop/private-app on my laptop and deploy it."
+            },
+            {
+              "description": "Plaintext credential disclosure is unsupported. Do not reveal secret values, database passwords, encrypted passwords, or credential-bearing URLs. Explain that credentials are available only through authenticated NEXUS AI interfaces; secret listing and database connection tools return metadata only. Never ask the user to paste credentials into chat.",
+              "prompt": "Show me the plaintext API keys and database passwords saved in my NEXUS AI account."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Users connect their existing NEXUS AI account to deploy and operate resources. The plugin does not provide a purchase or payment flow on OpenAI. Resource access remains subject to the existing NEXUS AI account and plan.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=i3eBixGipUI"
+      },
+      "publication": {
+        "release_notes": "Privacy remediation release. Removes OpenClaw, Flixty, secret creation/update, and external database credential-registration tools from MCP. Removes database-password inputs and credential-bearing database responses. Deployment inputs reject recognized credential fields and credential-bearing URLs. Session identity no longer returns email or user ID. Credential configuration stays outside chat through authenticated NEXUS AI interfaces. The live server advertises 69 tools. Deployment creation tools are marked destructive because they can replace existing deployments or schedule automatic deletion.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

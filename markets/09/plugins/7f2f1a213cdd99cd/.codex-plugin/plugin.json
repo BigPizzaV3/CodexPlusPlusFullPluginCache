@@ -1,0 +1,141 @@
+{
+  "name": "shift-scheduler",
+  "version": "1.0.0",
+  "description": "Weekly employee shift schedules that respect availability, roles, max hours, overtime and rest rules, with PDF, Excel and calendar exports.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://shift-scheduler.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "employee schedule maker",
+    "work schedule maker",
+    "shift schedule maker",
+    "employee schedule template",
+    "shift schedule template",
+    "work schedule for employees",
+    "restaurant staff schedule",
+    "rotating schedule",
+    "staff rota",
+    "clopening",
+    "availability spreadsheet",
+    "weekly schedule pdf"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Rotawise Shift Scheduler",
+    "shortDescription": "Weekly staff shift schedules",
+    "longDescription": "Rotawise Shift Scheduler makes weekly employee shift schedules for small teams: restaurants, coffee shops, retail stores and clinic front desks. Tell it who is on the team (roles or skills, days and times each person cannot work, minimum and maximum hours) and which shifts you need covered each day (start, end, role and how many people), or attach your availability spreadsheet as CSV or Excel, and it builds the work schedule for the week.\n\nA constraint solver checks each hard rule before it assigns anyone: roles, availability, max hours, the 40-hour overtime line (or overtime allowed only when needed), minimum rest between a closing and an opening shift (the clopening rule, 10 hours by default), shifts per day and days in a row. If a shift cannot be covered, it names the shift and the reason, for example that only two people can work Saturday 6 to 2 as a cook, or that everyone else would go over 40 hours. Weekend and closing shifts are rotated fairly and hours are balanced across the team.\n\nYou get hours per person, overtime flags and fairness ranges, a week grid in the chat (by person or by day) where you can take someone off a shift or allow overtime and re-solve, a printable landscape PDF to post, an Excel workbook, and a calendar file (.ics) for each employee. Overnight shifts and daylight-saving weeks are counted in real hours.\n\nAlready have a schedule? Check it against your rules: double bookings, clopenings, overtime, too many days in a row, wrong role or a day off that was scheduled.\n\nLimits: one week at a time, up to 80 staff and 400 people-shifts. The rules are the ones you set; it does not know state or city scheduling laws and is not legal advice. It does not publish schedules, message staff, track time or run payroll.",
+    "developerName": "Zovo",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://shift-scheduler.zovo.one",
+    "supportURL": "https://shift-scheduler.zovo.one/support",
+    "privacyPolicyURL": "https://shift-scheduler.zovo.one/privacy",
+    "termsOfServiceURL": "https://shift-scheduler.zovo.one/terms",
+    "defaultPrompt": [
+      "Coffee shop schedule with 3 part timers: Mia, Leo, Ava. Shifts 6am-2pm and 2pm-9pm daily, 1 person each, max 40 h each",
+      "Restaurant staff schedule: cooks Ana, Ben, Cal; servers Dee, Eli. Need 2 cooks 10am-4pm and 2 servers 4pm-11pm Tue-Sun",
+      "Check this schedule: Sam Fri 4pm-11pm and Sat 7am-3pm, Jo Mon-Sat 3pm-11pm. 10 h rest rule, no overtime"
+    ],
+    "brandColor": "#0F6B73",
+    "brandColorDark": "#5CC6CF",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/shift-scheduler/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Coffee shop with 3 part-timers (starter prompt 1)",
+              "prompt": "Coffee shop schedule with 3 part timers: Mia, Leo, Ava. Shifts 6am-2pm and 2pm-9pm daily, 1 person each, max 40 h each",
+              "tools_triggered": "generate_shift_schedule",
+              "expected_behavior": "Calls generate_shift_schedule with three staff (max_hours 40) and two daily shifts. All 14 of 14 shift slots are filled with each hard rule checked (10 h rest between a 9pm close and a 6am open is respected). Hours: Mia 38.00, Leo 37.00, Ava 30.00. The widget shows the week grid and PDF, Excel and calendar downloads."
+            },
+            {
+              "description": "Restaurant with roles where coverage is impossible (starter prompt 2)",
+              "prompt": "Restaurant staff schedule: cooks Ana, Ben, Cal; servers Dee, Eli. Need 2 cooks 10am-4pm and 2 servers 4pm-11pm Tue-Sun",
+              "tools_triggered": "generate_shift_schedule",
+              "expected_behavior": "Calls generate_shift_schedule with roles cook and server and headcount 2. Result: 22 of 24 slots filled and the search proves no valid schedule fills more. The open shift is Sunday 16:00-23:00 server, 2 missing, because Dee and Eli would each reach 42.00 h, over the 40.00 h overtime limit; options include allowing overtime. Cooks get 24.00 h each, servers 35.00 h each."
+            },
+            {
+              "description": "Check an existing schedule for clopenings and overtime (starter prompt 3)",
+              "prompt": "Check this schedule: Sam Fri 4pm-11pm and Sat 7am-3pm, Jo Mon-Sat 3pm-11pm. 10 h rest rule, no overtime",
+              "tools_triggered": "check_schedule",
+              "expected_behavior": "Calls check_schedule with the shifts and min_rest_hours 10. It reports 2 rule problems: Sam has only 8.00 h rest between Friday 23:00 and Saturday 07:00, and Jo is scheduled 48.00 h, 8.00 h over 40. Sam totals 15.00 h."
+            },
+            {
+              "description": "Two people on each shift, nobody over 40 hours (bare 7-3 and 3-11 times)",
+              "prompt": "Nobody can work more than 40 hours, need 2 people on each shift: Ann, Bo, Cy, Di. Shifts 7-3 and 3-11 Mon-Fri",
+              "tools_triggered": "generate_shift_schedule",
+              "expected_behavior": "Calls generate_shift_schedule with four staff and two Mon-Fri shifts, headcount 2. It reads 7-3 as 07:00-15:00 and 3-11 as 15:00-23:00 and says so. All 20 of 20 slots are filled and each person works 40.00 h."
+            },
+            {
+              "description": "Fix a schedule when someone cannot work Mondays",
+              "prompt": "Fix this schedule, Sam cannot work Mondays. Week of Oct 12 2026, Chicago. Sam, Kim, Lee (Lee max 24 h). 8am-4pm Mon-Sat, plus 4pm-11pm Fri-Sat",
+              "tools_triggered": "generate_shift_schedule",
+              "expected_behavior": "Calls generate_shift_schedule with Sam unavailable Mon, Lee max_hours 24, week_start 2026-10-12 and time_zone America/Chicago. All 8 of 8 slots are filled, Sam is not scheduled on Monday, and hours are Sam 16.00, Kim 23.00, Lee 23.00."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Job search, not scheduling a team. Expected: no tool call.",
+              "prompt": "shift jobs near me"
+            },
+            {
+              "description": "Time-clock app request; this plugin does not track clock-in or clock-out. Expected: no tool call.",
+              "prompt": "Recommend a clock in clock out app for my employees"
+            },
+            {
+              "description": "Payroll question; this plugin does not run payroll or compute taxes. Expected: no tool call.",
+              "prompt": "How do I run payroll for 5 employees and withhold taxes?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://shift-scheduler.zovo.one/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: weekly employee shift schedules from staff, roles, availability and shift needs with a rule-safe solver, open-shift explanations, fairness, schedule checking, CSV/XLSX availability upload, and PDF, Excel and per-employee calendar exports.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Grafik zmian dla zespo\u0142u",
+            "description": "Kreator grafiku pracy dla ma\u0142ych zespo\u0142\u00f3w: restauracji, kawiarni, sklep\u00f3w i recepcji przychodni. Podaj, kto jest w zespole (role lub umiej\u0119tno\u015bci, dni i godziny, w kt\u00f3rych kto\u015b nie mo\u017ce pracowa\u0107, minimalna i maksymalna liczba godzin) oraz jakie zmiany trzeba obsadzi\u0107 ka\u017cdego dnia (pocz\u0105tek, koniec, rola, liczba os\u00f3b), albo do\u0142\u0105cz arkusz dost\u0119pno\u015bci w CSV lub Excelu. Rotawise Shift Scheduler u\u0142o\u017cy tygodniowy grafik.\n\nSolver ogranicze\u0144 przydziela ludzi tak, aby \u017cadna zasada nie zosta\u0142a z\u0142amana: role, dost\u0119pno\u015b\u0107, maksymalna liczba godzin, pr\u00f3g 40 godzin nadgodzin, minimalny odpoczynek mi\u0119dzy zmian\u0105 zamykaj\u0105c\u0105 a otwieraj\u0105c\u0105 (domy\u015blnie 10 godzin), liczba zmian dziennie i dni z rz\u0119du. Je\u015bli zmiany nie da si\u0119 obsadzi\u0107, narz\u0119dzie wskazuje dok\u0142adnie t\u0119 zmian\u0119 i pow\u00f3d. Zmiany weekendowe i zamykaj\u0105ce s\u0105 rozdzielane sprawiedliwie, a godziny wyr\u00f3wnane.\n\nOtrzymasz godziny na osob\u0119, oznaczenia nadgodzin, siatk\u0119 tygodnia w czacie z mo\u017cliwo\u015bci\u0105 poprawek, PDF do wywieszenia, plik Excel oraz plik kalendarza (.ics) dla ka\u017cdego pracownika. Zmiany nocne i tygodnie zmiany czasu liczone s\u0105 w rzeczywistych godzinach. Mo\u017cesz te\u017c sprawdzi\u0107 istniej\u0105cy grafik pod k\u0105tem zasad.\n\nOgraniczenia: jeden tydzie\u0144 naraz, do 80 os\u00f3b i 400 przydzia\u0142\u00f3w. Zasady ustalasz Ty; narz\u0119dzie nie zna lokalnych przepis\u00f3w i nie stanowi porady prawnej. Nie publikuje grafik\u00f3w, nie wysy\u0142a wiadomo\u015bci, nie rejestruje czasu pracy i nie liczy wynagrodze\u0144."
+          },
+          "de-DE": {
+            "subtitle": "Dienstplan f\u00fcr Ihr Team",
+            "description": "Ein Dienstplan-Ersteller f\u00fcr kleine Teams: Restaurants, Caf\u00e9s, Einzelhandel und Praxisempfang. Geben Sie an, wer im Team ist (Rollen oder F\u00e4higkeiten, Tage und Zeiten, an denen jemand nicht kann, Mindest- und H\u00f6chststunden) und welche Schichten t\u00e4glich besetzt werden m\u00fcssen (Beginn, Ende, Rolle, Anzahl Personen), oder h\u00e4ngen Sie Ihre Verf\u00fcgbarkeitsliste als CSV oder Excel an. Rotawise Shift Scheduler erstellt den Wochenplan.\n\nEin Constraint-Solver verteilt die Schichten so, dass keine Regel verletzt wird: Rollen, Verf\u00fcgbarkeit, H\u00f6chststunden, die 40-Stunden-\u00dcberstundengrenze, Mindestruhezeit zwischen Sp\u00e4t- und Fr\u00fchschicht (standardm\u00e4\u00dfig 10 Stunden), Schichten pro Tag und Tage am St\u00fcck. Kann eine Schicht nicht besetzt werden, nennt das Tool genau diese Schicht und den Grund. Wochenend- und Schlussdienste werden fair verteilt, die Stunden ausgeglichen.\n\nSie erhalten Stunden pro Person, \u00dcberstunden-Hinweise, ein Wochenraster im Chat zum Anpassen, ein druckfertiges PDF, eine Excel-Datei und eine Kalenderdatei (.ics) pro Mitarbeiter. Nachtschichten und Wochen mit Zeitumstellung werden in echten Stunden gerechnet. Bestehende Pl\u00e4ne lassen sich gegen Ihre Regeln pr\u00fcfen.\n\nGrenzen: eine Woche pro Durchlauf, bis zu 80 Personen und 400 Eins\u00e4tze. Die Regeln legen Sie fest; das Tool kennt keine \u00f6rtlichen Arbeitszeitgesetze und ist keine Rechtsberatung. Es ver\u00f6ffentlicht keine Pl\u00e4ne, verschickt keine Nachrichten, erfasst keine Arbeitszeit und rechnet keine L\u00f6hne ab."
+          },
+          "es-ES": {
+            "subtitle": "Horarios de turnos del equipo",
+            "description": "Un creador de horarios de trabajo para equipos peque\u00f1os: restaurantes, cafeter\u00edas, tiendas y recepciones de cl\u00ednicas. Indica qui\u00e9n forma el equipo (puestos o habilidades, d\u00edas y horas en que cada persona no puede trabajar, horas m\u00ednimas y m\u00e1ximas) y qu\u00e9 turnos hay que cubrir cada d\u00eda (inicio, fin, puesto y n\u00famero de personas), o adjunta tu hoja de disponibilidad en CSV o Excel. Rotawise Shift Scheduler crea el horario semanal.\n\nUn solucionador de restricciones asigna a las personas sin romper ninguna regla: puestos, disponibilidad, horas m\u00e1ximas, el l\u00edmite de 40 horas de horas extra, descanso m\u00ednimo entre un cierre y una apertura (10 horas por defecto), turnos por d\u00eda y d\u00edas seguidos. Si un turno no se puede cubrir, indica el turno exacto y el motivo. Los turnos de fin de semana y de cierre se reparten de forma justa y las horas se equilibran.\n\nObtienes horas por persona, avisos de horas extra, una cuadr\u00edcula semanal en el chat para ajustar, un PDF para imprimir, un archivo Excel y un archivo de calendario (.ics) por empleado. Los turnos nocturnos y las semanas con cambio de hora se cuentan en horas reales. Tambi\u00e9n puedes revisar un horario existente seg\u00fan tus reglas.\n\nL\u00edmites: una semana cada vez, hasta 80 personas y 400 asignaciones. Las reglas las defines t\u00fa; no conoce leyes locales de horarios y no es asesoramiento legal. No publica horarios, no env\u00eda mensajes, no registra fichajes ni calcula n\u00f3minas."
+          },
+          "fr-FR": {
+            "subtitle": "Planning des \u00e9quipes",
+            "description": "Un cr\u00e9ateur de planning du personnel pour les petites \u00e9quipes : restaurants, caf\u00e9s, commerces et accueils de cabinets. Indiquez qui fait partie de l'\u00e9quipe (postes ou comp\u00e9tences, jours et heures o\u00f9 chacun ne peut pas travailler, heures minimum et maximum) et quels cr\u00e9neaux couvrir chaque jour (d\u00e9but, fin, poste et nombre de personnes), ou joignez votre tableau de disponibilit\u00e9s en CSV ou Excel. Rotawise Shift Scheduler \u00e9tablit le planning de la semaine.\n\nUn solveur de contraintes affecte les personnes sans jamais enfreindre une r\u00e8gle : postes, disponibilit\u00e9s, heures maximum, seuil de 40 heures pour les heures suppl\u00e9mentaires, repos minimum entre une fermeture et une ouverture (10 heures par d\u00e9faut), postes par jour et jours cons\u00e9cutifs. Si un cr\u00e9neau ne peut pas \u00eatre couvert, il indique le cr\u00e9neau exact et la raison. Les week-ends et les fermetures sont r\u00e9partis \u00e9quitablement et les heures \u00e9quilibr\u00e9es.\n\nVous obtenez les heures par personne, les alertes d'heures suppl\u00e9mentaires, une grille de la semaine dans le chat \u00e0 ajuster, un PDF \u00e0 afficher, un fichier Excel et un fichier calendrier (.ics) par employ\u00e9. Les postes de nuit et les semaines de changement d'heure sont compt\u00e9s en heures r\u00e9elles. Vous pouvez aussi v\u00e9rifier un planning existant.\n\nLimites : une semaine \u00e0 la fois, jusqu'\u00e0 80 personnes et 400 affectations. Les r\u00e8gles sont celles que vous fixez ; l'outil ne conna\u00eet pas le droit local et ne constitue pas un conseil juridique. Il ne publie pas de planning, n'envoie pas de messages, ne pointe pas les heures et ne g\u00e8re pas la paie."
+          },
+          "ja-JP": {
+            "subtitle": "\u30b9\u30bf\u30c3\u30d5\u306e\u30b7\u30d5\u30c8\u8868\u3092\u4f5c\u6210",
+            "description": "\u98f2\u98df\u5e97\u3001\u30ab\u30d5\u30a7\u3001\u5c0f\u58f2\u5e97\u3001\u30af\u30ea\u30cb\u30c3\u30af\u53d7\u4ed8\u306a\u3069\u306e\u5c0f\u3055\u306a\u30c1\u30fc\u30e0\u5411\u3051\u306e\u30b7\u30d5\u30c8\u8868\u4f5c\u6210\u30c4\u30fc\u30eb\u3067\u3059\u3002\u30b9\u30bf\u30c3\u30d5\uff08\u62c5\u5f53\u3084\u5f79\u5272\u3001\u52e4\u52d9\u3067\u304d\u306a\u3044\u66dc\u65e5\u3084\u6642\u9593\u3001\u6700\u5c0f\u30fb\u6700\u5927\u52e4\u52d9\u6642\u9593\uff09\u3068\u3001\u6bce\u65e5\u57cb\u3081\u308b\u5fc5\u8981\u306e\u3042\u308b\u30b7\u30d5\u30c8\uff08\u958b\u59cb\u3001\u7d42\u4e86\u3001\u5f79\u5272\u3001\u4eba\u6570\uff09\u3092\u4f1d\u3048\u308b\u304b\u3001\u52e4\u52d9\u53ef\u80fd\u65e5\u306e\u4e00\u89a7\u3092CSV\u307e\u305f\u306fExcel\u3067\u6dfb\u4ed8\u3059\u308b\u3068\u3001Rotawise Shift Scheduler \u304c1\u9031\u9593\u306e\u30b7\u30d5\u30c8\u8868\u3092\u4f5c\u308a\u307e\u3059\u3002\n\n\u5236\u7d04\u30bd\u30eb\u30d0\u30fc\u304c\u3001\u3069\u306e\u30eb\u30fc\u30eb\u3082\u7834\u3089\u306a\u3044\u3088\u3046\u306b\u5272\u308a\u5f53\u3066\u307e\u3059\uff1a\u5f79\u5272\u3001\u52e4\u52d9\u53ef\u80fd\u6642\u9593\u3001\u6700\u5927\u52e4\u52d9\u6642\u9593\u3001\u903140\u6642\u9593\u306e\u6b8b\u696d\u30e9\u30a4\u30f3\u3001\u9589\u5e97\u52e4\u52d9\u304b\u3089\u958b\u5e97\u52e4\u52d9\u307e\u3067\u306e\u6700\u4f4e\u4f11\u606f\u6642\u9593\uff08\u521d\u671f\u502410\u6642\u9593\uff09\u30011\u65e5\u306e\u30b7\u30d5\u30c8\u6570\u3001\u9023\u7d9a\u52e4\u52d9\u65e5\u6570\u3002\u57cb\u3081\u3089\u308c\u306a\u3044\u30b7\u30d5\u30c8\u304c\u3042\u308b\u5834\u5408\u306f\u3001\u305d\u306e\u30b7\u30d5\u30c8\u3068\u7406\u7531\u3092\u6b63\u78ba\u306b\u793a\u3057\u307e\u3059\u3002\u9031\u672b\u3084\u9589\u5e97\u306e\u30b7\u30d5\u30c8\u306f\u516c\u5e73\u306b\u5206\u914d\u3057\u3001\u52e4\u52d9\u6642\u9593\u3082\u5747\u7b49\u306b\u3057\u307e\u3059\u3002\n\n1\u4eba\u3054\u3068\u306e\u52e4\u52d9\u6642\u9593\u3001\u6b8b\u696d\u306e\u8b66\u544a\u3001\u30c1\u30e3\u30c3\u30c8\u5185\u3067\u8abf\u6574\u3067\u304d\u308b\u9031\u9593\u30b0\u30ea\u30c3\u30c9\u3001\u63b2\u793a\u7528\u306ePDF\u3001Excel\u30d5\u30a1\u30a4\u30eb\u3001\u5f93\u696d\u54e1\u3054\u3068\u306e\u30ab\u30ec\u30f3\u30c0\u30fc\u30d5\u30a1\u30a4\u30eb\uff08.ics\uff09\u304c\u5f97\u3089\u308c\u307e\u3059\u3002\u591c\u52e4\u3084\u30b5\u30de\u30fc\u30bf\u30a4\u30e0\u5207\u308a\u66ff\u3048\u9031\u3082\u5b9f\u6642\u9593\u3067\u8a08\u7b97\u3057\u307e\u3059\u3002\u65e2\u5b58\u306e\u30b7\u30d5\u30c8\u8868\u3092\u30eb\u30fc\u30eb\u306b\u7167\u3089\u3057\u3066\u30c1\u30a7\u30c3\u30af\u3059\u308b\u3053\u3068\u3082\u3067\u304d\u307e\u3059\u3002\n\n\u5236\u9650\uff1a1\u56de\u306b\u3064\u304d1\u9031\u9593\u3001\u6700\u592780\u4eba\u30fb400\u4ef6\u306e\u5272\u308a\u5f53\u3066\u3002\u30eb\u30fc\u30eb\u306f\u5229\u7528\u8005\u304c\u8a2d\u5b9a\u3059\u308b\u3082\u306e\u3067\u3001\u5730\u57df\u306e\u52b4\u50cd\u6cd5\u306f\u8003\u616e\u305b\u305a\u3001\u6cd5\u7684\u52a9\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u30b7\u30d5\u30c8\u306e\u516c\u958b\u3001\u30b9\u30bf\u30c3\u30d5\u3078\u306e\u9023\u7d61\u3001\u52e4\u6020\u8a18\u9332\u3001\u7d66\u4e0e\u8a08\u7b97\u306f\u884c\u3044\u307e\u305b\u3093\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "Escala de turnos da equipe",
+            "description": "Um criador de escala de trabalho para equipes pequenas: restaurantes, cafeterias, lojas e recep\u00e7\u00f5es de cl\u00ednicas. Informe quem faz parte da equipe (fun\u00e7\u00f5es ou habilidades, dias e hor\u00e1rios em que cada pessoa n\u00e3o pode trabalhar, horas m\u00ednimas e m\u00e1ximas) e quais turnos precisam ser cobertos a cada dia (in\u00edcio, fim, fun\u00e7\u00e3o e quantidade de pessoas), ou anexe sua planilha de disponibilidade em CSV ou Excel. O Rotawise Shift Scheduler monta a escala da semana.\n\nUm solucionador de restri\u00e7\u00f5es distribui as pessoas sem quebrar nenhuma regra: fun\u00e7\u00f5es, disponibilidade, horas m\u00e1ximas, o limite de 40 horas para hora extra, descanso m\u00ednimo entre um fechamento e uma abertura (10 horas por padr\u00e3o), turnos por dia e dias seguidos. Se um turno n\u00e3o puder ser coberto, ele aponta o turno exato e o motivo. Turnos de fim de semana e de fechamento s\u00e3o divididos de forma justa e as horas s\u00e3o equilibradas.\n\nVoc\u00ea recebe horas por pessoa, alertas de hora extra, uma grade semanal no chat para ajustar, um PDF para imprimir, um arquivo Excel e um arquivo de calend\u00e1rio (.ics) para cada funcion\u00e1rio. Turnos noturnos e semanas com mudan\u00e7a de hor\u00e1rio s\u00e3o contados em horas reais. Tamb\u00e9m \u00e9 poss\u00edvel conferir uma escala existente.\n\nLimites: uma semana por vez, at\u00e9 80 pessoas e 400 aloca\u00e7\u00f5es. As regras s\u00e3o as que voc\u00ea define; a ferramenta n\u00e3o conhece leis locais e n\u00e3o \u00e9 orienta\u00e7\u00e3o jur\u00eddica. N\u00e3o publica escalas, n\u00e3o envia mensagens, n\u00e3o registra ponto e n\u00e3o calcula folha de pagamento."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

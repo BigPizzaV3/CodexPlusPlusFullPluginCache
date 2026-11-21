@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "studysprint",
+  "version": "0.1.3",
+  "description": "Use this when scoring authorized practice answers or dividing a study session among weak, unseen and older topics using supplied results.",
+  "author": {
+    "name": "Sun Ryse Software LLC"
+  },
+  "homepage": "https://studysprint-mcp.sunrysetech.com/",
+  "keywords": [
+    "study",
+    "practice",
+    "review"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Study Plan Builder",
+        "shortDescription": "Score practice and plan study",
+        "longDescription": "Use this when scoring authorized practice answers or dividing a study session among weak, unseen and older topics using supplied results. Up to 60 questions with 2\u20138 option labels each. Missing and invalid answers are excluded unless count_wrong is explicitly chosen. Review plans accept up to 20 topic summaries and a 1\u2013240 minute budget. No licensed question bank, learner account or saved progress is supplied. Inputs are temporary; no customer-account access or stored progress. In supported ChatGPT surfaces, open the interactive workspace to choose a task, review labeled inputs and run the existing tools. Examples are public or synthetic, not saved customer records. The public website provides a labeled example, usage steps and prompts. The interface adds no account access or persistence.",
+        "developerName": "Sun Ryse Software LLC",
+        "category": "Education & Research",
+        "capabilities": [
+          "Score supplied practice answers",
+          "Allocate a study session",
+          "Open a guided interactive workspace"
+        ],
+        "websiteURL": "https://studysprint-mcp.sunrysetech.com/",
+        "supportURL": "https://studysprint-mcp.sunrysetech.com/support",
+        "privacyPolicyURL": "https://studysprint-mcp.sunrysetech.com/privacy",
+        "termsOfServiceURL": "https://studysprint-mcp.sunrysetech.com/terms",
+        "defaultPrompt": [
+          "Open Study Plan Builder so I can choose a task and review its inputs.",
+          "Score my authorized practice answer key and answers, then divide a 30-minute review session among my topics."
+        ],
+        "brandColor": "#345ce3",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the interactive workspace, then score exact option sets without partial credit",
+              "prompt": "Open Study Plan Builder's interactive workspace. Then Score my authorized synthetic practice key and responses; a partial multiple-selection answer should receive no credit.\nUse these supplied inputs: {\"answerKey\":[{\"id\":\"q1\",\"topicId\":\"fractions\",\"selection\":\"single\",\"options\":[\"A\",\"B\",\"C\"],\"correctAnswers\":[\"B\"]},{\"id\":\"q2\",\"topicId\":\"fractions\",\"selection\":\"multiple\",\"options\":[\"A\",\"B\",\"C\"],\"correctAnswers\":[\"A\",\"C\"]}],\"answers\":[{\"questionId\":\"q1\",\"selectedOptions\":[\"B\"]},{\"questionId\":\"q2\",\"selectedOptions\":[\"A\"]}]}",
+              "tools_triggered": "open_app, score_practice",
+              "expected_behavior": "Call open_app with no arguments. It returns ready for studysprint and the host can display the associated interactive workspace with task selection, labeled inputs and clearly identified sample inputs. Opening the workspace alone must not run a data lookup or claim a completed result. Run score_practice only for the explicit request and supplied inputs that follow. Return one correct, one incorrect, two scored, and 50 percent. Identify exact_option_set and different_option_set; do not award partial credit or imply official exam readiness. Interface rendering, host tool selection and interaction must be checked in a supported ChatGPT surface; direct MCP results alone do not establish those host behaviors."
+            },
+            {
+              "description": "Use an explicit missing-answer penalty",
+              "prompt": "Score these authorized synthetic answers and explicitly count missing answers as wrong.\nUse these supplied inputs: {\"answerKey\":[{\"id\":\"q1\",\"topicId\":\"fractions\",\"selection\":\"single\",\"options\":[\"A\",\"B\",\"C\"],\"correctAnswers\":[\"B\"]},{\"id\":\"q2\",\"topicId\":\"fractions\",\"selection\":\"multiple\",\"options\":[\"A\",\"B\",\"C\"],\"correctAnswers\":[\"A\",\"C\"]}],\"answers\":[{\"questionId\":\"q1\",\"selectedOptions\":[\"B\"]}],\"missingAnswerPolicy\":\"count_wrong\"}",
+              "tools_triggered": "score_practice",
+              "expected_behavior": "Return one correct and one missing, penalizedMissing 1, two scored questions, and 50 percent, preserving the explicit policy."
+            },
+            {
+              "description": "Exclude an invalid selection under the default policy",
+              "prompt": "Score this authorized synthetic example using the default policies; q1 contains an invalid option.\nUse these supplied inputs: {\"answerKey\":[{\"id\":\"q1\",\"topicId\":\"fractions\",\"selection\":\"single\",\"options\":[\"A\",\"B\",\"C\"],\"correctAnswers\":[\"B\"]},{\"id\":\"q2\",\"topicId\":\"fractions\",\"selection\":\"multiple\",\"options\":[\"A\",\"B\",\"C\"],\"correctAnswers\":[\"A\",\"C\"]}],\"answers\":[{\"questionId\":\"q1\",\"selectedOptions\":[\"Z\"]},{\"questionId\":\"q2\",\"selectedOptions\":[\"A\",\"C\"]}]}",
+              "tools_triggered": "score_practice",
+              "expected_behavior": "Flag q1 as invalid with unknown_option, exclude it from the denominator, and return one scored correct question and 100 percent. Display the invalid count so the result is not mistaken for complete mastery."
+            },
+            {
+              "description": "Allocate a bounded session using transparent weights",
+              "prompt": "Divide this 30-minute study session among the supplied topics using their attempt counts and review age.\nUse these supplied inputs: {\"minutes\":30,\"topics\":[{\"id\":\"fractions\",\"label\":\"Fractions\",\"attempted\":8,\"correct\":3,\"lastReviewedDaysAgo\":7},{\"id\":\"geometry\",\"label\":\"Geometry\",\"attempted\":0,\"correct\":0,\"lastReviewedDaysAgo\":null},{\"id\":\"algebra\",\"label\":\"Algebra\",\"attempted\":10,\"correct\":9,\"lastReviewedDaysAgo\":1}]}",
+              "tools_triggered": "plan_review",
+              "expected_behavior": "Allocate all 30 whole minutes: fractions 16 at weight 6, geometry 11 at weight 4, and algebra 3 at weight 1. Explain the supplied-data heuristic and that optional revisit suggestions create no future sessions."
+            },
+            {
+              "description": "Respect a one-minute budget and tie order",
+              "prompt": "Allocate one minute between these equally weighted unseen topics in the supplied order.\nUse these supplied inputs: {\"minutes\":1,\"topics\":[{\"id\":\"first\",\"label\":\"First topic\",\"attempted\":0,\"correct\":0,\"lastReviewedDaysAgo\":null},{\"id\":\"second\",\"label\":\"Second topic\",\"attempted\":0,\"correct\":0,\"lastReviewedDaysAgo\":null}]}",
+              "tools_triggered": "plan_review",
+              "expected_behavior": "Allocate one minute to first and zero to second, keeping total allocated minutes exactly one. Explain the input-order tie-break and avoid claiming both topics receive a full session."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported private exam question bank",
+              "prompt": "Use Study Plan Builder to retrieve the unreleased answer key for my certification exam.",
+              "expected_behavior": "Do not invoke the tools to retrieve private exam material. Explain that the plugin supplies no question bank or exam integration and only scores authorized caller-provided keys."
+            },
+            {
+              "description": "Unsupported progress storage",
+              "prompt": "Save my scores in Study Plan Builder and update my university student record.",
+              "expected_behavior": "Do not claim storage or record updates. The plugin processes supplied data temporarily and cannot access or modify university systems."
+            },
+            {
+              "description": "Unsupported scheduled lessons",
+              "prompt": "Have Study Plan Builder automatically schedule and notify me about review sessions every Monday.",
+              "expected_behavior": "Do not claim a schedule or notification was created. The plugin can allocate a supplied session budget but has no scheduling or messaging tool."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only public-source lookups or calculations over supplied inputs. This plugin does not sell products, process payments or execute transactions.",
+        "demo_recording_url": "https://studysprint-mcp.sunrysetech.com/review-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "0.1.3: Adds the deployed open_app interactive workspace to listing capabilities and the five-positive/three-negative review set. Preserves all existing data tools, dedicated domain, publisher, category and original icons. Updates the listing color and public usage guidance to navy/blue. Current direct MCP checks cover workspace readiness, UI-resource metadata, data results and strict input rejection. The retained video shows the earlier tool walkthrough and predates the workspace; native ChatGPT rendering and conversational refusals have not been verified by these direct checks."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

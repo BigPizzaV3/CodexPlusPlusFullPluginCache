@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hoursmith",
+  "version": "0.1.6",
+  "description": "Find projects, manage tasks, and log completed work in your connected Hoursmith workspace.",
+  "author": {
+    "name": "Hoursmith",
+    "email": "hi@hoursmith.app",
+    "url": "https://hoursmith.app"
+  },
+  "homepage": "https://hoursmith.app/features/chatgpt",
+  "keywords": [
+    "time-tracking",
+    "tasks",
+    "projects",
+    "invoicing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "demo_recording_url": "https://youtu.be/kmhDGOXcphc",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the connected workspace and caller context using the dedicated reviewer account.",
+              "prompt": "Which Hoursmith workspace is connected, what permissions do I have, and what timezone is used?",
+              "tools_triggered": "get_connection_profile",
+              "expected_behavior": "Show the selected workspace label, granted permissions, caller role, and timezone. Do not switch workspaces or expose credentials."
+            },
+            {
+              "description": "Find the uniquely named Review Website project seeded in the reviewer workspace.",
+              "prompt": "Find the Review Website project and open its details with an Hoursmith link.",
+              "tools_triggered": "list_projects, get_project",
+              "expected_behavior": "Return the matching accessible project and its Hoursmith link. If more than one project matches, ask the user to choose before acting."
+            },
+            {
+              "description": "Read the reviewer's completed time on a fixed sample date. Seed a completed 15-minute Demo Research entry on October 1, 2026. Earlier review runs may have added other matching completed entries; include them rather than assuming a fixed count or total.",
+              "prompt": "Show only my completed time entries for October 1, 2026; exclude teammates and running timers. Use my saved Hoursmith date/time preferences for all dates and times you display.",
+              "tools_triggered": "get_connection_profile, list_time_entries",
+              "expected_behavior": "Resolve the caller and timezone, filter by the caller's user identity and the requested local date, exclude running timers, and present dates using the caller's preferences. Return all matching entries, including earlier review writes, and calculate any total from those returned entries. Do not include teammates' entries."
+            },
+            {
+              "description": "Create an additional task under the seeded Review Website project with the reviewer Owner or Admin account and read/write consent. Existing same-named tasks from earlier runs are expected; this prompt explicitly requests a distinct new action.",
+              "prompt": "Create one additional task named Review follow-up in Review Website with description \"Check the review workflow.\" Leave it unassigned. This is a new action: create it even if a task with the same name already exists.",
+              "tools_triggered": "list_projects, create_task",
+              "expected_behavior": "Create exactly one new unassigned task in the chosen accessible project using a new UUID requestId for this distinct action. Return its Hoursmith link. An explicit retry must reuse that requestId and identical payload and return the same task without another creation. Existing same-named tasks are not a replay of this new action."
+            },
+            {
+              "description": "Record additional completed manual work for the reviewer using read/write consent and the seeded project. Existing matching time from earlier runs does not satisfy this explicitly new action.",
+              "prompt": "Log a new 30-minute completed time entry for me in Review Website on October 1, 2026, with note \"Review time entry\". This is additional work, even if a matching entry already exists.",
+              "tools_triggered": "get_connection_profile, list_projects, create_time_entry",
+              "expected_behavior": "Create exactly one new completed entry for the caller with durationSeconds 1800 and note Review time entry on the requested local date, using a new UUID requestId for this distinct action. Return the Hoursmith appUrl supplied by the tool without starting a timer. Reuse the UUID and identical payload only for an explicit retry, which must return the same entry without another creation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reconnect the reviewer account with read-only consent before this case.",
+              "prompt": "Create a task named Read-only refusal in Review Website.",
+              "expected_behavior": "Explain that the connection lacks write permission and requires renewed consent. Do not create a task or bypass the read-only grant."
+            },
+            {
+              "description": "Timer control is unsupported with either read-only or read/write consent. Run in a fresh chat and again after the read-only refusal case.",
+              "prompt": "Start a running timer for Review Website. If that is unavailable, give me an Hoursmith link so I can do it there.",
+              "expected_behavior": "Explain that timer start/stop is unavailable regardless of consent and offer an Hoursmith link. Do not claim granting write permission enables timers. Do not start a timer or substitute a completed time-entry mutation."
+            },
+            {
+              "description": "This is a lookup request, not authorization to archive. The user has not confirmed archiving the Review follow-up task created by the positive case.",
+              "prompt": "Find the most recently created Review follow-up task in Review Website, but do not archive it without asking me to confirm first.",
+              "expected_behavior": "Look up the most recently created matching task in Review Website, return its Hoursmith link and state that it remains unchanged. If the newest task cannot be identified unambiguously, ask the user to choose. Any subsequent archive request requires explicit confirmation of the chosen task before invoking archive_task with confirm true; this lookup prompt provides no such authorization."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Makes creation scenarios repeatable with retained demo data by explicitly requesting additional work and distinguishing new actions from identical-request retries. The timer case explicitly requests a fallback Hoursmith link when unavailable. Time lookup explicitly requests saved date/time formatting and includes all matching prior review records; archive lookup identifies the newest task without authorizing an archive. Hosted guidance clarifies numeric date preferences and that write consent cannot enable unsupported timer control. The October 3 walkthrough remains historical supporting evidence."
+      },
+      "interface": {
+        "displayName": "Hoursmith",
+        "shortDescription": "Projects, tasks, and time",
+        "longDescription": "Connect your existing Hoursmith account to one workspace. Find clients and projects, manage tasks and expenses, log completed time, and read invoices. Choose read-only or read/write access; tools follow your current role and project permissions. Invoice and payout tools are read-only. Timer start/stop, invoice sending, and money transfers are unavailable.",
+        "developerName": "Hoursmith",
+        "category": "Productivity",
+        "capabilities": [
+          "Search workspace records",
+          "Manage tasks",
+          "Log completed time",
+          "Read invoices"
+        ],
+        "websiteURL": "https://hoursmith.app/features/chatgpt",
+        "supportURL": "https://hoursmith.app/support",
+        "privacyPolicyURL": "https://hoursmith.app/privacy",
+        "termsOfServiceURL": "https://hoursmith.app/terms",
+        "defaultPrompt": [
+          "Show my completed time this week",
+          "Find tasks for my website project",
+          "Show outstanding invoices in my workspace"
+        ],
+        "brandColor": "#256B4C",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
