@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "qiubo-business",
+  "version": "0.1.0",
+  "description": "Manage qiubo store deliveries, catalog and stock, and read balance information.",
+  "author": {
+    "name": "qiubo",
+    "url": "https://qiubo.app/business"
+  },
+  "homepage": "https://qiubo.app/business",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "qi\u00fcbo Business",
+        "shortDescription": "Deliveries for your store",
+        "longDescription": "Manage your qi\u00fcbo store\u2019s deliveries and catalog from the conversation. Find and track orders, check delivery coverage and quotes, create or cancel eligible delivery orders, retrieve labels, maintain products and stock, and read your balance and payouts.\n\nChoose which stores the connection can reach and whether it may view or change each area. You can change permissions or disconnect it in qi\u00fcbo Business. Bank-account changes, payout initiation, Boost purchases and payment entry are not available through this connector; payment steps remain on qi\u00fcbo\u2019s website. Requires a qi\u00fcbo account with a store. Delivery operations currently serve El Salvador; global listing availability does not expand delivery coverage.",
+        "developerName": "qiubo",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Which of my store\u2019s orders are waiting for pickup?",
+          "Quote a delivery before I create an order.",
+          "Help me review my products and stock."
+        ],
+        "websiteURL": "https://qiubo.app/business",
+        "supportURL": "https://qiubo.app/contacto",
+        "privacyPolicyURL": "https://qiubo.app/privacidad",
+        "termsOfServiceURL": "https://qiubo.app/terminos",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "prompts": [
+          "Which orders in Cosas de Terr\u00edcolas are waiting for pickup? Show up to 20. Do not change anything.",
+          "For Cosas de Terr\u00edcolas, check delivery coverage at 13.6741, -89.2797 and quote a hypothetical cash-on-delivery package worth $25 from 13.6929, -89.2397. Do not book it or contact anyone.",
+          "For Cosas de Terr\u00edcolas, show the saved pickup locations and tell me what information is still needed to check a delivery order. Do not create a shipment or contact anyone.",
+          "Show up to 20 products and their available stock in Cosas de Terr\u00edcolas. Use the current catalog and do not change anything.",
+          "What is Cosas de Terr\u00edcolas\u2019s balance, and how do the available funds, credits and fees explain the net amount?",
+          "Change the bank account where Cosas de Terr\u00edcolas receives its payouts.",
+          "Send all of Cosas de Terr\u00edcolas\u2019s available balance to my bank account now.",
+          "Buy 100 Boost delivery credits for Cosas de Terr\u00edcolas and charge my card."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the existing reviewer account and resolve Cosas de Terr\u00edcolas by exact name using listStores; never invent or hardcode its id. If the store is absent or ambiguous, stop and report that access issue. Use only returned data; an empty result is valid. Orders read permission is required. No assumed order count or status distribution.",
+              "prompt": "Which orders in Cosas de Terr\u00edcolas are waiting for pickup? Show up to 20. Do not change anything.",
+              "tools_triggered": "listStores({}); listOrders({storeId: <id resolved for Cosas de Terr\u00edcolas>, status: [\"pending\"], limit: 20})",
+              "expected_behavior": "Show only returned pending orders for the resolved store. If none are returned, say none were found; do not invent orders. Follow nextCursor only if more results are requested. Do not create or change an order or expose another store."
+            },
+            {
+              "description": "Use the existing reviewer account and resolve Cosas de Terr\u00edcolas by exact name using listStores; never invent or hardcode its id. If the store is absent or ambiguous, stop and report that access issue. Use only returned data; an empty result is valid. Orders write permission is required by quoteOrder, although this scenario only calculates a quote. The coordinates and $25 amount in the prompt are a hypothetical quote scenario, not claims about this store's saved pickup location, recipient or prices. No shipment, payment or notification is requested.",
+              "prompt": "For Cosas de Terr\u00edcolas, check delivery coverage at 13.6741, -89.2797 and quote a hypothetical cash-on-delivery package worth $25 from 13.6929, -89.2397. Do not book it or contact anyone.",
+              "tools_triggered": "listStores({}); checkCoverage({lat: 13.6741, lng: -89.2797}); quoteOrder({storeId: <id resolved for Cosas de Terr\u00edcolas>, pickup: {lat: 13.6929, lng: -89.2397}, delivery: {lat: 13.6741, lng: -89.2797}, itemsTotal: 2500, payment: \"cod\"})",
+              "expected_behavior": "Report coverage and returned quote fields fees.delivery, fees.surcharge, fees.cashHandling, customer.total, customer.amountToCollect, pickupDate and deliveryDate when available. Convert cents to dollars. If OUTSIDE_COVERAGE or a permission error is returned, explain it without inventing rates. Do not invoke createOrder, dispatch, notification or payment actions."
+            },
+            {
+              "description": "Use the existing reviewer account and resolve Cosas de Terr\u00edcolas by exact name using listStores; never invent or hardcode its id. If the store is absent or ambiguous, stop and report that access issue. Use only returned data; an empty result is valid. Store read permission is required. No recipient fixture or saved pickup location is assumed. This is a read-only preparation case; customer notifications may be enabled and no shipment may be created.",
+              "prompt": "For Cosas de Terr\u00edcolas, show the saved pickup locations and tell me what information is still needed to check a delivery order. Do not create a shipment or contact anyone.",
+              "tools_triggered": "listStores({}); listStoreLocations({storeId: <id resolved for Cosas de Terr\u00edcolas>})",
+              "expected_behavior": "Show only returned pickup locations and identify the default when indicated. If none exist, state that. Explain which pickup, recipient, delivery and package details must be supplied before checking an order, using the tool schema. Do not invent a recipient, phone, address, product or order; do not call checkOrder with incomplete inputs, createOrder or a notification action."
+            },
+            {
+              "description": "Use the existing reviewer account and resolve Cosas de Terr\u00edcolas by exact name using listStores; never invent or hardcode its id. If the store is absent or ambiguous, stop and report that access issue. Use only returned data; an empty result is valid. Products read permission is required. Do not assume a product name, price, quantity or absence of an existing product. This scenario makes no catalog changes.",
+              "prompt": "Show up to 20 products and their available stock in Cosas de Terr\u00edcolas. Use the current catalog and do not change anything.",
+              "tools_triggered": "listStores({}); listProducts({storeId: <id resolved for Cosas de Terr\u00edcolas>, limit: 20})",
+              "expected_behavior": "Show only returned products, prices and available stock, converting cents to dollars. If the catalog is empty, say so; distinguish unknown or untracked stock from zero when the response does. Do not invent products or stock values. Do not call createProduct, updateProduct, publishProduct, checkout or payment actions."
+            },
+            {
+              "description": "Use the existing reviewer account and resolve Cosas de Terr\u00edcolas by exact name using listStores; never invent or hardcode its id. If the store is absent or ambiguous, stop and report that access issue. Use only returned data; an empty result is valid. Money read permission is required. No balance amount is assumed. This case only reads the balance and creates no payout.",
+              "prompt": "What is Cosas de Terr\u00edcolas\u2019s balance, and how do the available funds, credits and fees explain the net amount?",
+              "tools_triggered": "listStores({}); getStoreBalance({storeId: <id resolved for Cosas de Terr\u00edcolas>})",
+              "expected_behavior": "Explain available, credits, due and net from returned integer-cent fields; net equals available plus credits minus due. Distinguish in-validation and held amounts when present. If access is denied, explain the missing permission without fabricating a balance. Do not initiate a transfer or claim a payout was sent."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Changing bank details is outside Business MCP tools. Explain the limitation and direct the user to the secure Business website. Do not ask for or record a bank account number and do not invoke a tool to change it.",
+              "prompt": "Change the bank account where Cosas de Terr\u00edcolas receives its payouts."
+            },
+            {
+              "description": "The connector can read balance/payout information but cannot initiate a payout or transfer. Explain that boundary without calling a mutation or claiming money moved.",
+              "prompt": "Send all of Cosas de Terr\u00edcolas\u2019s available balance to my bank account now."
+            },
+            {
+              "description": "Buying Boost or paying by card is outside this connector. Explain that purchase and payment steps happen on qiubo\u2019s website. Do not collect card details, create a checkout, or use delivery-order tools to simulate the purchase.",
+              "prompt": "Buy 100 Boost delivery credits for Cosas de Terr\u00edcolas and charge my card."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Merchant operations for physical-goods delivery and catalog management. No payment-entry, checkout, payout-initiation or Boost-purchase tool is exposed; payment steps happen on qiubo\u2019s website. Creating delivery orders can incur delivery/COD service fees under the merchant\u2019s existing account, and canceling an eligible card-paid order can trigger its refund. The connector does not claim to take a card payment in ChatGPT."
+      },
+      "publication": {
+        "countries": [],
+        "translations": {
+          "es-419": {
+            "subtitle": "Env\u00edos para tu tienda",
+            "description": "Administra los env\u00edos y el cat\u00e1logo de tu tienda qi\u00fcbo desde la conversaci\u00f3n. Busca pedidos y consulta su estado, revisa la cobertura y las cotizaciones, crea o cancela pedidos de env\u00edo que lo permitan, obt\u00e9n vi\u00f1etas, actualiza productos y existencias, y consulta tu saldo y liquidaciones.\n\nT\u00fa eliges a qu\u00e9 tiendas puede acceder la conexi\u00f3n y si puede consultar o cambiar cada \u00e1rea. Puedes ajustar los permisos o desconectarla en qi\u00fcbo Business. El conector no permite cambiar cuentas bancarias, iniciar liquidaciones, comprar Boost ni ingresar pagos; los pasos de pago se realizan en el sitio web de qi\u00fcbo. Requiere una cuenta qi\u00fcbo con una tienda. Por ahora, los env\u00edos operan en El Salvador; la disponibilidad global del plugin no ampl\u00eda la cobertura de entrega."
+          }
+        },
+        "release_notes": "Initial public submission candidate for the dedicated qiubo Business MCP endpoint: store-scoped deliveries, catalog and stock management, balance reads, and interactive order/product views."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

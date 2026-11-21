@@ -1,0 +1,144 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "courstore",
+  "version": "1.1.0",
+  "description": "Productivity tool for online school owners on Courstore: build and manage courses (modules, lessons, quizzes, assignments, covers, settings, publishing) and get answers about students, quiz results, sales and traffic.",
+  "author": {
+    "name": "Courstore",
+    "url": "https://courstore.com"
+  },
+  "homepage": "https://courstore.com",
+  "keywords": [
+    "education",
+    "online school",
+    "courses",
+    "course builder",
+    "analytics"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Courstore",
+        "shortDescription": "Build and run online courses",
+        "longDescription": "Courstore is a platform where authors run their own online schools and sell their courses. The main purpose of this plugin: a course author (the owner of an online school) builds and manages their own courses and checks their school's results in plain language, working with their real Courstore data. It is a productivity tool for the school owner's work, not a learning tool for students.\n\nBuild and manage courses:\n- Create a draft course, for example from a course outline, with modules, lessons, quizzes (ten question types, up to 100 questions) and assignments; edit and reorder them.\n- Set the course cover from an image in the chat (for example an image you have just generated), set the description, access period, certificate, learning channels and promo video from the school's Uploads.\n- Schedule when modules open (on a date or N days after enrollment) and prerequisites.\n- Publish a course or move it back to draft.\n- Remove content without losing it: deleting a quiz question moves it to the quiz archive, deleting a lesson or a course moves it to the trash; everything can be restored. A course can be moved to the trash only when it has no students.\n\nUnderstand your school:\n- Sales and the author's net earnings for a period compared with the previous period, per course.\n- Courses with status, students, duration and reviews; students and their progress (filter by course title), top students, active students.\n- Quiz results with PASSED or FAILED; assignments submitted by students and those waiting for review; traffic and time on the platform.\n\nSafety: every change is shown as a preview first and is made only after you confirm it in the chat (single-use confirmation code, valid 5 minutes). Changes require ticking \"Allow changes to my school\" at sign-in; without it the access is read-only. New courses are created as drafts; publishing is a separate step. Nothing is erased permanently. The plugin does not grade students, send messages to students or take payments.\n\nAccess and privacy: you sign in with your Courstore author account (your school address looks like myschool.courstore.com). The school and permissions come from your sign-in, never from the chat, so you only see and change your own school. Student contacts are shown masked; full contacts stay in the Courstore dashboard.",
+        "developerName": "Courstore",
+        "category": "Productivity",
+        "capabilities": [
+          "Create and edit courses",
+          "Lessons, quizzes and assignments",
+          "Course cover from chat images",
+          "Publish courses",
+          "Students and progress",
+          "Sales analytics"
+        ],
+        "websiteURL": "https://courstore.com",
+        "supportURL": "https://courstore.com/en/",
+        "privacyPolicyURL": "https://courstore.com/en/privacy/",
+        "termsOfServiceURL": "https://web.courstore.com/en/terms-and-conditions/",
+        "defaultPrompt": [
+          "Create a draft course \"Email Marketing 101\" with two modules and a short quiz",
+          "Summarize my school's sales for the last 30 days and compare them with the previous 30 days",
+          "Which students submitted assignments that are waiting for review?"
+        ],
+        "brandColor": "#9C42CF",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a draft course from an outline (at sign-in tick \"Allow changes to my school\"; without it the connection is read-only)",
+              "prompt": "Create a draft course \"Email Marketing 101\" with two modules: \"Basics\" (lessons \"Why email\" and \"Building a list\") and \"Campaigns\" (lesson \"Your first campaign\" and a 3-question quiz about email marketing)",
+              "tools_triggered": "import_course_draft",
+              "expected_behavior": "Requires ticking \"Allow changes to my school\" on the Courstore sign-in page. First call returns a preview of the course tree (modules, lessons, quiz with questions) and a confirmation code, nothing is created yet. After the user replies \"yes\", the same call is repeated with the code and a draft course is created; the answer contains its id. The course stays a draft (not visible to students)."
+            },
+            {
+              "description": "Set the course cover from an image in the chat",
+              "prompt": "Generate a cover image for my course Email Marketing 101 and set it as the course cover",
+              "tools_triggered": "set_course_cover",
+              "expected_behavior": "ChatGPT generates an image and passes it as a file (image parameter). The first call returns a preview (\"the cover will be set ... file from the chat\") and a confirmation code; after \"yes\" the image is uploaded to the school's Uploads and set as the cover, the answer contains the image URL."
+            },
+            {
+              "description": "Price, access period and module schedule",
+              "prompt": "Set the price of Email Marketing 101 to 15000, access to 6 months, and make module 2 open 7 days after enrollment",
+              "tools_triggered": "set_course_price, update_course_settings, set_course_content_drip, set_module_days_after_enroll",
+              "expected_behavior": "Each change returns a preview (old value -> new value) and a confirmation code; values are saved only after the user confirms."
+            },
+            {
+              "description": "Delete a lesson (moved to trash) and restore it",
+              "prompt": "In Email Marketing 101 delete the lesson \"Building a list\", then restore it",
+              "tools_triggered": "get_course_program, delete_lesson, restore_lesson",
+              "expected_behavior": "The preview says the lesson will be moved to the trash and nothing is erased; after \"yes\" it disappears from the program. restore_lesson (again preview + confirmation) puts it back to the same place."
+            },
+            {
+              "description": "Delete a quiz question (moved to the quiz archive)",
+              "prompt": "Delete the last question of the quiz in Email Marketing 101",
+              "tools_triggered": "get_quiz, delete_quiz_question",
+              "expected_behavior": "The preview says the question will be archived (hidden from students, excluded from scoring, restorable); after \"yes\" it is archived and the new maximum score is shown. Archived questions are listed in the quiz details."
+            },
+            {
+              "description": "Delete a course without students (moved to trash)",
+              "prompt": "Delete the course Email Marketing 101",
+              "tools_triggered": "delete_course",
+              "expected_behavior": "The preview shows the course, \"Students in the course: 0\" and that it will be moved to the trash, nothing erased; after \"yes\" the course disappears from the course list. It can be restored as a draft with restore_course."
+            },
+            {
+              "description": "Sales for a period",
+              "prompt": "Summarize my sales for the last 90 days and compare them with the previous 90 days",
+              "tools_triggered": "sales_analytics",
+              "expected_behavior": "Returns, for the period and the previous period: paid sales per day, amounts, the author's net earnings after platform commission and tax, platform commission, earnings and sales count per course."
+            },
+            {
+              "description": "Students of one course (filter by course title)",
+              "prompt": "Show the students enrolled in the course Instagram Marketing for Small Business and their progress",
+              "tools_triggered": "students_roster",
+              "expected_behavior": "Returns only enrollments of that course with progress and enrollment date; student contacts are masked."
+            },
+            {
+              "description": "Assignment submissions",
+              "prompt": "Which students submitted assignments that are waiting for review?",
+              "tools_triggered": "list_assignment_submissions",
+              "expected_behavior": "Returns the total number of submissions, how many are pending review, and each pending submission with assignment, course, student, date and status. Submission texts and reviewing are not available in chat (dashboard only)."
+            },
+            {
+              "description": "Quiz results",
+              "prompt": "Show quiz results of my students for the last 90 days",
+              "tools_triggered": "quiz_results",
+              "expected_behavior": "Returns quiz attempts with score and PASSED/FAILED for the author's school in the period."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A course with students cannot be deleted: the call is refused and the author is told to close the students' access in the dashboard first; nothing changes",
+              "prompt": "Delete the course Excel for Beginners"
+            },
+            {
+              "description": "No change without explicit confirmation: answering \"no\" to a preview (or letting the 5-minute code expire) changes nothing",
+              "prompt": "Set the price of Email Marketing 101 to 99000 (then answer \"no\" to the preview)"
+            },
+            {
+              "description": "Another school's data is not accessible: access is limited to the signed-in school",
+              "prompt": "Show the students of the school another-school.courstore.com"
+            },
+            {
+              "description": "Grading an assignment or messaging students is not possible through the plugin",
+              "prompt": "Grade the latest submitted assignment with 10 points and write feedback to the student"
+            },
+            {
+              "description": "Out of scope request: no tool should be called",
+              "prompt": "What is the weather in Almaty today?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No commerce through the plugin: it does not sell goods, subscriptions or digital content and has no checkout. Setting a course price only changes the price shown in the author's own school; the plugin takes no payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Course management: create draft courses with modules, lessons, quizzes and assignments, set the cover from an image in the chat, price and settings, schedule modules, publish. Deleting a question, lesson or course moves it to an archive or trash and can be restored; a course with students cannot be deleted. Every change needs confirmation; read-only without \"Allow changes\"."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

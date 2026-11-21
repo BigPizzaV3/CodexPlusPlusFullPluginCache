@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tilit",
+  "version": "0.1.1",
+  "description": "Read and understand your Finnish accounting data in Tilit.",
+  "author": {
+    "name": "Tilit.AI Oy"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Tilit",
+        "shortDescription": "Understand your accounting",
+        "longDescription": "Connect your Tilit account to read and understand your Finnish accounting data. Explore company details, financial reports, stored bank balance snapshots, open invoices, payroll summaries, projects, and source documents. Access is limited to companies enabled for your user and remains subject to Tilit permissions and assistant eligibility. This integration is read-only: it cannot make payments, edit accounting entries, or submit tax returns.",
+        "developerName": "Tilit.AI Oy",
+        "category": "Finance",
+        "websiteURL": "https://tilit.ai",
+        "privacyPolicyURL": "https://tilit.ai/en/privacy-policy",
+        "termsOfServiceURL": "https://tilit.ai/en/terms-of-service",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "Which companies can I access in Tilit?",
+          "Which sales invoices are still drafts and have not been sent yet?",
+          "What receipts have I sent to my accountant?"
+        ],
+        "supportURL": "https://tilit.ai"
+      },
+      "review": {
+        "prompts": [
+          "Which companies can I access in Tilit?",
+          "What is the name, business ID and address of my company?",
+          "Which sales invoices in my company are still drafts and have not been sent yet?",
+          "List the projects in my company.",
+          "What receipts have I sent to my accountant?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup required before running: a dedicated reviewer account with a single MCP-enabled demo company, assistant eligibility, sample company details and projects. No real customer data. List authorized companies",
+              "prompt": "Which companies can I access in Tilit?",
+              "tools_triggered": "listCustomers",
+              "expected_behavior": "Return only the companies returned by listCustomers, with no guessed or inaccessible companies."
+            },
+            {
+              "description": "Setup required before running: a dedicated reviewer account with a single MCP-enabled demo company, assistant eligibility, sample company details and projects. No real customer data. Read company details",
+              "prompt": "What is the name, business ID and address of my company?",
+              "tools_triggered": "listCustomers, companyInfo",
+              "expected_behavior": "Resolve the demo company using listCustomers; call companyInfo with its returned customerId. Report name, business_id and address from the result; identify absent fields without guessing."
+            },
+            {
+              "description": "Setup required before running: a dedicated reviewer account with a single MCP-enabled demo company, assistant eligibility, sample company details and projects. No real customer data. Find unsent draft sales invoices. Prepare both DRAFT and SENT demo invoices so exclusion of sent invoices is observable.",
+              "prompt": "Which sales invoices in my company are still drafts and have not been sent yet?",
+              "tools_triggered": "listCustomers, bookkeepingMaterials",
+              "expected_behavior": "Resolve customerId using listCustomers. Call bookkeepingMaterials with types=[\"sales-invoices\"] and statuses=[\"DRAFT\"]. Follow nextOffset until all matching pages are read. Show returned invoice identifiers, buyers and available amounts, preserving null values. Exclude SENT invoices and do not send or change any invoice."
+            },
+            {
+              "description": "Setup required before running: a dedicated reviewer account with a single MCP-enabled demo company, assistant eligibility, sample company details and projects. No real customer data. List projects",
+              "prompt": "List the projects in my company.",
+              "tools_triggered": "listCustomers, projects",
+              "expected_behavior": "Resolve customerId from listCustomers; call projects and follow returned pagination when needed. Return project names from the results; do not invent projects."
+            },
+            {
+              "description": "Use a dedicated reviewer account with one MCP-enabled sample company. Prepare receipts with current accounting statuses PENDING, APPROVED and CHANGES_REQUESTED. In Tilit\u2019s receipt UI, PENDING is labeled Sent. This case covers currently sent receipts awaiting accounting review, not a historical submission log or completed bookkeeping. No date restriction.",
+              "prompt": "What receipts have I sent to my accountant?",
+              "tools_triggered": "listCustomers, bookkeepingMaterials",
+              "expected_behavior": "Resolve customerId from listCustomers. Call bookkeepingMaterials with types=[\"receipts\"] and accountingStatuses=[\"PENDING\"], without a date filter. Follow nextOffset for remaining pages. Return the matching receipt summaries and explicitly describe them as currently Sent / awaiting accounting review. Do not label APPROVED or CHANGES_REQUESTED receipts as currently Sent; do not claim a historical list of everything ever submitted, delivery timestamps, or completed bookkeeping. Preserve missing values and explain an empty result without inventing receipts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported payment: explain that this read-only integration cannot transfer funds. Do not execute or claim a transfer. This is a negative test prompt, not authorization for a payment.",
+              "prompt": "Transfer 100 euros from my company bank account to IBAN FI2112345600000785."
+            },
+            {
+              "description": "Unsupported project creation: explain that this integration can read projects but cannot create them. Do not invoke tools to create a project or claim creation.",
+              "prompt": "Create a new project called \u2018New Project\u2019 in Tilit."
+            },
+            {
+              "description": "Unsupported tax submission: explain that the integration can read information but cannot submit returns. Do not invoke tools to submit or claim submission.",
+              "prompt": "Submit my company\u2019s September 2026 VAT return to Vero now."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Tilit offers free and paid subscription plans. Paid subscriptions are purchased outside ChatGPT on https://tilit.ai. The MCP integration is read-only and does not process payments or purchases.",
+        "demo_recording_url": "https://youtu.be/lESzDQc5bu8"
+      },
+      "publication": {
+        "release_notes": "Initial directory package for the Tilit read-only accounting MCP integration.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

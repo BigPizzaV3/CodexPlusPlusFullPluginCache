@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "marketcheck",
+  "version": "1.0.4",
+  "description": "Read-only automotive market data from MarketCheck: US, Canada and UK listings, US sold-market trends and valuations, VIN decoding and history, OEM incentives and dealer lookups.",
+  "author": {
+    "name": "Market Check Cars, Inc.",
+    "url": "https://www.marketcheck.com"
+  },
+  "homepage": "https://www.marketcheck.com",
+  "keywords": [
+    "automotive",
+    "market-data",
+    "vehicle-inventory",
+    "vin",
+    "marketcheck"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MarketCheck",
+        "shortDescription": "Automotive market data",
+        "longDescription": "MarketCheck gives ChatGPT and Codex read-only access to automotive market data for dealers, lenders, insurers, marketplaces and vehicle researchers.\n\n- Search active dealer listings in the US, Canada and the UK by vehicle, price, mileage and location.\n- Explore recently expired and sold listing records from the last 90 days.\n- Analyze monthly US sold-market statistics since January 2021, including inferred sales counts, advertised prices and days on market, ranked by vehicle, dealer or region.\n- Decode supported 17-character VINs to available specifications, options and packages with NeoVIN. Coverage varies.\n- Trace a VIN's advertised prices, dealers and listing history.\n- Estimate a vehicle's US market price and inspect comparable listings.\n- Find manufacturer cash, finance and lease incentives by model or US ZIP code.\n- Look up dealerships and dealer groups.\n\nPrices are advertised asking prices, not transaction prices. Sold-market figures use MarketCheck's inferred-sale rules; an expired listing alone does not prove a sale. Available data and tools depend on account access.\n\nSign in with your MarketCheck developer account and choose an API key and permitted tools on the consent screen. Usage counts against that key's MarketCheck plan. This plugin cannot buy or reserve vehicles, make payments, change account settings or retrieve private vehicle-owner information.",
+        "developerName": "Market Check Cars, Inc.",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Search live car inventory",
+          "Analyze sold-market trends",
+          "Value a specific vehicle",
+          "Decode VINs",
+          "Find OEM incentives and dealers"
+        ],
+        "websiteURL": "https://www.marketcheck.com",
+        "supportURL": "https://www.marketcheck.com/support",
+        "privacyPolicyURL": "https://developers.marketcheck.com/privacy",
+        "termsOfServiceURL": "https://developers.marketcheck.com/terms",
+        "defaultPrompt": [
+          "Find used 2021-2023 Toyota RAV4 Hybrids under $30,000 within 50 miles of 75201",
+          "Which used cars sold fastest nationally in February 2026?",
+          "What's a fair price for VIN 1FTEW1CPXLKE33188 with 45,000 miles in ZIP 30301?"
+        ],
+        "brandColor": "#1F5FBF",
+        "composerIcon": "./assets/marketcheck-logo-512.png",
+        "logo": "./assets/marketcheck-logo-1000.png"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "publication": {
+        "release_notes": "Initial release: 13 read-only MarketCheck tools for vehicle inventory search, sold-market trends, VIN decoding and listing history, price estimates with comparables, OEM incentives and dealer lookup."
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search US used hybrid inventory with categorical-value discovery, price and model-year limits, geographic filtering and price sorting. Setup: connected MarketCheck account with inventory access. Live result counts vary.",
+              "prompt": "Find used 2021-2023 Toyota RAV4 Hybrids under $30,000 within 50 miles of 75201.",
+              "tools_triggered": "search_active_cars",
+              "expected_behavior": "First discover make, model and powertrain_type facets using only location filters and rows=1. Use exact returned values for Toyota, RAV4 and the conventional hybrid powertrain (HEV when returned), then query car_type=used, year_range=2021-2023, price_range=0-29999, zip=75201, radius=50, sort_by=price, sort_order=asc, rows=5, include_dealer_object=true and include_build_object=true. Show only returned matching listings, with advertised price, mileage, dealer, available distance and source link. Distinguish total matches from the sample shown. If none match, report that accurately without silently relaxing constraints. Do not claim completed purchases or confirmed transaction prices."
+            },
+            {
+              "description": "Compare national US used-vehicle turnover by model with a matching national baseline for February 2026. Interpret 1-5 years old as model years 2021-2025 relative to 2026 and disclose this assumption. Setup: sold-summary access enabled.",
+              "prompt": "Which used cars 1-5 years old sold fastest nationally in February 2026, and how did they compare with the market average days to sell?",
+              "tools_triggered": "get_sold_summary",
+              "expected_behavior": "Use inventory_type=used, date_from=2026-02-01, date_to=2026-02-28, year_range=2021-2025 and summary_by=national. Rank ranking_dimensions=make,model by ranking_measure=dom_active.mean, ranking_order=asc; a disclosed min_sold_count=30 with rank_after_filters=true and top_n=10 avoids very small samples. Obtain a separate baseline with ranking_dimensions=none and the same vehicle/date/geography population, omitting ranking parameters and the group-level count threshold. Compare returned average days on market and counts; check truncation and warnings. Explain inferred sales and market-exposure duration, not verified transaction timing. Do not sum state rankings or require a particular winning model or fixed average."
+            },
+            {
+              "description": "Estimate a specific US vehicle's value and use returned comparables as evidence. Setup: price-prediction access enabled; use the supplied VIN as test data. State franchise-dealer and non-certified assumptions if using those defaults.",
+              "prompt": "What's a fair price for VIN 1FTEW1CPXLKE33188 with 45,000 miles in ZIP 30301? Show the comparables.",
+              "tools_triggered": "predict_price_with_comparables",
+              "expected_behavior": "Send vin=1FTEW1CPXLKE33188, miles=45000 and zip=30301, with dealer_type=franchise and is_certified=false when these assumptions are disclosed. Report the returned estimated USD price and a small, traceable sample of returned comparables with available price, mileage and location details. Label the prediction as an estimate and comparable prices as advertised prices. Do not require a fixed dollar amount or invent missing comparables. An actual coverage or service error must be explained and cannot be presented as a successful valuation."
+            },
+            {
+              "description": "Decode a valid sample VIN and distinguish returned build specifications from unavailable coverage. Setup: NeoVIN access enabled.",
+              "prompt": "Decode VIN 1FTEW1CPXLKE33188.",
+              "tools_triggered": "decode_vin_neovin",
+              "expected_behavior": "Send vin=1FTEW1CPXLKE33188. Summarize returned year, make, model, trim, engine, drivetrain, transmission and available options. The current sample identifies a 2020 Ford F-150 XLT; recheck the response at review time. Respect record_source and missing fields: partial build specifications are not guaranteed complete factory equipment. Do not fabricate owner information, title history or specifications that were not returned."
+            },
+            {
+              "description": "Retrieve current US manufacturer incentives for a specified model and ZIP. Setup: incentives access enabled. Offers and availability change over time.",
+              "prompt": "What Honda CR-V incentives are available in 90210?",
+              "tools_triggered": "search_oem_incentives_by_zip",
+              "expected_behavior": "Send oem=honda, zip=90210, model=CR-V and rows=3. Summarize returned cash, finance or lease offers, including applicable model year/trim, amount or APR, duration, due-at-signing amount, expiration and eligibility conditions when provided. Label stale or expired results clearly. Do not imply all offers apply to every buyer or combine incompatible offers. If no current matching offers are returned, say so; do not fabricate an incentive or claim payment/financing approval."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported purchase. Explain that MarketCheck is read-only and cannot buy, reserve or pay for a vehicle. Do not invoke a tool for the purchase, request payment credentials, or claim a transaction occurred. Offer listing research only as an alternative.",
+              "prompt": "Buy this RAV4 for me and pay the dealer."
+            },
+            {
+              "description": "Unsupported account mutation. Explain that the plugin cannot delete saved searches or change account email. Do not invoke research tools as though they could perform these actions and do not claim success. Direct the user to account settings or support when appropriate.",
+              "prompt": "Delete my saved searches and change my MarketCheck account email."
+            },
+            {
+              "description": "Unavailable private owner information. Explain that MarketCheck cannot retrieve an owner's personal name and address. Do not invoke VIN/history tools to identify an owner, infer an owner from a dealer address, or fabricate personal information. Offer vehicle specifications or advertised listing history instead.",
+              "prompt": "Show me the owner's name and address for VIN 1FTEW1CPXLKE33188."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. Usage is billed by MarketCheck outside ChatGPT under the user's existing MarketCheck API plan."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

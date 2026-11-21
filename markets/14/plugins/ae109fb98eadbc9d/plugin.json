@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "suba",
+  "version": "1.0.6",
+  "description": "Translate subtitles through SubA, then use the current chat model to check continuity, save supported corrections and deliver a change log.",
+  "author": {
+    "name": "Vertex Pixels Media LLC",
+    "email": "support@entendu.studio",
+    "url": "https://entendu.studio"
+  },
+  "homepage": "https://entendu.studio/support/suba-publisher.html",
+  "keywords": [
+    "subtitles",
+    "translation",
+    "localization"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "publication": {
+        "release_notes": "Adds a live MCP Apps progress component and revision-pinned review checkpoints. The current chat model reviews paired source/target cues and saves supported corrections to the same job. After it records complete coverage, SubA automatically runs free format/layout QC and prepares the original-format file with a saved semantic/QC change log. Interrupted or unresolved checks retain an explicitly labeled review draft; no retranslation or repeat translation debit.\n\nTwo new account-scoped tools: suba_delivery_progress and suba_complete_review (20 total). Compatible hosts can request chat continuation from the active component through ui/message, with durable duplicate suppression. A rejected or unavailable handoff is explicitly shown; inactive/closed chats are not guaranteed to wake. Backend semantic review is not used. Host review uses the current chat model allowance.\n\nIncludes all 1.0.5 fixes and onboarding improvements. Existing OAuth, billing, target-language guide precedence, timing and speaker preservation, queue admission, Chinese-language availability restrictions and retained-draft access remain in force."
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "SubA provides paid digital subtitle processing. It displays a minute estimate and requires approval before processing. Existing entendu. billing handles account subscriptions and prepaid usage; the plugin does not collect payment-card data.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Account balance",
+              "prompt": "How many SubA minutes do I have? Do not translate anything.",
+              "tools_triggered": "suba_balance",
+              "expected_behavior": "Use the connected user account and report current usable and held minutes without starting translation."
+            },
+            {
+              "description": "First-use guidance",
+              "prompt": "Help me get started and export my source-language subtitles.",
+              "tools_triggered": "suba_balance",
+              "expected_behavior": "Show concise export instructions for the selected platform and an upload checklist explicitly naming source subtitles, optional KNP/approved terminology, studio guide and prior episode. Query actual balance/eligibility without creating a job, granting credits or treating the balance as a new registration offer. Explain any disabled action beside it; no unsupported interactive controls."
+            },
+            {
+              "description": "Synthetic translation with explicit one-minute approval",
+              "prompt": "Use SubA to translate this synthetic SRT from source language English to target language French (France), with the available default target-language guide. Show the rules and estimate first. I approve exactly one billable minute if the displayed estimate is one minute; if it is higher, stop. Do not run additional paid QC. Poll the same job and export in the original format. Preserve all cue IDs and timing.\n1\n00:00:01,000 --> 00:00:03,000\nThe rehearsal starts at noon.\n\n2\n00:00:03,500 --> 00:00:05,500\nPlease bring the blue folder.\n\n3\n00:00:06,000 --> 00:00:09,000\nWe will meet by the stage door.\n",
+              "tools_triggered": "suba_rule_schema, suba_create_job, suba_load_subtitle, suba_validate_rules, suba_estimate, suba_balance, suba_translate, suba_get_job, suba_export, suba_delivery_progress, suba_read_cues, suba_complete_review",
+              "expected_behavior": "Use the supplied synthetic material and authenticated reviewer account only. Resolve the guide into valid rules and show any unresolved questions. Start only after validating rules, confirming a one-minute estimate and sufficient balance. Return the translated three-cue SRT with unchanged IDs/order/timing; do not create duplicate jobs on retries. Stop with a concrete error if any precondition fails. No paid QC is requested. Continue the same active chat through actual job status checks, host continuity review and export; provide factual phase/batch progress and a saved change journal or zero-change report. Do not promise a new background message after the turn ends. Display factual stage progress via suba_delivery_progress. Record actual full semantic review coverage using suba_complete_review only after reading and reviewing every cue. Its complete action starts free post-translation format QC and file preparation automatically. Deliver suba_export with the saved change log; distinguish successful host continuation requests from actual review/delivery completion. If the host rejects continuation, show a concrete fallback and retain the same job."
+            },
+            {
+              "description": "Lossless synthetic round trip",
+              "prompt": "Create a passthrough job from this synthetic SRT and export unchanged, without translation: 1\n00:00:01,000 --> 00:00:03,000\nWelcome to the rehearsal.\n",
+              "tools_triggered": "suba_create_job, suba_load_subtitle, suba_export",
+              "expected_behavior": "Upload the supplied UTF-8 bytes as base64 and export identical bytes; preserve cue ID and timing and consume no translation minutes."
+            },
+            {
+              "description": "Synthetic estimate without charge",
+              "prompt": "Estimate translation of this synthetic SRT from my source language (English) to my target language (French), but do not start: 1\n00:00:01,000 --> 00:00:03,000\nWelcome to the rehearsal.\n",
+              "tools_triggered": "suba_create_job, suba_load_subtitle, suba_estimate",
+              "expected_behavior": "Return the runtime and billable minute estimate without calling suba_translate or charging minutes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Ordinary email translation",
+              "prompt": "Translate this ordinary email into French: Thank you for attending our meeting. Please send the agenda tomorrow. This is not a subtitle task.",
+              "expected_behavior": "Do not invoke SubA for ordinary non-subtitle email translation; answer within the chat or explain the subtitle scope."
+            },
+            {
+              "description": "Video and audio editing",
+              "prompt": "Trim my video to ten seconds and remove the background noise. Do not create or translate subtitles.",
+              "expected_behavior": "Do not invoke SubA for video trimming or noise removal; explain that the plugin processes subtitle files."
+            },
+            {
+              "description": "Film recommendations",
+              "prompt": "Recommend three lighthearted films for the weekend. I do not need subtitles or translation.",
+              "expected_behavior": "Do not invoke SubA for film recommendations unrelated to subtitle work."
+            }
+          ]
+        },
+        "demo_recording_url": "https://entendu.studio/support/suba-review/suba-reference-client-demo.mp4"
+      },
+      "interface": {
+        "displayName": "SubA",
+        "shortDescription": "Subtitle translation & export",
+        "longDescription": "SubA helps professional subtitlers translate, review and export subtitle files using project style guides and approved terminology. It supports SRT, VTT, TTAL, TTML, PXTT and DFXP and requires an entendu. service account. Hosted translation is followed by optional continuity review using the current chat model, with supported corrections saved to the same job and a change journal. Host-model review uses the host tokens or allowance and may be skipped. Read and revise individual cues while preserving cue identities and timing. Outstanding issues remain visible and completed work is available as a clearly labeled review draft. Processing requires confirmation of the estimate. Chinese translation is not offered to general accounts; availability is verified for the connected account. Jobs remain available for seven days; glossary and account records have separate retention. Human review is required before professional delivery. A live progress component shows actual translation batches and reviewed-cue counts in compatible hosts. Recording complete chat-model review starts free format QC and file preparation automatically. Active components may request chat continuation when supported; closed or inactive chats are not guaranteed to wake.",
+        "developerName": "Vertex Pixels Media LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Translate subtitles",
+          "Validate subtitle rules",
+          "Read and revise existing cues",
+          "Export delivery or review drafts",
+          "Review project glossary candidates",
+          "Correct continuity with a change log"
+        ],
+        "websiteURL": "https://entendu.studio/support/suba-publisher.html",
+        "supportURL": "https://entendu.studio/support/user-guide.html",
+        "defaultPrompt": [
+          "Help me get started and export my source-language subtitles.",
+          "Translate this subtitle file into my target language using the attached studio style guide.",
+          "Check my available translation minutes."
+        ],
+        "brandColor": "#34383E",
+        "brandColorDark": "#D8D4CC",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "privacyPolicyURL": "https://entendu.studio/support/suba-privacy.html",
+        "termsOfServiceURL": "https://entendu.studio/support/suba-terms.html"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

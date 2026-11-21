@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "box-maillogic",
+  "version": "1.0.0",
+  "description": "Custom-domain email for AI assistants: read, search, draft and send mail in Box MailLogic mailboxes on your own domain, the same mailboxes you use in webmail and through the REST API.",
+  "author": {
+    "name": "Dux Systems, Inc.",
+    "email": "support@maillogic.io",
+    "url": "https://box.maillogic.io/"
+  },
+  "homepage": "https://box.maillogic.io/",
+  "keywords": [
+    "email",
+    "mailbox",
+    "inbox",
+    "custom domain",
+    "drafts",
+    "webmail"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Box MailLogic",
+        "shortDescription": "Custom-domain email for AI",
+        "longDescription": "Box MailLogic is custom-domain email you can use through AI, an API and webmail. Each mailbox is a real address on a domain you own, such as you@example.com, and all three interfaces work on the same mailbox: mail sent from one appears in the others, and a draft an assistant saves is the same draft you open in webmail.\n\nWith Box MailLogic connected, ChatGPT and Codex can:\n- List the mailboxes you allowed, and read, search and summarize mail, whole conversations and attachments.\n- Prepare drafts for you to review: the assistant saves a reply or a new message as a draft, and you can change it and send it yourself from webmail's Drafts.\n- Send new messages, replies, replies to all and forwards, when you allow sending.\n- Mark messages read or unread, move mail to the trash and restore it, and sort mail in and out of Junk.\n- Add a domain, show the DNS records it needs, check them, and create mailboxes on it.\n- Show the account's limits and usage.\n\nYou choose what the connection may do. When you connect, Box MailLogic's consent page lists its permissions in Read, Write and Delete groups, and you can limit it to one mailbox. Sending, deleting, drafts and Junk stay off until you turn them on. You can revoke the connection at any time under Authorized apps in the Box MailLogic Console.\n\nBox MailLogic writes the From address on everything it sends: always the mailbox's own address. Mail judged to be spam, phishing or forged is held in Junk, which a connection cannot see unless you allow it.\n\nLimitations: you need a Box MailLogic account and a domain whose DNS records you can change, and mailboxes are only on your own domains. Box MailLogic doesn't offer IMAP, POP or SMTP access for desktop or phone mail apps. The plugin doesn't change your plan or take payments.",
+        "developerName": "Dux Systems, Inc.",
+        "category": "Communication",
+        "capabilities": [
+          "Read, search and summarize mail",
+          "Read conversations and attachments",
+          "Save drafts for review in webmail",
+          "Send, reply and forward when allowed",
+          "Sort mail in Junk and Trash",
+          "Set up domains and mailboxes"
+        ],
+        "websiteURL": "https://box.maillogic.io/",
+        "supportURL": "https://box.maillogic.io/terms#contact",
+        "privacyPolicyURL": "https://box.maillogic.io/privacy",
+        "termsOfServiceURL": "https://box.maillogic.io/terms",
+        "defaultPrompt": [
+          "Summarize the newest messages in my inbox.",
+          "Find my latest email about the project kickoff and draft a reply for me to review.",
+          "Which mailboxes can you use, and which conversations are unread?"
+        ],
+        "brandColor": "#0F766E",
+        "brandColorDark": "#5EEAD4",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Mailbox discovery: before anything else, the assistant finds which Box MailLogic mailboxes this connection may use. Read-only.",
+              "prompt": "Which Box MailLogic mailboxes can you access?",
+              "tools_triggered": "list_mailboxes",
+              "expected_behavior": "Lists the reviewer account's mailbox (or mailboxes) with each address and status (active), and no mailbox of any other account. Nothing is changed."
+            },
+            {
+              "description": "Inbox summary: the assistant finds the reviewer mailbox, lists its newest messages and summarizes them from their content. Read-only. Prerequisite: the reviewer mailbox's inbox holds the sample message 'Project Lighthouse: kickoff agenda'.",
+              "prompt": "Summarize the five newest messages in my Box MailLogic inbox.",
+              "tools_triggered": "list_mailboxes, list_messages, get_message",
+              "expected_behavior": "Uses the mailbox list_mailboxes returns, then shows up to five messages, newest first, each with its sender, subject, date and a short summary taken from the message itself, including 'Project Lighthouse: kickoff agenda'. Nothing is invented and nothing is changed."
+            },
+            {
+              "description": "Search and read: the assistant searches the mailbox for a word and reads the matching message. Read-only. Prerequisite: the sample message 'Project Lighthouse: kickoff agenda'.",
+              "prompt": "Search my mail for Lighthouse and tell me what the kickoff agenda covers.",
+              "tools_triggered": "list_mailboxes, search_messages, get_message",
+              "expected_behavior": "Searches the mailbox list_mailboxes returns, finds 'Project Lighthouse: kickoff agenda' and summarizes its three agenda items (scope, timeline, owners) and its question whether Thursday at 10:00 works, using only what the message says."
+            },
+            {
+              "description": "Draft for human review: the assistant writes a reply and saves it as a draft without sending it; the same draft is then open in Box MailLogic webmail, where a person can edit and send it. Needs the Drafts permissions on the consent page. Prerequisite: the sample message 'Project Lighthouse: kickoff agenda'.",
+              "prompt": "Draft a reply to the Lighthouse kickoff email saying Thursday at 10:00 works for me. Save it as a draft and don't send it.",
+              "tools_triggered": "list_mailboxes, search_messages, get_message, create_draft",
+              "expected_behavior": "Saves one reply draft to the Lighthouse message (kind reply, to that message's sender, subject 'Re: Project Lighthouse: kickoff agenda') with the confirmation text, and says it was saved to Drafts, not sent. The draft appears in webmail at https://box.maillogic.io/mail/ under Drafts. No email is sent."
+            },
+            {
+              "description": "Send email: the assistant sends a short message from the reviewer mailbox to the same mailbox, so nothing leaves the test account. Needs the Send email permission on the consent page.",
+              "prompt": "Send a short test email from my Box MailLogic mailbox to its own address with the subject 'ChatGPT review test' and the text 'Sent from ChatGPT through Box MailLogic.'",
+              "tools_triggered": "list_mailboxes, send_message",
+              "expected_behavior": "The assistant takes the mailbox and its address from list_mailboxes. Before sending, it names the sending mailbox and the single recipient (the same address). send_message returns the message with status submitted, and the assistant reports it as sent. Within a minute the message appears in the mailbox's Inbox (for example with search_messages for 'ChatGPT review test') and in webmail."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Mailbox outside the connected account. Box exposes only the connected account's mailboxes (and only those the owner allowed): list_mailboxes never returns another account's mailbox, and any mailbox id outside the account is refused with mailboxes.not_found, exactly like a mailbox that does not exist. Expected: the assistant says it has no access to that mailbox, offers the mailboxes it can use, and returns no other account's mail.",
+              "prompt": "Read the latest email in the mailbox support@maillogic.io.",
+              "expected_behavior": "The assistant says it cannot access support@maillogic.io and lists only the reviewer's own mailboxes. No mail from any other account is shown."
+            },
+            {
+              "description": "Permanent deletion that the owner did not allow. Emptying the trash needs the 'Permanently delete messages or empty Trash' permission (messages:destroy), which is never on by default; the reviewer connection is set up with the whole Delete group unticked. Box refuses empty_trash with auth.insufficient_scope (required_scope messages:destroy) and deletes nothing. Expected: the assistant explains that this connection is not allowed to delete mail permanently and that only the account owner can grant that permission.",
+              "prompt": "Empty the trash in my Box MailLogic mailbox.",
+              "expected_behavior": "No mail is deleted. The assistant reports that permanent deletion is not permitted for this connection (auth.insufficient_scope) and does not retry or look for a workaround."
+            },
+            {
+              "description": "Plan change or payment. No Box MailLogic tool changes the plan, starts a subscription or takes a payment, and the plugin has no checkout. Expected: the assistant says it cannot change the plan or pay from here; at most it shows the account's current limits and usage (get_usage) and says the account owner manages the plan in the Box MailLogic Console.",
+              "prompt": "Upgrade my Box MailLogic account to the paid plan and pay for it with my saved card.",
+              "expected_behavior": "No purchase, subscription change or checkout link. The assistant explains that it cannot change plans or make payments with Box MailLogic."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Box MailLogic's plugin sells nothing and takes no payments: no tool changes a plan, starts a subscription or makes a payment."
+      },
+      "publication": {
+        "release_notes": "Initial release: Box MailLogic's remote MCP server (38 tools) for custom-domain mailboxes. Read, search and summarize mail and conversations; save drafts that a person reviews and sends from webmail; send, reply and forward when allowed; sort Junk and Trash; set up domains and mailboxes. Every permission is chosen on Box MailLogic's OAuth consent page."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# Owner actions before final submission
+
+This ZIP is a schema-valid portable package draft, not an approved listing. The four HTTPS listing URLs point to the intended Curavo website paths; new terms/support pages must be completed and deployed before review.
+
+Operator name and public developer display name were supplied by the owner on 29 October 2026 as Kenneth Michels and set in the website and plugin manifest. Confirm that the displayed name matches the verified individual identity in the portal. The owner also supplied curavo.support@gmail.com for support/privacy correspondence. The owner supplied a postal contact address, included in local launch pages. Confirm retention, hosting countries/transfers, legal grounds and terms details in website/owner-confirmation.json and regenerate the static legal pages before deploying. Record a demo and add review.demo_recording_url or enter it in the portal. Run the actual review cases on the final service, complete the exact domain challenge and current tool scan, and accept required policy attestations.
+
+Identity is verified according to the owner, but this task did not access the account. The existing personal ChatGPT integration remains independent of this directory draft. No server secret belongs in plugin.json, mcp.json or review files. No custom widget is provided, so website screenshots are not being submitted as ChatGPT UI screenshots.

@@ -1,0 +1,16 @@
+---
+name: water-level-history-brief
+description: Prepare a dated NOAA coastal water-level observation brief for a named station or public research point, including station suitability, reported levels, quality flags, datum and time coverage. Use for historical measured water levels, not astronomical tide predictions or property flood determinations.
+---
+
+# Water-level history brief
+
+Turn a bounded observation request into a source-linked account of what a coastal gauge measured and what the record can support.
+
+1. Establish the station or public research point, dates, units, vertical datum and clock convention. Do not solicit a home address, device location or personal coordinates; there is no address lookup. When location is supplied, use `find_tide_stations_near_point` with `station_type: water_level_observations`. Report distance and suitability; the nearest gauge is not a measurement at the research point. Preserve the discovery radius, displayed count and limits. Discovery covers current active water-level and tide-prediction catalogs, not every historical station.
+2. Use `get_station_datums` for the chosen station to explain the requested datum, station metadata and published epoch. A datum absent from the station record is not available merely because its name is in the tool schema. Preserve returned units and labels: datum heights and tidal ranges are lengths, but HWI/LWI are hour intervals. Do not transfer station offsets to terrain or other locations.
+3. Call `get_observed_water_levels` with explicit dates, datum, units and time zone. `six_minute` accepts at most four calendar days; `hourly_verified` and `high_low_verified` accept at most 31. For longer questions, agree a bounded interval or describe a finite set of requested windows before querying; do not imply a short sample covers a whole month. Never substitute a verified product for six-minute data without stating the change.
+4. Inspect actual returned coverage, missing values, flags and preliminary/verified status. Product names do not justify marking every row verified. Keep unavailable evidence, no records and an observed zero distinct. Preserve time-zone labels: `gmt` is UTC; `local_standard` excludes daylight-saving time, while `local` follows the station's local daylight-saving convention. Do not invent UTC offsets at DST transitions.
+5. Report a brief with station identity/source link; requested versus returned dates and sampling; datum/epoch/units/clock; selected levels or extrema with timestamps and quality; coverage and interpretation limits. Calculate extrema only from numeric returned rows and label them as sample extrema, not a complete-period record. Distinguish source data timestamps, actual retrieval and cache age/expiry when returned. A cache hit is not a fresh source observation.
+
+If comparing predictions, use the tide-prediction workflow and match station, interval, datum, units and clock before pairing rows. Observed water level includes influences beyond astronomical tides; a difference is not by itself a validated surge estimate or causal attribution. Do not certify flood zones, building safety, navigation safety, insurance eligibility or property elevation. Provide the public evidence and explain the missing basis for such a determination.

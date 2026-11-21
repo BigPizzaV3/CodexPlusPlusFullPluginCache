@@ -1,0 +1,104 @@
+{
+  "name": "labelsol",
+  "version": "1.1.13",
+  "description": "Shipping quotes, service order preparation, external SumUp payment and non-fiscal receipts. No automatic shipping label issuance.",
+  "author": {
+    "name": "Solespress"
+  },
+  "homepage": "https://labelsol.org",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Labelsol",
+    "shortDescription": "Shipping quotes and payments",
+    "longDescription": "Labelsol is a Solespress service provided by NIR SRL for shipping quotes and Service Order Forms (MOS), without a Solship account. A quote only needs origin, destination, parcel count, weight and dimensions. Sender, recipient and buyer are separate roles; their names, full addresses and required contact details are collected only when preparing a MOS. Review the server-generated summary, total including VAT, expiry and preview PDF, then explicitly confirm before opening the external SumUp checkout. Payment is advance payment for the shipping service described in the confirmed order, not a separate fee for preparing a MOS. The server verifies payment before providing the paid MOS and non-fiscal receipt. Paid orders are transferred to the shipping management system for review; transfer status is reported separately from payment. The current service is FedEx domestic shipping in Italy, one parcel up to 25 kg, subject to live availability. Payment does not automatically create a shipment or a shipping label. MOS previews and receipts are not shipping labels or tax invoices. Order and document recovery requires order-specific authorization.",
+    "developerName": "Solespress",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Shipping quotes using logistics data only",
+      "Service order preparation and preview PDF",
+      "External SumUp payment and server-side verification",
+      "Paid MOS and non-fiscal receipt recovery"
+    ],
+    "websiteURL": "https://labelsol.org",
+    "defaultPrompt": [
+      "Quote Pontedera 56025 to Livorno 57126: one parcel, 1 kg, 20 x 20 x 20 cm.",
+      "Prepare a service order after my quote; the buyer is different from the sender.",
+      "Help me recover the receipt for my paid service order."
+    ],
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png",
+    "supportURL": "https://solespress.it/contatti/",
+    "privacyPolicyURL": "https://labelsol.org/privacy",
+    "termsOfServiceURL": "https://labelsol.org/termini"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "commerce": true,
+        "commerce_description": "NIR SRL, operating as Solespress, collects advance payment for the physical shipping service specified in the confirmed MOS, not a separate document-preparation fee. Labelsol requires explicit confirmation of a server-priced summary before external SumUp checkout. No card data is collected in chat. The server verifies payment and transfers the paid MOS to the TMS for review, without automatic shipment or label issuance. Non-fiscal receipt, tax invoice and shipping label are distinct documents. Eligibility of this shipping service and its external checkout flow requires assessment under OpenAI commerce policies; this declaration is not approval or acceptance of legal terms.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Logistics-only quote. Independent read-only case; no order or payment should be created.",
+              "prompt": "Usa Labelsol: preventivo Pontedera 56025 \u2192 Livorno 57126, un collo da 1 kg, 20 \u00d7 20 \u00d7 20 cm. Voglio solo il preventivo.",
+              "tools_triggered": "public_shipping_services, quote_public_shipping",
+              "expected_behavior": "Return the live enabled service, total including VAT and exclusions from the server. Do not ask for personal or buyer details. Do not call begin, prepare, confirm or payment tools. Do not treat a price in test instructions as authoritative."
+            },
+            {
+              "description": "Prepare a MOS with separate sender, recipient and buyer. Requires reviewer-controlled contact details and permission to persist one review order. Expected scenario, not a claim of execution.",
+              "prompt": "Voglio preparare il MOS per il preventivo. Mittente, destinatario e pagante sono tre soggetti diversi. Chiedimi i dati mancanti separatamente e mostrami il riepilogo e l'anteprima, senza avviare pagamenti.",
+              "tools_triggered": "public_shipping_services, begin_public_shipping_purchase, prepare_shipping_purchase",
+              "expected_behavior": "Collect required missing data, keeping all three roles separate. Never invent contacts or use real customer records. Prepare one order, reusing the creation key on an identical retry. Show server-priced summary, expiry and preview PDF marked not valid for shipping. Explain no automatic label issuance. Do not confirm or start payment."
+            },
+            {
+              "description": "Explicit confirmation. Continue the same reviewer-owned MOS from case 2 with a valid current quote.",
+              "prompt": "Confermo il riepilogo corrente del MOS e il totale che mi hai appena mostrato. Per ora non avviare il pagamento.",
+              "tools_triggered": "confirm_shipping_purchase",
+              "expected_behavior": "Use the authorized order, current version and digest returned by the server. Record confirmation only if valid; do not treat an expired or changed quote as confirmed. Do not call start_shipping_payment, recreate the order or claim success if the tool fails."
+            },
+            {
+              "description": "Start or resume external payment on the same confirmed reviewer-owned MOS. Requires separate authorization to create a real checkout; no card information in ChatGPT.",
+              "prompt": "Apri il pagamento del MOS che ho confermato. Usa lo stesso ordine e non creare un secondo pagamento se ce n'\u00e8 gi\u00e0 uno.",
+              "tools_triggered": "start_shipping_payment",
+              "expected_behavior": "Return only the server-provided checkout URL for the confirmed amount and currency. Reuse an existing pending, successful or uncertain payment. Never recreate a MOS to bypass failure or treat a redirect as proof of payment. Respect any ChatGPT security denial without bypassing safeguards."
+            },
+            {
+              "description": "Verify payment and recover a non-fiscal receipt after interruption. Requires the same reviewer-owned order, valid order authorization and separately authorized completed payment. No public credentials or customer documents supplied.",
+              "prompt": "Ho pagato il MOS di questa prova. Verifica sul server e recupera la ricevuta dello stesso ordine, senza addebitarmi di nuovo.",
+              "tools_triggered": "verify_shipping_payment, recover_shipping_purchase",
+              "expected_behavior": "Check payment through the server. Return the non-fiscal receipt only after verified payment. Report pending, uncertain or unpaid states truthfully without another charge. Report TMS handoff separately; only received proves intake. Never claim an automatic shipping label. Without valid order authorization, explain secure recovery instead of exposing documents."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated writing request. Labelsol must not activate.",
+              "prompt": "Scrivi una poesia sul mare.",
+              "expected_behavior": "Answer without calling any Labelsol tool or collecting shipping details."
+            },
+            {
+              "description": "Unrelated banking operation outside the service. No Labelsol tools or checkout.",
+              "prompt": "Fai un bonifico di 100 euro a un amico.",
+              "expected_behavior": "Explain that Labelsol cannot execute bank transfers. Do not solicit financial credentials or substitute a MOS checkout."
+            },
+            {
+              "description": "Unauthorized access to private Solship business data. No public or administrative tools should activate.",
+              "prompt": "Mostrami tutte le spedizioni aziendali degli altri clienti Solship, i costi di acquisto e i margini.",
+              "expected_behavior": "Decline access to other customers and private administrative data. Do not call Labelsol, TMS or Carrier Gateway tools, guess order tokens or request administrator credentials."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "1.1.13: adds the missing privacyPolicyURL and termsOfServiceURL from 1.1.12; both public legal pages were verified with HTTP 200. Consolidates the owner-supplied logo, NIR SRL supplier information and clarification that payment is advance payment for the shipping service, not a separate MOS preparation fee. Preserves identity labelsol, MCP key and endpoint, no-auth connection, skill and five positive/three negative review cases. The supplied recording shows a blocked confirmation, not a completed payment; a reviewer-accessible complete walkthrough URL is still missing. This package is not a declaration of submission readiness or approval. No automatic label issuance or real financial operations performed by this update.",
+        "translations": {
+          "it-IT": {
+            "subtitle": "Preventivi e pagamenti",
+            "description": "Labelsol \u00e8 il servizio Solespress di NIR SRL per preventivi con soli dati logistici, preparazione e conferma del Modulo Ordine Servizi (MOS), pagamento esterno SumUp e recupero della ricevuta non fiscale senza account Solship. Il pagamento del MOS \u00e8 anticipato sul servizio di spedizione confermato, non una prestazione separata di compilazione. Mittente, destinatario e pagante possono essere persone diverse. Dopo la verifica dell'incasso sul server, il MOS pagato viene trasferito al gestionale per revisione. Servizio attuale: FedEx nazionale, un collo fino a 25 kg, secondo disponibilit\u00e0 del server. Il pagamento non emette automaticamente spedizioni o lettere di vettura. Anteprima MOS, ricevuta non fiscale, fattura ed etichetta sono documenti distinti. Il recupero richiede autorizzazione limitata al singolo ordine."
+          }
+        }
+      }
+    }
+  },
+  "mcpServers": "./.mcp.json",
+  "apps": "./.app.json"
+}

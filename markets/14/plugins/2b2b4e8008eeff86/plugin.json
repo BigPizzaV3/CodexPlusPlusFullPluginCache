@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "formify-e-signing",
+  "version": "1.4.0",
+  "description": "Formify lets you send documents for e-signing through ChatGPT. Describe what you need in plain language, and Formify prepares the document, sends it for digital signature and helps you follow up. The paperwork that never got done now gets done in one conversation.",
+  "author": {
+    "name": "Formify"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Send the NDA template to Anna (anna@example.com) for signing using Formify.",
+          "Check whether Anna has signed the NDA. If not, send her a reminder.",
+          "Download the NDA signed by Anna."
+        ],
+        "developerName": "Formify",
+        "displayName": "Formify",
+        "longDescription": "Formify lets you send documents for e-signing through ChatGPT. Describe what you need in plain language, and Formify prepares the document, sends it for digital signature and helps you follow up. The paperwork that never got done now gets done in one conversation.\n\nFormify comes with five skills:\n\n- Formify PDF Forms: Build fillable PDF forms and contract templates with fillable fields.\n- Formify Send for Signature: Send contracts, NDAs, agreements or any PDF for e-signature by email, SMS or WhatsApp.\n- Formify Public Signing Links: Publish one reusable signing link or QR code that anyone can open and sign. Connect a webform or HTML form on your website to it, and each visitor lands in their own prefilled document before they sign.\n- Formify Signature Tracking: See who has signed, send reminders, correct a recipient, cancel a request and download the signed PDF.\n- Formify Identity Verification: Verify the signer with BankID or Live ID when you need to be sure who is signing.\n\nBankID and Live ID signatures are Advanced Electronic Signatures (AES) under the EU eIDAS Regulation. The signing methods available depend on your Formify account.",
+        "privacyPolicyURL": "https://formify.eu/privacy/policy",
+        "shortDescription": "AI-assisted e-signing",
+        "supportURL": "https://formify.eu/",
+        "termsOfServiceURL": "https://formify.eu/privacy/terms",
+        "websiteURL": "https://formify.eu/",
+        "logo": "./assets/formify-icon.png",
+        "composerIcon": "./assets/formify-icon.png"
+      },
+      "publication": {
+        "release_notes": "Updated the plugin description to cover all five skills, HTML form prefill and signing methods. Bundled skills are unchanged from 1.3.5."
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Send a document for signature from an existing template, with its form fields pre-filled. Required setup: a reviewer-accessible NDA template with two signee slots and four editable text fields for the disclosing party, receiving party, effective date and purpose. For this basic case, use digital_ink template defaults and no identity-document-copy fields. If the account offers an AI assistant, the reviewer answers the optional assistant question before approving the final summary. The sample addresses test invitation creation, not delivery to real inboxes.",
+              "prompt": "Using Formify, send the NDA template to Anna Berg (anna@example.com) and Erik Sund (erik@example.com) for signing, and name the document \"NDA test\". The disclosing party is Anna Berg, the receiving party is Erik Sund, the effective date is today, and the purpose is \"demonstration purposes\". Use English for the invitation and no personal message.",
+              "expected_behavior": "Calls get_account_capabilities, finds the NDA template through list_templates, and reads get_template and get_template_fields. Uses the actual returned template ID, signee slots and field names. Shows Anna Berg (anna@example.com), Erik Sund (erik@example.com), the four requested field values, English invitation language and no personal message. Asks for any still-required capability-dependent choice, then obtains yes/no confirmation before sending. Calls create_document with templateId, name=\"NDA test\", language=\"en\", the two signeeDetails, fields supplied at creation and fieldsReadonlyMode=\"filled\". Reports the actual creation result and returned document identity; only reports invitations sent when supported by the result. If processing is still pending, explains that status rather than claiming completed delivery.",
+              "tools_triggered": "get_account_capabilities, list_templates, get_template, get_template_fields, create_document"
+            },
+            {
+              "description": "Check the signing status of an existing document and remind the signees who have not signed yet. Required setup: \"Example document 2\" exists in the reviewer account, has status awaiting_signatures, and has at least one signee with signatureStatus awaiting_signature and reminderCooldown=0. Use sample signees and keep the fixture eligible when rerunning the case.",
+              "prompt": "In Formify, check the status of my document called \"Example document 2\" and send a reminder to anyone who hasn't signed it yet.",
+              "expected_behavior": "Locates \"Example document 2\" through list_documents (following nextOffset as necessary), then reads get_document and reports its current status and each signee's signatureStatus. Checks status is awaiting_signatures and reminderCooldown is zero for the selected unsigned signees. Shows exactly who will be reminded and obtains yes/no confirmation. Calls send_reminder once with the actual documentId and a nonempty signeeIds array containing only eligible signees whose signatureStatus is awaiting_signature. Reports the actual result and recipients. If the fixture is ineligible or on cooldown, explains the returned status or wait instead of sending, retrying or claiming success.",
+              "tools_triggered": "list_documents, get_document, send_reminder"
+            },
+            {
+              "description": "Find a document that has been signed by all parties and get a download link for the signed PDF. Required setup: \"Example document 1\" exists in the reviewer account with status completed and a signed PDF available.",
+              "prompt": "In Formify, find the signed document \"Example document 1\" and give me a download link for the signed document.",
+              "expected_behavior": "Finds \"Example document 1\" through list_documents (following nextOffset as necessary), uses get_document to confirm status completed, and calls get_signed_document_url with that documentId. Returns the actual downloadUrl from the tool response and states the returned expiresInMinutes value (10 minutes in 1.3.5). Does not invent a URL or offer a signed PDF for an incomplete document.",
+              "tools_triggered": "list_documents, get_document, get_signed_document_url"
+            },
+            {
+              "description": "Revoke a document sent by mistake so unsigned signees can no longer use their signing invitation links. Required setup: run positive case 1 first and leave its \"NDA test\" document unsigned with status created or awaiting_signatures. Use the document identity returned in that case to avoid confusing documents with the same name. Recreate the fixture before repeating this irreversible operation.",
+              "prompt": "I sent the \"NDA test\" document by mistake. Revoke it in Formify.",
+              "expected_behavior": "Locates the \"NDA test\" document created in positive case 1, reads get_document to confirm its identity and that status is created or awaiting_signatures, and shows a summary. Warns that revoking is irreversible and obtains yes/no confirmation before calling revoke_document with the actual documentId. Reports successful revocation only after the tool succeeds and explains that unsigned signees' invitation links become invalid. Does not revoke a completed document or claim that every previously signed recipient loses all access.",
+              "tools_triggered": "list_documents, get_document, revoke_document"
+            },
+            {
+              "description": "Subscribe an external system to document events, then remove the subscription. This case checks webhook registration and deletion only, not end-to-end event delivery. https://example.com/formify-webhook is the original illustrative endpoint; acceptance of that endpoint must be checked before running. For a delivery test, use a separate reviewer-controlled HTTPS receiver and update the prompt accordingly. The reviewer confirms deletion when asked.",
+              "prompt": "Using Formify, register a webhook named \"Legal updates\" for the document.completed and document.revoked events at https://example.com/formify-webhook. Confirm what was registered, then delete it again.",
+              "expected_behavior": "Calls register_webhook with name=\"Legal updates\", webhookUrl=\"https://example.com/formify-webhook\" and eventTypes containing exactly document.completed and document.revoked. Reports the actual creation result, including the registered name, endpoint and event types, and uses the returned webhookId. Obtains yes/no confirmation before calling delete_webhook for that exact webhookId. After a successful deletion, confirms removal and explains that future delivery stops. Does not claim that a webhook event was actually delivered to the example endpoint. If registration fails, reports the error without inventing an ID or pretending to delete a subscription.",
+              "tools_triggered": "register_webhook, delete_webhook"
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for calendar scheduling.",
+              "prompt": "Schedule a meeting with Alex tomorrow at 2 PM.",
+              "expected_behavior": "The app should not be invoked because calendar scheduling is outside Formify's supported e-signing workflows."
+            },
+            {
+              "description": "Do not trigger for legal interpretation of a signed document.",
+              "prompt": "Is the signed NDA legally enforceable?",
+              "expected_behavior": "The app should not be invoked because providing legal interpretation or advice is outside Formify's supported e-signing workflows."
+            },
+            {
+              "description": "Do not trigger for a different e-signature provider.",
+              "prompt": "Send this PDF for signature using DocuSign.",
+              "expected_behavior": "The app should not be invoked because the request targets another e-signature service rather than Formify."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1UPc69isGyf7CgSiJ__RCXvpGfyfb3v5I/view?usp=drive_link"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

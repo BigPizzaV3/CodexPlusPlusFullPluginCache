@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "youcal",
+  "version": "1.0.6",
+  "description": "YouCal - AI Calorie Tracker: log meals, drinks, water, workouts and weight and see your daily calories and macros from ChatGPT.",
+  "author": {
+    "name": "Megamoon Ventures FZCO",
+    "email": "support@youcal.app",
+    "url": "https://youcal.app"
+  },
+  "homepage": "https://youcal.app/chatgpt/",
+  "license": "Proprietary",
+  "keywords": [
+    "youcal",
+    "ai calorie tracker",
+    "calorie tracker",
+    "calorie counter",
+    "food tracker",
+    "macro tracker",
+    "nutrition",
+    "hydration"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "YouCal - AI Calorie Tracker",
+        "shortDescription": "Track calories by chatting",
+        "longDescription": "YouCal - AI Calorie Tracker is a calorie, macro and nutrition tracker. This plugin connects your YouCal account to ChatGPT so you can log what you eat and drink and check your day without opening the app.\n\nDescribe a meal in your own words, like \"two scrambled eggs and a slice of toast\", and YouCal estimates the calories, protein, carbs, fat and key nutrients and adds it to your diary. Log water, coffee, tea, soft drinks, juice and other drinks, and they count toward both your calories and your hydration. Log a workout or today's weight.\n\nAsk how your day is going and see calories, protein, carbs, fat and water against the goals you set in the app, with your meals grouped by time of day. Check the nutrition of a food before you eat it without logging anything. Remove an entry you logged by mistake.\n\nEverything you log appears in the YouCal app on your phone. Nutrition values are estimates for general information, not medical advice.\n\nThe plugin only reads and changes the YouCal account you sign in with. Reading and adding entries are separate permissions you approve when you connect, and you can disconnect at any time.",
+        "developerName": "Megamoon Ventures FZCO",
+        "category": "Healthcare",
+        "capabilities": [
+          "Log meals and snacks from a plain description",
+          "Log water, coffee, tea, soft drinks, juice and other drinks",
+          "See today's calories, protein, carbs, fat and water against your goals",
+          "Check the nutrition of a food before you eat it",
+          "Log workouts and your weight",
+          "Remove an entry you logged by mistake"
+        ],
+        "websiteURL": "https://youcal.app",
+        "supportURL": "https://youcal.app/chatgpt/",
+        "privacyPolicyURL": "https://youcal.app/privacy/",
+        "termsOfServiceURL": "https://youcal.app/terms/",
+        "defaultPrompt": [
+          "How am I doing on calories today?",
+          "Log two scrambled eggs and a slice of toast",
+          "I just drank 500 ml of water"
+        ],
+        "brandColor": "#E8364A",
+        "brandColorDark": "#FF7A45",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Show today's totals against the user's goals",
+              "prompt": "How am I doing on calories and protein today in YouCal?",
+              "tools_triggered": "get_daily_summary",
+              "expected_behavior": "Returns today's calories, protein, carbs, fat and water for the demo account next to its goals, with today's entries grouped by meal time. Does not invent entries."
+            },
+            {
+              "description": "Estimate nutrition without logging",
+              "prompt": "How much protein is in 150 g of grilled chicken breast? Don't log it.",
+              "tools_triggered": "estimate_nutrition",
+              "expected_behavior": "Returns an estimate of calories, protein, carbs and fat for 150 g of grilled chicken breast and says nothing was logged. The diary is unchanged."
+            },
+            {
+              "description": "Log a meal from a description",
+              "prompt": "Log two scrambled eggs and a slice of whole-wheat toast for breakfast.",
+              "tools_triggered": "log_food",
+              "expected_behavior": "Adds the breakfast to today's diary with estimated calories and macros and confirms what was logged. Requires 'Allow ChatGPT to add and remove entries' on the connection."
+            },
+            {
+              "description": "Log drinks and water",
+              "prompt": "Add a 330 ml can of Coke and 500 ml of water.",
+              "tools_triggered": "log_drink",
+              "expected_behavior": "Logs the cola with its calories and both drinks toward today's water, then confirms the new water total."
+            },
+            {
+              "description": "Remove an entry logged by mistake",
+              "prompt": "Remove the scrambled eggs and toast breakfast I just logged.",
+              "tools_triggered": "delete_entry",
+              "expected_behavior": "Finds the breakfast entry logged in the previous test, asks the user to confirm, removes only that entry and reports today's updated calorie total. Other entries are unchanged."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Medical diagnosis is outside the plugin",
+              "prompt": "My blood sugar is 210 after meals, do I have diabetes?"
+            },
+            {
+              "description": "Ordering food is not something the plugin does",
+              "prompt": "Order me a pizza for dinner."
+            },
+            {
+              "description": "General recipe request unrelated to the user's diary",
+              "prompt": "Give me a recipe for lasagna."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell anything, show plans or prices, or link to checkout. It only reads and logs entries in the user's own YouCal account."
+      },
+      "publication": {
+        "release_notes": "Version 1.0.6 addresses the annotation review. Every tool explicitly returns boolean readOnlyHint, destructiveHint, openWorldHint and idempotentHint; null or omitted flags are rejected at startup.\n\nAnnotation rationale (readOnly / destructive / openWorld / idempotent):\nget_daily_summary, get_food_log, get_goals and get_progress: true / false / false / true. They retrieve only the authenticated account's existing diary, goals or progress without changing those records.\nestimate_nutrition: true / false / false / true. A computation through the fixed YouCal nutrition service; no diary/profile change, web search, user-selected URL or arbitrary destination.\nlog_food, log_drink and log_workout: false / false / false / false. They add new private diary entries and update their derived totals; repeats can add another entry.\nlog_weight: false / true / false / false. It replaces any existing measurement for the selected date, updates today's profile weight, and emits a new synchronization event on each call. The previous measurement is not retained.\ndelete_entry: false / true / false / false. It permanently removes one resolved entry, linked drink records where applicable, and reverses the affected totals; name-based repeat calls can resolve another matching entry.\n\nAll tools stay within the connected account or YouCal's fixed nutrition service. Operational security audit and rate-limit counters are persisted for every call; the read-only classifications above describe diary/profile effects, not an absence of service telemetry. Existing OAuth scopes and explicit write consent remain enforced."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

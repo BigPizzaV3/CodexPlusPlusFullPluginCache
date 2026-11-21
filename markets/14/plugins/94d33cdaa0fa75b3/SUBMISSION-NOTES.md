@@ -1,0 +1,1 @@
+Initial upload package using validated root plugin.json and mcp.json schema layout. Add extensions.com.openai.review.demo_recording_url and bump version when demo recording is supplied. Five positive and three negative review test cases. Use exact single MCP URL.

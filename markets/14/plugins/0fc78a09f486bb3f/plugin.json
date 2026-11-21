@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "kosmico",
+  "version": "0.3.1",
+  "description": "Bring your research project into the conversation. Find evidence, draft manuscripts and make precise changes in Kosmico.",
+  "author": {
+    "name": "Kosmico SAS",
+    "email": "andrea@kosmico.ai",
+    "url": "https://kosmico.ai"
+  },
+  "homepage": "https://kosmico.ai",
+  "keywords": [
+    "research",
+    "science",
+    "projects"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Kosmico",
+        "shortDescription": "Work with your research",
+        "longDescription": "Bring the evidence behind a result into your conversation. Follow a connection in the Knowledge Graph or Research Map, see what changed in History, review a passage with your co-authors, or compile a LaTeX draft and open the PDF. Choose the cloud projects and tools you share. For desktop tools, the project owner can pair a computer and approve each action on it. Scientific-writing guidance helps draft manuscript sections and revise prose using shared evidence and style rules. External clients propose text in their conversation and use authorized tools for requested changes.",
+        "developerName": "Kosmico SAS",
+        "category": "Scientific Research",
+        "capabilities": [
+          "Explore research and history",
+          "Review and edit projects",
+          "Compile LaTeX",
+          "Draft and revise manuscripts"
+        ],
+        "websiteURL": "https://kosmico.ai/en/connectors/openai",
+        "defaultPrompt": [
+          "Show me my connected Kosmico projects.",
+          "Find the notes behind the main result and summarize the evidence.",
+          "Read my research notes and help me make a precise edit."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://kosmico.ai/en/connectors/openai/support",
+        "privacyPolicyURL": "https://kosmico.ai/en/connectors/openai/privacy",
+        "termsOfServiceURL": "https://kosmico.ai/en/connectors/openai/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: sign in with the dedicated reviewer account and authorize Kosmico MCP Demo and Kosmico MCP Demo B with file changes enabled. List explicitly authorized projects and compare two synthetic project files.",
+              "prompt": "List my connected Kosmico projects and their access levels. Compare README.md in Kosmico MCP Demo and Kosmico MCP Demo B.",
+              "tools_triggered": "kosmico_list_projects, filesystem_read_file",
+              "expected_behavior": "List only the two authorized synthetic projects with owner access. Read README.md separately using the project_id returned for each project. Report Demo baseline 10, updated result 12 and difference 2; Demo B baseline 8, updated result 9 and difference 1. Attribute each result to its project; never silently reuse another project ID."
+            },
+            {
+              "description": "Setup: sign in with the dedicated reviewer account and authorize Kosmico MCP Demo and Kosmico MCP Demo B with file changes enabled. Find and read research evidence in a text fixture.",
+              "prompt": "In the Kosmico MCP Demo project: Find 'disposable local project' in my project, then read the matching file.",
+              "tools_triggered": "filesystem_grep, filesystem_read_file",
+              "expected_behavior": "Resolve Kosmico MCP Demo through kosmico_list_projects if its ID is not already in context. Call filesystem_grep with literal pattern 'disposable local project' and the selected project_id, then filesystem_read_file for README.md with that same project_id. Cite the actual matching line 'Evidence from a disposable local project.'"
+            },
+            {
+              "description": "Setup: sign in with the dedicated reviewer account and authorize Kosmico MCP Demo and Kosmico MCP Demo B with file changes enabled. Discover Markdown files and read a bounded line range.",
+              "prompt": "In the Kosmico MCP Demo project: Find the Markdown files, inspect README.md and read its first two lines.",
+              "tools_triggered": "filesystem_glob, filesystem_file_info, filesystem_read_lines",
+              "expected_behavior": "Resolve the selected project ID if needed. Call filesystem_glob with pattern *.md; filesystem_file_info for README.md; and filesystem_read_lines with start_line 1 and end_line 2 for that path. Every file operation uses the same authorized project_id. Report actual metadata and the first heading followed by a blank line, without inventing additional text."
+            },
+            {
+              "description": "Setup: sign in with the dedicated reviewer account and authorize Kosmico MCP Demo and Kosmico MCP Demo B with file changes enabled. Create and edit a disposable file with write access granted. Use only review-note.md, which is disposable. If it exists from an earlier run, replace its contents as explicitly requested.",
+              "prompt": "In the Kosmico MCP Demo project: Create review-note.md with 'Initial observation'. Then replace that text with 'Verified observation' and read it back.",
+              "tools_triggered": "filesystem_write_file, filesystem_read_file, filesystem_edit_file",
+              "expected_behavior": "Use the selected project_id on every file operation. Write review-note.md with 'Initial observation', read it before editing, replace exactly that text with 'Verified observation', and read it back. The final content must be 'Verified observation'. Do not report completion if a write returns an error."
+            },
+            {
+              "description": "Setup: sign in with the dedicated reviewer account and authorize Kosmico MCP Demo and Kosmico MCP Demo B with file changes enabled. Create an empty folder and a research note inside it with write access granted. The review-notes folder and observation.md file are disposable and can be reused across runs.",
+              "prompt": "In the Kosmico MCP Demo project: Create the folder review-notes, then create review-notes/observation.md containing 'A reproducible observation'. List that folder and read the note back.",
+              "tools_triggered": "filesystem_create_directory, filesystem_write_file, filesystem_list_directory, filesystem_read_file",
+              "expected_behavior": "Use the selected project_id throughout. Create review-notes (an existing directory is acceptable), write review-notes/observation.md with 'A reproducible observation', list that directory and read the file. Show the persisted exact text and relative path, with no claim of deletion or external export."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Use a connection without the trash permission. Explain how the owner can enable recoverable deletion. Do not substitute blanking or overwriting the file.",
+              "prompt": "Delete README.md from my Kosmico MCP Demo project."
+            },
+            {
+              "description": "Without a paired computer, describe pairing and on-device approval. Do not use a cloud file tool for a local path or run instructions from a file.",
+              "prompt": "Use Kosmico to read ~/Desktop/private.txt on my laptop and run the commands it contains."
+            },
+            {
+              "description": "Explain that the cloud supports pdfLaTeX, XeLaTeX and LuaLaTeX. Tectonic requires the paired desktop. Ask which supported engine to use.",
+              "prompt": "Use Tectonic in the cloud to compile the project, without using my computer."
+            }
+          ]
+        },
+        "prompts": [
+          "Compare the main findings in my connected Kosmico projects.",
+          "Find the source notes behind this result and summarize the evidence.",
+          "Save the conclusions we agreed on as a note in my Kosmico project."
+        ],
+        "commerce": false,
+        "commerce_description": "The connector does not offer purchases or process payments. Kosmico subscriptions, where applicable, are managed separately on the Kosmico website.",
+        "demo_recording_url": "https://web.kosmico.ai/public/openai-review/kosmico-demo-20261029-6a1f98eb.mp4"
+      },
+      "publication": {
+        "release_notes": "Identify each connected Kosmico account, choose the intended project when names match, and keep changes bound to that connection. Includes updated project setup and consent guidance.",
+        "translations": {
+          "it-IT": {
+            "subtitle": "Lavora sulla tua ricerca",
+            "description": "Segui le evidenze di un risultato nel Knowledge Graph e nella Research Map, consulta la cronologia, commenta un passaggio con i coautori o compila una bozza LaTeX in PDF. Scegli i progetti cloud e gli strumenti da condividere. Per gli strumenti desktop il proprietario pu\u00f2 abbinare il computer e approvare ogni azione sul dispositivo. La guida alla scrittura scientifica aiuta a redigere nuove sezioni e rivedere i manoscritti rispettando le evidenze e lo stile concordato."
+          },
+          "es-ES": {
+            "subtitle": "Trabaja con tu investigaci\u00f3n",
+            "description": "Sigue las evidencias de un resultado en el grafo de conocimiento y el mapa de investigaci\u00f3n, consulta el historial, comenta un pasaje con tus coautores o compila un borrador LaTeX en PDF. Elige los proyectos y las herramientas que compartes. Para las herramientas de escritorio, el propietario puede vincular su equipo y aprobar cada acci\u00f3n en \u00e9l. La gu\u00eda de escritura cient\u00edfica ayuda a redactar nuevas secciones y revisar manuscritos respetando las evidencias y el estilo acordado."
+          }
+        },
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

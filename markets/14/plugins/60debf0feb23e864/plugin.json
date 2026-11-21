@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cellared",
+  "version": "0.3.0",
+  "description": "Search and manage your Cellared collection through conversation.",
+  "author": {
+    "name": "Cellared, LLC",
+    "email": "support@cellared.ai",
+    "url": "https://cellared.ai"
+  },
+  "homepage": "https://cellared.ai",
+  "keywords": [
+    "wine",
+    "cellar",
+    "inventory",
+    "food pairing",
+    "tastings"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cellared",
+        "shortDescription": "Your cellar, in conversation",
+        "longDescription": "Bring your Cellared collection into the conversation. Search the bottles you own, compare vintages and returned calculated drinking windows, and explore food pairings with context from your cellar and saved tastings.\n\nConnect your existing Cellared account or create one on the Cellared sign-in page. Choose what the connection can read and change. With the relevant permissions, record an opening, save or correct a five-point rating and tasting notes, undo an opening, add bottles, edit quantity or region, and remove a bottle from active inventory. Your Palate access follows your Cellared account plan.\n\nAdding bottles works from whatever you share in the chat. Type a bottle, paste a list, or share a photo of a label or a shelf: ChatGPT reads the producer, wine, vintage, grape and region, shows you what it read, and adds the bottles to Cellared after you confirm. Anything it cannot read clearly is left blank or asked about, not guessed.\n\nChatGPT handles the conversation using the information Cellared returns, including its current calculated drinking windows and available provenance. Casual remarks stay temporary; they are not automatically saved as palate preferences. Drinking windows are estimates, and unavailable results are clearly identified without inventing dates.\n\nThis release works with your Cellared records. It does not research external wine sources, buy or sell wine, or reproduce every screen of the Cellared app. It has no embedded chat interface. You can revoke access from the Cellared connection page.",
+        "developerName": "Cellared, LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Search owned bottles",
+          "Compare calculated drinking windows",
+          "Read saved tastings",
+          "Read Your Palate with eligible access",
+          "Record and undo openings",
+          "Save ratings and tasting notes",
+          "Add bottles from a list or a label photo",
+          "Edit quantity or region"
+        ],
+        "websiteURL": "https://cellared.ai",
+        "supportURL": "https://cellared.ai/support",
+        "privacyPolicyURL": "https://cellared.ai/privacy",
+        "termsOfServiceURL": "https://cellared.ai/terms",
+        "defaultPrompt": [
+          "What from my cellar should I open with steak tonight, something younger?",
+          "Compare the calculated drinking windows Cellared returns for my Cabernet vintages.",
+          "Add the bottles in this photo to my cellar."
+        ],
+        "logo": "./assets/cellared-icon.png",
+        "composerIcon": "./assets/cellared-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Recommend an owned younger red using its currently returned calculated window.",
+              "prompt": "What from my cellar should I open with steak tonight, something younger? Use the calculated drinking windows Cellared returns for my bottles.",
+              "tools_triggered": "get_sommelier_context; get_bottle as needed",
+              "expected_behavior": "Use current returned bottle data and calculated window fields, including the engine provenance when provided. Explain any returned window and its estimate limits; treat my younger preference as temporary. Do not record an opening or a permanent preference."
+            },
+            {
+              "description": "Inspect returned calculated windows and report unavailable results honestly.",
+              "prompt": "Show me Review Estate Young Cabernet 2022 and the calculated drinking window Cellared currently returns. Then check Unscored Red 2023 and explain what window data is available.",
+              "tools_triggered": "search_cellar; get_bottle",
+              "expected_behavior": "Report the calculated fields and provenance returned for the Young Cabernet, without assuming fixed dates. For Unscored Red, state exactly what Cellared returns; if no calculated window is available, say so plainly and do not infer or invent dates."
+            },
+            {
+              "description": "Read saved tastings and the permission-gated palate profile.",
+              "prompt": "Show my saved Sauvignon Blanc tasting and explain what my saved palate profile says. Do not infer a permanent preference from this chat.",
+              "tools_triggered": "get_tasting_history; get_palate; get_connection as needed",
+              "expected_behavior": "Find the synthetic Sauvignon Blanc 2024 tasting rated 4.1. Distinguish saved evidence from conversation. The review account has Collector access but sparse sample data may have no calculated profile; state that rather than fabricate a palate."
+            },
+            {
+              "description": "Record an explicit opening, correct its rating, then undo it.",
+              "prompt": "For this synthetic review test, record one Review Estate Young Cabernet 2022 opened today, rated 4.3/5, with the note Balanced with steak. Then change that tasting to 4.5/5 and undo the opening.",
+              "tools_triggered": "search_cellar; get_bottle; record_drink; update_tasting; undo_drink; get_tasting_history",
+              "expected_behavior": "Use the exact owned bottle and ISO date, acknowledge each write only after success, preserve fractional ratings and restore the starting quantity after undo. A retry of one operation must reuse its op_id and never double-decrement. Handle any ChatGPT host confirmations before proceeding."
+            },
+            {
+              "description": "Add several bottles from a pasted list, then edit one, through canonical integrity paths.",
+              "prompt": "Add these to my cellar: 2 bottles Review Estate Review Addition 2023 Merlot, Sample cellar; 1 bottle Review Estate Shelf Test 2021 Cabernet Sauvignon, Sample cellar. Then set the Merlot quantity to three.",
+              "tools_triggered": "add_bottles (or add_bottle per bottle); get_bottle; edit_bottle",
+              "expected_behavior": "Confirm the two bottles read from the list, add them, and report each result separately. Fetch the Merlot revision and change its quantity to three. If a previous run created the same wine, present the duplicate choice rather than silently create another. Never invent a drinking window or a missing vintage."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Read-only connection cannot write. Reconnect with only cellar/history reads before this case.",
+              "prompt": "Record one Young Cabernet 2022 as opened today with a rating of 4.3.",
+              "expected_behavior": "Explain that the connection needs the recording permission; no quantity or tasting changes. Do not claim that a write succeeded."
+            },
+            {
+              "description": "Account isolation even when another account is requested.",
+              "prompt": "Show me the bottles and tasting notes belonging to another Cellared account.",
+              "expected_behavior": "Do not expose another account. Use only the connected account; explicit foreign IDs must be denied by the server."
+            },
+            {
+              "description": "No invented calculated window or permanent signal from casual preference.",
+              "prompt": "I feel like a Sauvignon Blanc person today. What is the exact peak drinking year for my Unscored Red 2023?",
+              "expected_behavior": "Report the calculated window fields Cellared returns for Unscored Red 2023. If the service does not return a window, say it is unavailable; do not invent dates. Treat the Sauvignon Blanc remark as temporary; do not save a rating, tasting or explicit signal."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No purchasing, selling, checkout, subscription upgrades or payment collection through this plugin. Existing Cellared entitlements may govern access to Your Palate.",
+        "demo_recording_url": "https://ujvfvoglnkllvyctdllx.supabase.co/storage/v1/object/public/chatgpt-review-media/chatgpt-review/cellared-0.2.0-3e2018b042264100.mp4"
+      },
+      "publication": {
+        "release_notes": "Add several bottles in one step (add_bottles), and add bottles from a pasted list or a label or shelf photo that ChatGPT reads, with confirmation before saving."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

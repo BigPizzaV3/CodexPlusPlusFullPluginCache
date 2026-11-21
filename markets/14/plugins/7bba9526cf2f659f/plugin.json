@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vsmgpt-mcp",
+  "version": "1.1.0",
+  "description": "Viable System Model guidance with structural VSM7 project validation and checked JSON export.",
+  "author": {
+    "name": "Mark Lambertz",
+    "url": "https://intelligente-organisationen.de",
+    "email": "mark@marklambertz.de"
+  },
+  "homepage": "https://intelligente-organisationen.de/vsmgpt",
+  "keywords": [
+    "vsm",
+    "cybernetics",
+    "organisational-design",
+    "systems-thinking"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "VSMGPT",
+        "shortDescription": "VSM guidance & JSON checks",
+        "longDescription": "Explore organisational design through Stafford Beer's Viable System Model. Clarify the system in focus and recursion level, examine VSM functions or work through a seven-step design method. Includes neutral teaching materials, fictional examples and an editable accountability workbook. The hosted MCP service checks supplied VSM7 workspace JSON for structural compatibility and returns checked JSON export content. Application-load effects are disclosed; meaningful effects require explicit acknowledgement. Structural validity does not certify organisational viability or design quality. The tools do not read local files, launch or modify VSM7, or create a downloadable attachment by themselves. File creation and other browsing/document capabilities depend on the host. The bundled VSM7 companion application is retained as a separate implementation reference.",
+        "developerName": "Mark Lambertz",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Explain the Viable System Model",
+          "Map organisational arrangements to VSM functions",
+          "Guide seven-step organisational design",
+          "Validate VSM7 workspace JSON",
+          "Return checked VSM7 JSON exports"
+        ],
+        "websiteURL": "https://intelligente-organisationen.de/vsmgpt",
+        "defaultPrompt": [
+          "Help me identify coordination problems in my organisation.",
+          "Validate this VSM7 project JSON and explain any errors or application-load effects.",
+          "Prepare a checked VSM7 JSON export from the project I provide."
+        ],
+        "composerIcon": "./assets/vsmgpt-icon.png",
+        "logo": "./assets/vsmgpt-icon.png",
+        "supportURL": "https://intelligente-organisationen.de/kontakt",
+        "privacyPolicyURL": "https://intelligente-organisationen.de/vsmgpt-privacy",
+        "termsOfServiceURL": "https://intelligente-organisationen.de/vsmgpt-terms"
+      },
+      "review": {
+        "prompts": [
+          "Analyse a fictional neighbourhood restaurant using the Viable System Model. In English, begin with about 150 words: propose the system in focus and environment, distinguish assumptions from facts, and ask three useful diagnostic questions. Do not invent a completed diagnosis.",
+          "Help me examine coordination problems between two delivery units. First ask what each unit produces, whom it serves and what decisions it can make independently. Distinguish S2 coordination from S3 resource allocation.",
+          "Guide me through the seven-step organisational design method, starting with segmentation. State the selected recursion level and keep design decisions with me."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Validate an identified but sparse fictional workspace. Setup is the inline JSON. This tests supported empty workshop content, not organisational design quality. Pass when the result is structurally valid with zero tasks/vessels/routes and compatibility defaults are disclosed.",
+              "prompt": "Check this VSM7 project for structural problems and explain any compatibility warnings. It is an empty workshop, so please do not invent organisational requirements.\n\n```json\n{\"schemaVersion\":1,\"project\":{\"id\":\"review-sparse\",\"name\":\"Fictional sparse review\"}}\n```",
+              "tools_triggered": "validate_vsm7_project",
+              "expected_behavior": "Invoke validate_vsm7_project with project_json containing the inline raw workspace JSON, not a wrapper or file path. Report valid=true, no structural errors and summary counts tasks=0, vessels=0, routes=0. Explain APPLICATION_LOAD_CHANGES and any returned load effects as application defaults. Do not claim that the organisation is viable or that a file was saved."
+            },
+            {
+              "description": "P2 \u2014 Export a small fictional project with a Unicode extension field. Setup is the inline JSON. This tests the core JSON export workflow and preservation of supplied data.",
+              "prompt": "Export this VSM7 project as compatible JSON, preserving every supplied value, including caf\u00e9. Give me the suggested filename and SHA-256. If this chat can save an attachment, save the exact returned text; otherwise provide the JSON and say that no attachment was created.\n\n```json\n{\"schemaVersion\":1,\"project\":{\"id\":\"review-export\",\"name\":\"Fictional export review\"},\"review_extension\":{\"note\":\"Fictional Unicode export: caf\u00e9.\"}}\n```",
+              "tools_triggered": "validate_vsm7_project, then export_vsm7_project",
+              "expected_behavior": "First invoke validate_vsm7_project with the exact supplied raw workspace JSON. Confirm valid=true and that no meaningful load effects require acknowledgement, then invoke export_vsm7_project with the same project_json and no fabricated acknowledgement IDs. The export tool independently validates again. Expect ok=true and a file descriptor with media_type=application/json, encoding=utf-8, a .json filename, text and sha256. Parsed text must equal the supplied workspace, including review_extension.note. The digest must describe the exact UTF-8 text. Only claim a downloadable file after an actual host file operation; otherwise show copyable JSON and explicitly state the limitation. The MCP response alone creates no attachment or project record."
+            },
+            {
+              "description": "P3 \u2014 Diagnose a deliberately broken allocation reference. The fictional SCT exists, but its contribution points to recursion-review-missing instead of the declared recursion-review-r0. A supported validation failure is the expected successful handling of this case, not a negative no-tool case.",
+              "prompt": "Why does this VSM7 project have a structural reference problem? Show me the exact field and explain the issue. Please do not silently fix or export it.\n\n```json\n{\"schemaVersion\":1,\"project\":{\"id\":\"review-reference\",\"name\":\"Fictional reference review\"},\"step1\":{\"recursionLevels\":[{\"id\":\"recursion-review-r0\",\"level\":\"R0\",\"name\":\"Fictional team\"}]},\"step3\":{\"successCriticalTasks\":[{\"id\":\"sct-review-1\",\"number\":1,\"title\":\"Coordinate fictional review work\"}]},\"step4\":{\"allocations\":{\"sct-review-1\":{\"taskId\":\"sct-review-1\",\"contributions\":{\"recursion-review-missing\":\"A fictional contribution\"}}}}}\n```",
+              "tools_triggered": "validate_vsm7_project",
+              "expected_behavior": "Invoke validate_vsm7_project with the inline raw workspace. Expect valid=false and REFERENCE_NOT_FOUND at /step4/allocations/sct-review-1/contributions/recursion-review-missing. Explain that allocation contributions must reference a recursion-row ID declared in Step 1. Do not invent an organisation, modify the JSON, call export_vsm7_project or claim a successful export."
+            },
+            {
+              "description": "P4 \u2014 Inspect a legacy fictional workspace with an absent schema version and a valid legacy step2.selectedOption. Setup is the inline JSON. This tests legacy-aware validation and reporting of migration effects.",
+              "prompt": "Can this older VSM7 project be assessed without losing its original values? Explain its version and selection compatibility warnings, and show what VSM7 would change when loading it. Do not export it yet.\n\n```json\n{\"project\":{\"id\":\"review-legacy\",\"name\":\"Fictional legacy review\"},\"step2\":{\"options\":[{\"id\":\"manageability-review-1\",\"name\":\"Review control capacity\"}],\"selectedOption\":\"manageability-review-1\"}}\n```",
+              "tools_triggered": "validate_vsm7_project",
+              "expected_behavior": "Invoke validate_vsm7_project. Expect valid=true, warning VERSION_ASSUMED because schemaVersion is absent, and APPLICATION_LOAD_CHANGES. Describe migration from step2.selectedOption to step2.selectedOptionIds plus any default additions using the returned load effects. Keep the original input intact and do not fabricate a schema version in an export or claim workshop completeness."
+            },
+            {
+              "description": "P5 \u2014 Review a meaningful application-load effect before export. The inline fictional vessel has custom reviewerNote, which the application drops on load. First show the effect and wait. Reviewer follow-up: \"I acknowledge the reported removal of /step7/vessels/0/reviewerNote when this file is opened in VSM7. Export the exact JSON I originally supplied, preserving that field.\" Pass only after the explicit follow-up and current input-bound effect IDs are used.",
+              "prompt": "Before exporting this project, show me any information VSM7 would remove or change when loading it and wait for my approval. I want the supplied custom field preserved in the exported JSON.\n\n```json\n{\"schemaVersion\":1,\"project\":{\"id\":\"review-load-effect\",\"name\":\"Fictional load-effect review\"},\"step7\":{\"vessels\":[{\"id\":\"vessel-review-1\",\"type\":\"role\",\"name\":\"Fictional review coordinator\",\"purpose\":\"Coordinate a fictional review\",\"reviewerNote\":\"Preserve this custom field in my export.\"}]}}\n```",
+              "tools_triggered": "validate_vsm7_project; export_vsm7_project only after the explicit reviewer acknowledgement described above",
+              "expected_behavior": "First invoke validate_vsm7_project and explain the requires_ack=true load effect at /step7/vessels/0/reviewerNote. Do not call export_vsm7_project before the follow-up. After that explicit acknowledgement, export the same exact project_json and supply the current effect_id values from its validation in acknowledged_load_effects. Expect ok=true and exported text that still contains reviewerNote unchanged. Explain that preserving the export does not prevent the application from removing the field on load. Never invent or reuse stale effect IDs. File creation remains a separate host capability."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Organisational viability scoring is outside the two MCP tools. No project JSON is supplied. Neither validate_vsm7_project nor export_vsm7_project should be invoked. Explain that structural checks cannot certify viability or impose mandatory VSM roles; offer qualitative VSM guidance with the distinction made clear.",
+              "prompt": "Certify that my organisation is viable, give it an official VSM compliance score out of 100, and tell me which management roles it is legally required to have."
+            },
+            {
+              "description": "N2 \u2014 The service cannot read a reviewer laptop path or overwrite a live application project. Neither MCP tool should be invoked with this path or with invented project data. Explain the limit and ask for the actual raw workspace JSON if validation/export is desired. Do not claim access, repairs or a saved project.",
+              "prompt": "Open /Users/reviewer/Documents/VSM7/my-live-project/workspace.vsm7.json on my laptop, fix it, and overwrite the project in my running VSM7 app."
+            },
+            {
+              "description": "N3 \u2014 PowerPoint creation and email delivery are outside this MCP service. Neither validate_vsm7_project nor export_vsm7_project should be invoked for this request. Explain that these service tools return VSM7 JSON and cannot create PPTX or send messages; distinguish any separate host presentation or email capabilities if available. Do not claim an export descriptor is a presentation, saved attachment or sent email, and do not fabricate delivery.",
+              "prompt": "Create a PowerPoint deck about my organisation and email it to my team. I need the PPTX and delivery, not a JSON project file."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "VSMGPT and its hosted VSM7 validation/export service are free to use. The plugin does not sell products, take payments or offer purchases.",
+        "demo_recording_url": "https://intelligente-organisationen.de/wp-content/uploads/2026/10/VSMGPT_1.1.0_Reviewer_Demo_Compact.mp4"
+      },
+      "publication": {
+        "release_notes": "Add an anonymous hosted MCP connection for structural validation and checked VSM7 JSON export, including explicit application-load effect acknowledgements and exact-content host file-delivery instructions. Retain the neutral teaching materials, original companion application and existing organisational-design guidance.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

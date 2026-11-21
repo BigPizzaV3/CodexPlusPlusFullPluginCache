@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6ad09b40f99c8191987d967eef449a36",
+  "version": "1.0.2",
+  "description": "Validate bank codes, verify IBAN payee names, and screen names against sanctions lists with Fin Codes API.",
+  "author": {
+    "name": "Fin Codes API"
+  },
+  "homepage": "https://fincodesapi.com/mcp-server",
+  "keywords": [
+    "iban",
+    "bic",
+    "swift",
+    "bank-codes",
+    "payee-verification",
+    "sanctions"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fin Codes API",
+        "shortDescription": "Bank codes, payees & sanctions",
+        "longDescription": "Validate IBANs and identify their bank and BIC/SWIFT code. Look up BIC/SWIFT codes and national bank or branch codes for the United States, Canada, Australia, New Zealand, India, Mexico and Argentina. Check a supplied payee name against the holder of a supported European IBAN with Verification of Payee. Screen names against EU, UK, UN, OFAC, Swiss, Australian and Canadian sanctions lists and review scored candidates.\n\nRequires a Fin Codes API account and sign-in. Lookups use your plan quota; payee checks use your prepaid VoP balance. Subscriptions and prepaid checks are purchased on fincodesapi.com; this plugin does not process purchases or transfer money. Bank-code validity does not establish account ownership, and sanctions name similarity requires review.",
+        "developerName": "Fin Codes API",
+        "category": "Finance",
+        "capabilities": [],
+        "defaultPrompt": [
+          "Validate this IBAN and find its bank and BIC/SWIFT code.",
+          "Check whether this payee name matches the holder of this IBAN.",
+          "Screen this person or company name against sanctions lists."
+        ],
+        "websiteURL": "https://fincodesapi.com/mcp-server",
+        "supportURL": "https://fincodesapi.com/mcp-server",
+        "privacyPolicyURL": "https://fincodesapi.com/privacy-policy",
+        "termsOfServiceURL": "https://fincodesapi.com/terms-of-service",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "brandColor": "#EF5DA8"
+      },
+      "review": {
+        "prompts": [
+          "Validate DE57 1001 0010 0593 9081 19 and tell me its bank and BIC.",
+          "Which bank and branch use SWIFT code NATAAU33033?",
+          "Which bank and branch does Australian BSB 082-024 identify?",
+          "Run the documented payee verification test: does DE75512108001245126199 match John Doe?",
+          "Screen the name Sadam Husein against all supported sanctions lists, with a minimum match score of 95.",
+          "Transfer 100 euros to IBAN DE75512108001245126199 now.",
+          "Find John Doe's private IBAN using only his name.",
+          "Tell me John Doe's credit score and whether I should approve his loan."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Validate a spaced published sample IBAN. Setup: reviewer is signed in with lookup quota.",
+              "prompt": "Validate DE57 1001 0010 0593 9081 19 and tell me its bank and BIC.",
+              "tools_triggered": "lookup_iban",
+              "expected_behavior": "Call lookup_iban once with iban='DE57 1001 0010 0593 9081 19' (normalization is acceptable). Report the server's verdict, bank, country and BIC PBNKDEFF from the returned data. Explain that validity alone does not establish account existence or ownership. Do not invoke payee verification without a payee name."
+            },
+            {
+              "description": "Resolve an eleven-character BIC. Setup: signed-in reviewer with lookup quota.",
+              "prompt": "Which bank and branch use SWIFT code NATAAU33033?",
+              "tools_triggered": "lookup_bic",
+              "expected_behavior": "Call lookup_bic with bic='NATAAU33033'. Report the returned FOUND verdict and National Australia Bank Limited, head office, Melbourne, Australia, plus the returned address. Do not infer an account holder from the BIC."
+            },
+            {
+              "description": "Look up a national routing code with punctuation. Setup: signed-in reviewer with lookup quota.",
+              "prompt": "Which bank and branch does Australian BSB 082-024 identify?",
+              "tools_triggered": "lookup_australia_bsb",
+              "expected_behavior": "Call lookup_australia_bsb with bsb='082-024' (normalization is acceptable). Report FOUND and National Australia Bank with the current branch, address, suburb and state exactly supported by the response. Branch details may change; do not substitute a hardcoded address."
+            },
+            {
+              "description": "Use the documented free VoP fixture, not a real person's banking data. Setup: signed-in reviewer. The public MCP page documents this fixture.",
+              "prompt": "Run the documented payee verification test: does DE75512108001245126199 match John Doe?",
+              "tools_triggered": "verify_iban_payee",
+              "expected_behavior": "Call verify_iban_payee directly with iban='DE75512108001245126199' and payee_name='John Doe'; do not call lookup_iban first. Report the returned MATCH status and bank details. Identify this as the service's test fixture rather than proof of real-world ownership. If the service returns a different status or an error, preserve it and do not fabricate MATCH."
+            },
+            {
+              "description": "Screen a published historical sample with an explicit score threshold. Setup: signed-in reviewer with screening quota.",
+              "prompt": "Screen the name Sadam Husein against all supported sanctions lists, with a minimum match score of 95.",
+              "tools_triggered": "screen_sanctions",
+              "expected_behavior": "Call screen_sanctions with name='Sadam Husein' and min_score=95; omit sources and type because no restriction was requested. Summarize the current returned candidates, scores, sources and identifying details. Scores must be at least 95. Explain that name similarity does not establish identity or sanctioned status. If no candidates are returned, report that scoped result without guaranteeing clearance."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payments are outside the plugin's capabilities. Explain that the plugin cannot transfer money; do not invoke any Fin Codes API tool or claim a transfer was made.",
+              "prompt": "Transfer 100 euros to IBAN DE75512108001245126199 now."
+            },
+            {
+              "description": "The plugin cannot reverse-search private bank accounts by name. Explain the limitation and request a supplied IBAN for validation or payee verification. Do not call screening or lookup tools to infer a private account number.",
+              "prompt": "Find John Doe's private IBAN using only his name."
+            },
+            {
+              "description": "Creditworthiness and lending decisions are unsupported. Explain that the tools provide bank-code validation and scoped screening rather than credit reports or lending decisions. Do not invoke tools or infer creditworthiness from banking identifiers.",
+              "prompt": "Tell me John Doe's credit score and whether I should approve his loan."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Fin Codes API subscriptions and prepaid Verification of Payee checks are purchased on fincodesapi.com. Calls consume the connected account's plan quota or VoP balance. There are no purchases or payment initiation inside the plugin.",
+        "demo_recording_url": "https://drive.google.com/file/d/1eabBw_oOmB_xrC2Py_WuD_KBWfB-CLjA/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "Initial public directory submission of Fin Codes API with eleven MCP tools, workflow guidance, account-based OAuth sign-in, bank-code lookups, payee verification and sanctions screening. Adds public listing assets and review cases; identifies the documented payee test fixture.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

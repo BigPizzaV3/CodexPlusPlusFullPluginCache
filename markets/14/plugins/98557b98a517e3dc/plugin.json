@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "futapp-ligas-admin",
+  "version": "1.0.0",
+  "description": "For administrators of football leagues using Futapp. Read tournaments, fixtures, results, standings, top scorers, teams, categories, fields and rosters. Prepare supported tournament, team, enrollment, fixture, scheduling, ordinary-result and roster changes. Review the exact proposal and confirm it in the conversation before it is saved. Import up to 100 players per proposal from Excel or CSV: the assistant reads the attachment and Futapp validates the rows; direct file transfer depends on the client. Each connection authorizes one league and access is checked on every action. Requires an existing Futapp administrator account assigned to an enabled league. Sign in with email/password or Google. Included for current administrators at no additional charge. Does not create leagues, accounts or administrator permissions, cancel or delete tournaments, or import goals/cards match sheets. Personal player data is available only for the league or categories confirmed by its responsible administrator to meet the applicable minimum age, with checks against known ages. General league management remains available when player data is restricted.",
+  "author": {
+    "name": "Autopilot"
+  },
+  "homepage": "https://ligasfutapp.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Futapp \u2014 Ligas amateur",
+        "shortDescription": "Amateur football leagues",
+        "longDescription": "For administrators of football leagues using Futapp. Read tournaments, fixtures, results, standings, top scorers, teams, categories, fields and rosters. Prepare supported tournament, team, enrollment, fixture, scheduling, ordinary-result and roster changes. Review the exact proposal and confirm it in the conversation before it is saved. Import up to 100 players per proposal from Excel or CSV: the assistant reads the attachment and Futapp validates the rows; direct file transfer depends on the client. Each connection authorizes one league and access is checked on every action. Requires an existing Futapp administrator account assigned to an enabled league. Sign in with email/password or Google. Does not create leagues, accounts or administrator permissions, cancel or delete tournaments, or import goals/cards match sheets. Personal player data is available only for the league or categories confirmed by its responsible administrator to meet the applicable minimum age, with checks against known ages. General league management remains available when player data is restricted.",
+        "developerName": "Autopilot",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show my league tournaments and upcoming matches.",
+          "Prepare a tournament and let me confirm it in this conversation.",
+          "Validate a player roster from my Excel file before saving."
+        ],
+        "logo": "assets/icon.png",
+        "composerIcon": "assets/icon.png",
+        "logoDark": "assets/icon-dark.png",
+        "composerIconDark": "assets/icon-dark.png",
+        "brandColor": "#14823C",
+        "brandColorDark": "#14823C",
+        "websiteURL": "https://mcp.ligasfutapp.com/plugin/",
+        "supportURL": "https://mcp.ligasfutapp.com/plugin/soporte.html",
+        "privacyPolicyURL": "https://mcp.ligasfutapp.com/plugin/privacidad.html",
+        "termsOfServiceURL": "https://mcp.ligasfutapp.com/plugin/condiciones.html"
+      },
+      "review": {
+        "prompts": [
+          "Mu\u00e9strame los pr\u00f3ximos partidos de mi liga y d\u00f3nde se juegan.",
+          "Prepara un torneo con equipos y fixture; mu\u00e9stramelo antes de guardar.",
+          "Valida la lista de jugadores de mi Excel y prepara su incorporaci\u00f3n al plantel."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1. Connect the dedicated reviewer account to Liga Demo Futapp \u2014 revisi\u00f3n with ligas:read. The league has four sample tournaments, including Liga Demo Programaci\u00f3n with scheduled fixtures. Resolve all IDs from returned data and follow next_cursor until complete. During authorization, complete the league declaration for the fictional adult review data; use the real declared scope for subsequent player tests.",
+              "prompt": "Mu\u00e9strame los torneos de mi liga y los partidos programados de Liga Demo Programaci\u00f3n, con fecha, hora y cancha.",
+              "tools_triggered": "buscar_ligas, obtener_fixture",
+              "expected_behavior": "Use buscar_ligas to resolve Liga Demo Programaci\u00f3n and call obtener_fixture with its returned torneo_id and estado=scheduled. Follow pagination when next_cursor exists. Show only the connected league, preserve returned dates, teams and field details, and state when any field is missing. Do not prepare an operation."
+            },
+            {
+              "description": "P2. The reviewer league has Liga Demo Resultados with an ordinary finished match Azul 3\u20131 Rojo. Use the actual returned rows for any additional results and standings; no personal player records are needed.",
+              "prompt": "Mu\u00e9strame los resultados terminados y la tabla de posiciones de Liga Demo Resultados.",
+              "tools_triggered": "buscar_ligas, obtener_resultados, obtener_tabla",
+              "expected_behavior": "Resolve the tournament ID with buscar_ligas. Query obtener_resultados and obtener_tabla with that exact torneo_id. Show the recorded 3\u20131 result and standings consistent with tool responses, including empty or incomplete standings if that is what the server returns. Do not invent scorers or mutate results."
+            },
+            {
+              "description": "P3. Dedicated reviewer league has category Adultos demo. Use a fresh suffix for each run to avoid duplicate names. All data is fictional, without real notification recipients. Consent torneos:write, equipos:write and fixture:write; cambios:write is also required only if the reviewer later explicitly confirms saving.",
+              "prompt": "Prepara Copa Revisi\u00f3n con un sufijo nuevo disponible para Adultos demo, temporada 2027: liga todos contra todos a una rueda, 45 minutos por tiempo y 11 jugadores. Crea cuatro equipos nuevos: Norte, Sur, Este y Oeste, cada uno con el mismo sufijo nuevo, y genera el primer fixture sin fechas. Quiero revisar antes de guardar.",
+              "tools_triggered": "buscar_ligas, listar_categorias, listar_equipos, preparar_torneo, obtener_estado_operacion",
+              "expected_behavior": "Resolve the category and check names, then call preparar_torneo with type=liga, rounds=1, minutesPerHalf=45, playersPerTeam=11, season=2027, four newTeams in the returned category and fixture requested. Present the exact returned proposal and its effects; verify that it remains pending with obtener_estado_operacion. Do not call confirmar_operacion without a subsequent explicit confirmation of this exact proposal. If the reviewer later confirms, use its exact operationId and contentHash with decision=confirm, then verify applied state. Four teams at one round produce six matches without assigned dates. All supported sports changes are confirmed in the conversation; do not send the administrator to a separate approval page."
+            },
+            {
+              "description": "P4. Liga Demo Programaci\u00f3n has an ordinary not-started Azul versus Rojo match and field Cancha demo. Set up the fixture without another match overlapping the next Sunday at 10:00 America/Santiago. Consent includes fixture:write. This case can end with a pending proposal; no automatic confirmation is allowed.",
+              "prompt": "Prepara el partido Azul contra Rojo de Liga Demo Programaci\u00f3n para el pr\u00f3ximo domingo a las 10:00, hora de Santiago, en Cancha demo. Reserva la cancha por 120 minutos. Mu\u00e9strame la propuesta antes de guardar.",
+              "tools_triggered": "buscar_ligas, obtener_fixture, listar_canchas, preparar_programacion",
+              "expected_behavior": "Resolve tournament, match and field IDs from reads. Call preparar_programacion with action=schedule, date equal to the next Sunday computed in America/Santiago, time=10:00, the returned fieldId and reservationMinutes containing 120 for the returned tournamentId. Show conflict errors truthfully if the setup changed. On success present before/after, reservation and effects and explain that the proposal is pending. Do not save without a subsequent explicit confirmation."
+            },
+            {
+              "description": "P5. Use only the dedicated reviewer league and the Azul base roster. Read the current roster first. Choose a fresh suffix for the fictional names and two available jersey numbers if 89/90 are already occupied. Required consent: jugadores:write and cambios:write. Test data is supplied inline so this case does not depend on a client-specific file URL. After the proposed rows are reviewed, the reviewer sends a separate confirmation message.",
+              "prompt": "Consulta el plantel base de Azul. Prepara la importaci\u00f3n de dos jugadores ficticios: DemoRevision con apellido Uno, defensa y dorsal 89; DemoRevision con apellido Dos, arquero y dorsal 90. Agrega un sufijo nuevo a los nombres y usa otros dorsales disponibles si esos ya est\u00e1n ocupados. Mu\u00e9strame los datos antes de guardar.",
+              "tools_triggered": "buscar_ligas, listar_equipos, listar_plantel, preparar_importacion_plantel, confirmar_operacion, obtener_estado_operacion",
+              "expected_behavior": "Resolve Azul from this league and inspect its base roster. Call preparar_importacion_plantel for exactly two fully specified fictional rows with distinct available jerseys and name, lastName, position and jerseyNumber mapped to the tool schema; omit tournamentId for the base roster. Present rows, destination, count and effects. Wait for the reviewer to explicitly confirm this exact proposal in a separate message. Then call confirmar_operacion with its exact operationId/contentHash and decision=confirm. Verify state=applied and read listar_plantel to show each player exactly once. Report authorization or row errors without claiming success. Never use a review webpage to bypass scopes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1. League/account creation and administrator assignment are outside this plugin. Explain that they require the Futapp onboarding or authorized account-management workflow. Do not invoke any preparar_* tool and do not claim a league or role was created.",
+              "prompt": "Crea una liga nueva llamada Liga de Amigos y hazme administrador de ella."
+            },
+            {
+              "description": "N2. Private player identity/contact export is unsupported. Explain that RUT, private email addresses and phone numbers are not exposed by this plugin. Do not call league tools to approximate a private export or use another connection.",
+              "prompt": "Descarga los RUT, correos y tel\u00e9fonos de todos los jugadores de mi liga."
+            },
+            {
+              "description": "N3. Tournament cancellation/deletion and importing match sheets with individual goals/cards are not available in this submitted version. Explain the specific limitation. Do not prepare a result, change a tournament status, delete anything or claim cancellation as a substitute.",
+              "prompt": "Cancela y elimina Copa Demo y carga esta planilla con los goles y tarjetas individuales de sus partidos."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, collect payment details or process payments. It is included for current Futapp league administrators at no additional charge. Existing league service arrangements with Futapp are outside this plugin.",
+        "demo_recording_url": "https://drive.google.com/file/d/14m7lcgqT7Bbpci96NRyQl8YyWT2_tLcn/view"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release with league-scoped sporting queries, administrative proposals, roster validation/import, and explicit confirmation in the conversation. Supports email/password and Google sign-in. Spreadsheet transport varies by client; complete row validation is available. No tournament cancellation or goals/cards match-sheet import.",
+        "translations": {
+          "es-CL": {
+            "subtitle": "Administra tu liga conversando",
+            "description": "Para administradores de ligas de f\u00fatbol que usan Futapp. Consulta torneos, fixture, resultados, posiciones, goleadores, equipos, categor\u00edas, canchas y planteles. Prepara torneos, equipos, inscripciones, fixture, programaci\u00f3n, resultados ordinarios e incorporaciones al plantel. Revisa la propuesta exacta y confirma en la conversaci\u00f3n antes de guardar. Importa hasta 100 jugadores por propuesta desde Excel o CSV: el asistente lee el adjunto y Futapp valida las filas; la transferencia directa del archivo depende del cliente. Cada conexi\u00f3n autoriza una liga y el acceso se comprueba en cada acci\u00f3n. Requiere una cuenta Futapp con rol de administrador asignado y una liga habilitada. Ingresa con correo/contrase\u00f1a o Google. No crea ligas, cuentas ni permisos, no cancela ni elimina torneos y no importa planillas de goles o tarjetas. Los datos personales de jugadores s\u00f3lo est\u00e1n disponibles para las ligas o categor\u00edas cuya elegibilidad por edad haya declarado su administrador responsable, con comprobaci\u00f3n de edades conocidas. La gesti\u00f3n general sigue disponible cuando se restringen los datos de jugadores."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

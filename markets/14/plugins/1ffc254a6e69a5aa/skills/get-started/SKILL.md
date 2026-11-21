@@ -1,0 +1,78 @@
+---
+name: get-started
+description: Set up or recover GWC Bridge in ChatGPT using the existing GWC account, intended computer and granted folder, then confirm one harmless file read without changing access or running commands or tasks.
+---
+
+# Get started with GWC Bridge
+
+Use this workflow when a user connects GWC Bridge, checks first-use readiness, or recovers a connection. Starting in ChatGPT and starting on the GWC website join the same journey. Do not create a second account, install another desktop host, or expand permissions just to finish setup.
+
+## When not to activate GWC Bridge
+
+The setup checks below are for a requested GWC connection/setup, an authorized computer task or explicit troubleshooting; they are not default preflights for unrelated requests. Answer self-contained text questions and summaries using the supplied text, with no GWC tool or connectivity check. If the sole request is to share an ungranted folder, enable Commands or widen existing permissions, explain the supported owner controls in GWC Studio or GWC for VS Code and the existing connected-app grant where relevant, without probing settings, devices or folders; do not call any Bridge tool. If the request explicitly targets an unshared colleague's computer, explain that access requires its owner's authorization, without probing that computer, substituting another or checking connection inventory. This activation guidance does not prevent a user-requested read-only inspection of their existing authorized inventory or the separately authorized runtime boundary tests that intentionally require a tool refusal.
+
+The desktop host is GWC Studio or GWC for VS Code. Keep the chosen desktop app open on the intended supported computer; use the public guide for available downloads. A version number, installed plugin, saved consent or online status does not by itself confirm that Bridge can read the intended file. This workflow confirms one read, not every Bridge capability.
+
+Public setup guide: https://gwc-corp.com/guide/chatgpt#bridge-start
+
+## One account, one intended connection
+
+For a first installation, use the desktop-availability link in the public guide to install GWC Studio or GWC for VS Code, then add the computer from that desktop app. Follow GWC's normal sign-in flow and use that one account throughout. Installing the ChatGPT plugin does not install the desktop app or connect the computer. A successful sign-in does not by itself prove that Bridge access is active.
+
+Use the same GWC sign-in in the chosen desktop app, GWC Web and the GWC Bridge connection in ChatGPT. In GWC Web, the user views Bridge status in **Personal**. On Mobile, the user switches to Personal only if Bridge asks. If already in Personal, no switch is needed. Personal refers only to your GWC account context. Do not switch it automatically or infer the selected account from an absent selector. An active GWC Connect Pass is required. GWC Mobile is optional. On a phone, continue with the public guide on the intended PC; the link carries no account, computer, folder or authorization state. Repeat the live checks after continuing.
+
+Use only the tools actually available to this connection. Do not invent IDs, local paths, capability fields, approval results or a connection to an unshared computer. Reuse the user's already supplied account, computer, folder and file choices; ask only for a genuinely missing or ambiguous choice.
+
+## Account access
+
+Bridge uses the GWC account's current Connect Pass entitlement and the connection's existing permission boundaries. Using Bridge in ChatGPT does not change the selected account context, granted folders, scopes or PC capabilities. The GWC agent uses the account's existing configured model/provider route.
+
+When a tool returns `CONNECT_PASS_REQUIRED`, stop that operation and state: "Your GWC account does not currently have an active Connect Pass entitlement." An optional neutral pointer is: "See the access requirements: https://gwc-corp.com/guide/chatgpt#chatgpt-requirements". Do not infer the reason from this error alone. An unknown entitlement or an infrastructure error is not proof of a specific account state.
+
+Do not automatically repeat a refused tool call, replace the connection grant or restart consent merely because account access changed. After the user resolves account access through their ordinary GWC account flow, an explicitly requested action uses the same current authorization and tool checks.
+
+## First-read workflow
+
+1. **Check the account and computer.** Use `who_am_i` to identify this GWC connection, then `list_devices` and `get_status` to inspect the authorized computers and reported status. Return only the account detail needed to resolve a mismatch. Let the user select the exact intended computer when ambiguous. Identical computer names can refer to different registrations; use the registration details visible in the owner controls rather than treating the name as a unique identity. Do not substitute another online computer.
+2. **Check the intended folder and existing access.** Use `list_folders` and only the folder identifier actually returned for the intended computer. Confirm the intended folder is shared from that computer and permitted by it; the computer's own settings are what decide access. Preserve its current restrictions. A control or capability not present in a tool response is unknown, not enabled. In particular, do not infer agent-task permission from `list_folders`.
+3. **Choose one harmless file.** Use an existing non-sensitive text file in that granted folder, preferably one already named by the user. When the user needs help choosing, browse only that intended folder with `list_files`. Do not search broadly across their computer, inspect secret files, create a fixture, or run a command as part of setup.
+4. **Read a small identifiable excerpt.** Call `read_file` with the returned folder ID, the chosen relative file path and a small line range, such as `startLine=1` and `lineCount=5`. Use the actual callable schema. Return the identifiable text that was really received. A bounded excerpt or truncated response is not a full-file inspection; label its scope accurately. An error, status response, empty result without identifiable content, or remembered earlier read does not complete this check.
+5. **State the narrow result.** Only after content returns from this exact connection, report: "First read confirmed in ChatGPT" with the chosen computer, folder and file, and the returned excerpt. This confirms that read only, not current permission status or future access. Do not call the connection generally ready or claim that an untested feature or managed folder policy works. Recheck after changing the GWC account, ChatGPT connection, computer registration, folder access or permissions.
+
+Do not change files, start processes, run commands, start agent tasks, change settings, reconnect a different account, or expand permissions during this first-read workflow. A separate user request for those actions is not implicit in setup.
+
+## Owner controls and permission direction
+
+Register the computer, choose shared folders and control Bridge On/Off on the intended computer in GWC Studio or GWC for VS Code. GWC Web and GWC Connect mobile provide status monitoring and inactive-computer removal; they do not provide Bridge access switches or reconnect controls. In GWC Web, **Settings → Security → Connected apps** shows the particular ChatGPT connection and its existing grant. The **Add folders** control appears only where supported. Treat changes to that connected-app grant separately from desktop access controls and ChatGPT's own app permissions.
+
+Check the controls and support actually reported by the intended PC. Older installations use **Share a folder** on the PC. Where folder-policy controls are supported, distinguish **All folders** from **Selected folders only**, and keep the owner's existing choice. Do not advertise managed All access as available merely because a label exists in source or a version number is displayed. An empty selected-folder choice means no folder access. A connection made through the current sign-in follows the folders the PC shares, including ones shared later; an older connection keeps the folders chosen when it was made.
+
+Inspect the controls actually available on the intended computer. Its folder policy and capability restrictions remain in force. Where supported desktop capability switches are shown, **On** permits that category within the existing folder, grant and protected-action limits, and **Off** blocks it. A capability field in a tool response does not prove that an editable switch is available in every installed desktop build. Read the PC-applied state separately from requested or saved settings.
+
+Set approval behavior in ChatGPT's GWC Bridge app permissions, using the choices actually offered for that account. These are ChatGPT settings; GWC has no active four-level tool-approval selector. Older desktop builds may display a legacy permission-level readout; do not treat it as the current ChatGPT approval setting. A permissive ChatGPT setting does not grant omitted folders, scopes or tools, enable a blocked PC capability, or remove protected-action safeguards. Never recommend broader permissions merely to pass setup.
+
+Each folder's **Allow changes** controls file and document mutations through Bridge. Turning it off does not make commands or agent tasks read-only. Commands, interactive processes and tasks run with the user's computer-account rights and are not sandboxed to the shared folders. Commands can use the network; agent tasks use the owner's existing configured model/provider route. Their execution needs a separate explicit request and the applicable permissions.
+
+Keep any existing deny or narrower selection. Apply an owner-requested folder or capability change through the supported controls on the intended computer, and review any separate connected-app grant change through its supported account controls. Wait for the PC-reported state and refresh reported folders after a folder change. An unavailable control, a saved preference or an offline computer record is not proof that a change has taken effect. After an unknown or partial save, inspect current state before another change rather than retrying blindly.
+
+If an older installation still presents an **Ask on this PC** prompt, a confirmation in ChatGPT cannot accept it. Neither confirmation can supply access omitted from consent or bypass protected-secret checks. `set_pc_settings` cannot add folders, enable permissions or turn protections off.
+
+## Recovery: retain the same journey
+
+The user-facing connection is GWC Bridge in ChatGPT, connected to GWC Studio or GWC for VS Code. Keep MCP server configuration, package filenames and app identifiers out of ordinary onboarding and recovery instructions. Do not ask the user to install a second MCP product, choose between JSON packages or create a separately named connector as a routine repair. Use the existing GWC Bridge entry and its supported connection controls. If the host offers no working recovery control, explain that the GWC Bridge installation needs repair and point to the public setup guide; do not invent an install link or claim automatic repair succeeded.
+
+First distinguish unavailable tools from a tool call that returned an error. A loaded skill, visible plugin name or successful sign-in does not establish that callable tools are present. When tools are absent, report the ChatGPT connection blocker before diagnosing the laptop or its folders. When tools are present, use the returned account, device, folder and error information to identify the failed step. Do not infer that directory review status caused a personal connection failure.
+
+| What happened | Next step, without widening access |
+| --- | --- |
+| GWC Bridge is visible but its tools are unavailable, or its ChatGPT connection was deleted | Open the existing GWC Bridge entry in ChatGPT and use Connect or Reconnect if offered, with the same GWC account and existing access choices. If the entry itself is missing, use GWC's supported installation route from the public guide. If its connection settings cannot load, report that installation failure; do not repeatedly import packages or substitute a duplicate connector. After recovery, use a new conversation with GWC Bridge selected and check that tools are actually available before checking the computer. |
+| GWC Bridge tools respond but laptop files cannot be accessed | Keep the working ChatGPT connection. Follow the first-read workflow to identify the intended account, computer registration and shared folder, then act on the actual returned error. Do not reinstall the plugin, replace its connection or widen access merely because a file operation failed. |
+| Wrong account, or the intended PC is missing | In GWC Web, have the user check that Personal is selected. On Mobile, the user switches to Personal only if Bridge asks. If already in Personal, no switch is needed. Compare the GWC sign-ins in VS Code, Web and this ChatGPT connection; correct only a mismatch. Do not switch accounts automatically. A missing PC alone does not prove a wrong sign-in. Do not create another account or reinstall as the first remedy. |
+| PC offline | Wake the intended PC, open its GWC Studio or GWC for VS Code host and refresh. Saved computer or folder entries do not prove reachability. Keep the same connection and permissions; do not silently choose another computer. |
+| No folder, or the intended folder is missing | Check the PC policy and this connection's grant separately. Keep the older Share a folder path; for empty Selected folders only, the owner selects only the intended folder. If the PC permits the folder but this connection's grant does not include it, open GWC Web → Settings → Security → Connected apps and review the exact connection. Only the owner's explicit choice may use Add folders, when offered; review the listed permissions and complete any identity check. If Add folders is unavailable and the grant must change, the owner starts a new GWC Bridge connection request from the original ChatGPT conversation. Preserve other restrictions. Never switch to All folders or expand a grant automatically. |
+| Read denied or a confirmation timed out | Check the selected file, current grant and PC protections. Review a genuine PC prompt on that PC when applicable. Do not treat silence as approval, read secret files, or enable writes, commands or tasks to obtain a read. |
+| Sign-in, consent or connection request expired | Sign in again only in the affected surface. For expired consent, return to the original ChatGPT conversation and start a fresh GWC Bridge connection request; do not reuse the expired page. Review the same account, PC, folder and permissions again. |
+| Update required or controls unsupported | Update the chosen GWC Studio or GWC for VS Code host on the intended supported computer, then reopen that app and refresh. Confirm support from the actual PC response, not the version number alone. Where only legacy folder controls are available, retain that supported setup. |
+| Bridge explicitly disconnected | The owner reconnects on the intended computer through the supported desktop controls in GWC Studio or GWC for VS Code. There is no ChatGPT reconnect tool. Wait for the PC-reported state. Disconnect is not a shutdown, cancellation or undo for work already started. |
+
+After recovery, repeat the account, exact registration, folder/grant and harmless-read checks. Until the excerpt returns, report the concrete blocker rather than success.

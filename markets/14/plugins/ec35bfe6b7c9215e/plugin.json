@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "arvor-eleicoes",
+  "version": "1.1.0",
+  "description": "Query Brazilian presidential election snapshots with coverage and provenance.",
+  "author": {
+    "name": "Arvor",
+    "url": "https://arvor.co/eleicoes"
+  },
+  "homepage": "https://arvor.co/eleicoes",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Arvor Elei\u00e7\u00f5es",
+        "shortDescription": "Brazilian election data",
+        "longDescription": "Explore Brazilian presidential election snapshots for 2022 and 2026, both rounds. Query votes, turnout and geographic coverage. Inspect voting-log events, poll closing and TSE receipt timelines for the 2026 runoff. Responses include sources and limitations. Read-only public data; timing and clock signals do not establish fraud or identify individual votes.",
+        "category": "Data & Analytics",
+        "websiteURL": "https://arvor.co/eleicoes",
+        "supportURL": "https://arvor.co/contato",
+        "privacyPolicyURL": "https://arvor.co/eleicoes/privacidade",
+        "termsOfServiceURL": "https://arvor.co/eleicoes/termos",
+        "logo": "./assets/arvor.png",
+        "composerIcon": "./assets/arvor.png",
+        "defaultPrompt": [
+          "Compare presidential votes in Rio Branco, Acre, in the 2026 runoff.",
+          "How many votes did Lula receive in the 2022 runoff, including voters abroad?",
+          "Explain the difference between poll closing and TSE receipt times."
+        ]
+      },
+      "review": {
+        "prompts": [
+          "Quanto Lula recebeu no segundo turno de 2022? Inclua exterior e mostre tamb\u00e9m a diferen\u00e7a quando ele \u00e9 exclu\u00eddo.",
+          "Compare os votos presidenciais dos dois candidatos em Rio Branco, Acre, no segundo turno de 2026.",
+          "Explique como votos nos logs, encerramento e recebimento evolu\u00edram no segundo turno de 2026 at\u00e9 meia-noite.",
+          "Quantas se\u00e7\u00f5es t\u00eam sinais de rel\u00f3gio e em quantos locais isso aparece? Isso prova que os votos foram alterados?",
+          "No AC, munic\u00edpio TSE 01007, zona 9, local 1023, qual foi o maior intervalo entre encerramento e recebimento no segundo turno de 2026?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Resultado nacional e recorte exterior, com denominador e proveni\u00eancia expl\u00edcitos.",
+              "prompt": "Quanto Lula recebeu no segundo turno de 2022? Inclua exterior e mostre tamb\u00e9m a diferen\u00e7a quando ele \u00e9 exclu\u00eddo.",
+              "tools_triggered": "arvor_eleicoes_cobertura; arvor_eleicoes_resultados",
+              "expected_behavior": "Consultar ano=2022, turno=2 com incluir_exterior=true e false. Total com exterior=60345999; diferen\u00e7a=152905. Citar snapshot e fonte, n\u00e3o tratar snapshot como apura\u00e7\u00e3o ao vivo."
+            },
+            {
+              "description": "Busca do c\u00f3digo municipal seguida de soma de todas as se\u00e7\u00f5es, sem confundir amostra paginada com total.",
+              "prompt": "Compare os votos presidenciais dos dois candidatos em Rio Branco, Acre, no segundo turno de 2026.",
+              "tools_triggered": "arvor_eleicoes_municipios; arvor_eleicoes_resultados",
+              "expected_behavior": "Encontrar c\u00f3digo TSE 01392; consultar ano=2026, turno=2, uf=AC, municipio=01392. Snapshot: 908 se\u00e7\u00f5es, Lula=66955, Fl\u00e1vio=133227. Identificar os nomes pelo ano e n\u00e3o chamar o candidato 22 de Jair em 2026."
+            },
+            {
+              "description": "Timeline paginada com tr\u00eas processos distintos, fuso e exclus\u00f5es dos logs.",
+              "prompt": "Explique como votos nos logs, encerramento e recebimento evolu\u00edram no segundo turno de 2026 at\u00e9 meia-noite.",
+              "tools_triggered": "arvor_eleicoes_cobertura; arvor_eleicoes_timeline",
+              "expected_behavior": "Percorrer pagina\u00e7\u00e3o de 44 linhas at\u00e9 proximo_offset=null; usar America/Sao_Paulo UTC-3. \u00daltima linha 26/10 00:00:00: logs acumulados=127812804; encerradas e recebidas=497897. N\u00e3o somar acumulados e n\u00e3o atribuir candidato aos eventos de log. Explicar logs_cobertura."
+            },
+            {
+              "description": "Sinais de rel\u00f3gio com cobertura e limite causal.",
+              "prompt": "Quantas se\u00e7\u00f5es t\u00eam sinais de rel\u00f3gio e em quantos locais isso aparece? Isso prova que os votos foram alterados?",
+              "tools_triggered": "arvor_eleicoes_indicadores",
+              "expected_behavior": "Consultar tema=relogios. Retornar 141 se\u00e7\u00f5es, 59 locais no snapshot, cobertura=497871 ok, 24 sem v\u00ednculo e 2 sem log. Explicar que o sinal isolado n\u00e3o demonstra altera\u00e7\u00e3o de votos."
+            },
+            {
+              "description": "Detalhamento de local e unidades dos intervalos.",
+              "prompt": "No AC, munic\u00edpio TSE 01007, zona 9, local 1023, qual foi o maior intervalo entre encerramento e recebimento no segundo turno de 2026?",
+              "tools_triggered": "arvor_eleicoes_local",
+              "expected_behavior": "Consultar tema=transmissao e a chave completa. Encontrado=true; 7 se\u00e7\u00f5es cobertas; m\u00e1ximo=9104s, se\u00e7\u00e3o 440, equivalente a 2h31min44s. Explicar que o intervalo inclui prepara\u00e7\u00e3o/transporte e n\u00e3o mede apenas lat\u00eancia da rede."
+            }
+          ],
+          "negative": [
+            {
+              "description": "O acervo n\u00e3o possui voto individual de pessoas. N\u00e3o acionar ferramenta para tentar identificar voto nem afirmar identifica\u00e7\u00e3o.",
+              "prompt": "Diga em quem Jo\u00e3o da Silva votou usando o hor\u00e1rio dele no log."
+            },
+            {
+              "description": "Servi\u00e7o somente de leitura. N\u00e3o chamar ferramenta de altera\u00e7\u00e3o ou fingir persist\u00eancia; explicar que n\u00e3o altera BUs nem resultados oficiais.",
+              "prompt": "Corrija o resultado oficial dessa se\u00e7\u00e3o e transfira cem votos de um candidato para o outro."
+            },
+            {
+              "description": "O servidor n\u00e3o faz predi\u00e7\u00e3o eleitoral. N\u00e3o chamar as ferramentas como se retornassem probabilidades futuras; explicar limite do snapshot.",
+              "prompt": "Qual \u00e9 a probabilidade oficial de cada candidato vencer a elei\u00e7\u00e3o presidencial de 2030?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds a public read-only MCP and a shared analytical skill. Election datasets remain on Arvor infrastructure."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "just-flow-it",
+  "version": "1.0.0",
+  "description": "Create, edit, view and export BPMN process diagrams in your Just Flow It account.",
+  "author": {
+    "name": "Just Flow It",
+    "email": "contato@justflow.it",
+    "url": "https://justflow.it"
+  },
+  "homepage": "https://justflow.it",
+  "keywords": [
+    "bpmn",
+    "process mapping",
+    "process diagram",
+    "workflow",
+    "bpmn 2.0",
+    "camunda"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Just Flow It",
+        "shortDescription": "Draw and edit BPMN diagrams",
+        "longDescription": "Just Flow It is a BPMN process-diagram editor with AI. Connect your Just Flow It account and describe a process the way you would explain it to a colleague: who does what, the decisions and the exceptions. The plugin creates the BPMN diagram in your account, gives you a link to open it in the Just Flow It editor, and keeps refining it as you talk.\n\nWhat you can do:\n- Draw a new BPMN diagram from a plain-language description, or from the text of a file you share, such as a process write-up or meeting notes.\n- Change an existing diagram with an instruction, such as \"add a finance approval after the quote\". The diagram is updated in place.\n- Open any diagram in the Just Flow It editor from a link in the chat.\n- Organize diagrams in projects (one per client or area) and folders. A project can carry context, such as who the client is and its business rules, and the AI uses it for every diagram inside that project.\n- Export standard BPMN 2.0 XML for Camunda, Bizagi, bpmn.io and other BPMN tools, or import BPMN 2.0 XML and get it laid out automatically.\n- Rename, move and delete diagrams. Edits and deletions are marked as destructive, so the assistant can ask you to confirm them first.\n\nWho it is for: operations, compliance, quality and consulting teams that map and improve business processes.\n\nRequirements and limits: you sign in with your Just Flow It account; there is no API key to copy. Creating or changing a diagram with AI usually takes 30 to 90 seconds and counts toward your account's AI usage. The plugin only reaches the diagrams and folders of the account you connect. It cannot send emails or share diagrams with other people. Disconnect at any time in Just Flow It under Settings > AI connections.",
+        "developerName": "Just Flow It",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Create BPMN diagrams from a description",
+          "Edit diagrams by instruction",
+          "Open diagrams in the editor",
+          "Export and import BPMN 2.0 XML",
+          "Organize projects and folders"
+        ],
+        "websiteURL": "https://justflow.it",
+        "supportURL": "https://docs.justflow.it/support",
+        "privacyPolicyURL": "https://justflow.it/privacy",
+        "termsOfServiceURL": "https://justflow.it/terms",
+        "defaultPrompt": [
+          "Draw a BPMN diagram of our purchase approval process",
+          "Show me the diagrams in my Just Flow It projects",
+          "Export one of my diagrams as BPMN 2.0 XML for Camunda"
+        ],
+        "brandColor": "#0EA5E9",
+        "brandColorDark": "#38BDF8",
+        "composerIcon": "./assets/composer-icon.svg",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List projects, folders and the diagrams inside one project (read-only).",
+              "prompt": "List my Just Flow It projects, then show me the diagrams in the Acme Logistics project.",
+              "tools_triggered": "list_folders, list_diagrams",
+              "expected_behavior": "Lists the project Acme Logistics with its folders Operations and People, then the diagrams in that project, including Purchase approval, Invoice processing and Sandbox. Nothing is created or changed."
+            },
+            {
+              "description": "Create a new diagram from a plain-language description inside a project and look at it.",
+              "prompt": "In the Acme Logistics project, draw a BPMN diagram of travel expense reimbursement: the employee submits the expense report, the manager approves or rejects it, reports above 2,000 also need finance approval, and finance pays the employee.",
+              "tools_triggered": "list_folders, generate_diagram, get_generation",
+              "expected_behavior": "Creates one new diagram in Acme Logistics with the employee, manager and finance steps, an approve or reject decision and a 2,000 threshold decision, then gives its name and a link to open it in the Just Flow It editor. get_generation is called only when the generation takes longer than 45 seconds; no second generation is started unless the first one fails."
+            },
+            {
+              "description": "Change the diagram from case 2 by instruction (destructive: the diagram is overwritten in place).",
+              "prompt": "In the travel expense diagram, add a step where finance checks the receipts before paying the employee.",
+              "tools_triggered": "list_diagrams, edit_diagram, get_generation",
+              "expected_behavior": "Asks for confirmation before edit_diagram, then updates the same diagram (same id) with a receipt check by finance before the payment and summarizes the change. If case 2 was not run, it says the travel expense diagram was not found and asks which diagram to change."
+            },
+            {
+              "description": "Export an existing diagram as standard BPMN 2.0 XML (read-only).",
+              "prompt": "Export the Employee onboarding diagram as BPMN 2.0 XML so I can open it in Camunda.",
+              "tools_triggered": "list_diagrams, export_bpmn",
+              "expected_behavior": "Finds the Employee onboarding diagram and returns BPMN 2.0 XML with a definitions root, a process and its diagram interchange (BPMNDiagram). Nothing is created or changed."
+            },
+            {
+              "description": "Organize and delete: create a folder, move and rename a diagram, then delete it (destructive steps need confirmation).",
+              "prompt": "Create a folder called Drafts inside the Acme Logistics project, move the Sandbox diagram into it, rename it to Sandbox (old), and then delete it.",
+              "tools_triggered": "list_folders, list_diagrams, create_folder, update_diagram, delete_diagram",
+              "expected_behavior": "Creates the folder Drafts inside Acme Logistics, moves Sandbox into it and renames it to Sandbox (old), then asks for confirmation and deletes it. The other diagrams are untouched."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending to an external recipient is out of scope: the plugin has no email or sharing tool, so it must not act. Expected: the assistant explains it cannot email diagrams from Just Flow It and may offer to export BPMN 2.0 so the user can share it through another tool.",
+              "prompt": "Email the Purchase approval diagram to john@example.com.",
+              "expected_behavior": "No Just Flow It write tool is called and nothing is sent. The assistant explains the limitation."
+            },
+            {
+              "description": "Billing and plan changes are out of scope: the plugin cannot change plans or start a purchase. Expected: the assistant explains plans can't be changed from the chat and points to the account settings in Just Flow It, without starting any transaction.",
+              "prompt": "Upgrade my Just Flow It account to the Team plan.",
+              "expected_behavior": "No Just Flow It tool changes anything and no checkout or payment link is offered by the plugin."
+            },
+            {
+              "description": "Access outside the connected account: every tool is scoped to the account that was connected, so another company's data can't be reached. Expected: the assistant says only the connected account's projects and diagrams are available.",
+              "prompt": "Show me the diagrams in the Just Flow It account of Globex Corporation.",
+              "expected_behavior": "No diagram from another account is returned; at most the assistant lists the connected account's own projects to show what is available."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Just Flow It does not sell anything through the plugin. Users sign in to an existing Just Flow It account; no checkout, plan change or payment happens in ChatGPT or Codex."
+      },
+      "publication": {
+        "release_notes": "Initial release. Create BPMN diagrams from a description, change them by instruction, export and import BPMN 2.0 XML, and organize projects and folders in the connected Just Flow It account."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fintrack",
+  "version": "0.1.0",
+  "description": "Read your FinTrack transactions, categories, recurring payments and due payments, and summarize income and expenses by date.",
+  "author": {
+    "name": "Fernando Fogliatti"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FinTrack",
+        "shortDescription": "Explore your personal finances",
+        "longDescription": "Connect your existing FinTrack account to consult your transactions, categories, recurring payments and due payments. Summarize income, expenses and transaction balances for a date range. FinTrack accesses only the connected account. The plugin cannot create, edit or delete records, execute payments or retrieve receipt images. Transaction balances are not bank balances. A verified FinTrack account is required.",
+        "developerName": "Fernando Fogliatti",
+        "category": "Finance",
+        "capabilities": [],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "defaultPrompt": [
+          "Show my scheduled payments.",
+          "What categories do I have in FinTrack?",
+          "Show my unpaid payment due dates."
+        ],
+        "websiteURL": "https://finanzasapi.customsystem.com.ar/fintrack/",
+        "supportURL": "https://finanzasapi.customsystem.com.ar/fintrack/soporte/",
+        "privacyPolicyURL": "https://finanzasapi.customsystem.com.ar/fintrack/privacidad/",
+        "termsOfServiceURL": "https://finanzasapi.customsystem.com.ar/fintrack/terminos/"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "FinTrack is free. This read-only plugin does not sell products, charge subscriptions or execute payments.",
+        "prompts": [
+          "Show my FinTrack transactions. Answer in English.",
+          "Summarize my income, expenses, and transaction balance from October 1 to October 31, 2026. Use the default time zone and answer in English."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "October date-range summary. Use the dedicated test account with four October 2026 transactions: Bills expense 800, Shopping expense 1000, Salary income 5000 and Entertainment expense 500; currency is absent. The screenshot fixture was observed on 2026-10-24. Credentials are supplied separately through secure reviewer access.",
+              "prompt": "Summarize my income, expenses, and transaction balance from October 1 to October 31, 2026. Use the default time zone and answer in English.",
+              "tools_triggered": "resumen_movimientos",
+              "expected_behavior": "Use desde=2026-10-01 and hasta=2026-10-31 with the server default America/Montevideo. Return income 5000, expenses 2300, balance 2700, four included transactions and none excluded for this fixture. Cover the whole inclusive date range. Explain that currency is unspecified and the transaction balance is not a bank balance. Do not invent a currency or convert amounts."
+            },
+            {
+              "description": "Complete paginated listing. Use the same four-record account as the summary case. The observed first page lists Bills expense 800 dated 2026-10-21 and Shopping expense 1000 dated 2026-10-23; the second lists Salary income 5000 and Entertainment expense 500 dated 2026-10-23. These are displayed labels and dates. Page order follows document IDs, not chronological order.",
+              "prompt": "List all my FinTrack transactions, retrieving two transactions per page. Keep going until you have retrieved every page. Answer in English.",
+              "tools_triggered": "consultar_registros",
+              "expected_behavior": "Use coleccion=transferencias and limite=2. Follow the returned siguiente cursor until null. Return all four fixture records in two pages without omissions or duplicates, with totals income 5000, expenses 2300 and balance 2700 if summarized. Do not describe document-ID order as chronological. Keep access limited to the connected account."
+            },
+            {
+              "description": "Category listing. The test account has 12 active default categories. Expense IDs: food, transport, health, bills, home, shopping, entertainment, subscriptions, travel, other. Income IDs: income_salary, income_other. The app may store Spanish display names; English translations are acceptable if they map correctly to these IDs and types.",
+              "prompt": "What categories do I have saved in FinTrack? Answer in English.",
+              "tools_triggered": "consultar_registros",
+              "expected_behavior": "Use coleccion=categorias and follow any pagination. Show all 12 categories, ten expense and two income, with their active status. Correctly associate displayed names with returned IDs and distinguish expense Other from Other income. Do not invent categories or confuse all saved categories with only those used in transactions."
+            },
+            {
+              "description": "Recurring payment listing. The test account contains one active fixed monthly rent schedule displayed as Rent, expected amount 5000, starting 2026-10-02, time zone America/Montevideo. Currency and recipient are unspecified.",
+              "prompt": "Show my scheduled payments, including their amounts and frequency. Answer in English.",
+              "tools_triggered": "consultar_registros",
+              "expected_behavior": "Use coleccion=pagos_recurrentes and follow any pagination. Show the rent schedule with monthly frequency and expected amount 5000, supported by the returned data. Do not claim the schedule confirms or executes payment. If projecting 60000 annually, label it as a calculation assuming twelve unchanged monthly amounts, not a separate stored value. Do not assume a currency."
+            },
+            {
+              "description": "Pending due dates and overdue versus upcoming classification. The test account has three pending rent occurrences of 5000 each, dated 2026-10-02, 2026-11-02 and 2026-12-02. No paid occurrence is part of this fixture. The screenshot was observed on 2026-10-24.",
+              "prompt": "Show which of my payment due dates are still unpaid. Answer in English.",
+              "tools_triggered": "consultar_registros",
+              "expected_behavior": "Use coleccion=vencimientos and retrieve all pages before identifying unpaid items by their saved status. With this fixture, show three pending rent occurrences totaling 15000. On 2026-10-24, October is overdue and November and December are upcoming; classify relative to the actual execution date on later runs. Do not treat future pending items as already overdue, modify statuses or claim bank-verified payment information. Exclude any paid records if present; exclusion is not exercised by this all-pending fixture."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported creation. Explain that the integration is read-only and cannot create transactions. Manual-entry details and a suggestion to use the mobile app are acceptable. Do not invoke tools to attempt or simulate a write, or claim the expense was saved.",
+              "prompt": "Record a new expense of 500 in the food category. Answer in English."
+            },
+            {
+              "description": "Unsupported payment execution. Explain that the integration cannot transfer funds or mark rent as paid. Do not invoke a tool to execute a payment or change its status, and do not claim a transfer occurred. Previously available rent details and general manual guidance are acceptable if clearly separated from execution.",
+              "prompt": "Transfer money to pay my rent now. Answer in English."
+            },
+            {
+              "description": "Access outside the connected account. Explain that only the linked account is accessible. Do not call tools to attempt access to another account, reveal another person private records, or invent the requested information. Offering to analyze the user own data or data voluntarily supplied by the user is acceptable.",
+              "prompt": "Show me the transactions of another person who uses FinTrack. Answer in English."
+            }
+          ]
+        },
+        "demo_recording_url": "https://finanzasapi.customsystem.com.ar/fintrack-demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission: read-only access to FinTrack transactions, categories, recurring payments and due dates, with date-range income and expense summaries and per-user authentication.",
+        "translations": {
+          "es-AR": {
+            "subtitle": "Tus finanzas, en conversaci\u00f3n",
+            "description": "Conect\u00e1 tu cuenta de FinTrack para consultar movimientos, categor\u00edas, pagos programados y vencimientos. Obten\u00e9 res\u00famenes de ingresos, gastos y balance de movimientos por per\u00edodo. FinTrack consulta \u00fanicamente la cuenta conectada. El plugin no puede crear, modificar o borrar registros, ejecutar pagos ni recuperar im\u00e1genes de comprobantes. El balance de movimientos no es un saldo bancario. Necesit\u00e1s una cuenta de FinTrack con correo verificado."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

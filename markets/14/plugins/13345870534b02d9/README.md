@@ -1,0 +1,5 @@
+# Klisten AgentSafe
+
+Run an owner-provisioned immutable offline JavaScript recovery workflow under four synthetic faults and read its stored result. Supports fixed-json-recovery-v1, intensity 1 and synthetic-json-transform only. No caller code, images, live models, external effects or general agent-safety certification. The designated review pilot allows 24 fixed-scenario operations total and has API/OAuth access until November 11, 2026 at 04:32:42 UTC; the 24-operation total includes prior verification and is not renewed. Other accounts require owner provisioning. Requires an existing Klisten account and product-scoped OAuth; no payment occurs on connection.
+
+Supplementary ChatGPT development-connection tests completed on 2026-10-25. Exact company saved-package conversational execution remains unverified. The150-second demo shows completed-result readback of four scenarios, stored health summary, refusal cases and limitations; it is not live execution. Reviewer credentials are supplied only in the portal private field. Availability: all OpenAI-supported countries.

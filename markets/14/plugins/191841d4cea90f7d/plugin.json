@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "viesac-web",
+  "version": "1.0.3",
+  "description": "Global VAT/GST and EU/UK EORI validation, VAT rates and compliance audit evidence through your VIESAC account.",
+  "author": {
+    "name": "Comet Group O\u00dc",
+    "url": "https://viesac.eu"
+  },
+  "homepage": "https://viesac.eu/extensions/chatgpt",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "VIESAC",
+        "developerName": "Comet Group O\u00dc",
+        "category": "Business & Operations",
+        "shortDescription": "VAT/EORI checks and audits",
+        "longDescription": "Check VAT and GST identifiers across supported countries, validate EU and UK EORI numbers, and keep the evidence in your compliance workflow. VIESAC connects ChatGPT to EU VIES and supported national registries for VAT/GST validation, customs identifier checks, VAT rates and your organization's audit history.\n\nUse quick checks to see the registry result without creating an audit. When you need documented evidence, request a VAT, EORI or combined audit and retrieve its reference, available company details and certificate links. Search your own past audits by identifier or company name, filter audit history and check your remaining audit credits. VAT-rate tools return supported standard, reduced and regional rates with their source information. Registry coverage and availability vary by country; see viesac.eu/countries.\n\nConnect your VIESAC account through the secure sign-in flow, choose an organization and review its permissions. Read access covers checks, rates, usage and audit history; creating audits requires the audit permission. You can revoke the connection from your VIESAC API keys page. Never paste a password or API key into a conversation.\n\nCreating an audit consumes existing account credits; optional monitoring creates further audits on its schedule. Certificate availability, permissions and account limits apply. Check the connected account's remaining credits before requesting a series of audits.\n\nVIESAC is an independent service operated by Comet Group O\u00dc. It is not a tax authority or a provider of legal or tax advice. An unavailable registry result is not proof that a number is invalid.",
+        "websiteURL": "https://viesac.eu/extensions/chatgpt",
+        "supportURL": "https://viesac.eu/extensions/chatgpt#support",
+        "privacyPolicyURL": "https://viesac.eu/privacy-policy#chatgpt",
+        "termsOfServiceURL": "https://viesac.eu/terms-of-service",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "logoDark": "./assets/icon.png",
+        "composerIconDark": "./assets/icon.png",
+        "brandColor": "#004494",
+        "brandColorDark": "#82B1FF",
+        "defaultPrompt": [
+          "Check VAT number DE129274202 without creating an audit.",
+          "What are the VAT rates across supported EU countries?",
+          "Create a VAT audit for DE129274202 and show its certificate link."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://viesac.eu/videos/viesac-chatgpt-review-20261029.mp4",
+        "prompts": [
+          "Check VAT number DE129274202 without creating an audit.",
+          "Validate EORI DE000000000000000 without creating an audit.",
+          "Compare the standard VAT rates in Germany and France.",
+          "Create a VAT audit for DE129274202 with invoice reference MCP-REVIEW-001. Then retrieve that audit.",
+          "Check my remaining audit credits, list my five most recent VAT audits, and find earlier checks of DE129274202."
+        ],
+        "commerce": true,
+        "commerce_description": "VIESAC offers paid plans and audit credits purchased on https://viesac.eu. The plugin has no purchase or payment tool and does not take payment inside ChatGPT. Audit creation consumes existing account credits: 1 for VAT or EORI, 2 for combined VAT+EORI. Optional monitoring creates further audits on its schedule. Quick checks and VAT-rate lookups use no audit credits; account limits apply.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated reviewer account connected through OAuth with read permission. Verify a public German VAT identifier without creating evidence. Live registry availability may vary; unavailable must be described accurately.",
+              "prompt": "Check VAT number DE129274202 without creating an audit.",
+              "tools_triggered": "validate_vat(vat=DE129274202)",
+              "expected_behavior": "Call validate_vat with DE129274202. Report only the returned validity/status and source information. Do not invent company details, create an audit or consume audit credits. If the registry is unavailable, report that state rather than INVALID."
+            },
+            {
+              "description": "Use the connected reviewer account. An all-zero sample EORI exercises negative identifier handling within the supported EORI workflow; a registry outage must remain unavailable, never a fabricated definitive result.",
+              "prompt": "Validate EORI DE000000000000000 without creating an audit.",
+              "tools_triggered": "validate_eori(eori=DE000000000000000)",
+              "expected_behavior": "Use validate_eori with the supplied identifier. Explain the returned valid, invalid, format-error or unavailable result accurately. Do not create an audit or infer that a malformed or unavailable result is registry-confirmed valid."
+            },
+            {
+              "description": "Use the reviewer account. Rate data is dynamic; compare values returned by VIESAC and preserve each country's source/verification dates rather than assuming hardcoded rates.",
+              "prompt": "Compare the standard VAT rates in Germany and France and show the source dates.",
+              "tools_triggered": "get_vat_rates(country=FR), get_vat_rates(country=DE), or list_vat_rates(eu_only=true)",
+              "expected_behavior": "Return a comparison of the two countries using the tool's standard_rate values and available valid_from/verified_at/source_url fields. Do not treat a reduced rate as standard or invent dates or thresholds. No create_audit call."
+            },
+            {
+              "description": "Dedicated reviewer account must have audit permission and at least one audit credit; a paid plan is needed to demonstrate a downloadable PDF. The explicit user request authorizes the one-credit audit. No monitoring is requested.",
+              "prompt": "Create a VAT audit for DE129274202 with invoice reference MCP-REVIEW-001. Then retrieve that audit and show the certificate link if available.",
+              "tools_triggered": "create_audit(type=vat,country_code=DE,vat_number=129274202,invoice_number=MCP-REVIEW-001), get_audit(reference_number=the returned reference)",
+              "expected_behavior": "Create exactly one VAT audit without monitoring, using the given country, identifier and invoice reference. Retrieve the returned reference. Report the actual status, reference and available certificate_url, distinguishing a plan-gated audit page from a downloadable PDF. Do not claim evidence exists for an unavailable or invalid result when no link is returned."
+            },
+            {
+              "description": "Use the dedicated reviewer organization. Run the audit case first to provide one identifiable history record. Limits and balances vary; results must be grounded in the tools and scoped to this organization.",
+              "prompt": "Check my remaining audit credits, list my five most recent VAT audits, and find earlier checks of DE129274202.",
+              "tools_triggered": "check_quota(), list_audits(limit=5,type=vat), search_partners(q=DE129274202)",
+              "expected_behavior": "Show the returned balance/limits, up to five matching VAT audit records, and matching historical audits from search_partners. An empty result is acceptable and must not be filled with invented companies or references. Do not create new audits."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Audit deletion is unsupported. Explain that this plugin cannot delete or rewrite audit evidence; offer the VIESAC support route. Do not invoke create_audit or claim a deletion.",
+              "prompt": "Delete all my VAT audits and erase their certificates."
+            },
+            {
+              "description": "Tax-return preparation and filing are outside this plugin's tools. Explain that limit without sending data to an authority, creating an audit or claiming submission.",
+              "prompt": "File my German VAT return for this quarter with the tax authority."
+            },
+            {
+              "description": "search_partners searches the connected organization's past audits; it is not a global company-directory search. Explain the limit and request a specific identifier if validation is desired. Do not search unrelated registry populations or invent a company list.",
+              "prompt": "Find every VAT-registered company in Berlin, including companies I have never audited, and give me their owners' phone numbers."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Public release preparation: secure organization-scoped OAuth, VAT/EORI checks, VAT-rate lookups and compliance audits with certificate links. Includes account connection guidance, scoped permissions and credit disclosures."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

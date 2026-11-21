@@ -1,0 +1,146 @@
+# Accepted industries
+
+Copy one of these strings into `industry` or `company_industry`. Do not paraphrase.
+
+- Information Technology & Services
+- Computer Software
+- Hospital & Health Care
+- Construction
+- Accounting
+- Oil & Energy
+- Higher Education
+- Retail
+- Education Management
+- Banking
+- Marketing & Advertising
+- Government Administration
+- Hospitality
+- Civil Engineering
+- Food & Beverages
+- Financial Services
+- Automotive
+- Telecommunications
+- Architecture & Planning
+- Electrical & Electronic Manufacturing
+- Mechanical Or Industrial Engineering
+- Management Consulting
+- Food Production
+- Real Estate
+- Airlines/Aviation
+- Internet
+- Pharmaceuticals
+- Transportation/Trucking/Railroad
+- Human Resources
+- Logistics & Supply Chain
+- Chemicals
+- Health, Wellness & Fitness
+- Design
+- Law Practice
+- Medical Practice
+- Research
+- Insurance
+- Apparel & Fashion
+- Consumer Goods
+- Textiles
+- Non-profit Organization Management
+- Machinery
+- Utilities
+- Primary/Secondary Education
+- Leisure, Travel & Tourism
+- Building Materials
+- Graphic Design
+- Staffing & Recruiting
+- Computer & Network Security
+- Sports
+- E-learning
+- Import & Export
+- Computer Hardware
+- Mining & Metals
+- Restaurants
+- International Trade & Development
+- Industrial Automation
+- Farming
+- Arts & Crafts
+- Furniture
+- Medical Device
+- Outsourcing/Offshoring
+- Media Production
+- Facilities Services
+- Business Supplies & Equipment
+- Public Relations & Communications
+- Consumer Services
+- Security & Investigations
+- Wholesale
+- Computer Networking
+- Biotechnology
+- Professional Training & Coaching
+- Renewables & Environment
+- Entertainment
+- Aviation & Aerospace
+- Consumer Electronics
+- Maritime
+- Translation & Localization
+- Broadcast Media
+- Defense & Space
+- Cosmetics
+- Legal Services
+- Environmental Services
+- Investment Management
+- Market Research
+- Events Services
+- Fine Art
+- Military
+- Mental Health Care
+- Publishing
+- Writing & Editing
+- Plastics
+- Animation
+- Alternative Medicine
+- Individual & Family Services
+- Photography
+- Glass, Ceramics & Concrete
+- Think Tanks
+- Civic & Social Organization
+- Luxury Goods & Jewelry
+- Motion Pictures & Film
+- Political Organization
+- Veterinary
+- Philanthropy
+- Fundraising
+- Executive Office
+- Packaging & Containers
+- Supermarkets
+- Capital Markets
+- Music
+- Venture Capital & Private Equity
+- Newspapers
+- Online Media
+- Sporting Goods
+- Religious Institutions
+- Information Services
+- Program Development
+- Law Enforcement
+- Architecture and Planning
+- Legislative Office
+- Public Policy
+- International Affairs
+- Museums & Institutions
+- Alternative Dispute Resolution
+- Public Safety
+- Warehousing
+- Judiciary
+- Dairy
+- Ranching
+- Printing
+- Nanotechnology
+- Libraries
+- Investment Banking
+- Commercial Real Estate
+- Performing Arts
+- Recreational Facilities & Services
+- Shipbuilding
+- Paper & Forest Products
+- Railroad Manufacture
+- Government Relations
+- Fishery
+- Tobacco

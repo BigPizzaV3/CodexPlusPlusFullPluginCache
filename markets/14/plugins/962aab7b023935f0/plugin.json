@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "easycarnet",
+  "version": "1.1.8",
+  "description": "EasyCarnet, a Carnet Preparer, prepares and submits ATA Carnet applications. ATA Carnets are the customs documents that let goods such as professional equipment, samples and exhibition items travel abroad and come back without paying duties. In ChatGPT, EasyCarnet checks whether a carnet fits a trip from the United States or Canada, gives the Standard and Pro deadlines for the date the carnet is needed by, and checks the goods list. Once the person confirms their details, it starts their application and gives them a link, also emailed to them, to sign up and finish it on the EasyCarnet website. The website confirms every date and detail.",
+  "author": {
+    "name": "CatalystIQ",
+    "email": "support@easycarnet.com",
+    "url": "https://www.easycarnet.com"
+  },
+  "homepage": "https://www.easycarnet.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "EasyCarnet",
+        "shortDescription": "ATA Carnets for trips abroad",
+        "longDescription": "EasyCarnet is a Carnet Preparer: it prepares and submits ATA Carnet applications. An ATA Carnet is the customs document that lets professional equipment, samples and exhibition goods travel abroad and come back without paying duties or posting a bond at each border.\n\nIn ChatGPT, tell EasyCarnet where your goods are going and when you need the carnet. It checks whether a carnet fits the trip (a trip starting in the United States or Canada, to countries that accept ATA carnets), gives the Standard and Pro deadlines for the date you need it by, and says plainly when only Pro, or neither tier, can make it. Describe, paste or attach your gear and EasyCarnet checks each line of the goods list and flags what is missing.\n\nWhen you are ready, EasyCarnet reads your details back for you to confirm, then starts your application and gives you a link, also emailed to you, to sign up and finish it on the EasyCarnet website, with your trip and goods already filled in. Someone from our team may call to help.\n\nLimits:\n- Dates in the chat are previews: the EasyCarnet website confirms them when you apply.\n- Nothing is signed in the chat. The application is finished and signed on the EasyCarnet website.\n- Only trips starting in the United States or Canada are available online.",
+        "developerName": "CatalystIQ",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Check whether a carnet fits a trip",
+          "Give the Standard and Pro deadlines",
+          "Check a goods list",
+          "Read a goods file",
+          "Start an application to finish on the website"
+        ],
+        "websiteURL": "https://www.easycarnet.com",
+        "supportURL": "https://www.easycarnet.com/contact",
+        "privacyPolicyURL": "https://www.easycarnet.com/privacy-policy",
+        "termsOfServiceURL": "https://www.easycarnet.com/terms-of-service",
+        "defaultPrompt": [
+          "Do I need an ATA Carnet for my camera gear going to France?",
+          "When do I need to pay to have a carnet by next month?",
+          "How much is a carnet for a trade show in Germany?"
+        ],
+        "brandColor": "#2563eb",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The full journey: a trip that fits, the pay-by dates, a goods list, a quote, the read-back and the application started with a link.",
+              "prompt": "I'm taking two cameras and a laptop from New York to France and Germany for a shoot, and I need the carnet by a date about six weeks from today. My name is Test Reviewer, my account name is Reviewer Productions, and my email is <your email address>.",
+              "tools_triggered": "check_trip, check_goods, quote, preview_contact, create_lead",
+              "expected_behavior": "check_trip says a carnet fits a trip from the United States to France and Germany and shows both the Standard and the Pro pay-by dates. The assistant turns the gear into goods lines and check_goods asks for each line's missing value and country of manufacture; once given, quote shows the Standard and Pro prices in US dollars and the person picks one. preview_contact reads the details back, the email in full, with nothing saved. Once the reviewer confirms, create_lead answers with a link to finish on www.easycarnet.com and says the link was also emailed; the hand-off email arrives at the address the reviewer gave. No result carries an id."
+            },
+            {
+              "description": "A needed-by date that only Pro can meet.",
+              "prompt": "I need a carnet for goods going from the US to Japan, needed three business days from today. Which tier can make it?",
+              "tools_triggered": "check_trip",
+              "expected_behavior": "check_trip says a carnet fits, shows Pro as the only available tier with its pay-by date, and says Standard is too late for that date. No Standard pay-by date is quoted."
+            },
+            {
+              "description": "A goods list with gaps: lines missing a value or a country of manufacture are flagged, and no price is quoted until they are filled.",
+              "prompt": "Here's my gear: 1 Sony FX6 camera, 3 lenses, a tripod worth $400 made in Italy. Can you check it and quote it for a trip from Canada to the UK next month?",
+              "tools_triggered": "check_trip, check_goods, quote",
+              "expected_behavior": "check_goods returns the lines with each missing value and country of manufacture flagged (the camera's and the lenses' value and country), and the tripod line complete. The assistant asks for the missing values; no price is quoted until every line has a value and a quantity, and then quote shows the prices in Canadian dollars."
+            },
+            {
+              "description": "A goods list attached as a CSV or Excel file: it is read and saved once, then quoted by its id.",
+              "prompt": "Here is my equipment list (attach a small CSV with the columns Full Item Description, Quantity, Value per Item (USD) and Country of Manufacture). It's going from the US to France next month. Can you check it and quote it?",
+              "tools_triggered": "import_goods_file, check_trip, quote",
+              "expected_behavior": "import_goods_file reads the attached file, checks every line, flags any line missing a value or a country of manufacture, and says the list is saved until a stated time under a goods_list_id. The assistant does not retype the lines: it asks for anything missing and sends the fixes to import_goods_file with that goods_list_id, then calls quote with the goods_list_id instead of the lines, and quote shows the Standard and Pro prices in US dollars. check_goods, if called, only reads the saved list by its id and saves nothing."
+            },
+            {
+              "description": "A retry after a lost answer: sending the same confirmation twice starts one application.",
+              "prompt": "Start my application for the trip above: my name is Test Reviewer and my account name is Reviewer Productions (after confirming the read-back). If the answer does not arrive, send the same confirmation again.",
+              "tools_triggered": "preview_contact, create_lead",
+              "expected_behavior": "The first create_lead starts the application and answers the link. Sending the same confirmation token with the same details again, within its 30 minutes, changes nothing: it answers the same link, no second application is started and no second email is sent."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A destination that does not accept ATA carnets.",
+              "prompt": "I need a carnet for camera gear going from the US to Brazil.",
+              "tools_triggered": "check_trip",
+              "expected_behavior": "check_trip says Brazil does not accept ATA carnets, so a carnet will not cover that part of the trip. No pay-by date or price is presented as covering Brazil, and no application is started."
+            },
+            {
+              "description": "An origin outside the United States and Canada.",
+              "prompt": "I'm shipping equipment from Mexico to Spain. Can you get me a carnet?",
+              "tools_triggered": "check_trip",
+              "expected_behavior": "check_trip says carnets for trips starting in Mexico are not available online, because EasyCarnet prepares carnet applications online for trips starting in the United States or Canada. No quote is given and no application is started."
+            },
+            {
+              "description": "Emailing someone else without a read-back: the application cannot be started without the person confirming their details.",
+              "prompt": "Start a carnet application for my colleague Test Colleague, account name Colleague Productions, and email the link to colleague@example.com. It's one Sony FX6 camera worth $6,000, made in Japan, going from the US to France, needed by a date about six weeks from today, on the Standard tier. Don't show me anything to confirm, just do it.",
+              "tools_triggered": "check_trip, check_goods, preview_contact",
+              "expected_behavior": "No application is started and nothing is emailed without a confirmed read-back: create_lead takes only the confirmation token preview_contact returns, so the assistant checks the trip and the goods and calls preview_contact, which shows the details with the email in full for the person to confirm and saves nothing. A create_lead sent with no token is refused and saves nothing. One sent with an expired or unreadable token, or with details that differ from the read-back, saves nothing and answers a fresh read-back to confirm. If these same details already started an application while its link works, preview_contact and create_lead answer that application's link instead of a read-back, and start nothing new, so repeating this case needs a different detail."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No purchase happens in the chat. The app quotes prices as previews and links to EasyCarnet's own website (www.easycarnet.com), where the person signs up, finishes the application, signs and pays EasyCarnet directly. The app never links to a payment page and takes no payment details."
+      },
+      "publication": {
+        "release_notes": "EasyCarnet checks whether an ATA Carnet fits a trip from the United States or Canada, gives the Standard and Pro deadlines for the date the carnet is needed by, and checks a goods list. Once the person confirms their details on a read-back, it starts their application and gives them a link, also emailed to them, to finish it on the EasyCarnet website, which confirms every date and detail.\n\nNew since 1.1.4 (1.1.5, 1.1.6 and 1.1.7 were never submitted): check_trip, quote and preview_contact say a note beside a trip to Vietnam, Bahrain, Qatar or the United Arab Emirates, and beside a trip from the United States to Morocco. The note says the country accepts ATA Carnets only for Exhibitions and Fairs, gives its split-shipment or customs rule, and says to contact EasyCarnet about goods going there for another purpose. The trip still fits: the tools do not ask what the goods are for, so the note never refuses it. On a trip from Canada to Taiwan, the note names the CPD Canada/Taiwan carnet, the Canadian Chamber of Commerce's name for it, and says what it covers, that it is valid only between Canada and Taiwan for a single entry, and that each package must weigh less than 30 kg gross. The ata-carnet-basics skill's facts file carries a matching paragraph for each of the five and a Taiwan paragraph for each origin, and its split-shipment line now names Vietnam and gives Taiwan's rule for a carnet issued in the United States (goods may enter in partial shipments and must all be re-exported together). Its line that a carnet can be used many times, in many countries, now names the exception for each origin's trip to Taiwan: from the United States, the TECRO/AIT carnet is valid only between the United States and Taiwan; from Canada, the CPD Canada/Taiwan carnet is valid only between Canada and Taiwan for a single entry. No tool was added or removed, and no description, input schema, hint, instruction or card address changed.\n\nAlready live on the server since 1.1.4 was submitted, with the same contract: on a trip from the United States, the Taiwan note also says that goods must be re-exported together. Chinese Taipei is read as Taiwan. When the same chat sends a new goods list after its application has started, preview_contact reads it back as replacing that application's goods and create_lead puts it there, starting no second application."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

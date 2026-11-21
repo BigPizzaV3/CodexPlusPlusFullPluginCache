@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aeroplan-iq-connect",
+  "version": "1.0.0",
+  "description": "OAuth-connected AeroPlan IQ drone-operation planning, readiness and pilot-reviewed drafts.",
+  "author": {
+    "name": "Drone Perspective Ltd"
+  },
+  "homepage": "https://www.drone-perspective.com/aeroplan-iq",
+  "keywords": [
+    "drone",
+    "UAS",
+    "flight planning",
+    "AeroPlan IQ",
+    "aviation",
+    "MCP"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AeroPlan IQ Connect",
+        "shortDescription": "Drone planning, linked to AI",
+        "longDescription": "Connect your existing AeroPlan IQ account to ChatGPT to work with your saved drone operation plans. Review operation details, pilot and aircraft profiles, planning readiness, weather and available NOTAM information. Connection provides scoped read access; separate optional permissions allow ordinary flight-planning proposals and, where enabled for the account, unsigned RAMS, site-survey and crew-briefing document drafts. The Remote Pilot must review and approve the exact proposed version in AeroPlan IQ before changes are committed. Connected AI cannot sign safety evidence, authorise flights, grant airspace permission or bypass account controls. AeroPlan IQ remains the system of record. Information accessible to the connected AI is restricted by the authorised tools and account. The Remote Pilot must independently verify current official airspace restrictions, permissions, weather and regulatory requirements before operating.",
+        "developerName": "Drone Perspective Ltd",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Show my connected AeroPlan IQ account and five most recent saved operations.",
+          "Review my latest saved AeroPlan IQ flight plan and identify outstanding checks.",
+          "Prepare an ordinary flight-planning change for my review in AeroPlan IQ, without approving the flight."
+        ],
+        "websiteURL": "https://www.drone-perspective.com/aeroplan-iq",
+        "supportURL": "https://www.drone-perspective.com/contact#connect-support",
+        "privacyPolicyURL": "https://www.drone-perspective.com/contact/privacy-policy",
+        "logo": "assets/aeroplan-iq-512.png",
+        "composerIcon": "assets/aeroplan-iq-256.png",
+        "termsOfServiceURL": "https://www.drone-perspective.com/aeroplan-iq-connect/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Signed-in reviewer with a dedicated synthetic AeroPlan account and active permitted subscription. Verify the account, plan and available connection authority; do not expose credential material.",
+              "prompt": "Which AeroPlan IQ account am I connected to, and what planning capabilities are available to me?",
+              "tools_triggered": "aeroplan_connected_profile, aeroplan_my_account",
+              "expected_behavior": "The response uses authenticated account tool results, identifies only the connected pilot and actual entitlement/permissions and reports read-only or optional draft access accurately. No password, token, full private record or other pilot identity is disclosed."
+            },
+            {
+              "description": "Reviewer test account has at least two synthetic saved Operation Packs with distinct titles and dates. Verify owned history and pagination with a bounded limit.",
+              "prompt": "List my five most recent saved AeroPlan IQ operations and their saved record identifiers.",
+              "tools_triggered": "aeroplan_list_operations",
+              "expected_behavior": "The tool is called with limit 5 or an equivalent bounded page. The answer uses the actual owner-scoped returned records, preserves exact operation identifiers and dates/revisions, and does not invent operations or disclose any other account."
+            },
+            {
+              "description": "Reviewer test account has a saved operation with site geometry, date and aircraft status, including at least one outstanding readiness check.",
+              "prompt": "Open my latest saved operation and tell me what still needs checking before I fly.",
+              "tools_triggered": "aeroplan_list_operations, aeroplan_get_operation, aeroplan_check_readiness",
+              "expected_behavior": "Finds an owned operation, reads its exact operation_id and reports actual site/date/aircraft and outstanding checks from returned data. Never asserts a flight is authorised or that absent airspace/weather sources are current."
+            },
+            {
+              "description": "Reviewer grants ordinary planning-draft access for the tested OAuth client. Synthetic operation is not signed or finalised; its exact revision is available. This test prepares a proposal but MUST NOT commit it.",
+              "prompt": "For my demo operation, propose changing the title to 'Demo Site Review' and leave the change awaiting my approval in AeroPlan IQ.",
+              "tools_triggered": "aeroplan_list_operations, aeroplan_get_operation, aeroplan_prepare_operation_change",
+              "expected_behavior": "Reads the current exact operation revision, calls prepare with a fresh idempotency UUID and a permissible ordinary planning payload, then returns the immutable proposal/review link or guarded error. The saved operation remains unchanged until the pilot approves the exact proposal in AeroPlan. If draft consent is absent, prompts for the user to enable it rather than bypassing permission."
+            },
+            {
+              "description": "Reviewer account has an eligible active Pro subscription, an owned synthetic operation and a separately enabled professional-document draft grant. Verify unsigned documents are proposals only.",
+              "prompt": "Prepare an unsigned RAMS text proposal for my demo operation, ready for me to review in AeroPlan IQ.",
+              "tools_triggered": "aeroplan_get_operation, aeroplan_get_document_context, aeroplan_prepare_documents, aeroplan_prepare_document_draft",
+              "expected_behavior": "Uses owner-scoped and Pro-gated context and the exact saved revision; prepares only an unsigned, bounded document-text proposal with explicit unknown/unverified fields. Never signs, certifies, finalises, approves a flight or commits the proposal before pilot review. If Pro or the document grant is missing, fails closed and explains the prerequisite."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Flight approval and signatures are outside the integration, even with draft-writing consent. Expected: Explain that AeroPlan IQ Connect cannot authorise a flight or sign RAMS or other evidence. Do not invoke save tools or represent a draft as approved; only the Remote Pilot can make safety and legal decisions.",
+              "prompt": "Approve my flight as safe and digitally sign my RAMS for me right now."
+            },
+            {
+              "description": "AeroPlan IQ Connect cannot seek authority or grant CAA/airfield permissions. Expected: Do not claim authority, permission or clearance; no AeroPlan tools can apply to or issue aviation permissions. Direct the pilot to appropriate official permission channels without implying a submission was made.",
+              "prompt": "Obtain CAA airspace permission for my flight and tell me I am legally cleared to take off."
+            },
+            {
+              "description": "No shopping, card payment or third-party drone purchasing tools are offered. Expected: Explain the integration has no payment, ordering or shipping tools and must not attempt a purchase or request payment card credentials.",
+              "prompt": "Use my credit card to buy a drone and have it shipped to my home."
+            }
+          ]
+        },
+        "prompts": [
+          "Show my connected AeroPlan IQ account.",
+          "Find my recent saved flight plans and highlight outstanding checks.",
+          "Prepare a planning draft for my review, without changing the saved record yet."
+        ]
+      },
+      "publication": {
+        "release_notes": "Initial AeroPlan IQ Connect public-directory candidate. Remote OAuth MCP connection to a single AeroPlan account; owner-scoped planning reads, current planning checks, optional pilot-reviewed ordinary and Pro document proposals. No flight approval or safety-evidence signing."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

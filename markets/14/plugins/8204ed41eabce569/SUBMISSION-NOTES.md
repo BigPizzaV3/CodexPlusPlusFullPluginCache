@@ -1,0 +1,1 @@
+Initial import package. After YouTube demonstration, insert extensions.com.openai.review.demo_recording_url and bump version. Name and subtitle <=30 characters; 5 positive/3 negative tests. Test live MCP before public submission.

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "umovi",
+  "version": "1.2.0",
+  "description": "Find service providers and available times, manage Umovi bookings, and read or send messages about an existing booking.",
+  "author": {
+    "name": "Umovi"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Umovi",
+        "shortDescription": "Book services and manage times",
+        "longDescription": "Find service providers on Umovi, compare service prices and available times, and create, reschedule or cancel your bookings. Read and send messages about an existing booking and manage your saved places. Public search works before sign-in; personal bookings, messages and saved places require a connected Umovi client account. Availability depends on participating providers. The app does not manage provider settings, access external calendars, take payments or provide medical advice.",
+        "developerName": "Umovi",
+        "category": "Business & Operations",
+        "capabilities": [],
+        "websiteURL": "https://umovi.app",
+        "supportURL": "https://help.umovi.app",
+        "privacyPolicyURL": "https://pro.umovi.app/privacy-policy",
+        "termsOfServiceURL": "https://pro.umovi.app/terms",
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg",
+        "defaultPrompt": [
+          "Find a hair salon in Warszawa with available times tomorrow.",
+          "Show my upcoming Umovi bookings.",
+          "Move my next Umovi booking to the first available time next week."
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Public discovery and option cards. Start a new chat. Use the synthetic demo provider; no account is required. Resolve relative dates in Europe/Warsaw. No booking is created.",
+              "prompt": "Find [DEMO / TEST] Review haircut at [DEMO / TEST] Umovi Review Studio in Warszawa with available times in the next seven days. Show the options as cards. Do not book anything.",
+              "tools_triggered": "search_providers, render_booking_options",
+              "expected_behavior": "Finds the synthetic place and service, displays their live price/duration and available slot previews in option cards, and creates no booking. Uses a seven-day horizon. If availability is exhausted, accurately displays no available times instead of fabricating a slot."
+            },
+            {
+              "description": "Latest-slot booking. Start a new chat connected to the dedicated reviewer account. Finish any required choice or data-sharing acknowledgement in this same conversation.",
+              "prompt": "Book [DEMO / TEST] Review haircut at [DEMO / TEST] Umovi Review Studio at the latest available time between tomorrow and seven days from now. If you need me to choose or acknowledge something, show it first.",
+              "tools_triggered": "book_appointment, confirm_booking",
+              "expected_behavior": "Uses inclusive date bounds and slotPreference=latest with book_appointment, not book_first_available_appointment. Creates one booking if choices/acknowledgements are already satisfied. Otherwise displays the actual missing choice or disclosure, waits for an explicit response, and uses the returned draftId with confirm_booking if instructed by the result. confirm_booking is conditional, not required after a successful direct booking. Reports the returned time and status without claiming success for a draft."
+            },
+            {
+              "description": "Exact-slot booking with explicit human confirmation. Start a new chat on the dedicated reviewer account. First request availability, then choose one exact returned slot in that same chat. Resolve dates in Europe/Warsaw. Do not use a fixed time that was not returned. Accept any host tool permission only for the stated test.",
+              "prompt": "Show available times for [DEMO / TEST] Review haircut at [DEMO / TEST] Umovi Review Studio tomorrow, but do not book yet. I will choose one of the returned times.",
+              "tools_triggered": "search_providers, check_availability, book_appointment, confirm_booking",
+              "expected_behavior": "First returns live availability without creating a booking. check_availability is needed only if discovery did not provide enough slots. The reviewer then explicitly requests one booking, repeating the returned place, service, employee, date, time, duration and price, and specifying the connected reviewer account. Example follow-up, replacing brackets with the actual returned details: \"Using only my connected reviewer account, book one [service] at [place] on [date] at [time] Europe/Warsaw with [employee], [duration], [price and currency]. I agree to share this test account's booking details with this demo provider.\" Uses the selected exact startAt with book_appointment. If a draft or further disclosure is returned, the reviewer confirms its displayed details before confirm_booking receives the actual draftId. Report the returned status accurately; PENDING is created, not provider-confirmed. After verification the reviewer cancels only the returned short booking reference with explicit cancellation intent. If tomorrow is full or closed, report that and ask before looking on another day. If ChatGPT blocks tool execution, report that without claiming success or changing permissions; a blocked call is not an Umovi error response."
+            },
+            {
+              "description": "Read the reviewer booking and conversation. Start a new connected chat. The account must contain a synthetic demo booking, seeded or created in a prior positive test. Use its live reference; no hardcoded booking code.",
+              "prompt": "Find my most recently created booking at [DEMO / TEST] Umovi Review Studio, including past and cancelled bookings. Show its details and display its message timeline in the widget. Do not send a message.",
+              "tools_triggered": "get_my_bookings, get_booking_details, get_booking_messages, render_booking_messages",
+              "expected_behavior": "Lists the connected account bookings for the demo place with upcoming=false, without excluding cancelled bookings, follows pagination if needed, and compares createdAt rather than the startsAt sort order. Selects the newest creation using returned identifiers, reads its details/timeline and renders the conversation. Supports an empty-message state and cancelled bookings. Does not send, change status or mark messages read. If the fixture is missing, report that explicitly; restore it before recording a successful run."
+            },
+            {
+              "description": "Earliest booking, reschedule and cleanup. Start a new connected chat. Each follow-up below stays in that chat and refers to the booking just created. Execute only against the synthetic provider.",
+              "prompt": "Book the earliest available [DEMO / TEST] Review haircut at [DEMO / TEST] Umovi Review Studio in the next seven days. Show any required choices or acknowledgement before completing it.",
+              "tools_triggered": "book_first_available_appointment, confirm_booking, reschedule_booking_to_first_available, cancel_booking",
+              "expected_behavior": "Uses the earliest-only tool and completes any actual draft confirmation in the same chat. After success the reviewer says: \"Move this booking to the first available time between eight and fourteen days from now.\" Moves that same booking atomically after explicit intent, without cancelling first. Reviewer then says: \"Cancel the demo booking we just moved.\" Cancels it with confirmedByUser=true and reports the backend status. confirm_booking is conditional. If either range has no availability, explains it without inventing success; replenish fixture availability before recording a successful run. If the provider requires confirmation of the requested change, report RESCHEDULE_REQUESTED accurately and do not describe it as provider-confirmed. Cancellation must report the actual returned status, including WITHDRAWN when applicable."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated calendar request: Umovi does not access external meeting calendars.",
+              "prompt": "What meetings do I have tomorrow in my work calendar?",
+              "expected_behavior": "Does not invoke Umovi. Explains that Umovi covers service bookings, not work-calendar meetings."
+            },
+            {
+              "description": "Provider administration is outside the client booking tools.",
+              "prompt": "Create a new service called Haircut in my salon admin panel.",
+              "expected_behavior": "Does not create a service or call a booking tool. Explains that provider administration is unsupported here."
+            },
+            {
+              "description": "Isolated acknowledgement without a preceding booking or data-sharing notice. Start a completely new chat.",
+              "prompt": "Yes, I acknowledge sharing my data with that place and confirm the booking.",
+              "expected_behavior": "Asks which booking/place the user means. Does not invent a draftId, call confirm_booking, record acknowledgement or create a booking."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Clarified tool names and selection boundaries; earliest-only booking rejects latest-slot parameters, and find_available_slot supports both earliest and latest lookups. Updated write annotations, removed raw user-location fields and diagnostic identifiers from model-facing data. Replaced context-dependent review prompts and fixed-time references with complete scenarios. Added explicit production MCP and OAuth configuration. Fresh submission following OpenAI support case 17060283 because the previous rejected listing could not configure its MCP connection. Includes corrected short booking references, service price/currency/duration presentation, provider time zones, and booking-history selection guidance."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

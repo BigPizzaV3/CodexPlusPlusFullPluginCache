@@ -1,0 +1,115 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "kaus",
+  "version": "1.1.0",
+  "description": "Kaus turns meeting notes or transcripts into action lists inside ChatGPT \u2014 owner, action, due date and source quote for each item, plus flagged ambiguities and draft follow-ups; a productivity tool for teams and project leads. Use when the user wants action items from a meeting, a transcript turned into next steps with owners and deadlines, who owes what from a call, or draft follow-up messages from meeting notes. Trigger on requests like \"extract action items from this meeting\", \"turn this transcript into next steps\", \"who owes what from this meeting\", \"draft follow-ups from this call\", or \"meeting action items with deadlines\".",
+  "author": {
+    "name": "Midchat",
+    "email": "support@midchat.io",
+    "url": "https://midchat.io/"
+  },
+  "license": "MIT",
+  "keywords": [
+    "meeting",
+    "action items",
+    "transcript",
+    "next steps",
+    "follow-up",
+    "owners",
+    "deadlines",
+    "meeting notes"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Kaus",
+        "shortDescription": "Recurring action lists",
+        "longDescription": "Kaus turns meeting notes or a transcript into an action list inside ChatGPT \u2014 a productivity tool for teams and project leads. Paste your notes or transcript; Kaus finds sentences that look like commitments (\"Maya will\u2026\", \"Action item: \u2026\"), resolves deadlines such as \"by Friday\" against the meeting date, checks for missing or unclear owners, vague actions and missing due dates, and lays the result out as a table of owner, action, due date and source quote, followed by Ambiguities and draft follow-up messages (email or Slack, one per owner) that you send yourself. A CSV of the table is available on request. It is designed to use only what is in your notes: missing owners or dates appear as TBD and suggestions that nobody took on are flagged rather than assigned. Please review the list before sharing it. Meeting content is processed only to return the result and is not stored by Midchat. Limitations: drafts only \u2014 does not send email or Slack messages, create calendar events, or open tickets; pattern-based detection can miss or over-match items.",
+        "developerName": "Midchat",
+        "category": "Productivity",
+        "capabilities": [
+          "Action items from notes",
+          "Owners and due dates",
+          "Due dates from \"by Friday\"",
+          "Ambiguity flags",
+          "Draft follow-ups",
+          "CSV for trackers"
+        ],
+        "defaultPrompt": [
+          "Extract action items from this meeting",
+          "Who owes what from this meeting?",
+          "Draft follow-ups from this call"
+        ],
+        "brandColor": "#3B3FBC",
+        "brandColorDark": "#A6A8E0",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "websiteURL": "https://midchat.io/kaus/",
+        "supportURL": "https://midchat.io/kaus/support/",
+        "privacyPolicyURL": "https://midchat.io/kaus/privacy/",
+        "termsOfServiceURL": "https://midchat.io/kaus/terms/"
+      },
+      "onboardingSkill": "./skills/meeting-actions/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Transcript \u2192 action table, ambiguities and email follow-ups",
+              "prompt": "Extract action items from this meeting and draft follow-up emails. The meeting was on Monday 2026-10-05.\nMaya: I'll send the pricing doc by Friday.\nJon: I'll take the API spike, should be done next week.\nLee: Someone should clean up the docs at some point.",
+              "tools_triggered": "find_action_candidates, resolve_due_dates, format_action_pack",
+              "expected_behavior": "Returns an Action items table first with Maya | Send the pricing doc | 2026-10-09 and Jon | API spike | next week (read as the week of 2026-10-12, flagged to confirm), each with a short source quote. \"Clean up the docs\" is listed under Ambiguities (no owner, TBD), not assigned to anyone. Two draft emails follow, one to Maya and one to Jon, each listing only their own row, and the drafts are not sent."
+            },
+            {
+              "description": "Who owes what \u2014 table only, unclear owners flagged",
+              "prompt": "Who owes what from this meeting?\nAction item: Priya to share the revised timeline by 2026-10-09.\nSam or Lee will book the venue.\nWe should revisit onboarding in Q1.",
+              "tools_triggered": "find_action_candidates, check_action_items, format_action_pack",
+              "expected_behavior": "Returns the Action items table (no follow-up drafts unless asked) with Priya | Share the revised timeline | 2026-10-09. The venue booking is flagged under Ambiguities because the owner is \"Sam or Lee\" and needs one name. \"Revisit onboarding in Q1\" is treated as a suggestion (Ambiguities or Parking lot), not an action. No owners are invented."
+            },
+            {
+              "description": "Relative deadlines resolved against the meeting date",
+              "prompt": "Meeting action items with deadlines. The call was Monday 2026-10-05, timezone Europe/Berlin.\nBen: I'll send the deck by Friday.\nAnna: I'll book the room tomorrow.\nBen: and I'll circulate the minutes by EOD.",
+              "tools_triggered": "find_action_candidates, resolve_due_dates, format_action_pack",
+              "expected_behavior": "The table shows Ben | Send the deck | 2026-10-09, Anna | Book the room | 2026-10-06 and Ben | Circulate the minutes | 2026-10-05, each with the quote it came from, and briefly states that the dates were resolved from the 2026-10-05 meeting date."
+            },
+            {
+              "description": "Slack follow-up drafts per owner, not sent",
+              "prompt": "Draft Slack follow-ups from the call \u2014 don't send them.\nMaya will update the roadmap by EOW.\nJon will fix the login bug by Wednesday.\nMaya will share the slides tomorrow.",
+              "tools_triggered": "find_action_candidates, format_action_pack",
+              "expected_behavior": "Returns the Action items table (three rows) and two Slack-style drafts: one to Maya with the roadmap and slides items, one to Jon with the login bug. Without a meeting date the due dates stay as written (EOW, Wednesday, tomorrow) or the user is asked for the date. Nothing is sent."
+            },
+            {
+              "description": "Meeting dump \u2192 CSV for a tracker, missing owner shown as TBD",
+              "prompt": "Turn this meeting dump into a tracker and give me a CSV:\n- Alex will draft the proposal by 2026-10-15\n- TODO: order new laptops\n- Kim to review the contract by 2026-10-20",
+              "tools_triggered": "find_action_candidates, check_action_items, format_action_pack",
+              "expected_behavior": "Returns the Action items table and a CSV with the header Owner,Action,Due,Source quote and rows for Alex (2026-10-15), Kim (2026-10-20) and the laptop order with owner TBD and due TBD. The laptop order is listed under Ambiguities (no owner, no due date). No owner or date is invented."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending messages and creating events is out of scope. Expected: No Kaus tool sends anything or creates events. Kaus explains that it only drafts the action table and follow-ups for the user to send or add to a calendar themselves, and offers the drafts to copy.",
+              "prompt": "Send these follow-ups to the team for me and create a calendar event for each action item."
+            },
+            {
+              "description": "A news article summary is not a meeting action list. Expected: No Kaus tool is called and no action table is produced; ChatGPT may summarize the article on its own.",
+              "prompt": "Summarize this news article about EU energy prices in three bullet points."
+            },
+            {
+              "description": "Invoicing is not a meeting action list. Expected: No Kaus tool is called and no action table is produced; ChatGPT may help with the invoice on its own or with an invoicing tool.",
+              "prompt": "Invoice the client for yesterday's meeting \u2014 2 hours at \u20ac120/h."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. It drafts action lists and follow-up text for the user to send themselves.",
+        "demo_recording_url": "https://midchat.io/kaus/demo/kaus-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "v1.1.0 \u2014 Adds the hosted Kaus MCP server (https://kaus.mcp.midchat.io/mcp, no sign-in) with four read-only tools: find_action_candidates (commitment-like sentences with verbatim quotes), resolve_due_dates (deadlines like \"by Friday\" from the meeting date), check_action_items (missing or unclear owners, vague actions, missing dates, quotes not found in the notes) and format_action_pack (action table + ambiguities + email/Slack follow-up drafts + optional CSV). No meeting content is stored. The meeting-actions skill now uses these tools first and keeps a chat-only fallback."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://midchat.io/kaus/"
+}

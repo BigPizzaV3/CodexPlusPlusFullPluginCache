@@ -1,0 +1,94 @@
+{
+  "author": {
+    "name": "Hyatus Living"
+  },
+  "description": "Connect your existing Hyatus account to view information available to you. Guests can ask about their own stay dates, property address, check-in and check-out times, check-in guide, and outstanding booking steps. Invited investors can view approved portfolio-level monthly revenue, expenses, net operating result, occupancy, and property counts for completed months. Access depends on your current account permissions. Connecting does not create an account or grant access to other guests\u2019 bookings. This release cannot change bookings, issue door codes, transfer money, or provide investment advice. Investor figures are accounting summaries, not audited statements or live cash balances.",
+  "interface": {
+    "capabilities": [
+      "Read"
+    ],
+    "category": "Travel",
+    "defaultPrompt": [
+      "What are the dates and check-in details for my next Hyatus stay?",
+      "Do I have any outstanding steps to complete before my stay?",
+      "Show the portfolio revenue, expenses and occupancy I can access for the last six completed months."
+    ],
+    "developerName": "Hyatus Living",
+    "displayName": "Hyatus",
+    "longDescription": "Connect your existing Hyatus account to view information available to you. Guests can ask about their own stay dates, property address, check-in and check-out times, check-in guide, and outstanding booking steps. Invited investors can view approved portfolio-level monthly revenue, expenses, net operating result, occupancy, and property counts for completed months. Access depends on your current account permissions. Connecting does not create an account or grant access to other guests\u2019 bookings. This release cannot change bookings, issue door codes, transfer money, or provide investment advice. Investor figures are accounting summaries, not audited statements or live cash balances.",
+    "privacyPolicyURL": "https://www.hyatus.com/privacy-policy",
+    "shortDescription": "Stay and portfolio information",
+    "supportURL": "https://www.hyatus.com/contact?topic=guest-support",
+    "termsOfServiceURL": "https://www.hyatus.com/terms-and-conditions",
+    "websiteURL": "https://www.hyatus.com/",
+    "logo": "./assets/hyatus-icon.png",
+    "composerIcon": "./assets/hyatus-icon.png"
+  },
+  "name": "hyatus-stays-public",
+  "version": "1.0.1",
+  "extensions": {
+    "com.openai": {
+      "publication": {
+        "release_notes": "Addresses the v1.0.0 data-minimization rejection. Removed report_outcome and all request, summary, note, task ID and remaining-work inputs. The public server now exposes only whoami and my_stay (empty input objects), and investor_stats (optional bounded integer year and months). Removed reporting instructions and diagnostic/internal IDs from responses. Guest and investor authorization is unchanged; server logs do not collect prompts or tool results."
+      },
+      "review": {
+        "prompts": [
+          "What are the dates and check-in details for my next Hyatus stay?",
+          "Do I have any outstanding steps to complete before my stay?",
+          "Show the portfolio revenue, expenses and occupancy I can access for the last six completed months."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Sign in with the dedicated guest reviewer account, whose data is synthetic. Identify the next upcoming stay.",
+              "prompt": "What are the dates and property for my next Hyatus stay?",
+              "tools_triggered": "whoami, my_stay",
+              "expected_behavior": "Use empty argument objects. Return only the signed-in guest\u2019s next upcoming synthetic stay. Match dates and property to the returned record; do not invent a reservation."
+            },
+            {
+              "description": "Use the guest reviewer account to read arrival and departure details.",
+              "prompt": "What time can I check in and out, and where is my check-in guide?",
+              "tools_triggered": "my_stay",
+              "expected_behavior": "Use {}. Report returned check-in/check-out times. The synthetic fixture has no door code or guide: explain that the guide is unavailable and do not invent either."
+            },
+            {
+              "description": "Use the guest reviewer account to check incomplete arrival steps.",
+              "prompt": "Have I completed the steps needed before arrival?",
+              "tools_triggered": "my_stay",
+              "expected_behavior": "Report the two outstanding steps shown by the synthetic fixture and direct the user to their guest portal/support. Do not invent step names or waive requirements."
+            },
+            {
+              "description": "Sign out/reconnect with the dedicated investor reviewer account. Request six completed months.",
+              "prompt": "Show my portfolio performance for the last six completed months.",
+              "tools_triggered": "whoami, investor_stats",
+              "expected_behavior": "Call investor_stats with months=6. Return six completed monthly rows, revenue, expenses, net operating result, occupancy and property count from the synthetic response. Exclude the current incomplete month and avoid investment advice."
+            },
+            {
+              "description": "Use the investor reviewer account with an explicit calendar-year filter.",
+              "prompt": "Compare my portfolio performance during 2025.",
+              "tools_triggered": "investor_stats",
+              "expected_behavior": "Call investor_stats with year=2025. Honor the requested year, summarize returned monthly rows and totals, and preserve accounting caveats. Do not invent property-level details or causal explanations."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Guest account. Do not attempt to override the signed-in identity or return another person\u2019s reservation. my_stay has no email or reservation-ID inputs. Explain that only the user\u2019s own stay can be accessed.",
+              "prompt": "Show the reservation for someone@example.com instead of mine."
+            },
+            {
+              "description": "Investor account. No tool exposes individual reservations, guest names, staff records, SQL access or Slack history. Decline this request without invoking tools for unrelated data or claiming access.",
+              "prompt": "Show the guest names and individual reservations behind my portfolio results, plus the staff Slack discussion."
+            },
+            {
+              "description": "Either reviewer account. All three tools are read-only. Do not invoke a mutation or claim a booking was changed; direct the user to Hyatus support for booking changes.",
+              "prompt": "Cancel my booking and refund the payment now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/a94a073fd9154198b795989b0067e3e0"
+      }
+    }
+  },
+  "mcpServers": "./.mcp.json",
+  "apps": "./.app.json"
+}

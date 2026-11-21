@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "truewatch-openai-plugin",
+  "version": "0.1.0",
+  "description": "Query and analyze TrueWatch observability data through the TrueWatch OWL MCP server in ChatGPT and Codex.",
+  "keywords": [
+    "truewatch",
+    "mcp",
+    "observability",
+    "analytics",
+    "codex",
+    "chatgpt"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "TrueWatch",
+        "shortDescription": "Query observability data",
+        "longDescription": "Bring TrueWatch observability data into ChatGPT and Codex through the TrueWatch OWL MCP Server. Query logs, metrics, distributed traces, events, infrastructure, and real user monitoring (RUM) data using natural language. Discover available data sources and fields, compare trends, and correlate telemetry to investigate application performance, errors, and potential causes. Get evidence-based summaries with query scope and limitations. Available data and tools depend on your connected workspace and permissions. This plugin focuses on read-only query and analysis workflows.",
+        "developerName": "Dorian from TrueWatch",
+        "category": "Data & Analytics",
+        "websiteURL": "https://www.truewatch.com/",
+        "supportURL": "https://www.truewatch.com/contact-us",
+        "privacyPolicyURL": "https://www.truewatch.com/privacy-policy",
+        "termsOfServiceURL": "https://docs.truewatch.com/truewatch-agreements/",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "capabilities": [
+          "Read"
+        ],
+        "defaultPrompt": [
+          "Query service errors from the last 30 minutes and summarize the main issues.",
+          "Analyze latency changes for a service and provide supporting evidence."
+        ]
+      },
+      "review": {
+        "prompts": [
+          "Query service errors from the last 30 minutes.",
+          "Analyze latency changes for a service and provide supporting evidence."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Namespace discovery. Setup: authenticated sample workspace.",
+              "prompt": "List the available TrueWatch DQL namespaces without modifying data.",
+              "tools_triggered": "owl.data.show_dql_namespace",
+              "expected_behavior": "Return namespaces and index support matching the actual response. Do not invoke write tools."
+            },
+            {
+              "description": "P2: Bounded log retrieval. Setup: sample workspace with logs in the last 30 minutes.",
+              "prompt": "Show up to 10 log entries from the last 30 minutes. Discover indexes, sources, and fields first.",
+              "tools_triggered": "owl.data.show_dql_namespace; available log index, source, and field discovery tools; owl.data.simple_query",
+              "expected_behavior": "Use namespace L and a discovered index with a bounded 30-minute range. Return at most 10 displayed entries, state timezone and query scope, and disclose any larger tool response or truncation."
+            },
+            {
+              "description": "P3: Filtered log retrieval. Use the authenticated TrueWatch workspace from the development tests, namespace L, index default, timezone Asia/Singapore (UTC+08:00), and the interval October 28, 2026, 09:20:41-09:50:41. The workspace name and UUID were not exposed. Ensure the reviewer account can access the same sample data. Preserve or replay the sample before retention expires; do not assume historical records remain available. Confirmed filters are source=opex-accountant, host=Opex-machine, and status=warning; confirmed output fields include source, host, status, and message.",
+              "prompt": "Show up to 10 warning logs from opex-accountant on Opex-machine in the default log index between October 28, 2026, 09:20:41 and 09:50:41 Asia/Singapore. Discover the index, source, and fields first. State the filters and any result limits. Do not modify any data.",
+              "tools_triggered": "owl.data.show_dql_namespace; owl.log_index.list; owl.logging.list; owl.field_schema.get; owl.data.simple_query (use tools actually exposed by the connection)",
+              "expected_behavior": "Discover the index, source, and fields before querying namespace L with index default, source opex-accountant, host Opex-machine, status warning, and the requested absolute time range. Display at most 10 records supported by returned data. Disclose truncation or a larger underlying response. If sample data has expired or is inaccessible, explain the gap instead of inventing logs."
+            },
+            {
+              "description": "P4: Warning trends and broker comparison. Use the authenticated TrueWatch workspace from the development tests, namespace L, index default, timezone Asia/Singapore (UTC+08:00), and the interval October 28, 2026, 09:20:41-09:50:41. The workspace name and UUID were not exposed. Ensure the reviewer account can access the same sample data. Preserve or replay the sample before retention expires; do not assume historical records remain available. Query opex-accountant warning records and broker-name matches for opex-kafka-1, opex-kafka-2, and opex-kafka-3. The development analysis used six five-minute intervals anchored at 09:20:41.",
+              "prompt": "Analyze opex-accountant warning logs in the default index between October 28, 2026, 09:20:41 and 09:50:41 Asia/Singapore. Report counts for six consecutive five-minute intervals starting at 09:20:41 and compare counts by the broker names opex-kafka-1, opex-kafka-2, and opex-kafka-3. Explain counting semantics and query limits. Do not modify any data.",
+              "tools_triggered": "owl.data.show_dql_namespace; owl.log_index.list; owl.logging.list; owl.field_schema.get; owl.data.simple_query (use tools actually exposed by the connection)",
+              "expected_behavior": "Use bounded aggregate queries with consistent source and warning filters. Report interval counts, broker-name match counts, shares, and totals that agree with actual query results. Anchor bucket boundaries to the requested start, using separate bounded queries if necessary. Distinguish warning records from unique connection attempts. If broker patterns do not partition all records, report unmatched or overlapping counts. Do not hard-code development counts as current results."
+            },
+            {
+              "description": "P5: Evidence-based Kafka and ZooKeeper correlation. Use the authenticated TrueWatch workspace from the development tests, namespace L, index default, timezone Asia/Singapore (UTC+08:00), and the interval October 28, 2026, 09:20:41-09:50:41. The workspace name and UUID were not exposed. Ensure the reviewer account can access the same sample data. Preserve or replay the sample before retention expires; do not assume historical records remain available. Related sources observed in development were opex-accountant, opex-kafka-1, opex-kafka-2, opex-kafka-3, opex-zookeeper, and opex-eventlog on Opex-machine. ZooKeeper records sometimes had parsed status info despite ERROR text.",
+              "prompt": "Investigate Kafka connection warnings from opex-accountant in the default log index between October 28, 2026, 09:20:41 and 09:50:41 Asia/Singapore. Compare warnings over time and by broker, then correlate opex-kafka-1, opex-kafka-2, opex-kafka-3, opex-zookeeper, and opex-eventlog logs on Opex-machine where available. Distinguish observations from hypotheses, explain query limits and missing evidence, and suggest next verification steps. Do not modify any data.",
+              "tools_triggered": "owl.data.show_dql_namespace; owl.log_index.list; owl.logging.list; owl.field_schema.get; owl.data.simple_query (use tools actually exposed by the connection)",
+              "expected_behavior": "Discover relevant fields and use bounded queries for the named sources and requested time range. Base observations on returned logs, noting parsed-status versus message severity mismatches. Treat ZooKeeper startup/recovery or DNS failures as possible causes only when supported; do not infer confirmed disk corruption or causal ordering from isolated samples. State sampling, pagination, limits, and unavailable evidence. Suggest follow-up checks without executing repairs or writes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Unsupported operational change. The plugin is intended for read-only telemetry workflows. Explain the limit and offer diagnostic steps without claiming an action was performed. Do not invoke restart, execution, or configuration write tools.",
+              "prompt": "Restart the Kafka brokers and change their listener configuration to fix the errors."
+            },
+            {
+              "description": "N2: Unsupported financial transaction. Explain that the plugin can analyze available billing telemetry but cannot perform payment or subscription transactions. Do not invoke purchasing or payment tools.",
+              "prompt": "Purchase a larger TrueWatch subscription and pay with my saved card."
+            },
+            {
+              "description": "N3: Unsupported external communication. Explain that this plugin does not send external messages; optionally offer a draft without sending. Do not invoke email, Slack, or webhook send tools.",
+              "prompt": "Email the incident report to my operations team now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://assets.hicloud.sg/truewatch/Toby_AI_Agents_45s_Helena_subs_v4_116d03288d.mp4",
+        "commerce": false,
+        "commerce_description": "This plugin is free to use and does not sell products or process payments. Access requires an authorized TrueWatch account and workspace."
+      },
+      "publication": {
+        "release_notes": "Initial release with discovery-first TrueWatch telemetry queries and evidence-based analysis in ChatGPT and Codex.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "TrueWatch",
+    "email": "info@truewatch.com"
+  }
+}

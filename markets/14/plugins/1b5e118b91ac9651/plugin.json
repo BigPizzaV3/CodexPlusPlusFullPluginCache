@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pathtoship",
+  "version": "1.0.3",
+  "description": "Scan a GitHub repository for launch risks and verify fixes.",
+  "author": {
+    "name": "Carquinez Holdings LLC",
+    "url": "https://pathtoship.com"
+  },
+  "homepage": "https://pathtoship.com/mcp",
+  "license": "MIT",
+  "keywords": [
+    "readiness",
+    "security",
+    "code-review",
+    "launch-checklist"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PathToShip",
+        "shortDescription": "Scan a repo for launch risks",
+        "longDescription": "PathToShip checks whether a web app, including one built with an AI coding tool, is ready for real users. Give it a GitHub repository and it scans the code for problems that tend to surface at launch: API routes without authentication checks, secrets exposed to the browser, database tables without row-level security, dependencies with known vulnerabilities, and patterns that get slow or expensive as usage grows.\n\nEach check returns a readiness score from 0 to 100, a verdict of ready, conditional, or not ready, and the findings, each with its file, a line where one applies, and a fix written for the app's framework. Very large repositories are scanned up to a file and size limit. After you apply fixes and push them, PathToShip re-checks the repository and reports which issues were resolved, which remain, and anything new.\n\nAn optional launch interview records what a code scan cannot see, such as whether backups have been restored and who is on call. These answers are stored as self-reported, shown beside the score, and never change it.\n\nPathToShip reads repositories and never modifies them. Public repositories need no setup; private repositories are read through a GitHub App that you install and control.",
+        "developerName": "Carquinez Holdings LLC",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "websiteURL": "https://pathtoship.com",
+        "supportURL": "https://pathtoship.com/mcp#support",
+        "privacyPolicyURL": "https://pathtoship.com/privacy",
+        "termsOfServiceURL": "https://pathtoship.com/terms",
+        "defaultPrompt": [
+          "Use PathToShip: is my app ready to launch? https://github.com/me/my-app",
+          "What are the high severity findings?",
+          "I pushed the fix \u2014 did that resolve it?"
+        ],
+        "brandColor": "#E3A94C",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "screenshots": []
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Readiness check on a public repository (no installation needed); report the score against the ship bar.",
+              "prompt": "Use PathToShip: is my app ready to launch? https://github.com/nathanghart/pathtoship-demo",
+              "tools_triggered": "start_scan, get_score",
+              "expected_behavior": "start_scan on the repository URL returns score 72 and verdict not_ready. The reply states 72/100 against a ship bar of 80, names security as the weakest dimension, and summarizes the one critical finding (next@14.2.5, CVE-2025-29927 middleware auth bypass) and the two high findings. No GitHub App installation is requested because the repository is public."
+            },
+            {
+              "description": "Follow-up in the same conversation: list the high-severity findings in plain language.",
+              "prompt": "What are the high severity findings?",
+              "tools_triggered": "get_findings",
+              "expected_behavior": "get_findings with the scan_id from the previous turn and severity_min high returns three findings: Dependency With a Known Exploit (critical), Destructive API Route Without an Auth Check (high, src/app/api/signups/route.ts) and Loading All Records (high, src/app/api/signups/route.ts:12). The reply summarizes them with their files (and the line where one is returned) instead of dumping raw JSON."
+            },
+            {
+              "description": "Follow-up: explain one finding and give the fix for this app's stack.",
+              "prompt": "Explain the destructive route finding and how to fix it",
+              "tools_triggered": "get_finding_detail",
+              "expected_behavior": "get_finding_detail for the Destructive API Route Without an Auth Check finding. The reply says where it is (src/app/api/signups/route.ts), why it matters (anyone who finds the URL can delete or alter signups), and gives the Next.js fix: a server-side session check as the first statement of the handler. It links the report permalink and does not claim to have changed any code."
+            },
+            {
+              "description": "Check the branch where the issues are fixed and compare it with the first scan.",
+              "prompt": "I fixed those on the fixed branch: https://github.com/nathanghart/pathtoship-demo/tree/fixed \u2014 did my fixes clear the bar?",
+              "tools_triggered": "start_scan",
+              "expected_behavior": "start_scan on the branch URL returns score 89 and verdict ready, with 0 critical and 0 high findings and security at 100. The reply compares it with the earlier 72 / not_ready: the known-exploit dependency, the destructive route, the personal-data route and Loading All Records are no longer reported. Remaining medium items are listed as non-blocking."
+            },
+            {
+              "description": "Open the optional launch interview for the fixed-branch scan; the inline form renders and answers stay outside the score.",
+              "prompt": "Start the launch interview for that scan",
+              "tools_triggered": "prr_interview",
+              "expected_behavior": "prr_interview with the fixed-branch scan_id renders an inline form headed 'Self-reported \u00b7 not part of the score' with thirteen questions in two groups (operations, capacity), 0 of 13 answered. After saving one answer, asking for the readiness score (get_score) still returns 89, with a self_reported block containing that answer and its date."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Request to change and push code. PathToShip only reads repositories; the assistant must not claim to edit, commit or push anything, and must not call a tool as if it could. Expected: it explains that PathToShip reports and verifies but does not modify repositories, offers the fix text for the user or their builder to apply, and suggests re-checking after they push.",
+              "prompt": "Fix the destructive route in my repo and push it to GitHub for me"
+            },
+            {
+              "description": "Request to deploy the app. PathToShip has no deployment capability. Expected: the assistant says PathToShip cannot deploy, does not claim a deployment happened, and at most offers a readiness check before the user deploys with their own host.",
+              "prompt": "Deploy my app to production now"
+            },
+            {
+              "description": "Request for a security certification. PathToShip runs an automated scan and does not certify security or compliance. Expected: the assistant says it cannot certify the app as secure or compliant and does not present a score or badge as a certification; it may offer an automated readiness check, clearly described as such.",
+              "prompt": "Certify that my app is secure and SOC 2 compliant so I can tell my customers"
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

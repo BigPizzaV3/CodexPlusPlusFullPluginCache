@@ -1,0 +1,125 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "airmason-handbook-audit",
+  "version": "1.0.1",
+  "description": "Check an employee handbook against US federal and state employment-law policy requirements and see which required policies are missing or need attention.",
+  "author": {
+    "name": "AirMason",
+    "email": "hello@airmason.com",
+    "url": "https://www.airmason.com"
+  },
+  "homepage": "https://www.airmason.com/handbook-audit/",
+  "keywords": [
+    "employee handbook",
+    "HR compliance",
+    "employment law",
+    "policy audit"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AirMason Handbook Audit",
+        "shortDescription": "Employee handbook audits",
+        "longDescription": "AirMason Handbook Audit checks an employee handbook against the US federal and state employment-law policies that apply to your company.\n\nAttach your handbook (PDF, DOCX or TXT, up to 30 MB) and answer a few questions about your company: headcount, the states you operate in (up to five, plus Federal), your industry, and a handful of yes/no questions such as whether you have tipped staff or employ minors. You get preliminary results in seconds, then an AI check of the handbook text that takes one to two minutes.\n\nThe report shows:\n- Required policies that are missing from the handbook\n- Policies the handbook has, but whose wording is weaker than or conflicts with the requirement, with the passage from your handbook and the rules it doesn't meet\n- Recommended state and federal policies, and workplace best practices\n- The policies the handbook already covers\n\nIt's built for HR teams, founders and operations leads at US employers who maintain their own handbook.\n\nLimitations: results are a general compliance overview, not legal advice. They depend on the answers you give, and they cover US federal and state rules only (not city or county ordinances). If the AI check can't read the handbook, the results are clearly labelled as based on your answers only. Uploaded handbooks are processed by AirMason as described in our privacy policy.",
+        "developerName": "AirMason",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Audit an employee handbook against federal and state requirements",
+          "Flag required policies that are missing",
+          "Flag policies whose wording falls short of the requirement",
+          "List recommended policies and best practices"
+        ],
+        "websiteURL": "https://www.airmason.com/handbook-audit/",
+        "supportURL": "https://support.airmason.com/en/",
+        "privacyPolicyURL": "https://www.airmason.com/privacy/",
+        "termsOfServiceURL": "https://www.airmason.com/terms-and-conditions/",
+        "defaultPrompt": [
+          "Audit my employee handbook for missing state and federal policies.",
+          "Which policies in my handbook need attention under California law?",
+          "What required policies is my handbook missing?"
+        ],
+        "brandColor": "#1283FF",
+        "brandColorDark": "#6CB2FF",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Company facts given up front. The model opens the audit form pre-filled with them; the reviewer checks the form and presses Run audit. Only the form starts the audit (start_handbook_audit is called by the form, not the model); the model then reads the result with get_handbook_audit and summarizes it.",
+              "prompt": "Audit this handbook. We're a restaurant group with 48 employees: 30 in California and 18 in Texas. We have tipped staff, both hourly and salaried employees, health benefits, a physical location, no minors, no union, one LLC, and we're not public sector.",
+              "tools_triggered": "open_handbook_audit_form, start_handbook_audit, get_handbook_audit",
+              "expected_behavior": "1. The model calls open_handbook_audit_form with the attached handbook and the facts from the prompt. It asks no company questions in chat, and no audit starts yet.\n2. The form opens pre-filled: total headcount 48; Federal, California (30) and Texas (18); industry Food & Beverage; tips, hourly and salaried, and health benefits Yes; under 18, unionized, multiple LLCs and public sector No. Check these, add Federal if it's missing, and if the working environment is blank select Retail (the form has no restaurant option). Press Run audit.\n3. The form calls start_handbook_audit. The card shows preliminary counts, then updates to the final report within about two minutes.\n4. The model calls get_handbook_audit and replies in 3-4 lines naming the most important missing required policies and policies that need attention, as listed in the report, and says the results are a general overview, not legal advice. If the card says \"Based on your answers only\", the model says the handbook text couldn't be checked and doesn't present the items as confirmed gaps in the handbook.",
+              "file_attachment_urls": [
+                "https://handbook-audit.airmason.com/review/harbor-bistro-handbook.pdf"
+              ]
+            },
+            {
+              "description": "No company facts given. The model opens the audit form without asking its questions in chat; the reviewer fills it in and presses Run audit. Only the form starts the audit; the model reads the result with get_handbook_audit.",
+              "prompt": "Can you check my employee handbook for compliance gaps?",
+              "tools_triggered": "open_handbook_audit_form, start_handbook_audit, get_handbook_audit",
+              "expected_behavior": "1. The model calls open_handbook_audit_form with the attached handbook and no guessed answers. It doesn't ask for headcount, states, industry or the yes/no questions in chat, and no audit starts yet.\n2. Fill in the form: total headcount 48; regions Federal, California and Texas, with 30 employees in California and 18 in Texas; working environment Retail; industry Food & Beverage; tips Yes; hourly and salaried Yes; health benefits Yes; unionized, multiple LLCs, under 18 and public sector No. Press Run audit.\n3. The form calls start_handbook_audit. The card shows preliminary counts, then updates to the final report.\n4. The model calls get_handbook_audit and summarizes the report as in Positive 1: 3-4 lines that match the report, the not-legal-advice note, and the \"based on your answers only\" caveat if the card shows it.",
+              "file_attachment_urls": [
+                "https://handbook-audit.airmason.com/review/harbor-bistro-handbook.pdf"
+              ]
+            },
+            {
+              "description": "Follow-up question about the audit from Positive 1, in the same conversation. The model answers from the stored result with get_handbook_audit only: no new form, attachment or audit.",
+              "prompt": "Which of those policies need attention, and what exactly does my handbook say about them?",
+              "tools_triggered": "get_handbook_audit",
+              "expected_behavior": "Run in the same conversation right after Positive 1's report is complete (audits are kept for 1 hour). The model calls get_handbook_audit with that audit's id. It doesn't open the form, ask for the file again or start a new audit. It explains each policy in the report's \"needs attention\" list using the returned risk level, reasoning and unmet rules, and says so if the list is empty. The tool result doesn't include the handbook's own wording, so the model points to the fullscreen report for the exact passage instead of quoting or paraphrasing the handbook."
+            },
+            {
+              "description": "Audit of a second sample handbook for a New York and New Jersey warehouse employer with a partly unionized workforce. The model opens the pre-filled form, the reviewer presses Run audit, and the summary reports only what the audit returned.",
+              "prompt": "Audit this handbook for Northwind Logistics: 220 employees, 150 in New York and 70 in New Jersey, warehouse operations, partly unionized, hourly and salaried staff, health benefits, no tipped staff, no workers under 18, private company, one LLC.",
+              "tools_triggered": "open_handbook_audit_form, start_handbook_audit, get_handbook_audit",
+              "expected_behavior": "1. The model calls open_handbook_audit_form with the handbook and the facts from the prompt, and asks nothing in chat.\n2. The form opens pre-filled: total headcount 220; Federal, New York (150) and New Jersey (70); working environment Warehouse; unionized, hourly and salaried, and health benefits Yes; tips, under 18, multiple LLCs and public sector No. Add Federal if it's missing. The form has no logistics industry, so if industry is blank select Other. Press Run audit.\n3. The form calls start_handbook_audit, and the card shows preliminary counts, then the final report with the policies found.\n4. The model calls get_handbook_audit and summarizes what the report lists: any missing required policies and policies that need attention, or, if there are none, that the handbook covers the requirements checked. It invents no findings. If the card says \"Based on your answers only\", the model says the handbook text couldn't be checked and doesn't describe any policy as covered by the handbook.",
+              "file_attachment_urls": [
+                "https://handbook-audit.airmason.com/review/northwind-logistics-handbook.pdf"
+              ]
+            },
+            {
+              "description": "The attached document isn't an employee handbook. The model opens the pre-filled form and the reviewer presses Run audit; the audit is refused with a clear message and no results.",
+              "prompt": "Audit this handbook for my company: 25 employees in California, retail, hourly and salaried staff.",
+              "tools_triggered": "open_handbook_audit_form, start_handbook_audit",
+              "expected_behavior": "1. The model calls open_handbook_audit_form with the file and the facts from the prompt, and asks nothing in chat.\n2. The form opens pre-filled: total headcount 25; California (and Federal); industry Retail; hourly and salaried Yes. Press Run audit.\n3. The form calls start_handbook_audit, which refuses the file. The form stays on screen with the message \"The uploaded document does not appear to be an employee handbook.\" No report, compliance counts or findings appear.\n4. The model presents no findings. Asked what happened, it says the file doesn't look like an employee handbook and asks the user to attach the actual handbook.",
+              "file_attachment_urls": [
+                "https://handbook-audit.airmason.com/review/not-a-handbook.pdf"
+              ]
+            }
+          ],
+          "negative": [
+            {
+              "description": "Request to draft a policy rather than audit a handbook. The plugin audits an attached handbook and doesn't write policies, so none of its tools should be called.",
+              "prompt": "Write me a bereavement leave policy for California.",
+              "expected_behavior": "No AirMason Handbook Audit tool is called and no form opens."
+            },
+            {
+              "description": "Audit request for seven states, more than the free audit covers (five plus Federal). The attached Harbor Bistro handbook is a synthetic test file used only to trigger the state limit. The audit must not start, and the states must not be silently cut to five.",
+              "prompt": "Audit my attached handbook. We have 300 employees across California, Texas, New York, Washington, Oregon, Illinois and Florida, and we're in retail.",
+              "expected_behavior": "The model calls open_handbook_audit_form with all seven states; it doesn't drop any. The form shows \"7 of 5 states\" and the \"Need more than 5 states?\" note with a See paid plans link to AirMason's pricing page. Pressing Run audit only shows \"The free audit covers up to 5 states. Remove 2 to continue.\" start_handbook_audit isn't called and nothing is uploaded. The model says the free audit covers up to five states and more needs a paid plan, and doesn't suggest splitting the states across several free audits. End the test here, without removing states or running an audit.",
+              "file_attachment_urls": [
+                "https://handbook-audit.airmason.com/review/harbor-bistro-handbook.pdf"
+              ]
+            },
+            {
+              "description": "Audit request with no file attached. Without a handbook there's nothing to audit, so the model asks for it instead of calling a tool.",
+              "prompt": "Audit my company's employee handbook for California compliance.",
+              "expected_behavior": "No AirMason Handbook Audit tool is called. The model asks the user to attach their employee handbook (PDF, DOCX or TXT)."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/e17e0839e1a64060b9ab33fffca1cc66",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Removes the US-only availability restriction so the plugin can be used from any country. The audit itself is unchanged: it still checks an employee handbook against US federal and state employment-law policy requirements only."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

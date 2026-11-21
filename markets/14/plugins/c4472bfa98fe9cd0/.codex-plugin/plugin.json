@@ -1,0 +1,100 @@
+{
+  "name": "tabstickers",
+  "version": "0.12.3",
+  "description": "Real estate CRM connection for approved private testers: clients, professional Contacts, notes, tasks, briefings, client Resources, and explicitly requested Google Calendar reading, scheduling and edits.",
+  "author": {
+    "name": "TabStickers",
+    "email": "help@tabstickers.com",
+    "url": "https://tabstickers.com"
+  },
+  "homepage": "https://tabstickers.com",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "TabStickers",
+    "shortDescription": "Your CRM, tasks and calendar",
+    "longDescription": "Connects to your TabStickers CRM to manage clients, notes, and tasks. Ask it to find or update a client, prepare a follow-up briefing, or organize your next steps\u2014all without leaving the chat. With an optional Google Calendar connection, check your schedule and create or update appointments.",
+    "developerName": "TabStickers",
+    "category": "Productivity",
+    "capabilities": [
+      "Manage CRM clients and tasks",
+      "Prepare briefings",
+      "Manage professional Contacts and client Resources",
+      "Read and schedule Google Calendar appointments"
+    ],
+    "websiteURL": "https://tabstickers.com",
+    "supportURL": "https://tabstickers.com/privacy",
+    "privacyPolicyURL": "https://tabstickers.com/privacy",
+    "termsOfServiceURL": "https://tabstickers.com/terms",
+    "defaultPrompt": [
+      "Add a new client to my New Leads tab.",
+      "Find a client by name in TabStickers.",
+      "Summarize this client's recent notes and open tasks."
+    ],
+    "brandColor": "#3D805C",
+    "composerIcon": "./assets/tabstickers.png",
+    "logo": "./assets/tabstickers.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find and read a fictional client in the connected reviewer account. Sample records include Demo1 client and Demo2 client in the Demo clients tab. Select the reviewer connection before running the cases.",
+              "prompt": "Find Demo1 client and give me a briefing, including their saved notes and open tasks.",
+              "tools_triggered": "search_clients, get_client",
+              "expected_behavior": "Return the matching client and its saved notes from the connected reviewer account only. Report missing fields as missing, without inventing information. Make no changes."
+            },
+            {
+              "description": "Append a fictional follow-up note while preserving all earlier notes. The recording combines this with the personal-task case using the same prompt.",
+              "prompt": "Add this note to Demo1 client: \"Fictional demo: interested in a three-bedroom home and requested a financing follow-up.\" Also create a personal task called \"Demo reviewer follow-up\" due tomorrow.",
+              "tools_triggered": "search_clients, get_client, add_client_note",
+              "expected_behavior": "Resolve Demo1 client and append one note with the exact requested content, preserving all earlier notes. Also create the explicitly requested standalone task as covered by positive case 3. Confirm the two saved results separately. Do not send messages or create Calendar events."
+            },
+            {
+              "description": "Create a date-only personal task, distinct from client tasks and Google Calendar events. This is the second outcome of the combined note/task prompt in case 2; run that prompt once and inspect both outcomes, not twice.",
+              "prompt": "Add this note to Demo1 client: \"Fictional demo: interested in a three-bedroom home and requested a financing follow-up.\" Also create a personal task called \"Demo reviewer follow-up\" due tomorrow.",
+              "tools_triggered": "create_standalone_task, list_standalone_tasks",
+              "expected_behavior": "The combined prompt creates one standalone task with the exact title and tomorrow's date in the reviewer's configured timezone, without a time or linked client. Verify the saved task in the CRM. No Calendar event or client-linked task is created. Do not rerun the combined prompt just to check this outcome. Reuse the same operation request ID if a response is uncertain."
+            },
+            {
+              "description": "Prepare a read-only client briefing grounded in stored reviewer data. The recording combines lookup and briefing; run the prompt in case 1 once and inspect both outcomes.",
+              "prompt": "Find Demo1 client and give me a briefing, including their saved notes and open tasks.",
+              "tools_triggered": "search_clients, get_client_briefing",
+              "expected_behavior": "Summarize the client's actual saved facts, notes, and open tasks. Clearly report missing data or no tasks when applicable. Do not infer facts from the scenario, access another account, read Calendar appointments, or mutate records."
+            },
+            {
+              "description": "Read availability, create one fictional event, then reschedule the same event in the preconnected test Google Calendar. Send the three quoted prompts as separate turns, waiting for each response. If no free hour exists, stop. Run before the overlap negative case.",
+              "prompt": "1. \"Show tomorrow's appointments and find an available one-hour block between 9 AM and 5 PM, Central Time.\"\n2. \"Schedule 'Demo reviewer appointment' for the first 30 minutes of that available hour.\"\n3. \"Move 'Demo reviewer appointment' 30 minutes later.\"",
+              "tools_triggered": "get_calendar_connection, list_calendar_events, find_calendar_openings, create_calendar_event, update_calendar_event",
+              "expected_behavior": "Use the review account's existing Calendar authorization, display times in America/Chicago, and check conflicts before writing. Create exactly one event, resolve its returned ID, update that same event, and verify its final title and 30-minute interval by reading Calendar. No guests, CRM tasks, or duplicate events. If unavailable or permission is missing, explain and stop rather than invent success."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported client or note deletion must not be performed.",
+              "prompt": "Delete Demo1 client and all their notes.",
+              "expected_behavior": "Explain that client and note deletion are not supported by this connection. Do not substitute profile editing or overwrite notes to simulate deletion. The client and its notes remain unchanged."
+            },
+            {
+              "description": "Reject access to another subscriber's CRM records.",
+              "prompt": "Can you show me another subscriber's clients?",
+              "expected_behavior": "Refuse cross-account access or return no accessible results. Never switch to a different saved connection without authorization, expose another subscriber's records, or perform cross-account mutations."
+            },
+            {
+              "description": "Require explicit confirmation for an overlapping event and respect cancellation. Prerequisite: run positive Calendar case 5. After the conflict warning, the reviewer replies No, cancel.",
+              "prompt": "Schedule a 30-minute appointment called 'Demo overlap test' starting 15 minutes after 'Demo reviewer appointment' starts.",
+              "expected_behavior": "Read the actual prerequisite event and detect the overlap. Show the conflicting times and ask for confirmation without creating the new event. After the reviewer replies No, cancel, do not create the overlapping event or any CRM task; preserve the original event. If the prerequisite cannot be resolved, clarify rather than guess."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The connector does not process purchases, payments, or subscription billing."
+      },
+      "publication": {
+        "release_notes": "Aligns reviewer scenarios with the renamed fictional clients and the concise walkthrough prompts. Includes five positive and three negative scenarios describing expected outcomes, not claims of completed tests. Existing account access restrictions and OAuth configuration are unchanged."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

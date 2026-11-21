@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aviation-mcp",
+  "version": "1.2.0",
+  "description": "Query U.S. aviation data, worldwide terrain and Cirrus SF50 and SR22 performance with source cycles, provenance, and explicit coverage gaps.",
+  "author": {
+    "name": "Tim Morgan",
+    "url": "https://aviation-mcp.org"
+  },
+  "homepage": "https://aviation-mcp.org",
+  "repository": "https://github.com/RISCfuture/Aviation-MCP",
+  "keywords": [
+    "aviation",
+    "airports",
+    "weather",
+    "notams",
+    "terrain",
+    "performance",
+    "sf50",
+    "sr22"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Aviation Data",
+        "shortDescription": "Aviation data and terrain",
+        "longDescription": "Look up U.S. airports, runways, navigation, airspace, instrument procedures, obstacles, aircraft characteristics, aviation weather, and NOTAMs. Analyze worldwide Copernicus terrain and compute geographic distances and bearings. Plan Cirrus SF50 Vision Jet and SR22 takeoffs, landings, climbs, and takeoff limits from current runway data and weather, with skills that combine them with NOTAMs, procedures, terrain, and obstacles. Results identify source cycles, units, altitude datums, provenance, and coverage gaps. No Aviation MCP account is required. For research and planning; not certified navigation, dispatch, or obstacle-clearance approval, and performance figures are not approved by the FAA, the aircraft manufacturer, or any supplement holder.",
+        "developerName": "Tim Morgan",
+        "category": "Productivity",
+        "capabilities": [
+          "Airport and procedure lookup",
+          "Weather and NOTAM queries",
+          "Obstacle and terrain analysis",
+          "SF50 and SR22 performance planning"
+        ],
+        "websiteURL": "https://aviation-mcp.org",
+        "supportURL": "https://aviation-mcp.org/support/",
+        "privacyPolicyURL": "https://aviation-mcp.org/privacy/",
+        "termsOfServiceURL": "https://aviation-mcp.org/terms/",
+        "defaultPrompt": [
+          "Show Denver\u2019s (KDEN) runways, lengths, and surface types.",
+          "On Boston\u2019s (KBOS) ILS RWY 4R, what altitude is published at GOSHI?",
+          "What NOTAMs affect Chicago O\u2019Hare (KORD) over the next six hours?"
+        ],
+        "brandColor": "#07110F",
+        "brandColorDark": "#C9F66B",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Airport runways",
+              "prompt": "Show Denver\u2019s (KDEN) runways, lengths, and surface types.",
+              "tools_triggered": "get_airport",
+              "expected_behavior": "Return the current KDEN runway records with lengths in feet and source surface materials. In the verified 2026-10-29 cycle, six concrete runways are published: five at 12,000 ft and 16R/34L at 16,000 ft. Preserve source cycles and parsing warnings."
+            },
+            {
+              "description": "Approach altitude",
+              "prompt": "On Boston\u2019s (KBOS) ILS RWY 4R, what altitude is published at GOSHI?",
+              "tools_triggered": "find_procedures, get_procedure",
+              "expected_behavior": "Resolve I04R and the GOSHI transition, retain leg constraints and altitude datum, and return the published altitude. The verified cycle has GOSHI at 6,000 ft MSL. Do not infer chart minima or clearance."
+            },
+            {
+              "description": "Route weather comparison",
+              "prompt": "Compare the latest METARs along KATL\u2013KCLT\u2013KRDU. Where are the lowest ceilings, poorest visibility, and strongest winds?",
+              "tools_triggered": "get_weather",
+              "expected_behavior": "Fetch current aviation reports for all three stations and compare cloud ceilings, visibility, and winds with observation times and provenance. Actual values vary; do not treat FEW or SCT as a ceiling or modeled forecasts as observations. Report unavailable fields."
+            },
+            {
+              "description": "SF50 takeoff distance",
+              "prompt": "I\u2019m flying a G2+ SF50 out of Oakland (KOAK) runway 28R in 18 hours at 5,800 lb. What will my ground run and total takeoff distance be, and what correction factors apply?",
+              "tools_triggered": "get_airport, query_notams, takeoff_performance",
+              "expected_behavior": "Convert the departure time to an explicit UTC time, check NOTAMs for 28R and its reciprocal, and call takeoff_performance with aircraft type sf50, generation g2_plus, 5800 lb, KOAK 28R and that time. Report the ground run and the total distance over a 50 ft obstacle against TORA and TODA, each correction multiplier from the breakdowns, and every input\u2019s origin; note that the TAF has no temperature, so the OAT is modeled. Keep any offscale or not-available status and the planning-only disclaimer. Figures vary with the forecast."
+            },
+            {
+              "description": "SF50 departure climb versus terrain",
+              "prompt": "Will my G2+ SF50 at 5,900 lb out-climb the terrain taking off from Aspen (KASE) runway 15 right now?",
+              "tools_triggered": "get_airport, takeoff_performance, climb_profile, query_obstacles, query_terrain",
+              "expected_behavior": "Use current weather and a climb profile along the departure course in true to get the takeoff-schedule ground gradient. Start the EGM2008 terrain comparison at the departure end with the departure-end elevation, within a corridor of at most 2 NM. Compare DOF obstacles MSL to MSL, and the published or standard 200 ft/NM requirement. Report margins, coverage gaps, and that not_established is inconclusive. Never claim certified obstacle clearance; keep the planning-only disclaimer."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported flight-plan submission",
+              "prompt": "Using only this aviation plugin, file an IFR flight plan for me from KDEN to KBOS.",
+              "expected_behavior": "Explain that Aviation MCP only queries data and computes results; it cannot file or amend flight plans. Do not claim submission."
+            },
+            {
+              "description": "Missing airport context",
+              "prompt": "What is the tallest obstacle within 5 NM of the departure end of runway 29?",
+              "expected_behavior": "Ask which airport before resolving the runway departure end. Do not silently pick an airport or substitute the airport reference point."
+            },
+            {
+              "description": "Unsupported safety certification",
+              "prompt": "Use terrain data to certify that my planned climb is safe and clears every obstacle.",
+              "expected_behavior": "Explain that terrain and obstacle queries cannot certify flight safety or regulatory clearance. Offer bounded data analysis only when route, datum, and other necessary inputs are supplied; retain coverage gaps."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, accept payments, or modify user accounts.",
+        "demo_recording_url": "https://aviation-mcp.org/review/aviation-data-1.2.0-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Extends performance planning to the Cirrus SR22. takeoff_performance, landing_performance, climb_profile and takeoff_limits take an aircraft object that selects the SF50 or SR22 and replace the SF50-only tools, which remain as deprecated aliases. The seven skills cover both aircraft and call the new tools."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

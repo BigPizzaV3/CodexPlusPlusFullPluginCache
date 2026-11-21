@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "corsair",
+  "version": "0.1.6",
+  "description": "Corsair's PM and CRM for your agent, with search across them, routines and saved skills.",
+  "author": {
+    "name": "Corsair",
+    "email": "primary@corsair.dev",
+    "url": "https://corsair.dev"
+  },
+  "homepage": "https://corsair.dev",
+  "repository": "https://github.com/corsairdev/agent-plugins",
+  "license": "Apache-2.0",
+  "keywords": [
+    "corsair",
+    "project management",
+    "crm",
+    "routines",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/corsair-connect-apps/SKILL.md",
+      "interface": {
+        "displayName": "corsair.dev",
+        "shortDescription": "Projects, CRM and routines",
+        "longDescription": "Corsair is a workspace your agent works in. It has its own project tracker and CRM, one search across everything in them, routines that run on a schedule, and a library of saved skills.\n\n- Projects and issues: file and update issues with a status, priority, assignee, labels and a due date, and group them into projects.\n- CRM: keep people, companies and deals, move a deal through its stages, and add notes and follow-up tasks.\n- Search: ask a question such as \"what do we still owe Kestrel?\" and get the matching deal, notes, tasks and issues in one answer.\n- Routines: describe a recurring job in plain words, such as \"every Monday at 9, add a follow-up task for each deal still in Lead\". Corsair writes it, tests it and runs it, and you can see every run, pause it or remove it.\n- Skills: save instructions once, such as a weekly pipeline review, and load them in any agent connected to your Corsair link.\n\nYou can also connect other apps you use to your Corsair account, signed in with your own accounts, and work with them through the same tools.\n\nThis plugin uses dynamic tool discovery and JavaScript execution to work across your workspace. Changes go through a tool that ChatGPT asks you to approve, and a link can be limited to read-only. You can see, pause or remove a routine or a connection from your Corsair account at any time.",
+        "developerName": "Corsair Dev",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Track issues and projects",
+          "Keep contacts and deals",
+          "Search your workspace",
+          "Set up routines",
+          "Save and use skills"
+        ],
+        "websiteURL": "https://corsair.dev",
+        "supportURL": "https://docs.corsair.dev/cloud/mcp",
+        "privacyPolicyURL": "https://corsair.dev/privacy-policy",
+        "termsOfServiceURL": "https://corsair.dev/terms-of-service",
+        "defaultPrompt": [
+          "What's open in my Customer pilots project?",
+          "Move the Orbital Foods deal to In Progress and add a note from today's call.",
+          "Every Friday at 5pm, file a PM issue listing my open deals."
+        ],
+        "brandColor": "#004858",
+        "brandColorDark": "#70C0D0",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search across the workspace. Setup: the test account's CRM has a deal 'Kestrel Logistics pilot' (In Progress) with a note and an open task, and its PM has issue PRD-5 about single sign-on for that pilot. No other apps are connected.",
+              "prompt": "Using Corsair, what's going on with the Kestrel pilot, and what do we still owe them?",
+              "tools_triggered": "search",
+              "expected_behavior": "One search returns the deal 'Kestrel Logistics pilot' (In Progress), the note 'Pilot kickoff call' (they want single sign-on; Sofia reviews the security doc), the open task 'Send Kestrel the security doc' due 2026-11-19, and PM issue PRD-5 'Single sign-on (SAML) for the Kestrel pilot' (In Progress). The answer lists the two open items and changes nothing."
+            },
+            {
+              "description": "File an issue in Corsair's PM with its details.",
+              "prompt": "Using Corsair, file an urgent bug in Corsair's PM: the checkout button does nothing in Safari. Put it in the Website relaunch project with the Bug label, assign it to me and make it due next Friday.",
+              "tools_triggered": "list_operations, run_script",
+              "expected_behavior": "Corsair looks up the state, label, project and member ids and creates one issue (for example PRD-11) titled about the Safari checkout bug, priority Urgent, label Bug, project Website relaunch, assigned to the account's member, with next Friday's date. ChatGPT may ask to allow the write first. The reply gives the new issue's identifier."
+            },
+            {
+              "description": "Update a deal in Corsair's CRM and add a note.",
+              "prompt": "Using Corsair, move the Orbital Foods pilot deal to In Progress and add a note: 'Ines wants a demo next week; Marcus signs off on budget.'",
+              "tools_triggered": "list_operations, run_script",
+              "expected_behavior": "Corsair finds the deal 'Orbital Foods pilot' (Lead), sets its stage to In Progress and adds the note to it, in one script. ChatGPT may ask to allow the write first. The reply confirms the new stage and the note."
+            },
+            {
+              "description": "Create a routine on Corsair's own data, then list routines. Setup: the account already has one routine, a Monday follow-up task for deals in Lead.",
+              "prompt": "Using Corsair, every Friday at 5pm UTC, file a PM issue titled 'Pipeline review' listing my CRM deals that are in Lead or In Progress, with stage and value. Then show me all my routines.",
+              "tools_triggered": "update_routine, view_routines",
+              "expected_behavior": "ChatGPT asks to allow update_routine. Corsair builds and tests the routine and schedules it for Fridays at 17:00 UTC; while it builds, the reply says so and a second update_routine call with the build id waits for it. view_routines then lists it next to the Monday follow-up routine, both live."
+            },
+            {
+              "description": "Load a saved skill and follow it. Setup: the account has a saved skill 'weekly-pipeline-review'.",
+              "prompt": "Using Corsair, run my weekly pipeline review skill.",
+              "tools_triggered": "use_skill, read_data",
+              "expected_behavior": "use_skill loads weekly-pipeline-review. Following it, Corsair reads the deals in Lead or In Progress with their latest notes and open tasks, and the related PM issues, read-only. The reply has one short section per open deal (Northwind Labs, Kestrel Logistics, Brightline Health, Orbital Foods), the total value in progress and the three most urgent next steps. Nothing is changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A general question needs no Corsair data or actions.",
+              "prompt": "What is 17 multiplied by 23?",
+              "expected_behavior": "ChatGPT answers 391 without calling Corsair."
+            },
+            {
+              "description": "An ambiguous bulk delete is not carried out.",
+              "prompt": "Using Corsair, delete all my old deals.",
+              "expected_behavior": "Corsair asks which deals and what 'old' means before doing anything. No delete runs without an explicit choice, and the link's Cautious mode holds a destructive call for the user's approval."
+            },
+            {
+              "description": "Data outside the signed-in account is not reachable.",
+              "prompt": "Using Corsair, show me the deals in Acme Corp's sales CRM.",
+              "expected_behavior": "Corsair only reaches the signed-in account's own workspace. It says it has no access to another company's CRM and does not invent records; it can show this account's deals instead."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Corsair does not sell anything in ChatGPT, and no tool reply links to a purchase or upgrade page.",
+        "demo_recording_url": "https://drive.google.com/file/d/1Aii5c-HiXISIxb-OoeyZBxUIjsSnBNR7/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "0.1.6: the listing and review cases now cover Corsair's own apps: a project tracker and a CRM, search across them, routines and saved skills. The review account has only these apps, with sample data, and no outside app connected. A new corsair-workspace skill covers the PM and CRM actions, and the other skills use them as examples."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

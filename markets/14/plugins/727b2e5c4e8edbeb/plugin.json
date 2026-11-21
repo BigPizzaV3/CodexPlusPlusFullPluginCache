@@ -1,0 +1,115 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sam-s-list",
+  "version": "1.0.0",
+  "description": "Manage Sam\u2019s List tasks and spending from chat through an optional cloud connection.",
+  "author": {
+    "name": "Why&Key LLC",
+    "url": "https://sams-list.whyandkei.com/"
+  },
+  "homepage": "https://sams-list.whyandkei.com/",
+  "keywords": [
+    "tasks",
+    "todos",
+    "spending",
+    "expenses",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sam\u2019s List",
+        "shortDescription": "Tasks and spending, in chat",
+        "longDescription": "Bring your Sam\u2019s List tasks and spending into the conversation. See what is due today, find overdue tasks, search your lists, and read task details and notes. When you ask, create or edit tasks, set dates and reminders, and complete or restore tasks.\n\nLog an expense with its name, amount, category, date, and an optional note. Search recorded expenses and summarize spending over a date range by category. Amounts use your Sam\u2019s List currency; the connection does not access bank accounts, process payments, or provide financial advice.\n\nYou choose whether to connect Tasks, Spending, or both. Reading and writing are separate permissions, and editing requires your explicit consent. Only cloud-synced records in the domains you enable are available. Responses include sync freshness: a save in chat commits to Sam\u2019s List Cloud, while delivery to your devices and reminder scheduling happen when the app next syncs.\n\nSam\u2019s List remains usable locally without connecting an assistant. Revoke assistant access or remove cloud data from the app\u2019s AI Connections settings.",
+        "developerName": "Why&Key LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "What\u2019s on my list today?",
+          "Add a task to renew my passport next Friday.",
+          "Summarize my spending this month by category."
+        ],
+        "websiteURL": "https://sams-list.whyandkei.com/",
+        "supportURL": "https://sams-list.whyandkei.com/",
+        "privacyPolicyURL": "https://sams-list.whyandkei.com/privacy",
+        "termsOfServiceURL": "https://sams-list.whyandkei.com/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public plugin package for task capture and editing, Today and overdue briefings, expense recording, and spending summaries using Sam\u2019s List Cloud."
+      },
+      "review": {
+        "demo_recording_url": "https://streamable.com/yejy2o",
+        "commerce": false,
+        "commerce_description": "Connects an existing Sam\u2019s List account with an eligible Apple-purchased Premium entitlement. No purchases, checkout, plan promotion, upgrades, payment processing, or ChatGPT-specific surcharge are provided by this plugin. Expense recording is manual bookkeeping, not a financial transaction.",
+        "prompts": [
+          "What is due today, and what is overdue?",
+          "Find Review agenda and show its notes and dates.",
+          "Add Prepare review demo to Review Work, due tomorrow, with the note Bring the sample notes.",
+          "Record Review coffee for 3.50 in Review Food today, with the note Demo receipt.",
+          "Summarize my spending this month by category."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Today and overdue briefing using the dedicated sample account. Fixtures include Review due today, Review overdue, Review future, Review completed, Review inbox and Review agenda. These names describe their state at seeding, not necessarily on the review date. Both domains are enabled and task reading is granted. Read the actual stored dates/statuses and compute today from returned cloudTime in the account timezone. No offline fixture reset is required to evaluate this case.",
+              "prompt": "What do I need to do today, and what is overdue?",
+              "tools_triggered": "account_context; list_tasks; task_briefing",
+              "expected_behavior": "Use account timezone and returned cloudTime, not fixture names, to establish today. Paginate list_tasks(view=all) to determine expected active records. Today includes overdue end dates, intervals spanning today, start dates equal to today, end-only dates equal to today, and undated Inbox tasks. Exclude future-only tasks, completed tasks and undated filed tasks. Compare task_briefing total and overdue counts against those actual records; preserve any documented 50-item briefing limit. On the untouched seeding date, total is 4 and overdue is 1, but later review dates must use current results. Show sync freshness or unknown if lastDeviceSync is null. Make no writes."
+            },
+            {
+              "description": "Search and full details. Use the existing seeded active task Review agenda in the Review Work folder, notes Bring sample notes. Its start/end dates are the stored seeding dates and must not be assumed relative to the later review date. The title is unique and task reading is granted.",
+              "prompt": "Find Review agenda and show me its notes, status, folder, start date and due date.",
+              "tools_triggered": "account_context; list_tasks; get_task; list_folders",
+              "expected_behavior": "Search list_tasks with search Review agenda and use the returned record ID in get_task. Resolve the folder name from list_folders. Show the exact notes, status and date-only values supported by the returned record, its app link and revision where useful. Do not invent a reminder or expose internal Apple import identifiers. Make no writes."
+            },
+            {
+              "description": "Task write lifecycle in separate conversation turns. A unique Review Work folder exists and task reading and writing are explicitly granted. Prior demo tasks may already exist. Create one new task for this run and retain its returned ID; all follow-ups must target that ID, not an older same-named task. After creation, ask: Change its note to Updated demo notes. Then: Mark that task complete. Then: Restore that task. These follow-ups are part of this case.",
+              "prompt": "Add Prepare review demo to Review Work, due tomorrow, with the note Bring the sample notes.",
+              "tools_triggered": "account_context; list_folders; create_task; get_task; edit_task; complete_task; restore_task",
+              "expected_behavior": "Resolve Review Work to its actual ID; create exactly one task with that folderID, name and notes and endDate equal to tomorrow in account timezone. Generate recordID and operationID UUIDs, reusing both only for retries of that exact creation. Each explicitly requested follow-up uses the same task ID, a current revision and a fresh operationID; stale revisions require conflict recovery rather than overwrite. Verify updated notes, done status with completedAt, then todo status with completedAt cleared. Report cloud save separately from pending device delivery."
+            },
+            {
+              "description": "Expense creation with date omitted, followed by editing in a separate turn. Use the existing unique Review Food category in the sample account; do not create or manage categories through the assistant. Spending reading and writing are explicitly granted. Prior demo expenses may exist: retain the newly created expense ID and target only that record. After creation ask: Change that Review coffee expense amount to 4.25 and its note to Corrected demo receipt. The initial date must default to account-local today.",
+              "prompt": "Record Review coffee for 3.50 in Review Food with the note Demo receipt.",
+              "tools_triggered": "account_context; list_categories; create_expense; get_expense; edit_expense",
+              "expected_behavior": "Resolve the real Review Food category ID. Send amount as decimal string 3.50, omit date or use today in the returned account timezone, and use fresh recordID and operationID UUIDs. The persisted amount is numerically 3.50 and date is account-local today. The follow-up changes only amount to decimal string 4.25 and notes to Corrected demo receipt, using the actual ID and current revision. Do not claim a payment occurred or a device is already updated."
+            },
+            {
+              "description": "Exact spending aggregation over a stored fixture date, so the case remains runnable after a month boundary. The sample account includes a unique Review lunch (10.25, Review Food) and Review fare (4.75, Review Travel), both on the same recorded date. Spending reading is granted. Other explicitly created demo expenses may also exist; include them if they fall on that date rather than requiring an operator reset.",
+              "prompt": "How much did I spend on the date of my Review lunch expense? Break it down by category and show the recorded expenses for that day.",
+              "tools_triggered": "account_context; spending_summary; list_categories; list_expenses",
+              "expected_behavior": "Find Review lunch using list_expenses(search=Review lunch) and read its actual stored date. Use that YYYY-MM-DD value for both from and through in spending_summary and list_expenses; paginate the latter. Resolve category IDs with list_categories. Exact decimal totals by category and the overall summary must equal all returned expenses for that date, including other demo entries if present. The untouched baseline is 15.00: Review Food 10.25 plus Review Travel 4.75. Do not assume the fixture is in the current month, silently exclude later entries, convert currencies, or invent financial advice. Make no writes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deletion and bulk mutation are not exposed. Explain that deletion must be handled in Sam\u2019s List; do not invoke create, edit, complete or restore tools as a substitute, and do not claim records were deleted.",
+              "prompt": "Delete all of my completed tasks and all expenses from last year."
+            },
+            {
+              "description": "The plugin cannot connect to Wallet, access card transactions or move money. Explain this limit without invoking Sam\u2019s List tools, requesting card credentials, creating an expense, or claiming a payment was made.",
+              "prompt": "Use Apple Wallet to pay my card bill and automatically pull in every card transaction.",
+              "file_attachment_urls": [
+                "https://streamable.com/ku36zi"
+              ]
+            },
+            {
+              "description": "Folder and category creation/reorganization are not exposed to assistants. Explain that users manage them in the app. Do not call task or expense mutation tools, invent organization IDs, or claim the organization change succeeded.",
+              "prompt": "Create a new folder called Trips and a new expense category called Flights in Sam\u2019s List.",
+              "file_attachment_urls": [
+                "https://streamable.com/x8h9c6"
+              ]
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

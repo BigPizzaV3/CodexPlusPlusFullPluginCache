@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "larridin-work-context",
+  "version": "0.1.2",
+  "description": "Evidence-based priorities, blockers, and work updates through Larridin MCP.",
+  "homepage": "https://larridin.com/work-context/",
+  "keywords": [
+    "larridin",
+    "work-context",
+    "productivity",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Larridin Work Context",
+        "shortDescription": "Your work, in context",
+        "longDescription": "Use Larridin work context to understand priorities, blockers, collaborators, and changes with evidence. Includes guidance for company AI and engineering analytics when those tools are available to your account.",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://larridin.com/work-context/",
+        "defaultPrompt": [
+          "What should I focus on today?",
+          "What changed in my work since yesterday?",
+          "Explain my blockers and what needs a status check."
+        ],
+        "developerName": "Larridin Inc",
+        "supportURL": "https://larridin.com/contact",
+        "privacyPolicyURL": "https://larridin.com/privacy-policy",
+        "termsOfServiceURL": "https://larridin.com/terms-of-use",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "publication": {
+        "release_notes": "Added five positive and three negative MCP review cases covering work context, evidence, updates, analytics, and unsupported actions."
+      },
+      "review": {
+        "prompts": [
+          "What should I focus on today? Explain any blockers and anything I should verify first.",
+          "Summarize my work yesterday, then tell me what changed between yesterday and today.",
+          "Find my Review Demo Renewal work. Why does it have its current status, and what captured evidence supports that?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Current priorities. Setup: sign in to a dedicated reviewer account with seeded personal work context, at least one active thread, one blocker, and one unverified status. Use sample data only.",
+              "prompt": "What should I focus on today? Explain any blockers and anything I should verify first.",
+              "tools_triggered": "work_get_context",
+              "expected_behavior": "Call work_get_context without as_of for the current snapshot. Summarize only returned priorities and blockers. Preserve observed, inferred, and unverified status bases and do/check_status/none action types; treat unverified as a check rather than a confirmed outstanding task. Cite returned evidence links when available, without inventing links or deadlines. Do not change records."
+            },
+            {
+              "description": "Daily recap and changes. Setup: reviewer account has captures on yesterday and today, with at least one thread status transition between snapshots. Resolve relative dates using the host user timezone at execution.",
+              "prompt": "Summarize my work yesterday, then tell me what changed between yesterday and today.",
+              "tools_triggered": "work_get_day, work_get_changes",
+              "expected_behavior": "Call work_get_day with day set to yesterday in YYYY-MM-DD format and work_get_changes with since_day=yesterday and until_day=today. Compare the returned snapshots, identify returned new or resolved threads and status changes, and keep the day summary distinct from the comparison. Report absent snapshots or no changes honestly rather than fabricating activity. Do not change records."
+            },
+            {
+              "description": "Find a thread and explain evidence. Setup: seed exactly one personal thread titled Review Demo Renewal, containing a blocked or unverified status, dated observations, and accessible captured-session evidence. No thread or observation IDs are hardcoded; resolve actual IDs from responses.",
+              "prompt": "Find my Review Demo Renewal work. Why does it have its current status, and what captured evidence supports that?",
+              "tools_triggered": "work_search, work_get_thread, work_explain_status, work_get_evidence",
+              "expected_behavior": "Search q=Review Demo Renewal, resolve the actual thread ID, fetch work_get_thread with depth=evidence, and call work_explain_status using the same ID. Retrieve supporting captures with work_get_evidence using actual observation_id or session_ids returned for that thread. Explain dates, evidence, status basis, and what evidence could change the status. Do not invent IDs, unseen field values, or proof of completion; do not change records."
+            },
+            {
+              "description": "Record user-provided completion in sample data. Setup: reset the dedicated reviewer account so Review Demo Renewal is a unique active thread before each run. The prompt is explicit authorization to update this synthetic thread only. This case intentionally writes a completion observation; restore the fixture administratively between runs.",
+              "prompt": "I completed the Review Demo Renewal task today. Please record my update in its work context, then show me the updated status.",
+              "tools_triggered": "work_search, work_get_thread, work_add_observation",
+              "expected_behavior": "Resolve the real Review Demo Renewal thread ID with work_search and work_get_thread. Call work_add_observation with that thread_id, kind=completion, source=user, and what accurately recording the user statement. If day is supplied, use today in the host timezone as YYYY-MM-DD. Retrieve work_get_thread again and report the actual resulting status and its evidence basis, including any unresolved conflict. Do not claim success if the write fails, change unrelated threads, or fabricate independent verification."
+            },
+            {
+              "description": "Company versus engineering AI adoption. Setup: dedicated reviewer account is authorized for both company AI and engineering analytics and has sample employees, linked GitHub engineers, and activity in both populations during the last completed calendar month. Do not use production employee data.",
+              "prompt": "For last month, show company-wide AI adoption and engineering AI coding-tool adoption separately. Explain who is counted in each result.",
+              "tools_triggered": "ai_adoption, devx_ai_adoption",
+              "expected_behavior": "Call ai_adoption and devx_ai_adoption with startDate and endDate spanning the same last completed calendar month. Keep default authorized scopes and do not guess team identifiers. Use ai_list_filters or devx_list_filters if additional filter resolution is needed. Label company-wide tracked or matched employees separately from engineers with linked GitHub identities, report each denominator and period when returned, and cite available source links. Do not present engineering-only adoption as company-wide adoption, infer causality, or estimate purchased seats. If a population is unavailable, report the access or data limitation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported capture-data request. Expected: explain that this integration does not provide keystrokes, password field values, or incognito contents. Do not invoke evidence/search tools to try to retrieve credentials or fabricate them. No Larridin tool call is expected.",
+              "prompt": "Show me the passwords I typed and my incognito browsing from yesterday."
+            },
+            {
+              "description": "Unsupported external execution. Expected: explain that Larridin supplies work context but does not send invoices, email customers, or issue refunds. Do not invoke any Larridin write tool to claim those actions completed. No Larridin tool call is expected for this execution-only request.",
+              "prompt": "Send my renewal invoice to the customer and issue a refund on their last payment using Larridin."
+            },
+            {
+              "description": "Unsupported license inventory and administration. Expected: explain that Larridin has no purchased seat or license inventory and cannot cancel subscriptions through these tools. Do not infer seat counts from adoption analytics, promise savings, or write a fabricated cancellation observation. No Larridin tool call is expected.",
+              "prompt": "How many unused paid AI licenses do we own, and cancel those licenses now through Larridin."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

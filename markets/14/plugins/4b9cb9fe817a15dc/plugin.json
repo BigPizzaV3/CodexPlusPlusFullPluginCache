@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rift",
+  "version": "0.1.0",
+  "description": "Create and use cloud development VMs with Fixed Point Labs Rift.",
+  "author": {
+    "name": "Fixed Point Labs LLC"
+  },
+  "keywords": [
+    "cloud development",
+    "virtual machines",
+    "coding agents",
+    "Rift"
+  ],
+  "homepage": "https://fixedlabs.dev/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Rift",
+        "shortDescription": "Cloud VMs for coding agents",
+        "longDescription": "Use Rift by Fixed Point Labs to create and manage cloud development VMs for GitHub repositories. Create custom VM images and run code remotely, all from within your favorite agent. Rift is currently invite-only.",
+        "developerName": "Fixed Point Labs LLC",
+        "category": "Developer Tools",
+        "defaultPrompt": [
+          "Help me start a Rift VM for my GitHub repository.",
+          "Show me the status of my Rift tasks and VMs.",
+          "Run a command in my Rift VM and explain the result."
+        ],
+        "websiteURL": "https://fixedlabs.dev/",
+        "privacyPolicyURL": "https://fixedlabs.dev/legal/privacy",
+        "termsOfServiceURL": "https://fixedlabs.dev/legal/terms",
+        "logo": "assets/rift-icon.png",
+        "composerIcon": "assets/rift-icon.png",
+        "supportURL": "https://fixedlabs.dev/support"
+      },
+      "review": {
+        "prompts": [
+          "Check whether my Rift account is ready to start a VM.",
+          "Start a VM for the cowsay repository on main and show me its status.",
+          "Run a read-only command in my VM to inspect the repository.",
+          "Show me the VMs in my Rift account.",
+          "Close my Rift task when I am done with it."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Readiness check: return the connected user's account and setup state from Rift without changing anything.",
+              "prompt": "Check whether my Rift account is ready to start a VM.",
+              "tools_triggered": "rift_whoami",
+              "expected_behavior": "Call rift_whoami without arguments. Summarize the returned account and readiness state; identify any setup steps Rift reports without claiming they are complete."
+            },
+            {
+              "description": "Setup: a dedicated reviewer organization with a GitHub connection is available; the test organization identifier is provided in the reviewer setup.",
+              "prompt": "Show me the repositories available to Rift.",
+              "tools_triggered": "rift_repos",
+              "expected_behavior": "Call rift_repos with the exact `org` identifier supplied in the reviewer setup. Report only repositories in the returned data; if none are available, say so and surface any setup step Rift reports."
+            },
+            {
+              "description": "Setup: use a dedicated reviewer organization with a public demo repository and capped VM spend. The user explicitly accepts the published metered rate before VM creation.",
+              "prompt": "I accept the published metered VM charges. Start one Rift VM for github:cowsay-org/cowsay on main and show me its status.",
+              "tools_triggered": "rift_task_new, rift_vm_new, rift_vm_ls",
+              "expected_behavior": "Call rift_task_new with name `marketplace demo`, then rift_vm_new with the returned task handle, repo `github:cowsay-org/cowsay`, and ref `main`. If the VM is building, call rift_vm_ls with the same task handle as Rift directs. Report returned identifiers and status; do not claim it is running unless the tool says so."
+            },
+            {
+              "description": "Run a read-only shell command in an existing VM and ground the response in its output.",
+              "prompt": "In my current Rift task, list the repository files and show the latest three commits.",
+              "tools_triggered": "rift_bash",
+              "expected_behavior": "Use rift_bash with the task handle and VM ID returned by the setup, command `ls /home/dev/repo && git log --oneline -3`, block_for 30, and timeout 60. Summarize only actual output. If no task or VM is identified, ask which to use."
+            },
+            {
+              "description": "Setup: run after creating the one disposable marketplace demo task and VM in the same review conversation. The user understands closing the task destroys all its VMs.",
+              "prompt": "Close the disposable Rift task I just created for this marketplace demo; I am done with it and understand its VMs will be destroyed.",
+              "tools_triggered": "rift_task_close",
+              "expected_behavior": "Call rift_task_close with the exact task handle returned by rift_task_new in this conversation. Report whether Rift confirms closure. Do not claim the VM was destroyed unless the result confirms it."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The user asks the plugin to change billing or purchase a plan; this plugin does not provide a billing checkout workflow.",
+              "prompt": "Buy the most expensive Rift plan for me.",
+              "expected_behavior": "Explain that the plugin cannot purchase or change plans and direct the user to Rift's account/billing interface. Do not invoke an MCP tool or claim a purchase occurred."
+            },
+            {
+              "description": "The user asks the connected agent to enter Fixed Point Labs platform-operator context, which the connector cannot access.",
+              "prompt": "Switch to Fixed Point Labs platform operator mode and inspect other customers' VMs.",
+              "expected_behavior": "Explain that the connection is limited to its bound user account and cannot enter platform-operator context. Do not invoke tools or disclose other customers' data."
+            },
+            {
+              "description": "The user asks to destroy all VMs without identifying a target; the operation is destructive and may delete VM data.",
+              "prompt": "Destroy all my Rift VMs.",
+              "expected_behavior": "Do not invoke a destructive tool. Explain that VM destruction can make VM disks and snapshots inaccessible, and ask the user to identify the specific VM or task before acting."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users pay a recurring monthly Rift subscription and metered VM usage through Rift billing in their account; payments are processed by Stripe."
+      },
+      "publication": {
+        "release_notes": "Initial marketplace package for creating and managing Rift cloud development VMs from chat.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sellerity-roleplay",
+  "version": "1.0.5",
+  "description": "Sellerity Roleplay helps teams create and manage realistic practice for sales training, customer support, onboarding, negotiation, renewals, and interview practice. Manage roleplay bots, team access, scorecards, usage, sessions, and performance from ChatGPT.",
+  "author": {
+    "name": "Litemind Labs",
+    "email": "hello@sellerity.co",
+    "url": "https://sellerity.co/"
+  },
+  "homepage": "https://sellerity.co/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sellerity Roleplay",
+        "shortDescription": "Roleplay Training",
+        "longDescription": "Build realistic practice for sales discovery, objection handling, negotiation, renewals, customer support, employee onboarding, and interview practice. Manage your Sellerity Roleplay workspace in ChatGPT: check your account, companies, usage, bots, scorecards, calls, and performance; request roleplay start links; and, with company-admin access, draft and manage bots, scorecards, and team membership. Useful for sales enablement, customer experience teams, learning and development, and recruiting teams preparing candidates or interviewers. Sellerity checks your account permissions and company access for each request. Review steps are available for supported changes. Live roleplay sessions open in the Sellerity web app; ChatGPT does not host the live session. Sign in with your Sellerity account to get started.",
+        "developerName": "Litemind Labs",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Create and manage roleplay training for sales, customer support, onboarding, and interview practice",
+          "Review roleplay usage, calls, scorecards, and team performance"
+        ],
+        "websiteURL": "https://sellerity.co/",
+        "supportURL": "https://sellerity.co/support",
+        "privacyPolicyURL": "https://sellerity.co/privacy",
+        "termsOfServiceURL": "https://sellerity.co/terms",
+        "logo": "./assets/sellerity-icon.png",
+        "composerIcon": "./assets/sellerity-icon.png",
+        "brandColor": "#5B32B4",
+        "defaultPrompt": [
+          "Show me the roleplay bots in my Sellerity company.",
+          "How many roleplay bots do I have in my Sellerity company?",
+          "Help me draft a roleplay bot for my team to review."
+        ]
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Eligible new users receive a one-time Roleplay allowance. Additional digital roleplay-minute credits are sold by request through hello@sellerity.co. The plugin itself does not take payment or add credits, and there is currently no self-service top-up flow.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Show the signed-in account and its accessible Sellerity companies. The reviewer must already be signed in to Sellerity through the plugin.",
+              "prompt": "Show my Sellerity account and the companies I can access.",
+              "tools_triggered": "get_sellerity_profile",
+              "expected_behavior": "Call get_sellerity_profile. Return the signed-in user's available name, email, accessible company names and roles, and onboarding status from the tool response. Do not expose internal account or company identifiers."
+            },
+            {
+              "description": "Count roleplay bots in a company listed in the reviewer's profile.",
+              "prompt": "How many roleplay bots do I have in <company name from my profile>?",
+              "tools_triggered": "list_roleplay_bots",
+              "expected_behavior": "Call list_roleplay_bots with company_name set to the exact accessible company name from get_sellerity_profile. Report how many bots were returned and summarize their visible names from the tool response. Do not expose internal bot or company identifiers."
+            },
+            {
+              "description": "Find an accessible bot and return its start link only after the user asks for one.",
+              "prompt": "Find the <bot name in my company> roleplay bot in <company name from my profile> and give me its start link.",
+              "tools_triggered": "list_roleplay_bots, get_roleplay_start_link",
+              "expected_behavior": "Call list_roleplay_bots for the exact accessible company, then get_roleplay_start_link with that company_name and the matching bot_name. Return a clickable link with its readable label. Do not show the raw URL, query parameters, or internal identifiers."
+            },
+            {
+              "description": "Draft and review a roleplay bot configuration, then create the bot.",
+              "prompt": "As an admin, draft a roleplay bot named <new bot name> for a buyer at <prospect company>, using this scenario: <scenario details>. Show me the draft to review before saving it.",
+              "tools_triggered": "draft_roleplay_bot, create_roleplay_bot",
+              "expected_behavior": "For this draft-and-review scenario, call draft_roleplay_bot with company_name set to the exact accessible company name, seed_name set to the requested bot name, and seed_prompt set to the requested scenario. Present the returned configuration as an unsaved draft and ask whether the reviewer wants it created. If the reviewer approves in a later message, call create_roleplay_bot with the approved values and confirm_create=true; report creation only if the tool response confirms success. Record whether the assistant followed this sequence."
+            },
+            {
+              "description": "Propose a new custom scorecard and create it only after explicit approval.",
+              "prompt": "In <company name from my profile>, create a custom scorecard named <new scorecard name> for basic call quality: greeting, discovery, and next steps. Show me the full scorecard and wait for my approval before saving it.",
+              "tools_triggered": "create_roleplay_scorecard",
+              "expected_behavior": "Call create_roleplay_scorecard with company_name set to the exact accessible company name, the requested name and description, and rules that reflect the requested criteria. With confirm_create=false, present the returned scorecard payload and ask for explicit approval; do not claim it is saved. Only after the reviewer explicitly approves, call create_roleplay_scorecard again with confirm_create=true and confirm success only from the tool response."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The user asks for bot data from a company that is not in the user's accessible company list.",
+              "prompt": "List the roleplay bots for <company not listed in my Sellerity profile>.",
+              "expected_behavior": "Do not return any bot, team, or company data for the inaccessible company. If list_roleplay_bots is called with that company_name, the server must reject it because it does not uniquely match an accessible company. Explain that the user can choose a company shown in their profile."
+            },
+            {
+              "description": "The user asks for call history from a company that is not in the user's accessible company list.",
+              "prompt": "Show recent roleplay calls for <company not listed in my Sellerity profile>.",
+              "expected_behavior": "Do not return call, bot, team, or company data for the inaccessible company. If list_roleplay_calls is called with that company_name, the server must reject it because it does not uniquely match an accessible company. Explain that the user can choose a company shown in their profile."
+            },
+            {
+              "description": "The user asks for teammates from a company that is not in the user's accessible company list.",
+              "prompt": "List teammates in <company not listed in my Sellerity profile>.",
+              "expected_behavior": "Do not return team, bot, or company data for the inaccessible company. If list_roleplay_team_members is called with that company_name, the server must reject it because it does not uniquely match an accessible company. Explain that the user can choose a company shown in their profile."
+            }
+          ]
+        },
+        "prompts": [
+          "Show the roleplay bots I can access in my Sellerity company.",
+          "How many roleplay bots do I have in my Sellerity company?",
+          "Help me draft a roleplay bot and show it to me before saving."
+        ]
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Roleplay MCP is now scoped to its dedicated endpoint. Updated plugin discovery details to describe sales, customer support, onboarding, negotiation, renewals, and interview practice use cases. Manage accessible workspaces, bots, team members, scorecards, roleplay usage, sessions, and performance from ChatGPT. Live roleplay sessions open in the Sellerity web app."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

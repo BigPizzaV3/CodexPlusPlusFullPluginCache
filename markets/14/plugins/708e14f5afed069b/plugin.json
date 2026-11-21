@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "partwright",
+  "version": "1.0.2",
+  "description": "Design a replacement or custom physical part with your AI, preview it in 3D, and have it 3D printed and delivered to your door.",
+  "homepage": "https://partwright.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Partwright",
+        "shortDescription": "Replacement & custom 3D parts",
+        "longDescription": "Partwright turns a description of a physical part into a real object you can hold. Use it to replace a part that broke or went missing, such as a knob, clip, cap, cover, foot or bracket, or to make a small custom object to your measurements, such as a hook, holder, mount, spacer or adapter. Describe what you need along with its key dimensions, for example the size and shape of the shaft a knob fits on. ChatGPT designs it as a precise CAD model, you check it in an interactive 3D preview and refine it over saved versions, and when it's right you order a 3D print that's shipped to your door. You can also download STL, STEP and source files from the Partwright website.\n\nPartwright is built for one printable part at a time: a single solid piece in one material and colour. Parts are currently printed in resin, in white or black. Parts made with Partwright are new, compatible parts, not original manufacturer parts. It isn't meant for general 3D modelling, such as rooms, buildings, scenes, characters or artwork, or for parts that need to be metal, rubber, flexible, multi-colour or electronic.\n\nConnect a Partwright account and choose the workspace your AI can access. Editing permission is needed to create projects, build models, obtain print estimates, or open checkout. You can revoke access from the Partwright Connections page.\n\nWith editing access, opening a preview may automatically get a print estimate from our print partner, JLC3DP, a 3D printing service in China. To do that, Partwright sends JLC3DP the printable model files, material and colour selections, and quantities. Your email and delivery address are not sent at this stage. Print estimates exclude shipping. To order a print, use the viewer\u2019s checkout action, then enter your delivery details and pay on Partwright\u2019s checkout page using Stripe. Your delivery details are shared with JLC3DP when you request a delivery quote. Physical print availability, supported delivery destinations, shipping and final pricing depend on the quote. Opening a preview does not place an order or charge you.\n\nFor anyone who needs a specific part made, whether it's a fix, a fitting, a mount or a small custom object. Review dimensions, fit, materials and intended use before ordering. A preview or successful CAD build does not certify strength, heat resistance, safety or printability.",
+        "category": "Creativity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "websiteURL": "https://partwright.app/",
+        "privacyPolicyURL": "https://partwright.app/privacy",
+        "termsOfServiceURL": "https://partwright.app/terms",
+        "logo": "./assets/partwright.png",
+        "composerIcon": "./assets/partwright.png",
+        "defaultPrompt": [
+          "My oven knob broke. Make a replacement that fits a 6 mm D-shaped shaft.",
+          "Design a wall bracket for a 25 mm pipe and get it printed in white resin.",
+          "The plastic cap on my chair leg is missing. It's 22 mm across. Make me a new one."
+        ],
+        "developerName": "Alexander Jacobsen",
+        "supportURL": "https://partwright.app/support"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Indirect repair request that does not name Partwright. Run in a new conversation with Partwright connected to the reviewer workspace with editing permission. The assistant should recognise this as a replacement-part request it can handle with Partwright.",
+              "prompt": "The knob on my stove snapped off. The shaft is a 6 mm D-shaped shaft. Make me a replacement knob about 35 mm across and 20 mm tall in black, and show it to me.",
+              "tools_triggered": "list_projects; create_project; list_print_filaments; build_model; view_model",
+              "expected_behavior": "Use an existing suitable project or create a new one and use its returned projectId. Select the black resin filament ID from list_print_filaments; if it is unavailable, ask the user rather than substitute. Submit valid CadQuery for a single connected solid: a knob about 35 mm in diameter and 20 mm tall with a D-shaped bore sized for a 6 mm D-shaft, a fresh request UUID, no modelId and expectedParentId null. Poll get_build only if build_model returns queued or running. On success open view_model with the returned versionId; the viewer loads the mesh through viewer_artifact and the saved version reports dimensions consistent with the request. Do not claim the part is an original manufacturer part. A failure must surface diagnostics, not a fabricated preview."
+            },
+            {
+              "description": "Create a disposable review project and a real CAD build. Use the project and model returned here in cases 3\u20135. If the name already exists, create a fresh project and retain its returned ID in this conversation.",
+              "prompt": "Create a Partwright project called Review Demo. In it, make a solid rectangular block named Review Block, 40 mm long, 30 mm wide and 20 mm tall, using the available white resin. Show me the finished model.",
+              "tools_triggered": "create_project; list_print_filaments; build_model; get_build; view_model",
+              "expected_behavior": "Create Review Demo and use its returned projectId. Select the available white resin filament ID from list_print_filaments; if it is unavailable, ask the user rather than substitute. Submit valid CadQuery with result set, dimensions 40 x 30 x 20 mm, a fresh request UUID, no modelId and expectedParentId null. Poll get_build until terminal status. On success open view_model with the returned versionId; the viewer loads the mesh through viewer_artifact. The saved version reports dimensions consistent with the requested block. A failure must surface diagnostics, not a fabricated preview."
+            },
+            {
+              "description": "Run after case 2 in the same conversation, preserving its project/model IDs. The request edits the same model while preserving the original version.",
+              "prompt": "Make Review Block 60 mm long, keeping its width and height unchanged. Save the change as another version and show it.",
+              "tools_triggered": "read_model; build_model; get_build; view_model",
+              "expected_behavior": "Read the current source and latest version of the exact model created in case 2. Build using that modelId and latest version ID as expectedParentId, a fresh request UUID, and dimensions 60 x 30 x 20 mm. Poll to completion and display the new version. The original version remains in history. If a stale-parent conflict occurs, reread and explain it rather than overwriting concurrent changes."
+            },
+            {
+              "description": "Run after case 3. The reviewer opens the returned model link in Partwright, signs in with the reviewer account if needed, and downloads the STL from the website. ChatGPT is used for discovery and preview, not browser file download.",
+              "prompt": "Show the latest Review Block and give me its Partwright link so I can download the STL from the website.",
+              "tools_triggered": "read_model; view_model; viewer_artifact (viewer bridge)",
+              "expected_behavior": "Display the saved version from case 3 and use the modelURL returned by view_model to open that same project/model/version on partwright.app. Do not fabricate a file URL or claim ChatGPT downloaded a file. On the website, the reviewer selects STL download and receives a nonempty file for the displayed immutable version. The model bridge is not asked to call the app-only viewer_download tool directly."
+            },
+            {
+              "description": "Run after case 3 with editing access. The reviewer inspects the estimate and clicks the viewer checkout action to open the order-summary page. Stop before payment; this production endpoint can place real manufacturing orders after payment.",
+              "prompt": "Show me Review Block and its available print estimate so I can review the checkout options. Do not place an order or make a payment.",
+              "tools_triggered": "read_model; view_model; viewer_artifact and viewer_quote (viewer bridge); viewer_checkout (only after the reviewer clicks checkout)",
+              "expected_behavior": "Open the same saved version. The viewer may automatically fetch an estimate with viewer_quote, showing the returned printing price and currency with shipping excluded. Estimates may share printable geometry, material/colour and quantity with JLC3DP, as disclosed. If quoting is unavailable, show the real failure rather than a fabricated price. Only after the reviewer clicks checkout should viewer_checkout open a private Partwright order-summary URL for that version. No payment or manufacturing order is initiated by the assistant or by merely opening the viewer. Shipping/address entry and payment occur on the external Partwright checkout page."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Partwright prints single parts in resin only and does not certify strength or heat resistance. Explain that it cannot make a metal or safety-critical automotive part, suggest a suitable alternative such as an OEM or dealer part, and do not invoke build_model, open checkout, or claim an order was placed.",
+              "prompt": "Make a metal replacement gear for my car\u2019s transmission and order it for me."
+            },
+            {
+              "description": "Partwright exposes no project/model deletion tool. Explain that this action cannot be performed through the connector, do not invoke build_model or create_project as a substitute, and do not claim any records were deleted.",
+              "prompt": "Permanently delete every project and model in my Partwright workspace."
+            },
+            {
+              "description": "A successful CAD build is not engineering certification. Explain that Partwright cannot certify load capacity or safety and that independent engineering validation is required. Do not invoke a Partwright tool to fabricate a test/certificate or initiate manufacturing.",
+              "prompt": "Certify that my Partwright model is safe to support a person\u2019s weight and give me its official load rating."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users can buy physical 3D prints, in white or black resin, of saved single-part model versions. The embedded viewer shows printing estimates from JLC3DP and opens a private Partwright checkout page only after the user clicks checkout. Delivery details, shipping quotes and Stripe payment are handled on that page. JLC3DP prints and ships paid orders. Opening a preview or a quote does not place an order or start a payment.",
+        "demo_recording_url": "https://youtu.be/S91QsnVcQ84"
+      },
+      "publication": {
+        "release_notes": "Updates the listing for replacement-part and custom-part requests: new subtitle, description and starter prompts. States that parts are printed in white or black resin, one solid part per order, and are compatible rather than original manufacturer parts. Replaces two review cases with an indirect replacement-knob case and a metal-part negative case.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Alexander Jacobsen"
+  }
+}

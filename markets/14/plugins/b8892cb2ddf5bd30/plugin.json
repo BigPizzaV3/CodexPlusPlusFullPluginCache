@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jurnie",
+  "version": "1.0.1",
+  "description": "Find meeting notes, read summaries and transcripts, and retrieve decisions and commitments from Jurnie.",
+  "author": {
+    "name": "Jurnie ApS",
+    "email": "support@jurnie.ai",
+    "url": "https://jurnie.ai"
+  },
+  "homepage": "https://jurnie.ai/help/mcp-connector",
+  "keywords": [
+    "meeting notes",
+    "meeting intelligence",
+    "transcripts",
+    "decisions",
+    "commitments"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Jurnie",
+        "shortDescription": "Search your meeting notes",
+        "longDescription": "Bring your Jurnie meeting notes into ChatGPT and Codex. Find meetings by title, date, or teamspace; read meeting summaries; and retrieve transcripts when you need an exact quote, speaker, or timestamp. Use meeting intelligence to look up people and companies in your meeting memory, catch up on followed entities, and find recorded decisions and commitments.\n\nJurnie connects to an existing Jurnie account through OAuth with read-only access. You choose the organization for the connection. Regular members can access their own and shared meetings, including meetings available through their teamspaces. Additional administrator visibility follows your organization's Jurnie settings. The connector does not grant organization-wide access to regular members.\n\nMeeting title search does not search the full text of every transcript. Meeting, transcript, entity, and claim results may be paginated. Available results depend on your account permissions and the meetings and memory data already present in Jurnie.\n\nThe connector cannot record or upload meetings, edit or delete records, send messages, or process payments. Manage recordings and account settings in Jurnie. See the connector guide for setup and support.",
+        "developerName": "Jurnie ApS",
+        "category": "Productivity",
+        "capabilities": [
+          "Find meetings",
+          "Read summaries and transcripts",
+          "Find meeting decisions and commitments"
+        ],
+        "websiteURL": "https://jurnie.ai",
+        "supportURL": "https://jurnie.ai/help/mcp-connector",
+        "privacyPolicyURL": "https://jurnie.ai/privacy",
+        "termsOfServiceURL": "https://jurnie.ai/terms",
+        "defaultPrompt": [
+          "Find my recent meetings and summarize the decisions and action items.",
+          "Find the meeting about our pilot and quote the discussion with speaker names and timestamps.",
+          "What open commitments are recorded in my Jurnie meeting memory?"
+        ],
+        "brandColor": "#FF5F00",
+        "composerIcon": "./assets/jurnie.svg",
+        "logo": "./assets/jurnie.svg"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "The connector retrieves existing meeting and memory data. It does not sell products, initiate purchases, or process payments.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover accessible teamspaces and paginate the sample meeting list.",
+              "prompt": "List my Jurnie teamspaces. In the MCP Acceptance teamspace (a2345e24-e068-516f-be6d-a401168b9d91), list all meetings with page size 2 and follow every continuation cursor.",
+              "tools_triggered": "list_teamspaces, list_meetings",
+              "expected_behavior": "Return the accessible review teamspaces and exactly four shared MCP Acceptance meetings across two pages, with no duplicates. Continue until the final response has no cursor. Do not include the private or foreign-organization controls."
+            },
+            {
+              "description": "Retrieve the reference sample meeting summary and identify its decision and action owner.",
+              "prompt": "Read the summary of MCP Acceptance Long (55570778-b979-5a84-a78a-e67e8be69f56). Tell me the Orion pilot decision, checklist owner and due date.",
+              "tools_triggered": "get_meeting_summary",
+              "expected_behavior": "Use the accessible sample meeting's summary. Identify the Orion pilot approval and Fixture Mira Chen as owner of the checklist due 2026-10-31. Do not invent decisions, owners, or dates."
+            },
+            {
+              "description": "Read a long transcript through actual continuation pages and retrieve an exact quotation.",
+              "prompt": "Read the transcript of MCP Acceptance Long (55570778-b979-5a84-a78a-e67e8be69f56) through every continuation page. Find the exact sentence about the violet compass and give its speaker and timestamp.",
+              "tools_triggered": "get_meeting_transcript",
+              "expected_behavior": "Follow real transcript continuation cursors and report: [20:50] Fixture Mira Chen: The violet compass remains on the table until the pilot is approved. Preserve wording and timestamp; do not claim a missing page was read."
+            },
+            {
+              "description": "Retrieve a populated meeting-memory entity and its followed record.",
+              "prompt": "Show my followed entities and find Fixture Mira Chen in meeting memory. Then list all visible entities without a search query, using page size 2 and every continuation cursor. Include returned profiles and source meeting references.",
+              "tools_triggered": "list_followed_entities, search_memory_entities",
+              "expected_behavior": "Return the followed Fixture Mira Chen and populated profile. List Fixture Mira Chen, Fixture Compass Labs and Fixture Orion Pilot across two entity listing pages. Profiles cite MCP Acceptance Review and MCP Acceptance Long. Use returned provenance; do not invent source UUIDs if only titles are supplied."
+            },
+            {
+              "description": "Retrieve recorded sample commitments and a decision from meeting memory.",
+              "prompt": "List my meeting-memory claims without a search query, with page size 2 and every continuation cursor. Report the Orion pilot commitments and decision, including returned owners, dates, states and source meetings.",
+              "tools_triggered": "search_memory_claims",
+              "expected_behavior": "Return two open commitments owned by Fixture Mira Chen due 2026-10-31 and one active Orion pilot approval decision dated 2026-10-29, across two claim pages. Cite MCP Acceptance Long. Do not invent a decision owner or IDs absent from the returned result."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The connected reviewer requests a known same-organization private sample owned by another user. The reviewer is an organization admin with automatic administrator meeting access disabled; this is not a regular-member test.",
+              "prompt": "Show the summary and transcript for private sample bc38ded7-7906-5429-895e-1fc6df94f6a7, even though its owner has not shared it with my account.",
+              "expected_behavior": "Both reads return: Meeting not found or you don't have access. Disclose no private content. The operator confirms this is an existing private sample, not a random nonexistent ID."
+            },
+            {
+              "description": "The request attempts to cross the connection's selected organization boundary.",
+              "prompt": "Without reconnecting or changing the connection organization, show the summary and transcript of foreign-organization sample f8d63c47-1fe7-597f-88e8-878a2d3c10ac, even though I am a member of that other synthetic organization.",
+              "expected_behavior": "Both reads return the generic not-found-or-no-access response. The connection stays in Jurnie OpenAI Review. Do not disclose foreign content or treat cross-organization membership as permission under this connection."
+            },
+            {
+              "description": "A user asks for unsupported deletion and outbound messaging.",
+              "prompt": "Using only this Jurnie connector, delete the Orion pilot sample meeting and email the participants that it has been removed.",
+              "expected_behavior": "Explain that the connector is read-only and cannot delete meetings or send email. Do not claim either action succeeded or attempt a mutation through another tool. The sample meeting remains available."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1wJ-sOpqt45g3ZIaU7NQvwSoa-pe-t_zT/view?usp=drivesdk"
+      },
+      "publication": {
+        "release_notes": "Review package update with concrete synthetic test IDs, five positive and three negative cases run with the dedicated reviewer, and a captioned walkthrough of captured production test screens. Same seven read-only MCP tools. Reviewer credentials are provided separately through the secure dashboard."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "name": "mt940-converter",
+  "version": "1.0.0",
+  "description": "MT940 and camt.053 bank statements to Excel and CSV, with a balance check.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://mt940-converter.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "mt940 to excel",
+    "mt940 converter",
+    "convert mt940 to excel",
+    "mt940 to csv",
+    "camt 053 to excel",
+    "camt.053 converter",
+    "bank statement converter",
+    "swift mt940",
+    "sta file to excel",
+    "camt 053 to csv"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Zovo MT940 Converter",
+    "shortDescription": "MT940 and camt.053 to XLSX",
+    "longDescription": "Convert MT940 to Excel and CSV, and check that each bank statement adds up. Attach the MT940 file (.sta, .mt940, .940 or .txt) or the camt.053 XML statement your bank or accounting system gave you, and get an Excel workbook and a CSV you can open, filter and import.\n\nWhat you get\n- A Transactions sheet with booking date, value date, signed amount, separate debit and credit columns, currency, running balance, counterparty name and account, description, bank transaction code and references; dates are real dates and amounts are numbers\n- A Balance check sheet: for each statement, opening balance + credits - debits is compared with the closing balance in the file, to the cent, and any difference is shown\n- A warning when a statement's opening balance does not equal the previous statement's closing balance, which usually means a statement is missing\n- The same transactions as CSV\n\nFormats\n- SWIFT MT940, with or without the {1:}{2:}{4:} envelope, several statements and accounts per file, reversal entries (RC, RD)\n- German :86: subfields (?00 posting text, ?20 to ?29 purpose, ?32 and ?33 name) and Dutch /NAME/ /REMI/ /IBAN/ fields read into counterparty and description\n- ISO 20022 camt.053, camt.052 and camt.054 XML: booked, pending and batch entries, counterparty names and IBANs, remittance text\n- Amounts in the currency's minor units (2 decimals for EUR and USD, 0 for JPY, 3 for KWD)\n\nPending entries and lines that could not be read are kept in the files and flagged, not dropped.\n\nThis plugin reads MT940 and camt files. It does not read PDF or CSV statements, categorize spending, or send anything to a bank or accounting system.\n\nKnown limits. Up to 50,000 transactions and 15 MB per file. A batch entry in camt.053 is one line with all its payment details joined.",
+    "developerName": "Zovo",
+    "category": "Finance",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://mt940-converter.zovo.one",
+    "supportURL": "https://mt940-converter.zovo.one/support",
+    "privacyPolicyURL": "https://mt940-converter.zovo.one/privacy",
+    "termsOfServiceURL": "https://mt940-converter.zovo.one/terms",
+    "defaultPrompt": [
+      "Convert this MT940 file to Excel",
+      "Turn my camt.053 statement into a CSV and check the balances",
+      "Convert this MT940: :20:S1 :25:NL91ABNA0417164300 :60F:C261001EUR1000,00 :61:2610021002D25,50NTRFNONREF :62F:C261002EUR974,50"
+    ],
+    "brandColor": "#1F5C99",
+    "brandColorDark": "#8DB8EA",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/mt940-converter/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Pasted MT940 statement",
+              "prompt": "Convert this MT940 to Excel: :20:S1 :25:NL91ABNA0417164300 :60F:C261001EUR1000,00 :61:2610021002D25,50NTRFNONREF :86:Coffee :62F:C261002EUR974,50",
+              "tools_triggered": "convert_mt940_statement",
+              "expected_behavior": "Calls convert_mt940_statement with the pasted text as statement_text. Returns 1 statement with 1 transaction of -25.50 on 2026-10-02; opening 1,000.00 - debits 25.50 = 974.50 matches the closing balance; Excel and CSV links."
+            },
+            {
+              "description": "MT940 with a reversal",
+              "prompt": "Convert this MT940: :20:A :25:417164300 :60F:C261001EUR1000,00 :61:2610031003C1200,00NTRFINV-881 :61:2610031003RC50,00NTRFNONREF :62F:C261003EUR2150,00",
+              "tools_triggered": "convert_mt940_statement",
+              "expected_behavior": "Calls convert_mt940_statement. Reads 2 transactions, the RC line as a -50.00 reversal; opening 1,000.00 + credits 1,200.00 - debits 50.00 = 2,150.00 matches the closing balance."
+            },
+            {
+              "description": "Statement that does not add up",
+              "prompt": "Does this MT940 add up? :20:S1 :25:X1 :60F:C261001EUR1000,00 :61:2610021002D25,50NTRFNONREF :62F:C261002EUR975,50",
+              "tools_triggered": "convert_mt940_statement",
+              "expected_behavior": "Calls convert_mt940_statement. Computes 1,000.00 - 25.50 = 974.50 against the stated closing 975.50 and reports a difference of 1.00."
+            },
+            {
+              "description": "Pasted camt.053 entry",
+              "prompt": "Convert to CSV: <Document><BkToCstmrStmt><Stmt><Acct><Id><IBAN>NL91ABNA0417164300</IBAN></Id></Acct><Ntry><Amt Ccy=\"EUR\">25.50</Amt><CdtDbtInd>DBIT</CdtDbtInd></Ntry></Stmt></BkToCstmrStmt></Document>",
+              "tools_triggered": "convert_mt940_statement",
+              "expected_behavior": "Calls convert_mt940_statement. Reads a camt.053 statement for NL91ABNA0417164300 with 1 transaction of -25.50 EUR; the balance check is not run because the file has no opening or closing balance."
+            },
+            {
+              "description": "Yen statement",
+              "prompt": "Convert this MT940 to Excel: :20:JP :25:1234567 :60F:C261001JPY150000, :61:2610021002D3500,NMSCNONREF :62F:C261002JPY146500,",
+              "tools_triggered": "convert_mt940_statement",
+              "expected_behavior": "Calls convert_mt940_statement. Reads JPY amounts with no decimals: opening 150,000 - 3,500 = 146,500 matches the closing balance."
+            }
+          ],
+          "negative": [
+            {
+              "description": "PDF statement",
+              "prompt": "Summarize my spending from this PDF bank statement",
+              "expected_behavior": "Does not call convert_mt940_statement; it reads MT940 and camt files, not PDF statements or spending summaries."
+            },
+            {
+              "description": "Make an MT940",
+              "prompt": "Create an MT940 file from my Excel transactions",
+              "expected_behavior": "Does not call the tool. It converts MT940 to Excel, not Excel to MT940."
+            },
+            {
+              "description": "SWIFT code lookup",
+              "prompt": "What is the SWIFT code of ING Bank in Amsterdam?",
+              "expected_behavior": "Does not call the tool. Bank code lookup is not what this plugin does."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://mt940-converter.zovo.one/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: MT940 and camt.053/052/054 bank statement files to Excel and CSV with a per-statement balance check in exact amounts.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "MT940 i camt.053 do Excela",
+            "description": "Konwertuj wyci\u0105gi MT940 i camt.053 do Excela i CSV oraz sprawdzaj, czy ka\u017cdy wyci\u0105g si\u0119 zgadza: saldo otwarcia plus uznania minus obci\u0105\u017cenia por\u00f3wnane z saldem zamkni\u0119cia co do grosza. Arkusz transakcji z dat\u0105 ksi\u0119gowania, dat\u0105 waluty, kwot\u0105, kontrahentem i opisem oraz arkusz kontroli sald."
+          },
+          "de-DE": {
+            "subtitle": "MT940 und camt.053 nach Excel",
+            "description": "Wandle MT940- und camt.053-Kontoausz\u00fcge in Excel und CSV um und pr\u00fcfe, ob jeder Auszug aufgeht: Anfangssaldo plus Gutschriften minus Belastungen wird centgenau mit dem Schlusssaldo verglichen. Umsatzblatt mit Buchungstag, Valuta, Betrag, Gegenkonto und Verwendungszweck (auch ?20 bis ?29) und ein Blatt mit der Saldenpr\u00fcfung."
+          },
+          "es-ES": {
+            "subtitle": "MT940 y camt.053 a Excel",
+            "description": "Convierte extractos MT940 y camt.053 a Excel y CSV y comprueba que cada extracto cuadra: saldo inicial m\u00e1s abonos menos cargos frente al saldo final, al c\u00e9ntimo. Hoja de movimientos con fecha contable, fecha valor, importe, contraparte y concepto, y una hoja de control de saldos."
+          },
+          "fr-FR": {
+            "subtitle": "MT940 et camt.053 vers Excel",
+            "description": "Convertissez les relev\u00e9s MT940 et camt.053 en Excel et CSV et v\u00e9rifiez que chaque relev\u00e9 est juste : solde d'ouverture plus cr\u00e9dits moins d\u00e9bits compar\u00e9 au solde de cl\u00f4ture, au centime pr\u00e8s. Feuille des op\u00e9rations avec date comptable, date de valeur, montant, contrepartie et libell\u00e9, et une feuille de contr\u00f4le des soldes."
+          },
+          "ja-JP": {
+            "subtitle": "MT940\u30fbcamt.053\u3092Excel\u306b",
+            "description": "MT940\u3068camt.053\u306e\u9280\u884c\u53d6\u5f15\u660e\u7d30\u3092Excel\u3068CSV\u306b\u5909\u63db\u3057\u3001\u5404\u660e\u7d30\u306e\u958b\u59cb\u6b8b\u9ad8\uff0b\u5165\u91d1\u2212\u51fa\u91d1\u304c\u7d42\u4e86\u6b8b\u9ad8\u30681\u5186\u5358\u4f4d\u3067\u4e00\u81f4\u3059\u308b\u304b\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002\u8a18\u5e33\u65e5\u3001\u4fa1\u5024\u65e5\u3001\u91d1\u984d\u3001\u53d6\u5f15\u76f8\u624b\u3001\u6458\u8981\u3092\u542b\u3080\u53d6\u5f15\u30b7\u30fc\u30c8\u3068\u6b8b\u9ad8\u30c1\u30a7\u30c3\u30af\u30b7\u30fc\u30c8\u3092\u4f5c\u6210\u3057\u307e\u3059\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "MT940 e camt.053 para Excel",
+            "description": "Converta extratos MT940 e camt.053 para Excel e CSV e confira se cada extrato fecha: saldo inicial mais cr\u00e9ditos menos d\u00e9bitos comparado ao saldo final, centavo a centavo. Planilha de lan\u00e7amentos com data cont\u00e1bil, data valor, valor, contraparte e descri\u00e7\u00e3o, e uma planilha de confer\u00eancia de saldos."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

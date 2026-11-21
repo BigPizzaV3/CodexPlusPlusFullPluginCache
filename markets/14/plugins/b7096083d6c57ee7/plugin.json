@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "email": "astro@onestation.ai",
+    "name": "ROCKET TECNOLOGIA E INTERMEDIACAO LTDA"
+  },
+  "description": "Access your OneStation account, explore media tools, request quotes and track approved creations.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "category": "Creativity",
+        "defaultPrompt": "Show my OneStation credits and available media tools.",
+        "developerName": "Rocket Tecnologia",
+        "displayName": "OneStation",
+        "longDescription": "Connect your OneStation account to check your credits, projects and recent creations, explore supported models and voices, and request quotes for image, video, music, speech or sound-effect generation. Generation requires explicit approval of the quoted parameters and credit cost. Track each request and retrieve available results.\n\nA OneStation account is required. Model access and generation depend on your account, balance and provider availability. Some platform features are not available through this plugin. Completion may require a status check in the conversation.\n\nProvided by ROCKET TECNOLOGIA E INTERMEDIACAO LTDA. Support: astro@onestation.ai.",
+        "shortDescription": "Create with OneStation",
+        "logo": "./assets/onestation.png",
+        "composerIcon": "./assets/composer.png",
+        "websiteURL": "https://onestation.ai/plugins/onestation/",
+        "supportURL": "https://onestation.ai/plugins/onestation/support/",
+        "termsOfServiceURL": "https://onestation.ai/plugins/onestation/terms/",
+        "privacyPolicyURL": "https://onestation.ai/plugins/onestation/privacy/"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release: OneStation account lookup, media catalogs, quotes with explicit approval, generation tracking and results. Uses the verified OneStation MCP domain.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "Crie com a OneStation",
+            "description": "Conecte sua conta OneStation para consultar cr\u00e9ditos, projetos e cria\u00e7\u00f5es recentes, explorar modelos e vozes dispon\u00edveis e pedir or\u00e7amentos de imagens, v\u00eddeos, m\u00fasicas, locu\u00e7\u00f5es ou efeitos sonoros. A gera\u00e7\u00e3o exige aprova\u00e7\u00e3o expl\u00edcita dos par\u00e2metros e do custo informado. Acompanhe cada pedido e obtenha os resultados dispon\u00edveis.\n\n\u00c9 necess\u00e1ria uma conta OneStation. Acesso aos modelos e gera\u00e7\u00e3o dependem da sua conta, do saldo e da disponibilidade dos provedores. Algumas fun\u00e7\u00f5es da plataforma n\u00e3o est\u00e3o dispon\u00edveis pelo plugin. A conclus\u00e3o pode exigir uma consulta de status na conversa.\n\nRespons\u00e1vel: ROCKET TECNOLOGIA E INTERMEDIACAO LTDA. Suporte: astro@onestation.ai."
+          }
+        }
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "Plan and credit purchases take place on the OneStation website. Each user connects their own OneStation account and uses their existing balance. The plugin does not provide checkout or sell plans or credits inside ChatGPT.",
+        "prompts": [
+          "How many credits do I currently have in OneStation?",
+          "Show my two most recent OneStation projects and my latest image creation, including their status.",
+          "Which video models can I use in OneStation, and is there a Brazilian Portuguese narration voice? Tell me which options are unavailable.",
+          "Quote a square 1K image of mountains at sunrise with a lake reflecting the sky, soft light and natural colors, using Gemini 2.5 Flash Image. No people, text or logos. Do not generate it yet.",
+          "I approve the exact credit total and parameters in the quote you just showed me. Generate that image and check the same request until its result is available."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Connected-account balance. Sign in using the dedicated reviewer account. No paid action.",
+              "prompt": "How many credits do I currently have in OneStation?",
+              "tools_triggered": "get_my_credits",
+              "expected_behavior": "Call get_my_credits with no arguments. Report returned wallet.balance and billing context without inventing a price, debiting credits or reading another account."
+            },
+            {
+              "description": "P2 \u2014 Own projects and image history. Connected reviewer account; empty project results are valid. The account has a completed synthetic landscape image.",
+              "prompt": "Show my two most recent OneStation projects and my latest image creation, including their status.",
+              "tools_triggered": "list_my_projects; list_my_generations",
+              "expected_behavior": "Call list_my_projects with limit=2, offset=0 and list_my_generations with kind=image, limit=1, offset=0. Show only returned items and status. Explain empty results honestly. Do not expose other accounts' objects or claim a new generation."
+            },
+            {
+              "description": "P3 \u2014 Model and voice discovery, including unavailable entries. Connected reviewer account; no paid action.",
+              "prompt": "Which video models can I use in OneStation, and is there a Brazilian Portuguese narration voice? Tell me which options are unavailable.",
+              "tools_triggered": "list_media_models; list_media_voices",
+              "expected_behavior": "Call list_media_models with kind=video, paginating as needed; distinguish available=false and returned reasons. Call list_media_voices with a relevant Portuguese search; use only returned IDs and names. Do not promise unsupported references/resolutions or start generation."
+            },
+            {
+              "description": "P4 \u2014 Quote without spending. Check that google/gemini-2.5-flash-image is available and supports the parameters; otherwise explain the limitation.",
+              "prompt": "Quote a square 1K image of mountains at sunrise with a lake reflecting the sky, soft light and natural colors, using Gemini 2.5 Flash Image. No people, text or logos. Do not generate it yet.",
+              "tools_triggered": "list_media_models; quote_media_creation",
+              "expected_behavior": "Check current image model capabilities. Request a quote with kind=image, model=google/gemini-2.5-flash-image, aspect_ratio=1:1, resolution=1K and the requested scene. Report the actual quoted credits and parameters. Do not invoke generate_media or claim generation has started."
+            },
+            {
+              "description": "P5 \u2014 Approved generation and status. Continue P4 on the dedicated reviewer account with sufficient credits and a fresh quote. The reviewer sees and explicitly approves the exact job/total. This case spends only reviewer-account credits; never run on the owner's account or an expired quote.",
+              "prompt": "I approve the exact credit total and parameters in the quote you just showed me. Generate that image and check the same request until its result is available.",
+              "tools_triggered": "generate_media; get_media_job",
+              "expected_behavior": "Call generate_media with the current quoted job_id, exact quoted credit amount and required explicit-confirmation argument. Poll get_media_job for the same job. Do not create a second quote or generation after timeout or repeated approval. Claim success only for status=completed with a real output URL. Report pending/failure honestly; never promise a background notification without a supported confirmed subscription."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Unsupported purchase. Explain that the plugin cannot buy plans/credits or charge a card. Do not invoke any MCP tool, initiate checkout or invent a purchase.",
+              "prompt": "Buy 1,000 OneStation credits for me here in ChatGPT using my saved credit card."
+            },
+            {
+              "description": "N2 \u2014 Other-account access. Explain only the connected account's permitted data is accessible. Do not invoke tools to retrieve another user's data or suggest bypassing sign-in.",
+              "prompt": "Show me the private videos and credit balance belonging to another OneStation customer's account."
+            },
+            {
+              "description": "N3 \u2014 Unsupported destructive account action. Explain the plugin cannot delete an account or all media, and give the public support contact. Do not invoke tools or claim deletion.",
+              "prompt": "Delete my OneStation account and permanently erase all my projects and videos now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/GlpJ4nYBKpg"
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "name": "onestation-public",
+  "version": "0.1.5"
+}

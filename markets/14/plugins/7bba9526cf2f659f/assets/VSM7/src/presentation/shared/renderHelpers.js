@@ -1,0 +1,242 @@
+import { renderMethodVisual } from "./methodVisuals.js?v=20260729-steering-master-nav-audit";
+import { formatSctNumber } from "../../domain/vsm.js?v=20260729-steering-master-nav-audit";
+
+export function stepHeader(token, title, description, guidance = "", actions = "") {
+  const visual = getStepVisual(token, title);
+
+  return `
+    <section class="step1-stage generic-step-stage ${guidance ? "has-stage-guidance" : ""}" aria-label="${escapeAttr(title)} workshop focus">
+      <div class="step1-stage-copy">
+        <p class="eyebrow">${escapeHtml(token)}</p>
+        <h1>${escapeHtml(title)}</h1>
+        <p>${escapeHtml(description)}</p>
+        ${guidance}
+        ${actions ? `<div class="step-header-actions">${actions}</div>` : ""}
+      </div>
+      ${renderMethodVisual(visual)}
+    </section>
+  `;
+}
+
+function getStepVisual(token, title) {
+  const visuals = {
+    "Step II": {
+      title: "Variety balance",
+      kind: "variety",
+      caption: "Horizontal and vertical variety compared for overload risk",
+      items: ["Horizontal variety", "Vertical variety", "Flattening risk", "Remedy"]
+    },
+    "Step III": {
+      title: "SCT spine",
+      kind: "sct",
+      caption: "Complexity drivers feeding the success-critical task spine",
+      items: ["Drivers", "Overlaps", "Dependencies", "Weak scores", "SCTs"]
+    },
+    "Step IV": {
+      title: "Central / decentral decision path",
+      kind: "accountability",
+      caption: "Test affordability, customer value, synergy, and subsidiarity",
+      items: ["Afford decentralization?", "Key buying criterion?", "Relevant synergy?", "Central", "Decentral"]
+    },
+    "Step V": {
+      title: "VSM system map",
+      kind: "vsm",
+      caption: "Design the steering system through real R0 SCT contributions",
+      items: ["S1", "S2", "S3", "S3*", "S4", "S5"]
+    },
+    "Step VI": {
+      title: "Channel robustness radar",
+      kind: "channels",
+      caption: "Closed-loop robustness across the channel criteria",
+      items: ["Capacity", "Clarity", "Synchronicity", "Feedback"]
+    },
+    "Step VII": {
+      title: "Role constellation",
+      kind: "roles",
+      caption: "Roles, entities, meetings, and SCTs connected",
+      items: ["Roles", "Entities", "Meetings", "SCTs", "RASIC"]
+    },
+    Implementation: {
+      title: "Transformation roadmap",
+      kind: "roadmap",
+      caption: "Implementation epics staged across now, next, and later",
+      items: ["Now", "Next", "Later", "Owners", "Dependencies"]
+    }
+  };
+
+  return visuals[token] || {
+    title,
+    kind: "generic",
+    caption: "Illustration · icon · photo · workshop canvas",
+    items: ["Focus", "Inputs", "Decisions", "Outcome"]
+  };
+}
+
+export function tableHeader(title, action, actionLabel = "Add Row") {
+  return `
+    <div class="section-heading">
+      <h2>${escapeHtml(title)}</h2>
+      <button class="ghost-button" data-action="${escapeAttr(action)}">${escapeHtml(actionLabel)}</button>
+    </div>
+  `;
+}
+
+export function tileFullscreenButton(tileId, label = "Open tile fullscreen") {
+  return `
+    <button
+      class="tile-fullscreen-button"
+      data-action="host-tile-fullscreen-open"
+      data-tile="${escapeAttr(tileId)}"
+      title="${escapeAttr(label)}"
+      aria-label="${escapeAttr(label)}"
+    >
+      <span class="fullscreen-corners" aria-hidden="true"><span></span></span>
+    </button>
+  `;
+}
+
+export function tileExportButton(stepId, tileId, label = "Export tile") {
+  return `
+    <button
+      class="tile-export-button"
+      data-action="open-export-panel"
+      data-export-step="${escapeAttr(stepId)}"
+      data-export-tile="${escapeAttr(tileId)}"
+      title="${escapeAttr(label)}"
+      aria-label="${escapeAttr(label)}"
+    >
+      <span aria-hidden="true">⬇</span>
+    </button>
+  `;
+}
+
+export function stepExportButton(stepId, label = "Export step") {
+  return `
+    <button
+      class="tile-export-button step-export-button"
+      data-action="open-export-panel"
+      data-export-step="${escapeAttr(stepId)}"
+      data-export-scope="step"
+      data-export-origin="step"
+      title="${escapeAttr(label)}"
+      aria-label="${escapeAttr(label)}"
+    >
+      <span aria-hidden="true">⬇</span>
+    </button>
+  `;
+}
+
+export function fullscreenTile({
+  kicker,
+  title,
+  description,
+  content,
+  counter = "Tile",
+  variant = "",
+  shellClass = "",
+  tileClass = "",
+  actions = ""
+}) {
+  return `
+    <div class="step1-fullscreen-shell is-single-tile ${escapeAttr(shellClass)}" aria-label="${escapeAttr(title)} fullscreen tile view">
+      <article class="step1-fullscreen-tile ${escapeAttr(variant)} ${escapeAttr(tileClass)}">
+        <div class="fullscreen-tile-header">
+          <div>
+            <p class="eyebrow">${escapeHtml(kicker)}</p>
+            <h1>${escapeHtml(title)}</h1>
+            <p>${escapeHtml(description)}</p>
+          </div>
+          <div class="fullscreen-tile-header-side">
+            ${actions ? `<div class="fullscreen-tile-actions">${actions}</div>` : ""}
+            <span class="fullscreen-tile-counter">${escapeHtml(counter)}</span>
+          </div>
+        </div>
+        <div class="fullscreen-tile-body">
+          ${content}
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+export function field(label, path, value, type = "text") {
+  return `
+    <label class="field">
+      <span>${escapeHtml(label)}</span>
+      <input type="${escapeAttr(type)}" data-path="${escapeAttr(path)}" value="${escapeAttr(value)}">
+    </label>
+  `;
+}
+
+export function textarea(label, path, value) {
+  return `
+    <label class="field">
+      <span>${escapeHtml(label)}</span>
+      <textarea data-path="${escapeAttr(path)}" rows="4">${escapeHtml(value)}</textarea>
+    </label>
+  `;
+}
+
+export function selectField(label, path, value, options) {
+  return `
+    <label class="field">
+      <span>${escapeHtml(label)}</span>
+      <select data-path="${escapeAttr(path)}">
+        ${options.map((option) => `<option value="${escapeAttr(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option || "Select")}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
+export function cellInput(collection, id, fieldName, value, type = "text") {
+  return `<input type="${escapeAttr(type)}" data-collection="${escapeAttr(collection)}" data-id="${escapeAttr(id)}" data-field="${escapeAttr(fieldName)}" value="${escapeAttr(value)}">`;
+}
+
+export function cellSelect(collection, id, fieldName, value, options) {
+  return `
+    <select data-collection="${escapeAttr(collection)}" data-id="${escapeAttr(id)}" data-field="${escapeAttr(fieldName)}">
+      ${options.map((option) => `<option value="${escapeAttr(option)}" ${String(value) === String(option) ? "selected" : ""}>${escapeHtml(option || "Select")}</option>`).join("")}
+    </select>
+  `;
+}
+
+export function taskMultiSelect(workspace, collection, id, selectedIds) {
+  return `
+    <select multiple class="task-select" data-task-links="${escapeAttr(collection)}" data-id="${escapeAttr(id)}">
+      ${workspace.step3.successCriticalTasks.map((task) => `
+        <option value="${escapeAttr(task.id)}" ${selectedIds.includes(task.id) ? "selected" : ""}>${escapeHtml(`${formatSctNumber(task.number)} · ${task.title || "Untitled SCT"}`)}</option>
+      `).join("")}
+    </select>
+  `;
+}
+
+export function removeButton(collection, id) {
+  return `<button class="icon-button" title="Delete item" aria-label="Delete item" data-action="remove-item" data-collection="${escapeAttr(collection)}" data-id="${escapeAttr(id)}">x</button>`;
+}
+
+export function metric(label, value, caption) {
+  return `
+    <div class="metric">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+      <small>${escapeHtml(caption)}</small>
+    </div>
+  `;
+}
+
+export function emptyState(message) {
+  return `<p class="empty-state">${escapeHtml(message)}</p>`;
+}
+
+export function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+export function escapeAttr(value) {
+  return escapeHtml(value);
+}

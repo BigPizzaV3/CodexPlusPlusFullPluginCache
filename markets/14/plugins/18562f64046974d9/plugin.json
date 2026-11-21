@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dive-kit",
+  "version": "0.5.0",
+  "description": "Scuba planning calculators and diving reference data through the Dive Kit MCP server.",
+  "author": {
+    "name": "Majani Plus"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dive Kit",
+        "shortDescription": "Scuba dive planning tools",
+        "longDescription": "Dive Kit is a scuba dive planning calculator and diving reference for trained divers. It connects ChatGPT to 18 read-only calculation and reference tools. Calculate open-circuit or rebreather decompression schedules, gas needs and reserves, no-decompression times, breathing-gas characteristics, proposed gas mixes, gas blends, cylinder transfers, weighting estimates, and unit conversions. Look up cylinder specifications, certifications and diving references. Reopen calculated plans through share links. The MCP server requires no sign-in. Weighting calculations take no body measurements: only an optional in-water buoyancy measurement (body_offset). Dive Kit reports assumptions, calculations and warnings so trained divers can independently check results. It is a planning and reference calculator, not a dive computer or medical advice. Confirm gas analyses, equipment details, calculations and dive plans against independent sources before use. Read the warning and disclaimer at https://divekit.app/safety/.",
+        "developerName": "Majani Plus",
+        "category": "Education & Research",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/icon.png",
+        "logoDark": "./assets/icon-dark.png",
+        "capabilities": [],
+        "defaultPrompt": [
+          "Plan an open-circuit dive and explain all assumptions and warnings.",
+          "Calculate MOD, END and gas density for my breathing mix.",
+          "Compare weighting changes for my cylinder and exposure suit."
+        ],
+        "websiteURL": "https://divekit.app/ai/",
+        "supportURL": "https://divekit.app/ai/",
+        "privacyPolicyURL": "https://divekit.app/privacy-policy/#ai-assistants",
+        "termsOfServiceURL": "https://divekit.app/terms/"
+      },
+      "review": {
+        "demo_recording_url": "https://www.youtube.com/watch?v=KjVawhNeHfk",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 - Basic open-circuit decompression plan: use plan_dive, show assumptions, stop and runtime table, gas reserves and warnings, and share link.",
+              "prompt": "45 m for 20 min, twin 12s of 21/35 and an 11 L of 50%. Plan it.",
+              "tools_triggered": "plan_dive",
+              "expected_behavior": "Call plan_dive for 45 m with bottom_time_min=20, twin_12l 21/35 and stage_11l 50%. State the assumed fill pressures, GF and reserve defaults rather than inventing them as user-specified. Show returned stop/runtime table, gas used and warnings, and a plan share link. Do not call the result safe."
+            },
+            {
+              "description": "P2 - Buoyancy/weighting check without demographic information; do not ask for or send body measurements.",
+              "prompt": "How much lead do I need with an AL80, 7 mm wetsuit, 6 kg belt?",
+              "tools_triggered": "buoyancy_check",
+              "expected_behavior": "Call buoyancy_check with cylinders:[{role:'single',cylinder:'al80'}], exposure:{type:'wetsuit',thickness_mm:7}, gear:[{label:'belt',weight:6,ditchable:true}], and omit diver entirely. Explain weighting estimate, applicable assumptions and confirmation by in-water weight check. Do not request height, weight, age, sex or body-fat percentage."
+            },
+            {
+              "description": "P3 - Buoyancy check with preferred measured body offset rather than demographic input.",
+              "prompt": "My weight check showed I float 2 kg. How much lead with an AL80 and a 5 mm suit?",
+              "tools_triggered": "buoyancy_check",
+              "expected_behavior": "Call buoyancy_check with AL80 single cylinder, 5 mm wetsuit and diver:{body_offset:2} (kg), with no height, weight, age, sex or body-fat fields. Show weighting adjustment and rig/gear assumptions; advise independent in-water verification."
+            },
+            {
+              "description": "P4 - Technical stop table with explicit 3-minute descent and 30-minute-at-depth interpretation, assumptions, warnings and share link.",
+              "prompt": "Trimix diver. Twin 12s of 21/35, stages of 50% and O2. 50 m for 30 minutes, GF 50/85, SAC 15, 3 minutes to descend, switch to 50% at 21 m and O2 at 6 m. Give me the stop table.",
+              "tools_triggered": "plan_dive",
+              "expected_behavior": "Call plan_dive with depth=50 m, bottom_time_min=30, OC twins 21/35 and stages EAN50 and O2, GF 50/85, working SAC=15, descent rate about 16.67 m/min so descent takes 3 minutes, and permitted deco gas switches at 21 m and 6 m. Say explicitly that the 30 minutes are time at depth (not whole runtime), and disclose cylinder fill assumptions, deco SAC default, reserve rule and other defaults. Show returned stop table, gas/reserves, warnings and working share link."
+            },
+            {
+              "description": "P5 - Over-MOD variant must lead with gas depth violation and identify 56 m MOD, CNS and density issues, not present the resulting schedule as diveable.",
+              "prompt": "I'm a trimix diver with twin 12s of 21/35 and stages of 50% and oxygen. I want 60 m for 30 minutes at depth, GF 50/85, SAC 15 L/min, 3 minutes to descend, with deco switches to 50% at 21 m and O2 at 6 m. Check that dive and show the stop table with warnings.",
+              "tools_triggered": "plan_dive",
+              "expected_behavior": "Call plan_dive with 60 m on 21/35, bottom_time_min=30, GF 50/85, two deco stages and a 3-minute descent. Lead the user-visible answer with levelExceedsMOD: 21/35 is beyond its MOD at 60 m; the model's 1.4 bar MOD is rounded down to 56 m. Include gas-density and CNS exposure warnings (and reserve violations if returned). Do not present the plan as diveable as it stands. Offer a leaner bottom mix, optionally using best_mix in a subsequent call. Any stop table is reference only; list assumed fill pressures and other defaults."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 - Weather is not a Dive Kit capability; do not call Dive Kit tools.",
+              "prompt": "What's the weather forecast tomorrow?"
+            },
+            {
+              "description": "N2 - Dive logging is not offered by the MCP; do not call any Dive Kit tool. Say that the connector cannot record a dive.",
+              "prompt": "Log yesterday's dive."
+            },
+            {
+              "description": "N3 - Flying-after-diving medical clearance is not calculated by the connector; do not call Dive Kit tools. Point to established diving-agency or DAN guidance and medical professionals where needed.",
+              "prompt": "Is it safe to fly 2 hours after diving?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Dive Kit 0.5.0. The same 18 read-only tools, names and annotations. New app icon. Updated calculation core and reference data: buoyancy_check reads cylinder buoyancy as the manufacturer sheets quote it, defaults to sea water, takes an optional empty_weight for a cylinder not in the data, and flags a rig that ends the dive more than 2 kg negative as overweighted, with the lead to remove; cylinder figures are corrected against manufacturer sheets and sourced weights and volumes; reserve pressures in psi in plan warnings now match the gas card; share links keep a repetitive dive's prior CNS and feet stop depths exactly; a CCR bailout with no breathable gas at the bail depth now says so. The bundled cylinder and certification datasets are now MIT licensed. Results still state their assumptions and warnings and carry the safety notice: Dive Kit is a planning aid for trained divers, not a dive computer or medical advice."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "normapi",
+  "version": "1.0.0",
+  "description": "Check, read and create German e-invoices (XRechnung, ZUGFeRD/Factur-X) against the official KoSIT rules, with a plain-language explanation for every business-rule finding.",
+  "author": {
+    "name": "Dmytro Yalanskyi",
+    "email": "kontakt@normapi.de",
+    "url": "https://normapi.com/en"
+  },
+  "homepage": "https://normapi.com/en/docs/mcp",
+  "keywords": [
+    "e-invoice",
+    "XRechnung",
+    "ZUGFeRD",
+    "Factur-X",
+    "EN 16931",
+    "KoSIT",
+    "E-Rechnung"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "NormAPI \u2013 XRechnung & ZUGFeRD",
+        "shortDescription": "Check and create e-invoices",
+        "longDescription": "NormAPI checks, reads and creates German e-invoices \u2014 XRechnung (UBL and CII XML) and ZUGFeRD/Factur-X PDFs \u2014 against the official KoSIT rule set, the one German public-sector portals use. Every result names the rule set version that produced it.\n\nWhat you can do:\n\n\u2022 Check an invoice. Upload the XML or the PDF and ask whether it is valid. You get the verdict and every finding, and each business-rule finding comes with what the rule requires, why invoices typically break it, and how to fix it, in English or German.\n\n\u2022 Read a received invoice. NormAPI turns it into structured data \u2014 seller, buyer, lines, VAT breakdown and totals exactly as the document states them \u2014 and lists anything it could not map, so questions about the invoice are answered from its data.\n\n\u2022 Look up a rule. Ask what a code such as BR-DE-15 or BR-CO-16 means and how to fix it.\n\n\u2022 Create an invoice. Describe the invoice and NormAPI produces an XRechnung (UBL or CII XML) or a ZUGFeRD PDF: an XRechnung for a public-sector buyer, a plain EN 16931 invoice for a business. Totals are computed on the server in decimal arithmetic, and the document is validated against the official rules before you get it; data the rules do not permit is refused, with the rules it breaks and how to fix each.\n\nChecking, reading and rule lookups need no account. Creating invoices needs a NormAPI account: you sign in the first time you create one, and each generated document counts against that account's monthly allowance.\n\nInvoices are processed in memory on servers in the EU and are never stored. NormAPI is technical validation, not tax or legal advice, and it does not send invoices to recipients or portals.",
+        "developerName": "Dmytro Yalanskyi",
+        "category": "Finance",
+        "websiteURL": "https://normapi.com/en/docs/mcp",
+        "supportURL": "https://normapi.com/en/legal-notice",
+        "privacyPolicyURL": "https://normapi.com/en/privacy",
+        "termsOfServiceURL": "https://normapi.com/en/terms",
+        "defaultPrompt": [
+          "Check this XRechnung against the official rules and explain every error",
+          "What does the e-invoice rule BR-DE-15 mean and how do I fix it?",
+          "Read this ZUGFeRD invoice and give me the seller, the totals and the VAT"
+        ],
+        "brandColor": "#514b9e",
+        "brandColorDark": "#8f89d6",
+        "logo": "./assets/logo.png"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check a valid XRechnung (UBL) uploaded as a file.",
+              "prompt": "Is this XRechnung valid? Please check it against the official rules.",
+              "file_attachment_urls": [
+                "https://normapi.com/beispiele/gueltig-ubl.xml"
+              ],
+              "tools_triggered": "validate_invoice",
+              "expected_behavior": "validate_invoice is called with the uploaded file. The answer says the invoice is acceptable: scenario EN16931 XRechnung (UBL Invoice), no errors and no warnings, and it names the rule set version the result reports (v2026-08-31 at submission). It mentions the one INFORMATION notice, BR-DE-TMP-32 (no delivery or service date in structured form), as a recommendation rather than an error."
+            },
+            {
+              "description": "Find out why an invoice is rejected and how to fix it.",
+              "prompt": "Our customer's portal rejected this invoice. What is wrong with it and how do I fix it?",
+              "file_attachment_urls": [
+                "https://normapi.com/beispiele/fehler-br-de-15-kaeuferreferenz.xml"
+              ],
+              "tools_triggered": "validate_invoice",
+              "expected_behavior": "validate_invoice is called with the uploaded file. The answer says the invoice is not acceptable, with exactly one error: BR-DE-15, the buyer reference (BT-10) is missing. It explains that an XRechnung for a German public authority carries the Leitweg-ID there, and gives the fix: put the Leitweg-ID or the reference the buyer supplied into cbc:BuyerReference."
+            },
+            {
+              "description": "Read a received ZUGFeRD PDF into data.",
+              "prompt": "Read this ZUGFeRD invoice and tell me who issued it, to whom, and the totals.",
+              "file_attachment_urls": [
+                "https://normapi.com/beispiele/gueltig-zugferd.pdf"
+              ],
+              "tools_triggered": "parse_invoice",
+              "expected_behavior": "parse_invoice is called with the uploaded PDF. The answer gives invoice RE-2026-0042 of 2026-08-01, due 2026-08-31, issued by Muster Software GmbH (VAT ID DE123456789, Berlin) to Beispiel Handel AG (Hamburg), with two lines (3 \u00d7 software licence at 199.00, 4.5 hours of setup and training at 120.00), net 1,137.00 EUR, VAT 19 % 216.03 EUR, total and amount due 1,353.03 EUR, and that nothing in the document was left unmapped."
+            },
+            {
+              "description": "Explain a business rule by its code.",
+              "prompt": "What does the e-invoice rule BR-CO-16 mean and how do I avoid breaking it?",
+              "tools_triggered": "explain_rule",
+              "expected_behavior": "explain_rule is called with the code BR-CO-16. The answer explains that the amount due for payment (BT-115) must equal the invoice total with VAT (BT-112) minus any prepaid amount (BT-113) plus any rounding amount (BT-114); that it usually breaks through floating-point rounding or an ignored prepaid amount; that the fix is decimal arithmetic, rounding only on output; and it links https://normapi.com/en/errors/br-co-16."
+            },
+            {
+              "description": "Create an e-invoice for a business customer (signed in with the test account).",
+              "prompt": "Create an e-invoice as UBL XML for a business customer. Invoice RE-2026-0100, dated 2026-10-27, due 2026-11-26. Seller: Muster Software GmbH, Musterstra\u00dfe 1, 10115 Berlin, Germany, VAT ID DE123456789. Buyer: Beispiel Handel AG, Hafenstra\u00dfe 5, 20095 Hamburg, Germany. One line: 3 software licences (unit C62) at 199.00 EUR net each, 19 % VAT. Payment by bank transfer to IBAN DE02120300000000202051.",
+              "tools_triggered": "generate_invoice",
+              "expected_behavior": "If NormAPI is not yet connected, ChatGPT offers to connect it; sign in with the test account. generate_invoice is called with syntax ubl and profile en16931. It returns an EN 16931 UBL invoice that passed validation against the rule set it names: net 597.00 EUR, VAT 113.43 EUR, total 710.43 EUR. The answer gives the XML."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Tax advice is outside NormAPI: its tools check an invoice's format rules, not which VAT rate applies.",
+              "prompt": "Which VAT rate do I charge a business customer in Austria for software consulting?",
+              "expected_behavior": "No NormAPI tool is called. ChatGPT answers from its own knowledge or points to a tax adviser, and does not present anything as a NormAPI result."
+            },
+            {
+              "description": "NormAPI does not transmit invoices; no tool sends anything.",
+              "prompt": "Send this XRechnung to the federal authority through Peppol for me.",
+              "file_attachment_urls": [
+                "https://normapi.com/beispiele/gueltig-ubl.xml"
+              ],
+              "expected_behavior": "No tool is presented as sending the invoice. ChatGPT explains that NormAPI checks and creates invoices but does not deliver them, and that the invoice has to go through the recipient's portal or a Peppol access point. It may offer to check the file first."
+            },
+            {
+              "description": "An invoice must not be created from invented data.",
+              "prompt": "Make me an invoice for 500 euros for my client M\u00fcller.",
+              "expected_behavior": "generate_invoice is not called with made-up details. ChatGPT asks for what is missing: the seller's and the buyer's names and addresses, the seller's VAT ID or tax number, what was delivered, the VAT rate, and the payment details."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First version: validate_invoice, parse_invoice and explain_rule without an account; generate_invoice after signing in to NormAPI.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "E-Rechnung pr\u00fcfen & erstellen",
+            "description": "NormAPI pr\u00fcft, liest und erstellt deutsche E-Rechnungen \u2014 XRechnung (UBL- und CII-XML) und ZUGFeRD/Factur-X-PDFs \u2014 gegen das offizielle KoSIT-Regelwerk, das auch die Portale der \u00f6ffentlichen Verwaltung verwenden. Jedes Ergebnis nennt die Version des Regelwerks, das es erzeugt hat.\n\nWas Sie tun k\u00f6nnen:\n\n\u2022 Eine Rechnung pr\u00fcfen. Laden Sie das XML oder das PDF hoch und fragen Sie, ob es g\u00fcltig ist. Sie erhalten das Urteil und jeden Befund; zu jedem Gesch\u00e4ftsregel-Befund gibt es, was die Regel verlangt, warum Rechnungen typischerweise daran scheitern und wie Sie es beheben \u2014 auf Deutsch oder Englisch.\n\n\u2022 Eine erhaltene Rechnung auslesen. NormAPI macht daraus strukturierte Daten \u2014 Verk\u00e4ufer, K\u00e4ufer, Positionen, Steueraufschl\u00fcsselung und Summen genau so, wie das Dokument sie angibt \u2014 und nennt alles, was es nicht \u00fcbernehmen konnte, sodass Fragen zur Rechnung aus ihren Daten beantwortet werden.\n\n\u2022 Eine Regel nachschlagen. Fragen Sie, was ein Code wie BR-DE-15 oder BR-CO-16 bedeutet und wie Sie ihn beheben.\n\n\u2022 Eine Rechnung erstellen. Beschreiben Sie die Rechnung, und NormAPI erzeugt eine XRechnung (UBL- oder CII-XML) oder ein ZUGFeRD-PDF: eine XRechnung f\u00fcr \u00f6ffentliche Auftraggeber, eine schlichte EN-16931-Rechnung f\u00fcr Unternehmen. Die Summen rechnet der Server in Dezimalarithmetik, und das Dokument wird vor der R\u00fcckgabe gegen die offiziellen Regeln gepr\u00fcft; Daten, die die Regeln nicht zulassen, werden abgelehnt \u2014 mit den verletzten Regeln und wie Sie jede beheben.\n\nPr\u00fcfen, Auslesen und Regeln nachschlagen gehen ohne Konto. Zum Erstellen brauchen Sie ein NormAPI-Konto: Sie melden sich bei der ersten Rechnung an, und jedes erzeugte Dokument z\u00e4hlt auf das monatliche Kontingent dieses Kontos.\n\nRechnungen werden im Arbeitsspeicher auf Servern in der EU verarbeitet und nie gespeichert. NormAPI ist technische Pr\u00fcfung, keine Steuer- oder Rechtsberatung, und versendet keine Rechnungen an Empf\u00e4nger oder Portale."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

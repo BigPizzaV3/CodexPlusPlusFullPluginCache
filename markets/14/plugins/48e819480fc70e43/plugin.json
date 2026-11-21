@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "eventcat",
+  "version": "0.2.1",
+  "description": "Create EventCAT conferences and shared glossary drafts from event materials, with attendee and controller links.",
+  "author": {
+    "name": "XL8 Inc.",
+    "url": "https://www.xl8.ai/"
+  },
+  "homepage": "https://www.eventcat.com/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "EventCAT",
+        "shortDescription": "Set up conference drafts",
+        "longDescription": "Prepare multilingual conferences in EventCAT from event agendas, speaker introductions and terminology files shared in ChatGPT. Create an unpaid, unstarted conference draft with rooms and scheduled sessions; retrieve its saved configuration; and update the draft after you approve the proposed changes. By default, each room has one continuous session per event-local day, spanning its actual programs without separate break sessions. Request sessions by talk when needed. Useful speaker names, proper nouns and supplied terminology can be combined into one shared glossary draft for review and linked to all sessions. Results include organizer management, attendee and session-controller links grouped by purpose. An EventCAT account and account connection are required. ChatGPT interprets the files; EventCAT receives the structured plan rather than the source files. Review the extracted schedule and glossary before using them at an event. This integration does not start interpretation, process payments, purchase passes, delete conferences, edit paid or started conferences, or overwrite existing glossary content.",
+        "developerName": "XL8 Inc.",
+        "category": "Productivity",
+        "capabilities": [
+          "Create conference drafts",
+          "Read conference configuration",
+          "Update unstarted conference drafts",
+          "Create a shared glossary draft"
+        ],
+        "websiteURL": "https://www.eventcat.com/",
+        "supportURL": "https://support.eventcat.com/en/support/home",
+        "privacyPolicyURL": "https://www.xl8.ai/privacy-policy",
+        "termsOfServiceURL": "https://www.xl8.ai/eventcat-terms-of-service",
+        "defaultPrompt": [
+          "Create an EventCAT conference from this agenda PDF using Korean, English and Japanese.",
+          "Show the saved configuration and links for the conference we just created.",
+          "Propose a new title for this conference while keeping its rooms, sessions and glossary unchanged."
+        ],
+        "composerIcon": "./assets/eventcat.png",
+        "logo": "./assets/eventcat.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create daily room sessions from a self-contained synthetic agenda. Use a fresh chat and the dedicated reviewer account. The inline agenda also works without a file attachment.",
+              "prompt": "Create an unpaid EventCAT conference titled Review Summit for November 14-15, 2026, at COEX in Seoul, South Korea. Use Korean and English for speaking and translation. On each date, Main Hall has a program at 09:00-10:00, a coffee break at 10:00-10:30, and a program at 10:30-12:00. Room A has a program at 10:00-11:00, a break at 11:00-11:15, and a program at 11:15-12:00. Use the default session layout.",
+              "tools_triggered": "create_conference",
+              "expected_behavior": "Create two rooms and four daily sessions in Asia/Seoul without another creation-confirmation question. On each date Main Hall spans 09:00-12:00 and Room A spans 10:00-12:00. There are no separate break sessions. Return organizer/attendee links and all four controller links in purpose-grouped tables. Do not start interpretation or make a purchase."
+            },
+            {
+              "description": "Explicitly request sessions by talk in a fresh chat using synthetic data.",
+              "prompt": "Create an EventCAT conference titled Review Talks at COEX in Seoul on November 16, 2026, with Korean and English for speaking and translation. Main Hall has Talk One 09:00-09:45, Coffee Break 09:45-10:15, and Talk Two 10:15-11:00. This time create a separate session for each talk.",
+              "tools_triggered": "create_conference",
+              "expected_behavior": "Create one room and exactly two sessions at 09:00-09:45 and 10:15-11:00 in Asia/Seoul, leaving the break as a gap. Do not create a coffee-break session or combine the talks. Return both controller links."
+            },
+            {
+              "description": "Create one event-wide glossary from supplied synthetic terminology and attach it to all rooms.",
+              "prompt": "Create an EventCAT conference titled Review Glossary at COEX in Seoul on November 17, 2026, using Korean and English for speaking and translation. Main Hall and Room A each have a program from 09:00 to 12:00. Include these supplied glossary translations in one shared glossary: \uc624\ud508\ubaa8\ub378 = OpenModel; \ubc15\ubbfc\uc11c = Minseo Park. Use the same glossary for both rooms.",
+              "tools_triggered": "create_conference",
+              "expected_behavior": "Create one conference with two rooms and two sessions. Create one private shared glossary draft containing both supplied bilingual entries, preserve their spellings and attach that same glossary to both sessions. Return its review link, actual term count and pending_review status without claiming translations have been verified."
+            },
+            {
+              "description": "After positive case 1, continue in the same chat. Use the actual conference ID returned by that case; no preset IDs or production data are needed.",
+              "prompt": "Fetch the saved configuration of the Review Summit conference we just created. Show its dates, timezone, languages, rooms, sessions and available links. Do not change anything.",
+              "tools_triggered": "get_conference",
+              "expected_behavior": "Fetch the owned conference and show its saved configuration with two rooms and four sessions. Show only returned links in purpose-grouped tables, with controller times in the event timezone. Do not create or update any data."
+            },
+            {
+              "description": "After positive case 4, continue in the same chat. Send the first message, inspect the proposal, then send the second message as a separate user turn.",
+              "prompt": "First message: Change only the title of the conference we just fetched to Review Summit Updated. Show the proposed change before saving.\nSecond message, after the proposal: Yes, apply that title change and keep everything else unchanged.",
+              "tools_triggered": "get_conference, update_conference",
+              "expected_behavior": "Read the current saved version before updating. Wait for the second message's approval before calling update_conference. Change only the title, preserving existing room/session IDs, schedules, languages and glossary assignments. Return the updated configuration and links."
+            }
+          ],
+          "negative": [
+            {
+              "description": "An inspect-only agenda request does not authorize creating an EventCAT draft. Use a fresh chat.",
+              "prompt": "Summarize this agenda only. Do not create an EventCAT conference: November 18, 2026, COEX Seoul; Main Hall 09:00-10:00 opening program, 10:00-10:30 coffee break, 10:30-12:00 panel.",
+              "expected_behavior": "Summarize the supplied agenda without calling create_conference or update_conference and without claiming that any draft or glossary was saved."
+            },
+            {
+              "description": "Ask for missing event timezone information instead of inferring it from the requested languages. Use a fresh chat with no location context.",
+              "prompt": "Create an EventCAT conference titled Missing Location for November 19, 2026. Main Hall has a program from 09:00 to 12:00. Use Korean and Japanese for speaking and translation. The agenda does not state any venue, city, country, UTC offset or timezone.",
+              "expected_behavior": "Ask for the event timezone or an unambiguous location before creation. Do not infer Asia/Seoul or Asia/Tokyo from the languages and do not call create_conference with an invented timezone."
+            },
+            {
+              "description": "Payments, pass purchases and starting interpretation are outside this plugin's supported operations. Continue after positive case 1.",
+              "prompt": "Buy the required interpretation passes for Review Summit, charge my saved card and start every session now.",
+              "expected_behavior": "Explain that this integration cannot purchase passes, charge a card or start interpretation. Do not claim success or change conference data to simulate those actions. Direct the user to the normal EventCAT interface when appropriate."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin creates, reads and updates unpaid, unstarted conference drafts. It does not sell passes, process payments or start interpretation. Paid service activation takes place separately in the normal EventCAT application."
+      },
+      "publication": {
+        "release_notes": "Initial public-submission draft: create and retrieve conference drafts, apply approved draft updates, use one continuous session per room and day by default, optionally create one shared glossary draft, and return purpose-grouped organizer, attendee and controller links."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

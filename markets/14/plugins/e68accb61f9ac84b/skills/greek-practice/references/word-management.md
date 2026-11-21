@@ -1,0 +1,12 @@
+# Choosing dictionary cards
+
+Use the connected tool's advertised schema. With structured `words`, pass `{word, part_of_speech: "verb"}` for a list the learner explicitly calls verbs, for example `παρακαλώ` and `ευχαριστώ`. Preserve a meaning the learner supplied when it helps distinguish senses. Avoid speculative translations or sending extra hints just to fill fields. Translation and context match authored text exactly, so use a paraphrase to compare returned candidates. Send either `words` or exact `entry_ids` in a call and respect the advertised limits.
+
+If a request with an explicit part of speech returns `not_found`, say no card matched that part of speech. Keep the restriction on any retry unless the learner agrees to a different kind of card.
+If the connection accepts only strings, hold items for which the learner explicitly specified a part of speech. Process other items normally and link to Vocabulum for exact selection of the held items.
+
+1. Process unambiguous items first. Keep the confirmed results. When exactly one returned candidate matches the explicit sense or part of speech, use its exact ID under the original request. Keep requests about the same word distinct if the learner asked for different senses.
+2. If the intended card is unclear, give a numbered choice for each pending word with its short meaning and part of speech. Use a single message for the batch and accept a short reply such as “1A, 2B”, names, or meanings. Give an example only when the labels alone are insufficient. Keep IDs internal. If the learner chooses one item, resolve that item and leave the rest pending.
+3. Send only the selected pending IDs. Report what the tool confirmed, including any unresolved words, in one summary. Avoid saying “I selected/added it” before the tool confirms the operation. A repeat must not resubmit items already confirmed.
+
+If the server says candidates are truncated, show only the available choices and say there may be more. If the tool returns ambiguity without choices, use a supported qualified request if one is available and the learner has supplied a distinction. Otherwise link to [Vocabulum](https://www.vocabulum.app/miniapp) for exact selection and name only the unresolved words. Never invent dictionary entries or ask the learner to choose between options the server cannot apply. Missing multiword entries stay intact unless the learner asks to study the individual words.

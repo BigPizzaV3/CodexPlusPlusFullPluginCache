@@ -1,0 +1,121 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gc-airport-transfers",
+  "version": "1.0.3",
+  "description": "Fixed-price private transfers for Gold Coast (OOL) and Brisbane (BNE) airports and the Brisbane Cruise Terminal. Live quotes, availability checks, and pending booking requests \u2014 operator confirms; payment only by emailed link.",
+  "author": {
+    "name": "GC Airport Transfers",
+    "email": "admin@gc-airporttransfers.com.au",
+    "url": "https://gc-airporttransfers.com.au"
+  },
+  "homepage": "https://gc-airporttransfers.com.au/ai-agent-gateway/",
+  "license": "Proprietary",
+  "keywords": [
+    "airport",
+    "transfer",
+    "gold-coast",
+    "brisbane",
+    "travel",
+    "booking",
+    "flight",
+    "airport-shuttle",
+    "private-transfer",
+    "cruise",
+    "OOL",
+    "BNE",
+    "byron-bay",
+    "coolangatta"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GC Airport Transfers",
+        "shortDescription": "Gold Coast/Brisbane transfers",
+        "longDescription": "Get live fixed-price quotes and request private airport transfers with GC Airport Transfers (Gold Coast, Australia). Covers Gold Coast Airport (OOL), Brisbane Airport (BNE), and the Brisbane International Cruise Terminal, serving the Gold Coast, Tweed, Byron Bay and Northern Rivers NSW.\n\nPrices are per vehicle (never per person), with no surge pricing. The assistant calls get_quote for exact fares, check_availability for pick-up windows, and request_booking to lodge a pending request. A human operator confirms every booking; customers pay only via a secure Square link emailed to them \u2014 never through ChatGPT.\n\nUse this plugin when you need a real transfer quote or to start a booking. It will not invent prices, process card payments, or confirm a booking without the operator.",
+        "developerName": "GC Airport Transfers",
+        "category": "Travel",
+        "capabilities": [
+          "Get fixed-price transfer quotes",
+          "Check pick-up availability",
+          "Request a pending booking",
+          "Show service and fleet info"
+        ],
+        "websiteURL": "https://gc-airporttransfers.com.au/",
+        "supportURL": "https://gc-airporttransfers.com.au/ai-agent-gateway/",
+        "privacyPolicyURL": "https://gc-airporttransfers.com.au/privacy-policy/",
+        "termsOfServiceURL": "https://gc-airporttransfers.com.au/terms/",
+        "defaultPrompt": [
+          "My flight lands at Gold Coast Airport at 9pm, quote me to Broadbeach for 3",
+          "Is a 4:30am pickup available next Tuesday?",
+          "How much from Currumbin to Brisbane Airport for 4?"
+        ],
+        "brandColor": "#16130F",
+        "brandColorDark": "#CBA13F",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Fixed-price quote Surfers Paradise to Gold Coast Airport for 2 passengers",
+              "prompt": "Using GC Airport Transfers, get me a quote from Surfers Paradise to Gold Coast Airport for 2 people.",
+              "tools_triggered": "get_quote",
+              "expected_behavior": "Calls get_quote with from=Surfers Paradise, to=Gold Coast Airport, pax=2. Returns match=fixed_route with per-vehicle AUD options (sedan, carnival, eqb, v300, maxi). Does not invent prices. May show the quote card UI. Live check 2026-10-27 12:48 AEST (Brisbane): sedan $95, carnival $120, EQB $160, V300 $190, maxi $125."
+            },
+            {
+              "description": "Quote Currumbin to Brisbane Airport for 4 passengers",
+              "prompt": "How much is a transfer from Currumbin to Brisbane Airport for 4 passengers with GC Airport Transfers?",
+              "tools_triggered": "get_quote",
+              "expected_behavior": "Calls get_quote. Returns fixed_route options suitable for 4 pax (carnival/v300/maxi; sedan filtered out). Live check 2026-10-27 12:48 AEST: carnival $225, V300 $330, maxi $300 AUD per vehicle."
+            },
+            {
+              "description": "Cruise terminal quote",
+              "prompt": "Quote Surfers Paradise to the Brisbane Cruise Terminal for 2 people.",
+              "tools_triggered": "get_quote",
+              "expected_behavior": "Calls get_quote with Brisbane Cruise Terminal (or Pinkenba) as destination. Returns fixed_route fares. Live check 2026-10-27 12:48 AEST: sedan $200, carnival $250, EQB $335, V300 $365, maxi $300."
+            },
+            {
+              "description": "After-hours availability check",
+              "prompt": "Is a 4:30am pickup next Tuesday bookable with GC Airport Transfers?",
+              "tools_triggered": "check_availability",
+              "expected_behavior": "Calls check_availability with a Tuesday date and time 04:30. Returns status after_hours_request (outside 05:00\u201322:00 AEST) with a reason that an after-hours surcharge may apply and request_booking can still lodge. Does not invent driver calendars."
+            },
+            {
+              "description": "Sandbox booking request (no real lodge)",
+              "prompt": "Please request a booking with GC Airport Transfers: pickup Surfers Paradise, dropoff Gold Coast Airport, date 10 days from today at 10:00, 2 passengers, sedan, name Reviewer Test, email reviewer@example.com, phone +61400000000. Confirm details with me first, then lodge.",
+              "tools_triggered": "request_booking",
+              "expected_behavior": "After confirming details with the user, calls request_booking. With the reviewer sandbox token: returns ok with status sandbox_not_lodged (or equivalent), lodged=false / sandbox=true \u2014 validates input but does NOT create a real booking on .com.au and does NOT send payment links. Must never charge a card through ChatGPT."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refuse to invent a price for an unpriced / vague place",
+              "prompt": "How much from Sydney CBD to Gold Coast Airport with GC Airport Transfers?",
+              "tools_triggered": "get_quote",
+              "expected_behavior": "May call get_quote; match is not fixed_route (e.g. none / vague_place). Must NOT invent a fare. Should give the phone 0414 680 860 or ask for a precise street/hotel, matching tool output."
+            },
+            {
+              "description": "Refuse card payment / checkout inside ChatGPT",
+              "prompt": "Take my credit card ending 4242 and pay for the transfer now through this chat.",
+              "expected_behavior": "Does not collect card numbers or process payment. Explains payment is only via the secure link emailed after the operator confirms. No payment tool exists."
+            },
+            {
+              "description": "Refuse unrelated money transfer / non-transfer tasks",
+              "prompt": "Transfer $500 from my bank to Neil Duffy using GC Airport Transfers.",
+              "expected_behavior": "Refuses. Plugin only quotes and requests airport/cruise transfers; it cannot move money or act as a bank."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments in ChatGPT. It returns fixed-price quotes and can lodge a pending booking request; a human operator confirms, and the customer pays only via a secure Square link emailed to them on gc-airporttransfers.com.au."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Listing-only update. Adds discovery keywords (including flight, airport codes and nearby areas), a short description that names Gold Coast and Brisbane, and a flight-arrival example prompt. Quotes, service information and availability still work without signing in. Booking requests still require sign-in. No gateway or tool changes."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bitdrift-mcp",
+  "version": "0.2.2",
+  "description": "Connect to bitdrift through its hosted MCP server. Sign in to bitdrift when connecting.",
+  "author": {
+    "name": "bitdrift",
+    "url": "https://bitdrift.io"
+  },
+  "homepage": "https://bitdrift.ai",
+  "repository": "https://github.com/bitdriftlabs/bd-skills",
+  "license": "PolyForm Shield License 1.0.0",
+  "keywords": [
+    "bitdrift",
+    "mcp",
+    "observability"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "bitdrift",
+        "shortDescription": "Debug mobile production issues",
+        "longDescription": "Use bitdrift to investigate crashes and regressions in your mobile apps, inspect session logs, compare app versions, and create dashboards. Requires a bitdrift account with access to the relevant apps and telemetry. Sign in to bitdrift when connecting.",
+        "developerName": "bitdrift",
+        "category": "Developer Tools",
+        "brandColor": "#4A4797",
+        "composerIcon": "./assets/bitdrift.svg",
+        "logo": "./assets/bitdrift.svg",
+        "logoDark": "./assets/bitdrift.svg",
+        "defaultPrompt": [
+          "Which issues are trending in my app this week?"
+        ],
+        "websiteURL": "https://bitdrift.io",
+        "supportURL": "https://docs.bitdrift.io/support/contact",
+        "privacyPolicyURL": "https://docs.bitdrift.io/support/privacy-policy.html",
+        "termsOfServiceURL": "https://docs.bitdrift.io/support/tos-policy"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover apps and configured workflows.",
+              "prompt": "What apps do I have in bitdrift, and which workflows are set up for the com.acme.shop app?",
+              "tools_triggered": "bd_apps_list, bd_workflows_list",
+              "expected_behavior": "Lists com.acme.shop and names the Checkout outcomes and Checkout failure capture workflows."
+            },
+            {
+              "description": "Compare checkout completion by app version.",
+              "prompt": "Did checkout completion differ between app versions of com.acme.shop yesterday (UTC)? Use the Checkout outcomes workflow.",
+              "tools_triggered": "bd_workflows_list, bd_workflows_get, bd_charts_query",
+              "expected_behavior": "1.0.0: 100 started, 90 completed (90%). 1.1.0: 200 started, 140 completed (70%). Identifies 1.1.0 as the regression and timeouts (45) as its main failure."
+            },
+            {
+              "description": "Find and explain a captured checkout timeout session.",
+              "prompt": "Find a checkout session on com.acme.shop version 1.1.0 from yesterday (UTC) that timed out, and explain what happened in it.",
+              "tools_triggered": "bd_workflows_sessions, bd_sessions_logs",
+              "expected_behavior": "Opens a captured 1.1.0 session and walks through 'Checkout started' followed by 'Checkout failed' with failure_reason=timeout."
+            },
+            {
+              "description": "Explain workflow matches and chart configuration.",
+              "prompt": "Explain what the Checkout outcomes workflow matches and which charts it produces.",
+              "tools_triggered": "bd_workflows_get",
+              "expected_behavior": "Describes four matches (started, completed, timeout, validation_error) on checkout_event and failure_reason, each counted and grouped by app_version."
+            },
+            {
+              "description": "Create a dashboard of checkout completions by app version.",
+              "prompt": "Create a dashboard called 'Checkout by version' with a chart of checkout completions split by app version for com.acme.shop.",
+              "tools_triggered": "bd_workflows_get, bd_dashboards_upsert",
+              "expected_behavior": "Calls bd_dashboards_upsert to create the 'Checkout by version' dashboard, charting the Checkout outcomes completed series split by app version for com.acme.shop, and links to it. The client may ask the reviewer to approve the write first."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not use bitdrift for an unrelated weather request.",
+              "prompt": "What's the weather in Stockholm right now?",
+              "expected_behavior": "Calls no bitdrift tools."
+            },
+            {
+              "description": "Do not substitute bitdrift for a requested Datadog dashboard.",
+              "prompt": "Build me a Datadog dashboard that shows our API's p99 latency.",
+              "expected_behavior": "Calls no bitdrift tools and does not offer a bitdrift dashboard as a Datadog one."
+            },
+            {
+              "description": "Handle an unavailable session without inventing logs.",
+              "prompt": "Show me the logs for session 3f9c2a71-5b8e-4d0c-9e61-7a2b4c8d1e05.",
+              "expected_behavior": "bd_sessions_logs reports that the session was not found, and the answer says so without inventing logs."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

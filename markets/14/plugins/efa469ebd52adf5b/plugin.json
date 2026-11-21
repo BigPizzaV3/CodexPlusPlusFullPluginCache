@@ -1,0 +1,115 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "orderinchat-shopping",
+  "version": "1.0.0",
+  "description": "Shop at OrderInChat stores from ChatGPT: find products, check options, shipping and returns, check available booking slots, and get a link to your cart or booking on the store's own website.",
+  "author": {
+    "name": "OrderInChat",
+    "email": "info@orderinchat.com",
+    "url": "https://orderinchat.com"
+  },
+  "homepage": "https://orderinchat.com",
+  "repository": "https://github.com/orderinchat/orderinchat",
+  "license": "Proprietary",
+  "keywords": [
+    "shopping",
+    "ecommerce",
+    "cart",
+    "products",
+    "stores",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OrderInChat Shopping",
+        "shortDescription": "Shop at OrderInChat stores",
+        "longDescription": "Shop for physical products and book services (appointments, classes, rentals) at independent online stores that run on OrderInChat. Name a store (or paste its link) and ChatGPT can search its live catalog, show prices, stock, variants, options and add-ons, list bookable services with their available time slots, and answer questions about shipping costs, the return policy, payment methods and the store FAQ. When you have chosen, ChatGPT checks every required option (or the time slot you picked) and creates a cart at that store, then gives you a link that opens the cart on the store's own website. There you review the cart, enter your details and complete the purchase or booking; ChatGPT never pays, places an order or confirms a booking. Digital products are not offered in ChatGPT. Stores are not listed: you need the store's name or link. Browsing stores and products and getting a cart or booking link work without an account. Signing in with OrderInChat (OAuth, WhatsApp or email code) is needed only to see your own orders and their status; one sign-in works at every participating store. Only stores that turned on AI shopping can be used.",
+        "developerName": "OrderInChat",
+        "category": "Other",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://orderinchat.com",
+        "supportURL": "https://orderinchat.com/about#contact",
+        "privacyPolicyURL": "https://orderinchat.com/privacy-terms",
+        "termsOfServiceURL": "https://orderinchat.com/privacy-terms",
+        "defaultPrompt": [
+          "Find a store on OrderInChat by its name.",
+          "Help me choose a product and get a cart link.",
+          "Show available times for a service and book one."
+        ],
+        "brandColor": "#0F172A",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "screenshots": [
+          "./assets/screenshot-1-find-store.png",
+          "./assets/screenshot-2-product-to-cart.png",
+          "./assets/screenshot-3-slots-to-booking.png"
+        ]
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find a participating store by name (read-only).",
+              "prompt": "I want to shop at oic-review-store. Can you find it?",
+              "tools_triggered": "find_stores",
+              "expected_behavior": "Works without signing in. Calls find_stores with the store name and returns the matching store with its name, slug and storefront URL. It does not list unrelated stores."
+            },
+            {
+              "description": "Product search with price and stock (read-only).",
+              "prompt": "Show me coffee mugs at oic-review-store with their price and stock.",
+              "tools_triggered": "search_products",
+              "expected_behavior": "Works without signing in. Calls search_products with store oic-review-store and a query such as \"coffee mug\" and shows the matching product, Stoneware Coffee Mug at 18 USD, with its image from the store and the stock exactly as returned (when the app's product cards are shown, the reply only summarizes them). Digital products are never listed. No products, prices or stock are invented."
+            },
+            {
+              "description": "Shipping and returns questions (read-only).",
+              "prompt": "What is the return policy at oic-review-store, and how much is shipping to the US?",
+              "tools_triggered": "get_return_policy, get_shipping_info",
+              "expected_behavior": "Works without signing in. Calls get_return_policy (it may also call search_knowledge_base) and get_shipping_info for the store and summarizes the store's return policy, including a 30-day return period, and the shipping rates for the United States from the results. If the store has no rate for that country it says so instead of inventing one."
+            },
+            {
+              "description": "Create a cart without signing in and return a link to review it on the store website (write, non-destructive).",
+              "prompt": "Put one Stoneware Coffee Mug from oic-review-store in my cart.",
+              "tools_triggered": "search_products, get_product, create_cart",
+              "expected_behavior": "Works without signing in (no sign-in prompt). Looks up Stoneware Coffee Mug (18 USD), asks for a variant or option only if the product requires one, then calls create_cart with the product id and quantity 1. Returns the cart link exactly as the tool gives it (an oic.to link, also shown on the cart card when the app's cards are on) and says the shopper reviews the cart, enters delivery details and pays on the store's website. No payment happens in ChatGPT and no order is placed."
+            },
+            {
+              "description": "Bookable service without signing in: available time slots, then reserve one with a link-out to the store website (read + write, non-destructive).",
+              "prompt": "Which times are available next Wednesday for the Coffee Tasting Workshop at oic-review-store? Book the first one for me.",
+              "tools_triggered": "list_booking_services, get_booking_availability, create_cart",
+              "expected_behavior": "Works without signing in. Calls list_booking_services for the store (Coffee Tasting Workshop, 30 USD) and get_booking_availability for that service and date, and gives the available times (store-local) exactly as returned; when the app's booking cards are on, the times appear in a time picker and the reply does not repeat them all. If that day has no times, it says so and offers the next open dates from the result. Then calls create_cart with the service as the only line, quantity 1, and booking {date, start_time, staff_id when there are several staff}. Returns the cart link and says the booking is confirmed and paid on the store's website; it never claims the appointment is already booked and no payment happens in ChatGPT."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated creative request; OrderInChat Shopping tools should not be called.",
+              "prompt": "Write a short poem about the ocean."
+            },
+            {
+              "description": "General knowledge question with no shopping intent.",
+              "prompt": "How many planets are in the solar system?"
+            },
+            {
+              "description": "Store management request from a merchant; this is a shopper plugin and cannot change a store, so no tool should be called to edit products or orders.",
+              "prompt": "Change the price of my product to 20 dollars in my OrderInChat store admin."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/-18vZs9K44Y",
+        "commerce": true,
+        "commerce_description": "Shoppers browse physical products and bookable services (appointments, classes, rentals) at independent stores that run on OrderInChat and opted in to AI shopping. In ChatGPT digital products are never offered: they are left out of search results, product details and carts. Bookable services link out: ChatGPT lists services and available time slots, and the shopper's chosen slot goes into a cart; the booking is confirmed and paid only on the store's own website. The write tools are create_cart and request_order_change. create_cart creates a cart at the store and returns a link (oic.to short link) that opens the cart on the store's own website, where the shopper reviews it, enters their details and completes the purchase or booking with the store's payment provider. request_order_change, for a signed-in shopper's own order, only sends the store team an address-change, cancel or return request; it never changes, cancels or refunds the order. No payment, card data, order placement or booking confirmation happens inside ChatGPT, and no money moves through the plugin. Stores flagged by OrderInChat moderation for prohibited categories (weapons, tobacco and vapes, drugs, prescription medicines, adult content, gambling, alcohol) are excluded from AI shopping, and our terms do not allow selling these categories through AI assistants."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: shop at OrderInChat stores from ChatGPT \u2014 find a store by name, search its catalog, check options, shipping and returns, see available booking times, and get a link to the cart or booking on the store's website."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

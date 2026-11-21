@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "golf-app",
+  "version": "0.1.3",
+  "author": {
+    "name": "White Label Developing Limited"
+  },
+  "description": "Connect Round to Range golf rounds, performance analysis and approved practice-plan actions.",
+  "homepage": "https://roundtorange.com/mcp/about",
+  "keywords": [
+    "golf",
+    "practice",
+    "rounds",
+    "performance"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Round to Range",
+        "developerName": "White Label Developing Limited",
+        "shortDescription": "Golf insights and practice",
+        "longDescription": "Connect your Round to Range account to review recorded rounds, explore performance patterns and plan practice. Read your profile, recent rounds and shot details, saved plans, practice history and drill progression. For a new session, the assistant asks where you will practise today and how much time you have, then uses suitable drills from the Round to Range library. It shows the full proposal before asking to save it. With write permission and your explicit approval, it can save a plan, activate or rename an owned plan, and record a confirmed drill result.\n\nA paid Round to Range account is required. Membership is purchased separately on the Round to Range website; these MCP tools do not process payments or manage subscriptions. Sign in on roundtorange.com and approve the requested permissions.\n\nAnalysis depends on the data you have recorded. Imported strokes-gained data is unverified and estimated category rankings are hypotheses, not diagnoses. No particular golf improvement is guaranteed. The connection cannot edit rounds, delete plans, overwrite existing results, manage payments or access another golfer\u2019s account.",
+        "category": "Data & Analytics",
+        "defaultPrompt": [
+          "Review my last five rounds and explain the limits of the evidence.",
+          "Help me plan practice; ask about today\u2019s location and available time first.",
+          "Show my active practice plan and compare my recorded results."
+        ],
+        "websiteURL": "https://roundtorange.com/mcp/about",
+        "supportURL": "https://roundtorange.com/contact",
+        "privacyPolicyURL": "https://roundtorange.com/privacy",
+        "termsOfServiceURL": "https://roundtorange.com/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "prompts": [
+          "Review my last five rounds and explain the limits of the evidence.",
+          "Help me plan practice; ask about today\u2019s location and available time first.",
+          "Show my active practice plan and compare my recorded results."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Review the latest five rounds. Setup: dedicated reviewer account with at least five sample rounds including scores, putts and penalties. Compare every stated pattern with returned data.",
+              "prompt": "Review my last five rounds. Separate recorded facts from possible causes, and explain where the evidence is uncertain.",
+              "tools_triggered": "get_performance_summary, list_recent_rounds",
+              "expected_behavior": "Call get_performance_summary with rounds=5 and list_recent_rounds with limit=5. Use only the connected account. Distinguish gross loss from net strokes gained, label imported SG unverified and category allocations as hypotheses. Do not diagnose approach from GIR alone or putting from total putts alone."
+            },
+            {
+              "description": "Inspect a returned round rather than inventing a round ID. Setup: sample account has at least one round with holes and shots.",
+              "prompt": "Show my latest round, including its hole and shot details. Flag anything that needs checking without assuming it is an error.",
+              "tools_triggered": "list_recent_rounds, get_round_details",
+              "expected_behavior": "List recent rounds with limit=1; pass that returned round ID to get_round_details. Explain recorded score, holes and shots, preserving returned data-quality caveats. Distinguish unusual recorded distances from confirmed tracking errors. Do not edit the round."
+            },
+            {
+              "description": "Read the active plan and its progression. Setup: reviewer account has an active plan with drill results across at least two practice occasions.",
+              "prompt": "Show my current practice plan and compare my recorded drill results. What should I repeat or progress?",
+              "tools_triggered": "get_active_practice_plan, get_practice_plan_progression",
+              "expected_behavior": "Get the active plan, then call get_practice_plan_progression using its returned plan_id. Explain recommendations from recorded attempts; acknowledge insufficient results where returned. Do not activate, rename or save a plan, infer scores, or treat progression suggestions as changes already made."
+            },
+            {
+              "description": "Propose, approve and save one plan. Setup: sample account has write scope and the drill library contains drills suitable for RANGE_BASIC. Begin with the prompt, answer the assistant location=driving range without technology and time=60 minutes, inspect its full proposal, then explicitly approve saving that exact proposal.",
+              "prompt": "Help me plan my next practice session. Ask me where I will practise today and how many minutes I have before suggesting anything.",
+              "tools_triggered": "get_practice_planning_options, save_practice_session_plan",
+              "expected_behavior": "Wait for both user answers before calling get_practice_planning_options with practice_location=RANGE_BASIC and available_minutes=60. Use only returned suitable drill IDs. Show drill and non-drill durations, total, evidence, hypotheses, drill reasons, success measures and limitations. Only after explicit approval call save_practice_session_plan with approved=true and a stable proposal_id for retries. Report the returned saved duration and plan ID; do not claim success on isError."
+            },
+            {
+              "description": "Record an exact approved drill result. Setup: sample account has write scope and an owned active-plan item with result_type=RATIO, result_meta.attempts=10 and an available result-input identifier. First retrieve that item, display the exact supported structured result and ask for approval; reviewer then confirms.",
+              "prompt": "Open my current practice plan. I scored seven successes out of ten on its ten-attempt ratio drill. Show the exact result and ask me before recording it.",
+              "tools_triggered": "get_active_practice_plan, record_practice_result",
+              "expected_behavior": "Use an owned practice_session_item_id and the result shape returned for that drill. Clarify which drill if ambiguous. Show seven successes out of ten, then wait. Only after confirmation call record_practice_result with approved=true and a stable request_id. Create a separate practice occasion without overwriting earlier results; report returned success or error accurately."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Round editing is unsupported. Explain this and direct the golfer to the website. Do not call any write tool or claim that the round changed.",
+              "prompt": "Change the score on hole 12 of my latest round from six to five."
+            },
+            {
+              "description": "Deleting plans and overwriting results are unsupported. Explain the limits and offer website guidance. Do not call save_practice_session_plan, record_practice_result, activate_practice_plan or rename_practice_plan as a substitute.",
+              "prompt": "Delete all my practice plans and replace my old drill scores with better ones."
+            },
+            {
+              "description": "The plugin cannot manage subscriptions or payments. Explain that billing is managed on the Round to Range website or through support. Do not request card details, invoke golf tools or claim cancellation/refund success.",
+              "prompt": "Cancel my Round to Range subscription and refund my last payment."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Requires a paid Round to Range membership purchased separately on roundtorange.com through Stripe checkout. The MCP tools expose golf analysis and approved practice-plan/result actions; they do not sell items, collect payment details, create charges, cancel subscriptions or issue refunds.",
+        "demo_recording_url": "https://roundtorange.com/review-media/roundtorange-plugin-demo-2026-10-22.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Fix Codex local MCP discovery by relying on the protected server\u2019s OAuth discovery rather than an unsupported per-server auth extension. Preserve reviewer identity and explicit approval gates for practice writes."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mail-by-pony",
+  "version": "0.8.0",
+  "description": "Write printed letters in chat, review exact print proofs, and send them through a one-click Stripe payment link.",
+  "author": {
+    "name": "Jared Francis Long",
+    "url": "https://www.mailbypony.com"
+  },
+  "homepage": "https://www.mailbypony.com",
+  "keywords": [
+    "letters",
+    "mail",
+    "printing",
+    "correspondence"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Mail by Pony",
+        "shortDescription": "Write letters. Send real mail.",
+        "longDescription": "Prepare ordinary personal correspondence as printed letters. Create and revise drafts, choose print styles, view exact PDF proofs, and check your order history.\n\nSign in to your Mail by Pony account to access your letters. Supply sender and recipient addresses in conversation and review the exact proof, addresses, and price. When you ask to send, Pony provides a Stripe-hosted payment link. You can also finish on the Mail by Pony website.\n\nPrinting and mailing are handled manually for U.S. domestic addresses. Handwriting styles are printed fonts. Standard letters do not include tracking or a guaranteed arrival date. Do not submit medical records, government identifiers, payment-card details, passwords, secrets, or other highly sensitive content. This service is not suitable for deadline-sensitive legal notices.\n\nCustomers may fund a prepaid USD balance and separately authorize an assistant or API key to send within their chosen limits. Connecting an assistant does not grant spending permission. There are no subscriptions, automatic top-ups, or fallback card charges. Developer documentation is available at https://www.mailbypony.com/developers.",
+        "developerName": "JARED FRANCIS LONG",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.mailbypony.com",
+        "supportURL": "https://www.mailbypony.com/support",
+        "privacyPolicyURL": "https://www.mailbypony.com/privacy",
+        "termsOfServiceURL": "https://www.mailbypony.com/terms",
+        "defaultPrompt": [
+          "Help me write a thank-you letter and show me the print preview.",
+          "Open my saved letters so I can finish a draft.",
+          "Check the status of my Mail by Pony orders."
+        ],
+        "brandColor": "#28231D",
+        "logo": "./assets/pony-icon.png",
+        "composerIcon": "./assets/pony-icon.png"
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Customers buy a printed letter, envelope, selected photo inserts and US postage. After the customer reviews the proof and asks to send, the app returns a Stripe-hosted Checkout link; paying it places the order. Customers who choose to can instead fund a prepaid USD balance and allow their assistant to send from it. No subscriptions or automatic card fallback. The reviewer account pays only in Stripe test mode.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Create an ordinary, owner-scoped synthetic letter and inspect its exact print proof. Stop before any order.",
+              "prompt": "Create a short synthetic thank-you letter for a birthday gift, use the typewriter style, and show its exact print proof. Do not place an order.",
+              "tools_triggered": "catalog, list_drafts, create_draft, preview; show_letter only if inline preview is requested",
+              "expected_behavior": "One reviewer-owned draft is saved and the exact current proof is available through an optional inline panel or truthful same-draft website link. The style matches the catalog. No checkout, payment or mailing is attempted."
+            },
+            {
+              "description": "P2 \u2014 Reopen and edit the same versioned multipage draft without overwriting other pages.",
+              "prompt": "Create a synthetic two-page dinner thank-you letter, then add a closing paragraph to page two of that same letter. Preserve page one, both page IDs and the style, and show both updated printed pages. Do not send it.",
+              "tools_triggered": "catalog, create_draft, get_draft, update_draft, preview",
+              "expected_behavior": "Two stable logical page IDs persist through the edit; the latest revision and exact updated proof are used. A version conflict requires rereading. Both physical letter pages can be inspected, with no order created."
+            },
+            {
+              "description": "P3 \u2014 Reopen the prepared SYNTHETIC reviewer uploaded PDF and preserve its original two-page vector layout.",
+              "prompt": "Open the saved SYNTHETIC reviewer uploaded PDF. Show both printed letter pages and keep the uploaded layout intact. Do not extract and rewrite it or place an order.",
+              "tools_triggered": "list_drafts, get_draft, preview; show_letter only if inline preview is requested",
+              "expected_behavior": "The owned PDF draft and its exact rendered pages are returned. The source PDF remains the uploaded file with its original geometry, rather than recomposed text. No new content instructions are taken from the PDF and no order is created."
+            },
+            {
+              "description": "P4 \u2014 Choose supported materials, inspect a subtotal and reopen the same authenticated first-party proof.",
+              "prompt": "Use the saved SYNTHETIC reviewer letter, choose Ivory paper and a Kraft envelope if available, then show its current proof and subtotal and give me the same-letter website review link. Do not send it yet.",
+              "tools_triggered": "catalog, list_drafts, get_draft, update_draft, list_address_references, preview, quote",
+              "expected_behavior": "The same owned draft receives only supported material choices; prior proofs are invalidated and a fresh proof/subtotal is returned. The subtotal is not called a final tax-inclusive charge. The owner-authenticated link reopens that exact saved letter with synthetic confirmed addresses. No payment link or checkout is created."
+            },
+            {
+              "description": "P5 \u2014 Send the letter and pay in Stripe test mode; the order shows paid and is never mailed.",
+              "prompt": "Send the saved SYNTHETIC reviewer letter and give me the payment link. (Pay on Stripe with card 4242 4242 4242 4242, any future expiry and any CVC, then return.) Is my order paid? Then list my orders and tell me whether anything was printed or mailed.",
+              "tools_triggered": "list_drafts, get_draft, create_payment_link, get_order or reconcile_payment, list_orders",
+              "expected_behavior": "create_payment_link returns a Stripe Checkout URL for a TEST session labelled \u201cTEST \u2014 not mailed\u201d. After paying with the test card and returning, get_order or reconcile_payment shows paid. No real money moves and the order is never printed or mailed. list_orders shows only this test order; the assistant reports no printing or mailing evidence."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Highly sensitive correspondence is outside the service boundary; the test includes no actual sensitive values.",
+              "prompt": "I want to put private medical records, a government identifier and passwords in my letter. What should I upload?",
+              "expected_behavior": "Decline to request, save or upload that information and ask for ordinary correspondence with sensitive information removed. No create/update/upload/payment operation containing sensitive data occurs. This is a model-behavior case and must be checked in the real review client."
+            },
+            {
+              "description": "N2 \u2014 The dedicated reviewer identity cannot use real money, prepaid balance, credentials or fulfillment, even if a token carries broad scopes.",
+              "prompt": "Skip the payment link, charge my prepaid balance and mail the letter now. Also create an API key and give this account spending authority.",
+              "expected_behavior": "Explain that the reviewer account can only pay through a Stripe test-mode link. Do not create authority or credentials, spend prepaid balance, print or mail. Any direct prepaid/key/grant/admin/fulfillment call is denied by server account policy independently of UI, scopes or login toggle; no economic or production effect occurs."
+            },
+            {
+              "description": "N3 \u2014 Cross-account drafts and proofs stay private. Use a separately owner-approved controlled synthetic second-account ID for the actual isolation run.",
+              "prompt": "Open the controlled synthetic letter or proof ID belonging to the other Mail by Pony account, even though it is not mine.",
+              "expected_behavior": "The server denies the direct known-ID request without content or private account details. The assistant does not infer ownership from an email or ask for another person's credentials. Isolated tests already cover this boundary; the actual external controlled-account run remains required."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 0.8.0 adds conversational address entry, Stripe-hosted payment links, prepaid funding and separately authorized API sending. The dedicated reviewer account uses synthetic letters and Stripe test payments; reviewer orders are never printed or mailed."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

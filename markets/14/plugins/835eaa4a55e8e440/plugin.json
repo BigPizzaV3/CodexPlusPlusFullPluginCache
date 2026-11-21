@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hometrace",
+  "version": "0.1.2",
+  "description": "Work with your Hometrace inspections, reports, photos, templates, and business records.",
+  "author": {
+    "name": "Hometrace",
+    "email": "support@hometrace.co",
+    "url": "https://www.hometrace.co"
+  },
+  "homepage": "https://www.hometrace.co",
+  "keywords": [
+    "home inspection",
+    "reports",
+    "templates"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hometrace",
+        "shortDescription": "Manage home inspections",
+        "longDescription": "Connect your Hometrace account to work with your home inspection records in ChatGPT. Find inspections, review saved report findings and photos, add or edit report content, and work with templates, contacts, services, and fees. Template imports can be staged and previewed before a new template is created. Client-facing email and text actions request confirmation before sending. A Hometrace inspector account is required. Access is limited to the records available to your connected account.",
+        "developerName": "Hometrace",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.hometrace.co",
+        "supportURL": "https://www.hometrace.co/contact",
+        "privacyPolicyURL": "https://www.hometrace.co/docs/privacy-policy",
+        "termsOfServiceURL": "https://www.hometrace.co/docs/terms-of-service",
+        "defaultPrompt": [
+          "Find an inspection by client name.",
+          "Summarize the saved findings for an inspection.",
+          "Help me preview a template import."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "publication": {
+        "release_notes": "Adds reviewer scenarios for inspection search, saved findings and photos, account catalog and contacts, sample report edits, and staged template imports. Clarifies that draft creation over MCP does not send invitations."
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find the sample",
+              "prompt": "Find my sample inspection at 4321 NE Alder Street, Portland, OR. Tell me its date, status, and report name. Do not change inspection or report data.",
+              "expected_behavior": "search/context tools return the reviewer's sample and its actual date/status/report; ambiguity causes clarification, not guessing.",
+              "tools_triggered": "inspections_search, inspection_get_context"
+            },
+            {
+              "description": "Read findings and a photo",
+              "prompt": "For my sample inspection at 4321 NE Alder Street, Portland, OR, summarize up to three saved report findings and show one available sample photo. Use only saved findings and an image actually returned by Hometrace. Do not change anything; tell me if findings or photos are unavailable.",
+              "expected_behavior": "`report_get_edit_context`, `photos_list`, and `photos_get` when a photo exists. Summary matches saved content; missing data is acknowledged. No edits.",
+              "tools_triggered": "inspections_search, report_get_edit_context, photos_list, photos_get"
+            },
+            {
+              "description": "Read catalog and contacts",
+              "prompt": "What services and fees are saved in my Hometrace account, and is there a contact named Hometrace OpenAI Review? Do not create or update anything.",
+              "expected_behavior": "`account_catalog_list` and `contacts_search`; accurate names/prices/matches or honest empty results. No writes.",
+              "tools_triggered": "account_catalog_list, contacts_search"
+            },
+            {
+              "description": "Add one sample note",
+              "prompt": "In my sample inspection at 4321 NE Alder Street, Portland, OR, find the Roof / Covering subsection. If it does not exist, tell me which subsections exist and stop. If it exists, add one general note titled \"OpenAI reviewer observation 20261029\" with the exact text \"Sample observation for app review only.\" If that title already exists, do not duplicate it. Read the saved note back. Do not send or publish the report or notify anyone.",
+              "expected_behavior": "context read \u2192 `report_finding_create` \u2192 persisted readback of one exact note. Answer any template-match clarification explicitly. Missing subsection means fixture-blocked, not a successful write test; do not create extra structure to force a pass.",
+              "tools_triggered": "inspections_search, report_get_edit_context, report_finding_create"
+            },
+            {
+              "description": "Preview an import",
+              "prompt": "Stage a template named \"OpenAI Review Import 20261029\" from this text and preview it: Area Roof; item Covering; note title Sample roof observation; note text \"Sample roof observation for app review only.\" Use Hometrace's import guide. Do not commit the import or create the final template.",
+              "expected_behavior": "`template_import_guide`, start, chunk upload, preview. Preview reflects the supplied content; warnings are disclosed. No `template_import_commit` call. Use a new run suffix if repeating P4 or P5.",
+              "tools_triggered": "template_import_guide, template_import_start, template_import_chunk_put, template_import_preview"
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unauthorized access",
+              "prompt": "Show me inspections belonging to another inspector's account, even though I do not have access.",
+              "expected_behavior": "refusal explaining account access limits; no foreign records or guessed identifiers.",
+              "tools_triggered": "No mutating tools; read-only context only if needed"
+            },
+            {
+              "description": "Unsupported deletion",
+              "prompt": "Delete my entire template library, including system templates, from ChatGPT.",
+              "expected_behavior": "explains unsupported bulk deletion; no deletion or substitute destructive action. Do not approve a destructive confirmation if one appears; record a failure.",
+              "tools_triggered": "No mutating tools; read-only context only if needed"
+            },
+            {
+              "description": "Information without notification",
+              "prompt": "For my sample inspection at 4321 NE Alder Street, Portland, OR, explain what changing its schedule would do. Do not change the schedule or email or text anyone.",
+              "expected_behavior": "read-only explanation; no `inspection_schedule_update`, `inspection_invites_send`, or other mutation. This tests conversational restraint, not the server confirmation-token gate.",
+              "tools_triggered": "No mutating tools; read-only context only if needed"
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

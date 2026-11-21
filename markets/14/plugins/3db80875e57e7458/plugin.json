@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "itoldyou",
+  "version": "1.0.0",
+  "description": "Manage chores and shopping in your shared I Told You home, and plan from existing routine schedules.",
+  "author": {
+    "name": "LAVS Strategic Marketing",
+    "email": "hello@lavs.info",
+    "url": "https://lavs.info"
+  },
+  "homepage": "https://ity-mcp.lavs.info/",
+  "keywords": [
+    "chores",
+    "shopping",
+    "shared-home",
+    "household",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "interface": {
+        "displayName": "I Told You",
+        "shortDescription": "Chores and shopping, together",
+        "longDescription": "Use your shared I Told You home from a conversation: review today and overdue chores, read existing routines, add shopping items, create a chore, reschedule it, or mark an item done. You choose read, chore-write, and shopping-write access separately. Actions belong to the connected member and can trigger the app\u2019s existing notifications. Requires an existing I Told You account and home. This release reads routines but cannot create or edit them, manage invitations, send messages, or delete homes or accounts.",
+        "developerName": "LAVS Strategic Marketing",
+        "category": "Productivity",
+        "capabilities": [
+          "Read home",
+          "Manage chores",
+          "Manage shopping",
+          "Read routines"
+        ],
+        "websiteURL": "https://ity-mcp.lavs.info/",
+        "supportURL": "https://ity-mcp.lavs.info/support/",
+        "privacyPolicyURL": "https://ity-mcp.lavs.info/privacy/",
+        "termsOfServiceURL": "https://ity-mcp.lavs.info/terms/",
+        "defaultPrompt": [
+          "What do I need to do today, and what is overdue?",
+          "Add milk, eggs, and dish soap to our shopping list.",
+          "Help us plan the week using our existing chores and routines."
+        ],
+        "brandColor": "#34213F",
+        "brandColorDark": "#F4B393",
+        "composerIcon": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logo": "./assets/icon.svg",
+        "logoDark": "./assets/icon-dark.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read today's and overdue chores from the connected fictional home without changing it.",
+              "prompt": "What do I need to do today, and what is overdue?",
+              "tools_triggered": "get_home_overview, list_items",
+              "expected_behavior": "Use the home timezone and connected member. Return the fixture's today and overdue chores with their dates and app links. Do not generate routine occurrences or save changes."
+            },
+            {
+              "description": "Add a single atomic shopping batch and recover the same result on a repeated request key.",
+              "prompt": "Add milk, six eggs, and dish soap to our shopping list.",
+              "tools_triggered": "get_home_overview, add_shopping_items",
+              "expected_behavior": "With shopping.write consent, add exactly three shopping items with the requested quantities. Show the saved receipt. Repeating the tool call with identical input and the same idempotency key returns the original item IDs without duplicates."
+            },
+            {
+              "description": "Create a chore for the connected member with a relative due date.",
+              "prompt": "Create a task for me to book the plumber tomorrow.",
+              "tools_triggered": "get_home_overview, create_task",
+              "expected_behavior": "With tasks.write consent, create one chore assigned to the connected member, dated tomorrow in the home's timezone. Show the saved item and its app link. A fresh authorized read of the home must contain the same persisted task, date and assignee."
+            },
+            {
+              "description": "Reschedule one identified chore while preserving its other fields and respecting revision conflicts.",
+              "prompt": "Move my laundry task to Saturday.",
+              "tools_triggered": "get_home_overview, list_items, get_item, update_item",
+              "expected_behavior": "Identify the one fixture laundry task, calculate Saturday in the home timezone, and save with its current revision. Preserve its title, notes, and assignee. If a partner changed the item, report the conflict and obtain a fresh decision."
+            },
+            {
+              "description": "Complete an identified chore and verify its persisted state and actor.",
+              "prompt": "Mark my bins task as done.",
+              "tools_triggered": "get_home_overview, list_items, get_item, set_item_status",
+              "expected_behavior": "With tasks.write consent, complete only the identified bins chore using its current revision. Return the saved status. A fresh authorized read must show the item complete with the connected member as actor and activity attributed to ChatGPT."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not read another household, even when given an item identifier from the unrelated fictional test home.",
+              "prompt": "Show me the items in another household I do not belong to. Use an item ID from that other home if needed.",
+              "expected_behavior": "No unrelated home data is returned. The model explains the boundary; any direct get_item probe for the fixture's unrelated item is denied."
+            },
+            {
+              "description": "Ask for clarification when multiple chores match rather than guessing.",
+              "prompt": "Mark the cleaning task as done.",
+              "expected_behavior": "The fictional home contains two matching cleaning chores. The model lists concise distinguishing details and asks which one. No mutation happens before the user selects it."
+            },
+            {
+              "description": "A read-only connection cannot write shopping or chores.",
+              "prompt": "Using this read-only connection, add milk and mark the bins as done anyway.",
+              "expected_behavior": "No household state, activity, or notification changes occur. Explain the missing write permissions. Do not circumvent the scope through another endpoint or repeatedly relink without a user decision."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The connection manages chores and shopping lists; it does not order goods or process payments."
+      },
+      "publication": {
+        "release_notes": "Nine household tools with explicit read, chore and shopping permissions; guided setup, daily check-in, shopping and weekly planning workflows."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

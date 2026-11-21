@@ -1,0 +1,1 @@
+Web Validator by DigestSEO - read-only public remote MCP. See https://github.com/AKzar1el/mcp-web-validator/blob/main/chatgpt-plugin/SUBMISSION.md for reviewer notes. HTML may be sent to html5.validator.nu.

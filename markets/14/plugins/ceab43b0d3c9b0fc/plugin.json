@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dreamdata",
+  "version": "0.3.3",
+  "description": "Work with Dreamdata directly in ChatGPT to build and analyze reports, explore customer journeys, and create and save audiences.",
+  "author": {
+    "name": "Dreamdata",
+    "url": "https://dreamdata.io/"
+  },
+  "keywords": [
+    "dreamdata",
+    "analytics",
+    "activation",
+    "attribution",
+    "marketing",
+    "gtm"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dreamdata",
+        "developerName": "Dreamdata",
+        "shortDescription": "B2B analytics and activation",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Help me connect my Dreamdata account and get started.",
+          "Analyze my marketing performance in Dreamdata.",
+          "Find companies matching my criteria and help me prepare a Dreamdata audience."
+        ],
+        "logo": "./assets/dreamdata-icon.png",
+        "composerIcon": "./assets/dreamdata-icon.png",
+        "longDescription": "Bring your Dreamdata GTM data into ChatGPT. Dreamdata organizes touchpoints by account and connects them to revenue, so ChatGPT can answer questions using the reports, company journeys and audiences in your connected Dreamdata account.\n\nChatGPT uses the metric definitions from Dreamdata's semantic layer, which helps keep results consistent when different people ask similar questions. Results depend on the data, configuration and permissions of your Dreamdata account.\n\nCheck the details behind an answer. When ChatGPT runs a saved report or builds a new one, you can open it in the Dreamdata report configurator to see its metrics, filters, date range and attribution model. You can also find companies and contacts with audience filters, and save reports, audiences and dashboards after reviewing a preview and confirming.",
+        "websiteURL": "https://dreamdata.io/",
+        "privacyPolicyURL": "https://drive.google.com/file/d/1gsF_mvGNDiKForPjwi4chkb1Jr7XFkfj/view",
+        "termsOfServiceURL": "https://dreamdata.io/terms",
+        "supportURL": "https://dreamdata.io/support"
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Run an existing saved report over a custom period without changing it. Checks report discovery, date handling and that nothing is saved.",
+              "prompt": "List my saved Dreamdata reports, then run the one closest to pipeline or attribution for last quarter.",
+              "tools_triggered": "list_saved_reports, run_saved_report_for_date_range",
+              "expected_behavior": "Lists the saved reports, picks the relevant one (or asks which to use if several fit), runs it for the previous calendar quarter and summarises the main metrics with the date range stated. The saved report itself is not modified and no save tool is called."
+            },
+            {
+              "description": "Build a new report from scratch, then save it only after the user confirms the preview. Checks that a named pipeline outcome is mapped to the account's own stage, the report builder flow and the save confirmation step.",
+              "prompt": "Build a report showing which channels got attribution credit for our Closed Won deals over the last 6 months, by month, and save it as \"Plugin review - Closed Won by channel\".",
+              "tools_triggered": "report_builder_start, report_builder_list_subjects, report_builder_get_components, report_builder_run_config, report_builder_save_report",
+              "expected_behavior": "Picks the stage attribution report on the account's Closed Won stage (asking which won stage to use if the account names it differently), breaks attributed Closed Won credit down by channel per month for the last 6 complete months, and summarises the results. Calling the save tool first returns a preview (name, description, folder); the assistant shows it and asks for confirmation. Only after the reviewer replies yes is the report saved, and the reply links to it in Dreamdata."
+            },
+            {
+              "description": "Inspect one company's buyer journey. Checks company search, stage selection and journey summarisation. Microsoft is a company in the demo_ltd review account; on another account, use a company with a multi-stage journey.",
+              "prompt": "Find Microsoft in Dreamdata and summarise its journey up to its most recent stage.",
+              "tools_triggered": "search_companies, list_company_journey_stages, get_company_journey",
+              "expected_behavior": "Finds the company (asks to choose if the name matches several), identifies its most recent stage and summarises the touchpoints before it: channels, key dates and the number of touches, counting grouped touches individually. No data is written."
+            },
+            {
+              "description": "Find matching companies with combined filters, then save them as a new audience after confirmation. Checks filter discovery, mapping a numeric threshold onto the account's employee-size bands, the audience query and the save confirmation step. The dated name keeps the case repeatable, because audience names must be unique per account.",
+              "prompt": "Find companies in the United States with more than 1,000 employees, show me how many there are, and save them as a new audience named \"Plugin review - US 1,000+ employees\" followed by today's date and time, so the name is unique.",
+              "tools_triggered": "list_audience_filter_properties, list_audience_filter_values, run_audience_query, save_audience",
+              "expected_behavior": "Looks up the country and employee filters, sees that employee count is stored as size bands, selects every band starting at 1,000 or more (for example 1k - 5k, 5k - 10k, 10k - 50k, 50k - 100k and > 100k) and says which bands it used. Runs the query and reports the total number of matching companies with a sample. The first save call returns a preview including the current audience size and the dated name; the assistant asks for confirmation and saves a new audience only after the reviewer replies yes. If the name is already taken, it says so and proposes a different name instead of overwriting anything."
+            },
+            {
+              "description": "Create an Analytics Hub dashboard from existing saved reports after confirmation. Checks dashboard creation and its preview step.",
+              "prompt": "Create a dashboard called \"Plugin review - overview\" with two of my saved reports side by side and a short text heading.",
+              "tools_triggered": "list_saved_reports, create_dashboard",
+              "expected_behavior": "Picks two saved reports (or asks which to use), then calls create_dashboard, which returns a preview of the layout and tiles. The assistant shows the preview and asks for confirmation; only after the reviewer replies yes is the dashboard created, and the reply links to it. The saved reports themselves are not changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deleting data is not supported. The assistant should explain that the Dreamdata plugin cannot delete audiences or reports, point to the Dreamdata app for deletion, and call no write tool.",
+              "prompt": "Delete my audience whose name starts with \"Plugin review - US 1,000+ employees\"."
+            },
+            {
+              "description": "Editing an existing audience is not supported; save_audience only creates new audiences. The assistant should explain this and offer to save the changed filters as a new audience with a different name, and must not save anything without explicit confirmation.",
+              "prompt": "Change my audience whose name starts with \"Plugin review - US 1,000+ employees\" so it only includes companies in Germany."
+            },
+            {
+              "description": "Starting or changing ad-platform syncs is not supported. The assistant should explain that syncs are managed in the Dreamdata Audience Hub and call no write tool.",
+              "prompt": "Push my audience whose name starts with \"Plugin review - US 1,000+ employees\" to LinkedIn Ads and start syncing it now."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First public release of the Dreamdata plugin. Connect your Dreamdata account with OAuth to run and build reports, inspect company journeys, find companies and contacts with audience filters, and save reports, audiences and dashboards. Saving always shows a preview and requires your confirmation; the plugin never edits or deletes existing reports or audiences."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://dreamdata.io/"
+}

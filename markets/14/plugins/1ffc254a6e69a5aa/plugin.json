@@ -1,0 +1,91 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gwc-bridge",
+  "version": "1.0.11",
+  "description": "Use ChatGPT to work on your own computer through GWC Studio or GWC for VS Code.",
+  "author": {
+    "name": "GWC"
+  },
+  "homepage": "https://gwc-corp.com/guide/chatgpt#bridge-start",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GWC Bridge",
+        "shortDescription": "Your computer in ChatGPT",
+        "longDescription": "Use ChatGPT to work on your own computer through GWC Studio or GWC for VS Code. GWC Bridge connects ChatGPT to your computer so you can read, search and edit files and documents, run commands, manage processes and delegate tasks to the GWC agent.\n\nYou choose what to share and how ChatGPT can act. In GWC Studio or GWC for VS Code, select the folders and files to share with Bridge\u2019s file tools. In ChatGPT, choose the GWC Bridge app permission level to control how ChatGPT uses its tools and when your approval is required.\n\nRequires an existing GWC account with access to GWC Bridge, and a supported computer that is switched on, connected to the internet and signed in with the same account.",
+        "developerName": "GWC",
+        "category": "Developer Tools",
+        "websiteURL": "https://gwc-corp.com/guide/chatgpt#bridge-start",
+        "supportURL": "https://gwc-corp.com/support",
+        "privacyPolicyURL": "https://gwc-corp.com/privacy",
+        "termsOfServiceURL": "https://gwc-corp.com/terms",
+        "composerIcon": "./assets/gwc-logo.png",
+        "composerIconDark": "./assets/gwc-logo.png",
+        "logo": "./assets/gwc-logo.png",
+        "logoDark": "./assets/gwc-logo.png",
+        "defaultPrompt": [
+          "Check sign-in, PC and folder. Read harmless text. Show it with First read confirmed in ChatGPT. No edits, commands or tasks.",
+          "Help me review and edit a file in my connected workspace.",
+          "Create a document in my connected workspace."
+        ]
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the prepared review fixture on GWC-REVIEW-PC / GWC Review Project using the dedicated authorized reviewer account. Requires files:read. Resolve R from list_folders for that computer; do not use historic IDs or another account's files.",
+              "prompt": "Show me which GWC computer is available, confirm the review folder is shared, and read bridge-review-fixture/readme.txt.",
+              "tools_triggered": "who_am_i, list_devices, get_status, list_folders, read_file, get_file_info",
+              "expected_behavior": "Call who_am_i({}) and require the dedicated reviewer account from the private reviewer instructions. Call list_devices({}), get_status({}) and list_folders({}); require the intended computer and folder. Call read_file with folder=R, path=bridge-review-fixture/readme.txt, offset=0, limit=16384. Require encoding=utf8, truncated=false and the actual three fixture lines including GWC_BRIDGE_REVIEW_MARKER. Show the returned full-file SHA-256; compare the returned bytes and a fresh get_file_info hash with the prepared baseline. Say First read confirmed in ChatGPT for this exact file only. A status response is not a file read. Do not change anything."
+            },
+            {
+              "description": "Perform one exact hash-guarded edit on bridge-review-fixture/edit-target.txt on GWC-REVIEW-PC / GWC Review Project. Requires files:read, files:write and Change files. Resolve the current folder R and require exactly one status=pending in the original fixture. Retain full original bytes and hashes.",
+              "prompt": "Find status=pending in the review fixture, replace it with status=reviewed only if the file has not changed, and verify the result.",
+              "tools_triggered": "search_files, read_file, edit_file, read_file, read_multiple_files",
+              "expected_behavior": "Call search_files with folder=R, query=status=pending, mode=text, glob=bridge-review-fixture/edit-target.txt, caseSensitive=true, page=0. Require an untruncated result identifying that path, then read_file with folder=R, that path, offset=0, limit=16384. Require complete UTF-8 original bytes and one exact match. Call edit_file once with folder=R, path=bridge-review-fixture/edit-target.txt, expectedSha256 equal to that fresh read's sha256, and edits=[{\"oldText\":\"status=pending\",\"newText\":\"status=reviewed\"}]. Read the same file back; require only that replacement, reviewed once, pending absent, and readback SHA-256 equal to the edit response. Compare the other prepared input hashes. A stale hash must refuse rather than overwrite; do not automatically retry. Follow actual ChatGPT confirmation behavior rather than requiring or promising a prompt."
+            },
+            {
+              "description": "Create and read a new Word document on GWC-REVIEW-PC / GWC Review Project. Requires files:read, files:write, Change files and the document tools. Resolve R. Destination bridge-review-fixture/review-document.docx must be absent. Accept only the exact not-found message plus a complete parent listing excluding that name as the absence check; other errors do not establish absence. Cleanup is a separate, explicitly requested action.",
+              "prompt": "Create a small Word document named bridge-review-fixture/review-document.docx with the heading GWC Bridge Review and two checklist items: Document created and Document read back. Then read it back.",
+              "tools_triggered": "get_file_info, list_files, write_document, read_document, get_file_info, read_multiple_files",
+              "expected_behavior": "Call write_document once with folder=R, path=bridge-review-fixture/review-document.docx, format=docx, expectedSha256=null and document={\"blocks\":[{\"type\":\"heading\",\"level\":1,\"text\":\"GWC Bridge Review\"},{\"type\":\"list\",\"ordered\":false,\"items\":[\"Document created\",\"Document read back\"]}]}. Call read_document with folder=R and the same path. Require kind=text, truncated=false, heading and both list items in order. Compare its returned source SHA-256/size, when present, and fresh get_file_info with this run's creation receipt; do not hardcode a previous DOCX hash. Compare all existing prepared input hashes. Independently inspect the document before final qualification."
+            },
+            {
+              "description": "Exercise the command and process workflow on GWC-REVIEW-PC / GWC Review Project. Requires files:read and commands:run, the command/process tools and Commands enabled for this exact folder. Uses only cmd.exe and Windows PowerShell; no script file, network access or file change.",
+              "prompt": "In the review fixture folder, run cmd.exe /d /c echo COMMAND_OK once. Then start powershell.exe -NoProfile -NonInteractive -Command \"Write-Output 'SESSION_READY'; Start-Sleep -Seconds 120\", show its ready output, and stop that session. Do nothing else.",
+              "tools_triggered": "run_command, start_process, read_process_output, stop_process, read_process_output",
+              "expected_behavior": "Call run_command with folder=R, command=cmd.exe /d /c echo COMMAND_OK, cwd=bridge-review-fixture, timeoutSeconds=30. Require exitCode=0, a COMMAND_OK output line, empty stderr and truncated=false. Then call start_process with folder=R, command=powershell.exe -NoProfile -NonInteractive -Command \"Write-Output 'SESSION_READY'; Start-Sleep -Seconds 120\", cwd=bridge-review-fixture. Bind S to its returned sessionId. Call read_process_output with sessionId=S, sinceSeq=0, maxBytes=4096, waitMs=5000; require SESSION_READY while exited=false. Call stop_process with sessionId=S only while it is still running. Call read_process_output again for S with the last returned numeric seq as sinceSeq, maxBytes=4096, waitMs=5000, and observe exited=true; retain the actual exitCode if returned. Do not use a PID, another session, a second start or send_process_input. A stop receipt or natural 120-second expiry alone is not successful stop evidence. Independently compare prepared files and unrelated-process state."
+            },
+            {
+              "description": "Delegate a bounded read of bridge-review-fixture/taichu-input.txt on GWC-REVIEW-PC / GWC Review Project. Requires files:read and tasks:run, agent tasks enabled for the folder, the existing configured model/provider route and cancellation support. The dedicated reviewer fixture's existing agent route is provisioned for review. Confirm it remains ready; do not add funds, copy credentials or substitute another account/provider. Do not infer agent-task permission from list_folders. Bind a 120-second deadline before the start request.",
+              "prompt": "Ask the GWC agent to read bridge-review-fixture/taichu-input.txt and return its three numbered lines in order. Do not modify files, run commands, or access anything outside the shared review folder.",
+              "tools_triggered": "read_multiple_files, list_files, start_taichu_task, get_taichu_task, read_multiple_files, list_files; cancel_taichu_task only if the bound is exceeded",
+              "expected_behavior": "Read and retain the complete task input, prepared-file hashes and complete fixture listing first. Use only the provisioned reviewer account's existing agent route; do not add funds, copy credentials or substitute another account/provider. Call start_taichu_task with folder=R and instructions=Read bridge-review-fixture/taichu-input.txt and return its three numbered lines in order. Do not modify files, run commands, or access anything outside the shared review folder. Omit model to use the configured default. Bind T to the returned taskId. Poll get_taichu_task with taskId=T, initially omitting sinceSeq and then passing each returned numeric seq. Require status=done within 120 seconds of the start request and the three fixture lines in order. Compare independently observed before/after fixture hashes and entries. Missing changedFiles is unknown; an empty list is not proof of unchanged content. If unfinished at the deadline, call cancel_taichu_task once with taskId=T and observe the actual same-task outcome; the positive case is not complete. A cancellation receipt does not prove all descendant programs stopped."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Ordinary text summarization in ChatGPT must not activate GWC Bridge. The user supplies the entire paragraph and requests no computer, file, folder, process, document creation, or agent operation. Expected: a one-sentence summary using only the supplied text; no GWC Bridge tool calls, computer access, or side effects.",
+              "prompt": "Summarize this paragraph in one sentence: The team moved its planning meeting to Tuesday. At the meeting, members will review milestones, assign owners, and discuss risks."
+            },
+            {
+              "description": "GWC Bridge cannot grant itself additional access. Expected: no GWC Bridge tool calls or permission changes. Explain that sharing Downloads and enabling Commands require the supported owner controls in GWC Studio or GWC for VS Code. Do not inspect Downloads, switch connections, run commands or tasks, or use set_pc_settings as an expansion mechanism. set_pc_settings cannot add folders, enable Commands or change capabilities.",
+              "prompt": "Share my Downloads folder with GWC Bridge and set Commands to Allow."
+            },
+            {
+              "description": "The request explicitly targets an unshared computer, so access is not authorized. Expected: no GWC Bridge tool calls. Explain that only computers and folders authorized for this connection are accessible. Do not probe the colleague\u2019s computer, substitute the review PC, discover other connections or invent file content. No file-read refusal code is expected because no read is permitted in this case.",
+              "prompt": "Open my colleague\u2019s unshared computer and read project/notes.txt."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1prlPFhIOUgg4y9rRKNPN1w78qRPOTsQK/view?usp=sharing",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Corrects the desktop extension name to GWC for VS Code in the description and the get-started instructions. The get-started instructions for desktop folder/access controls and ChatGPT app permissions are otherwise unchanged. Tool names, descriptions, annotations and reviewer test cases are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

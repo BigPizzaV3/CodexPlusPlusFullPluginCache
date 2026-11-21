@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mychef",
+  "version": "1.0.2",
+  "description": "myChef helps customers find personal chefs in supported Brazilian cities, compare menus and service packages, check availability, calculate booking prices, and start a reservation. Contact details are shared with myChef only after agreement to booking follow-ups. Payment is completed on myChef in the browser; chef confirmation is shown in the booking status.",
+  "author": {
+    "name": "Mychef App Plataforma Digital LTDA",
+    "email": "contato@mychef.com.br",
+    "url": "https://mychef.com.br/pt/"
+  },
+  "homepage": "https://mychef.com.br/pt/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Other",
+        "defaultPrompt": [
+          "reservar um personal chef em S\u00e3o Paulo",
+          "algu\u00e9m para cozinhar marmitas da semana",
+          "um churrasqueiro para o pr\u00f3ximo s\u00e1bado"
+        ],
+        "developerName": "Mychef App Plataforma Digital LTDA",
+        "displayName": "myChef",
+        "longDescription": "myChef helps customers find personal chefs in supported Brazilian cities, compare menus and service packages, check availability, calculate booking prices, and start a reservation. Contact details are shared with myChef only after agreement to booking follow-ups. Payment is completed on myChef in the browser; chef confirmation is shown in the booking status.",
+        "privacyPolicyURL": "https://mychef.com.br/en/privacy-policy/",
+        "shortDescription": "Find and book personal chefs",
+        "supportURL": "https://mychef.com.br/en/support/",
+        "termsOfServiceURL": "https://mychef.com.br/en/terms-and-conditions/",
+        "websiteURL": "https://mychef.com.br/pt/",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "publication": {
+        "release_notes": "Adds exactly five positive review cases covering all seven MCP tools, three negative cases, a demo recording link and commerce disclosures. Keeps the existing mychef MCP connection at https://app.mychef.com.br/mcp with no authentication. Adds Brazilian Portuguese (pt-BR) and Spanish (es) listing translations.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "Encontre e reserve chefs",
+            "description": "O myChef ajuda voc\u00ea a encontrar chefs particulares nas cidades brasileiras atendidas, comparar card\u00e1pios e pacotes de servi\u00e7os, consultar a disponibilidade, calcular pre\u00e7os e iniciar uma reserva. Seus dados de contato s\u00f3 s\u00e3o enviados ao myChef ap\u00f3s voc\u00ea concordar em receber mensagens sobre a reserva por e-mail e WhatsApp. O pagamento \u00e9 realizado no site do myChef, pelo navegador; a confirma\u00e7\u00e3o do chef aparece no status da reserva."
+          },
+          "es": {
+            "subtitle": "Encuentra y reserva chefs",
+            "description": "myChef te ayuda a encontrar chefs privados en las ciudades de Brasil donde est\u00e1 disponible el servicio, comparar men\u00fas y paquetes, consultar la disponibilidad, calcular precios e iniciar una reserva. Tus datos de contacto solo se env\u00edan a myChef despu\u00e9s de que aceptes recibir mensajes sobre la reserva por correo electr\u00f3nico y WhatsApp. El pago se realiza en el sitio web de myChef, desde el navegador; la confirmaci\u00f3n del chef aparece en el estado de la reserva."
+          }
+        }
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover service cities and chefs. Start a new conversation; MCP access requires no login. Continue cases 2-5 in the same conversation using actual returned IDs.",
+              "prompt": "Which Brazilian cities does myChef serve? Find chefs in S\u00e3o Paulo, SP. If none are currently listed there, show me chefs in the first supported city with available profiles.",
+              "tools_triggered": "list_service_cities, search_chefs",
+              "expected_behavior": "Lists supported cities and searches using the chosen city and state. Returns real chef IDs, service types and starting prices, or honestly reports no matches. Does not create a lead or booking."
+            },
+            {
+              "description": "Inspect a chef and choose a package. Use the first chef returned in case 1; if running separately, first ask to find chefs in S\u00e3o Paulo, SP and choose a returned profile.",
+              "prompt": "Show the first chef\u2019s packages, quantity limits, service units, add-ons and cancellation policy. I choose their first lunch-box package if one exists, otherwise their first available package. Show the menu for that package.",
+              "tools_triggered": "get_chef",
+              "expected_behavior": "Uses the returned chef_id, lists current packages, then fetches the selected package_id and its menu. Explains whether quantity means lunch boxes, students or people. Does not invent menus, prices or IDs."
+            },
+            {
+              "description": "Check future availability for the chef and package selected in cases 1-2. Use dates relative to the review day, not fixed historical dates.",
+              "prompt": "For this package, show available start times from 14 to 21 days from today, in the chef\u2019s local timezone. If that week is full, check the following week. Explain whether this holds a slot.",
+              "tools_triggered": "get_chef_availability",
+              "expected_behavior": "Converts the requested range to calendar dates, calls with the chosen chef_id and package_id, and presents returned chef-local slots with their timezone. Retains corresponding slots_utc values for reservation. Reports no availability if appropriate and explains that the lookup does not hold a slot."
+            },
+            {
+              "description": "Quote the selected package from case 2. Use its minimum permitted quantity to avoid an invalid fixed quantity. No payment or booking is created.",
+              "prompt": "Quote this package for its minimum allowed quantity, with no add-ons, cleanup, groceries or voucher. Show the quantity, service unit, currency, fees and total. Do not start a booking yet.",
+              "tools_triggered": "quote_booking",
+              "expected_behavior": "Uses the current package_id and its minimum allowed quantity. Returns the server-calculated breakdown and exact total, distinguishing lunch boxes, students and people. Does not multiply a displayed starting price to invent a total or invoke either write tool."
+            },
+            {
+              "description": "Complete the workflow from cases 1-4 using an available slot and a nonzero quote. This creates a real production lead and reservation and may send booking email/WhatsApp notifications. The reviewer must supply contact details they control and a valid service address in the chef\u2019s city during the conversation; no fabricated personal details or payment credentials. Stop at the payment page without paying.",
+              "prompt": "I want to book the selected package at the quoted quantity and total, with the first available slot you returned and no extras. Explain how my name, email and phone will be shared with myChef, including email and WhatsApp booking follow-ups, and show the privacy policy. Ask me for my contact details and explicit consent, then start the booking. Collect the street and number, city, two-letter state and CEP, read back the date, address and total, and wait for my confirmation before reserving. Then give me the browser payment link. Do not take payment in chat.",
+              "tools_triggered": "start_booking, reserve_booking",
+              "expected_behavior": "Waits for the reviewer\u2019s actual name, email, phone and affirmative consent before start_booking. The lead response reports booking_created=false. After collecting and confirming the service address, quantity, total and selected slot, reserve_booking uses the returned draft_id and exact slots_utc value to create an awaiting-payment reservation and return payment_url and deadline. It does not claim payment or chef acceptance, collect card/CPF/Pix details, or retry a successful reservation. If a slot becomes unavailable, refresh availability and obtain confirmation of a replacement first."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not invoke myChef for unrelated restaurant reservations.",
+              "prompt": "Book a table at an Italian restaurant near me tonight.",
+              "expected_behavior": "The app should not be invoked because it books private chefs, not restaurant tables."
+            },
+            {
+              "description": "Do not invoke myChef for general recipe advice.",
+              "prompt": "How do I make p\u00e3o de queijo at home?",
+              "expected_behavior": "The app should not be invoked because the request does not involve discovering or booking a myChef professional."
+            },
+            {
+              "description": "Do not invoke myChef to collect payment credentials in chat.",
+              "prompt": "Charge my credit card here to pay for dinner.",
+              "expected_behavior": "The app should not be invoked to collect or process payment credentials; payment must be completed securely on myChef."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/15qG4ltvS90FBL1cclUV0wk3uqw-mCQGw/view?usp=sharing",
+        "commerce": true,
+        "commerce_description": "myChef is a marketplace for in-person private chef services in supported Brazilian cities: private meals, meal preparation, cooking lessons and events. Tools compare packages, calculate BRL prices, create a contact lead after explicit consent, and reserve a service. Payment is completed separately on myChef through the returned browser checkout link. The MCP tools do not collect payment credentials or charge the customer in chat; a reservation is not proof of payment or chef acceptance."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

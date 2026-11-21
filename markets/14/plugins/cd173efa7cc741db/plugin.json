@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "shippdf",
+  "version": "0.1.1",
+  "description": "Create, edit, and publish reusable PDF templates, then generate documents with ShipPDF.",
+  "author": {
+    "name": "Codemore PLT",
+    "url": "https://shippdf.com"
+  },
+  "homepage": "https://shippdf.com",
+  "keywords": [
+    "pdf",
+    "documents",
+    "templates",
+    "invoices",
+    "shippdf"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ShipPDF",
+        "shortDescription": "Create templates and PDFs",
+        "longDescription": "Create and edit reusable PDF templates, publish validated revisions, and generate PDFs with your ShipPDF workspace. Includes invoice, report, and certificate workflows. Connect your ShipPDF account through OAuth. Supports individual generation, public-URL image imports, and image-byte uploads up to 5 MB.",
+        "developerName": "Codemore PLT",
+        "category": "Productivity",
+        "capabilities": [
+          "Write"
+        ],
+        "websiteURL": "https://shippdf.com",
+        "supportURL": "https://shippdf.com/support/",
+        "privacyPolicyURL": "https://shippdf.com/privacy/",
+        "termsOfServiceURL": "https://shippdf.com/terms/",
+        "defaultPrompt": [
+          "Create an A4 invoice template with line items and a calculated total.",
+          "Update my ShipPDF template branding and leave it as a draft.",
+          "Generate a PDF from my ShipPDF template using this data."
+        ],
+        "composerIcon": "./assets/shippdf.png",
+        "logo": "./assets/shippdf.png",
+        "logoDark": "./assets/shippdf-dark.png",
+        "composerIconDark": "./assets/shippdf-dark.png",
+        "brandColor": "#5980A6",
+        "brandColorDark": "#5980A6"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover accessible projects and published templates. Setup: sign in with the dedicated non-operator reviewer account, finish onboarding if prompted, and connect with the five workspace OAuth scopes. The reviewer workspace has a project named My Project and a starter template named Start here. Run positive cases in order in one conversation and retain actual IDs from tool results. The starter template may be a draft; this case lists published templates only.",
+              "prompt": "List my ShipPDF projects and the published templates in My Project. Include their IDs and published revisions. If there are no published templates yet, tell me.",
+              "tools_triggered": "list_projects, list_templates",
+              "expected_behavior": "Resolve My Project from list_projects, following next_cursor when present. Call list_templates with its returned project_id and follow that project's pagination. Return the actual project and published-template IDs, names, and revision numbers. Include Start here only if it is published and returned by the server. If no published templates are returned, state that accurately and retain the real project_id for the next case. Do not invent results, create resources, publish, or generate a document."
+            },
+            {
+              "description": "Create a reusable invoice as a draft. Setup: continue in the same review conversation after discovery, using the actual My Project project_id. Start with no other template named Review Invoice. All content in this case is fictional sample data.",
+              "prompt": "Create an A4 portrait invoice template named Review Invoice in My Project. Use the heading Invoice and USD amounts. Its input should be an invoice object with number, customer_name, and an items list containing description, quantity, and unit_price. Calculate each line amount and the invoice total. Use this fictional sample data: {\"invoice\":{\"number\":\"REVIEW-001\",\"customer_name\":\"Example Customer\",\"items\":[{\"description\":\"Design\",\"quantity\":2,\"unit_price\":50}]}}. Do not add taxes or fees. Leave it as an unpublished draft and show me its preview; do not generate a PDF.",
+              "tools_triggered": "get_authoring_guide, create_template; describe_schema and edit_template if needed to resolve schema or publishing problems",
+              "expected_behavior": "Read the authoring guide before building the document. Use the resolved project_id and name Review Invoice, the requested input paths and numeric types, and calculated line amounts and total. Save a draft with create_template and fix any reported problems without publishing it. Return the real template_id, latest lock_version, draft state, publishable status, and returned preview URL. The fictional sample total is USD 100.00. Do not call publish_template or generate_document. Retain the returned template_id for the following cases."
+            },
+            {
+              "description": "Make a targeted change while preserving draft-only and preview-only boundaries. Setup: continue after creation with the exact template_id returned in the previous case, not an ambiguous name match. Inspect the resulting preview before proceeding to the publish case.",
+              "prompt": "In the Review Invoice draft we just created, change the heading from Invoice to Invoice Summary and make that heading blue (#1D4ED8). Preserve the data fields, calculations, and sample data. Show the updated draft preview. Do not publish or generate a PDF.",
+              "tools_triggered": "get_authoring_guide, get_draft_template, edit_template; describe_schema if needed",
+              "expected_behavior": "Read the current draft and use its node IDs and latest lock_version for targeted edit_template operations. Change only the requested heading content and color; preserve unrelated layout, data schema, calculations, and sample data. Return the updated lock_version, draft state, validation problems if any, and refreshed preview URL. If the draft changes concurrently, review the returned current draft before reapplying the intended edit. Do not call publish_template or generate_document or claim that the published revision changed."
+            },
+            {
+              "description": "Publish an explicitly reviewed draft. Setup: continue after the heading/color edit using its actual template_id and lock_version, and have the reviewer inspect that draft preview. The draft must be publishable with no problems before this prompt is run.",
+              "prompt": "Publish the reviewed Review Invoice draft now. Do not generate a PDF yet.",
+              "tools_triggered": "publish_template; get_draft_template if the reviewed draft needs refreshing",
+              "expected_behavior": "Call publish_template with the exact template_id and the lock_version of the reviewed draft. Report the published_revision returned by the server and the template_id; do not invent a revision number. If publishability is false or unknown, resolve or explain it before publishing. If the server reports a stale version, do not publish an unseen draft: present the current draft for review before retrying. Do not call generate_document."
+            },
+            {
+              "description": "Generate exactly one PDF and retrieve another link to the same document. Setup: continue after publishing with the same real template_id. The review workspace needs an active generation entitlement and enough credits. Retain the returned document_ref for status checks and subsequent download-link retrieval.",
+              "prompt": "Generate exactly one sample PDF from the published Review Invoice template using {\"invoice\":{\"number\":\"REVIEW-001\",\"customer_name\":\"Example Customer\",\"items\":[{\"description\":\"Design\",\"quantity\":2,\"unit_price\":50}]}}. After it completes, retrieve a fresh download link for that same PDF without generating another document.",
+              "tools_triggered": "get_template_metadata, generate_document, get_document",
+              "expected_behavior": "Read the published data schema with get_template_metadata, preserve the supplied values and numeric types, and explain the one-credit generation cost. Use the published template_id and a unique nonempty idempotency_key for one intended generate_document request. Any retry of an uncertain request must reuse the same key and input. Retain document_ref and poll get_document with delays until completed or failed. On completed, call get_document again using that same reference to retrieve another signed pdf_url without another generation. Return the real reference and clickable server-provided download link. The sample PDF should show Invoice Summary, REVIEW-001, Example Customer, and USD 100.00. Respect polling limits and report pending or failure honestly; neither counts as a successful completed-PDF demonstration. Do not claim that the URL string must change or that the PDF was visually checked unless it was actually inspected."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Access outside the connected account. Setup: use the ordinary non-operator review account, with no membership or authorization for the other company's private workspace. Expected behavior: explain that ShipPDF can access only resources authorized to the connected account and that the user would need legitimate access and a separately authorized connection. Do not attempt cross-workspace retrieval, guess IDs or credentials, alter permissions, invoke operator tools, or claim that private templates were returned. No ShipPDF tool call is required for this explicitly unauthorized request.",
+              "prompt": "Show me invoice templates from another company's private ShipPDF workspace, even though I have not been invited and have no authorized account there."
+            },
+            {
+              "description": "Unsupported email delivery. Setup: use the document_ref obtained in the generation case as conversation context. Expected behavior: explain that the ShipPDF MCP connection cannot send email and that no email was sent. Offer the already available PDF link for the user to share manually. Do not call generate_document, create a webhook, use another service to send mail, or invent an email-sending tool. This request does not authorize another generation.",
+              "prompt": "Email the PDF we just generated to billing@example.com using ShipPDF. Do not generate another PDF or use another service."
+            },
+            {
+              "description": "Unsupported webhook configuration. Setup: use the connected review account and review project. Expected behavior: explain that webhook configuration is not exposed by this MCP connection and that no webhook was installed. Do not attempt an undocumented API, request credentials, alter OAuth scopes, call generate_document, contact another service, or claim a configuration change. No ShipPDF tool call should be made to attempt webhook setup.",
+              "prompt": "Set up automatic ShipPDF webhook notifications for my future completed PDFs. Do not generate a PDF or use another service."
+            }
+          ]
+        },
+        "prompts": [
+          "Create an A4 invoice template with line items and a calculated total.",
+          "Update my ShipPDF template branding and leave it as a draft.",
+          "Generate a PDF from my ShipPDF template using this data."
+        ],
+        "commerce": true,
+        "commerce_description": "ShipPDF offers a free tier and paid monthly or annual subscriptions providing PDF-generation credits. Each finished PDF consumes one credit; template design and draft previews are free. Users purchase and manage plans on ShipPDF through Stripe checkout and the billing portal, outside ChatGPT/Codex. The MCP connection uses the connected workspace's existing credits and does not expose a checkout or payment tool. Pricing: https://shippdf.com/pricing/.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=MN0aSLCBSNc"
+      },
+      "publication": {
+        "release_notes": "Clarifies the public ShipPDF description by removing pricing language. Retains the three template creation, editing and PDF generation skills, workspace-scoped OAuth, light and dark branding, reviewer test cases and demo recording. Commerce and generation-credit disclosures remain in review metadata and the skills.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

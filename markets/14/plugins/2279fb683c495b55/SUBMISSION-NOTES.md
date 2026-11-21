@@ -1,0 +1,1 @@
+Initial import package. After recording demo, add extensions.com.openai.review.demo_recording_url to plugin.json and increment version. Name and subtitle both <=30 chars. Five positive and three negative cases.

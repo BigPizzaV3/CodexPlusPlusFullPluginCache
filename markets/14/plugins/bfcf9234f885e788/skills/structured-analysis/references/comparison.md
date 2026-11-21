@@ -1,0 +1,11 @@
+# Comparison evidence
+
+For each input, retain stable ID, requested version/source kind, actual source binding, observed profile, parser-input hash, and capture/metric revisions. A display version or a submitted component hash is not a parser-input hash or a document write revision.
+
+When inspection is available, retain `coverage`, `metrics`, `limits`, `limitations`, and `page` alongside the selected `untrusted_source_evidence`. Use complete returned JSON pointers for citations. A missing/clipped pointer cannot be reconstructed reliably from a preview.
+
+Follow `inspection.page.nextOffset` while `inspection.page.hasMore` is true. Every current-document page with `offset > 0` and no requested `versionId` requires the first response's `inspection.sourceBinding.sha256` as `expectedSourceHash`, including ordinary project artifacts. For a current response with `propertyAvailability: "enabled"`, also retain the first response's top-level `versionId` as `expectedVersionId` on subsequent pages. An A→B→A source can repeat bytes while changing immutable identity. If that enabled identity is missing, stop rather than downgrade to hash-only paging. Inactive current sources use the hash guard only. Explicit historical reads retain the requested owned `versionId` on every page; `expectedVersionId` is optional on initial and explicit historical pages. If either binding changes, do not combine pages; report the change and restart explicitly against one snapshot. Exhausting retained pages does not erase capture omissions, unreadable/unsupported entries, text-budget omissions, view clipping, or nonprojected fields.
+
+Keep each metric's unit, scope, denominator, rule, and unknown reason. Do not turn null into zero, count preview rows as whole-source totals, add incompatible units, or extrapolate missing populations. Align schema/profile and matching strategy before calling additions/removals; unmatched identities can reflect changed identifiers or incomplete evidence.
+
+A useful comparison separates supported observations, the interpretation applied to them, and unresolved questions. Claims of source validity, deployed behavior, exploitability, or security need separate evidence outside this selected-field inspection.

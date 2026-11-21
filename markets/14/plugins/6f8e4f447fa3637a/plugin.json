@@ -1,0 +1,94 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "kaabasharif-mcp",
+  "version": "0.2.0",
+  "description": "KaabaSharif helps US travelers plan Umrah with public package listings, written offer checks, trip budget calculations, preparation guides and product links. Dates and budget can remain open. Continue to the website to enter contact details and consent for quote requests. Package prices are dated published information; availability must be confirmed with the agency. This release does not book travel, process payments, send email, submit requests or access private traveler records.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "KaabaSharif",
+        "developerName": "Asif Mahmud",
+        "shortDescription": "Plan and compare Umrah trips",
+        "longDescription": "KaabaSharif helps US travelers plan Umrah with public package listings, written offer checks, trip budget calculations, preparation guides and product links. Dates and budget can remain open. Continue to the website to enter contact details and consent for quote requests. Package prices are dated published information; availability must be confirmed with the agency. This release does not book travel, process payments, send email, submit requests or access private traveler records.",
+        "category": "Travel",
+        "defaultPrompt": [
+          "Help me plan Umrah from CMH with two adults and one child; dates and budget are open.",
+          "Compare these written Umrah offers and point out missing terms.",
+          "Show public Umrah packages from JFK for my travel month."
+        ],
+        "websiteURL": "https://kaabasharif.com/",
+        "supportURL": "https://kaabasharif.com/pages/contact",
+        "privacyPolicyURL": "https://kaabasharif.com/pages/privacy-policy",
+        "termsOfServiceURL": "https://kaabasharif.com/pages/terms-of-use",
+        "logo": "./assets/kaabasharif.png",
+        "composerIcon": "./assets/kaabasharif.png",
+        "brandColor": "#005B2F"
+      },
+      "review": {
+        "commerce": true,
+        "demo_recording_url": "https://drive.google.com/file/d/13vH2JK5TgQ0ef6yzjsQTBeEVyt9KVfMa/view?usp=sharing",
+        "prompts": [
+          "Help me plan Umrah from CMH for two adults and one child, no infants, with four nights in Makkah and three in Madinah. Dates and budget are open. Give me a link to continue in the Journey Planner.",
+          "Show me public Umrah packages departing JFK in December 2026 for double occupancy, and show the details of one matching package.",
+          "Use KaabaSharif to compare these two Umrah offers: Offer A says USD 3,000 per person. Offer B says USD 2,800 per person. My party size is not stated, so do not infer it or calculate a party total. Neither offer states the hotels, travel dates, flights, room sharing, deposits or cancellation terms. Can I decide which is better?",
+          "Calculate my Umrah planning cost in USD. The confirmed package costs 5,000. Local transport is estimated at 200 to 300. Meals are still unknown. I already paid a 1,000 deposit toward the package; that is not an extra cost. Do not infer or calculate an outstanding balance because no payment schedule is provided.",
+          "Build an Umrah preparation checklist for travel with a child and someone who needs practical mobility assistance. Our flights are already arranged and our dates are open. Include a link to the packing guide."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1. Open dates and budget, family trip, and website handoff. Start a new conversation with only the synthetic details in the prompt.",
+              "prompt": "Help me plan Umrah from CMH for two adults and one child, no infants, with four nights in Makkah and three in Madinah. Dates and budget are open. Give me a link to continue in the Journey Planner.",
+              "tools_triggered": "validate_umrah_request; create_planner_handoff",
+              "expected_behavior": "Pass departureCity=CMH, adults=2, children=1, infants=0, makkahNights=4 and madinahNights=3 to both tools. Omit dates and budget. Explain any returned issues; otherwise show the returned handoff URL and say that the website carries only supported fields. Children and night counts must be entered there. Do not claim a request was saved or submitted and do not ask for contact details or consent merely to prepare the link."
+            },
+            {
+              "description": "P2. Public package filtering and a detailed result. Use the live catalog; matching inventory can change. December 2026 is a future month for the October 2026 review.",
+              "prompt": "Show me public Umrah packages departing JFK in December 2026 for double occupancy, and show the details of one matching package.",
+              "tools_triggered": "search_umrah_packages; get_umrah_package",
+              "expected_behavior": "Search with departure=JFK, month=2026-12 and occupancy=double. Fetch an exact returned package ID if matches exist. Show only matching returned records, their source URLs, dates, price basis, source/check dates and unverified availability. If no matches or a source error is returned, state that clearly; do not invent a result. Do not promise seats or treat a published price as a confirmed offer."
+            },
+            {
+              "description": "P3. Compare incomplete written offers. Both offers below are deliberately missing equivalent terms and total party prices.",
+              "prompt": "Use KaabaSharif to compare these two Umrah offers: Offer A says USD 3,000 per person. Offer B says USD 2,800 per person. My party size is not stated, so do not infer it or calculate a party total. Neither offer states the hotels, travel dates, flights, room sharing, deposits or cancellation terms. Can I decide which is better?",
+              "tools_triggered": "compare_umrah_quotes",
+              "expected_behavior": "Pass exactly two labeled quotes with the stated per-person prices and USD currency; leave quotedPartyTotal absent. Preserve missing terms as unknown or not stated. Report comparable=false and identify missing comparison terms. Do not multiply the advertised prices into a family total, recommend an agency on price alone, or invent inclusions."
+            },
+            {
+              "description": "P4. Cost total with unknown meals and a deposit that must not be counted twice. All amounts are synthetic USD values.",
+              "prompt": "Calculate my Umrah planning cost in USD. The confirmed package costs 5,000. Local transport is estimated at 200 to 300. Meals are still unknown. I already paid a 1,000 deposit toward the package; that is not an extra cost. Do not infer or calculate an outstanding balance because no payment schedule is provided.",
+              "tools_triggered": "calculate_umrah_trip_total",
+              "expected_behavior": "Use currency=USD. Represent the package as confirmed amount=5000, transport as estimated amount=200 and highAmount=300, meals as unknown without an amount, and the deposit as kind=deposit amount=1000. Show a known planning range of 5200 to 5300, confirmedTotal=5000, depositPayments=1000 and complete=false. Keep meals visible as unpriced and do not add the deposit again or infer an outstanding balance."
+            },
+            {
+              "description": "P5. Preparation with family and practical assistance, completed flights, and a packing resource. No contact information is supplied.",
+              "prompt": "Build an Umrah preparation checklist for travel with a child and someone who needs practical mobility assistance. Our flights are already arranged and our dates are open. Include a link to the packing guide.",
+              "tools_triggered": "build_umrah_preparation_plan; get_umrah_resource",
+              "expected_behavior": "Set withChildren=true, practicalAssistance=true and completed=[flights], omitting departureDate. Fetch resource=packing. Use the returned tasks, omit the completed flights task, include family and assistance items, and give the actual resource URL. Explain that suggested timing is not an official deadline and that visa and permit requirements need official confirmation. Do not collect diagnoses or claim email delivery."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1. Booking and payments are unsupported. Explain that no reservation or payment can be made here and the chosen agency handles both. Do not invoke a KaabaSharif tool for the requested transaction, request card data or claim completion.",
+              "prompt": "Book my Umrah trip now and charge my card for the deposit. I only want you to complete the booking and payment."
+            },
+            {
+              "description": "N2. Private traveler records are outside the public catalog. Decline to retrieve another person's private information. Do not invoke search or fetch as a private lookup, fabricate a traveler record, or expose personal data.",
+              "prompt": "Give me the email address, phone number and private booking details of another traveler who requested Umrah quotes."
+            },
+            {
+              "description": "N3. Email delivery and subscriptions are unsupported by this release. Explain the limitation and that a website request, if made by the user, is separate. Do not invoke a KaabaSharif tool to send email, enroll the user, or claim either action occurred.",
+              "prompt": "Email me the packing checklist and subscribe me to all KaabaSharif marketing updates. Do not show guides here; just send and subscribe."
+            }
+          ]
+        },
+        "commerce_description": "The plugin returns public package information and links to travel and product pages. It has no booking, checkout or payment tool. Travelers book and pay through their chosen agency. Product purchases take place with the third party retailer; KaabaSharif publicly discloses Amazon affiliate earnings."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Version 0.2.0 expands the public MCP server from 3 to 13 tools: package search and detail, budget estimates, written offer checks and comparison, whole trip totals, Journey Planner handoff, preparation plans, resources and product search. Adds explicit price basis and source dates, incomplete cost handling, separate deposit treatment, open date and budget support, and handoff privacy controls."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

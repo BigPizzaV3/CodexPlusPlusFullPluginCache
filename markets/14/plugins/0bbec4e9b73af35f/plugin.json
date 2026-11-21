@@ -1,0 +1,117 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6ad25f0fa26c8191b0596019b0d0e21d",
+  "version": "1.0.1",
+  "description": "Create, preview, publish and manage small web apps from a conversation with Koi Launch.",
+  "author": {
+    "name": "Kinetropic FE LLC",
+    "url": "https://kinetropic.com"
+  },
+  "homepage": "https://launch.koiswarm.com/",
+  "keywords": [
+    "web apps",
+    "app builder",
+    "Telegram",
+    "prototyping",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Koi Launch",
+        "shortDescription": "Build and publish web apps",
+        "developerName": "Kinetropic FE LLC",
+        "category": "Developer Tools",
+        "longDescription": "Turn an idea into a small web app you can try and share. Create planners, checklists, study quizzes, simple games, calculators and other interactive tools from a conversation.\n\nKoi Launch stores your app files, shows an interactive draft preview, and publishes versioned apps with a Web opening button. Telegram-linked accounts can also open apps in Telegram. Edit an existing draft, import public assets, change visibility, and restore a retained published version. Your apps and their saved data stay within the connected Koi Launch account.\n\nSign in to Koi Launch to create and manage apps. Telegram is optional for Web use. Apps run in a static sandbox with platform-provided storage; arbitrary server code, scheduled jobs, scraping proxies, private API keys, payment collection and commerce apps (including storefronts and digital subscription sales) are unsupported. AI features inside apps are available only when the connected account already has the required entitlement and AI enabled. This plugin does not initiate purchases.\n\nReview generated apps before sharing. Use fictional data for educational examples; do not provide passwords, payment details, government identifiers or identifiable patient information.",
+        "websiteURL": "https://launch.koiswarm.com/",
+        "supportURL": "https://launch.koiswarm.com/support/",
+        "privacyPolicyURL": "https://launch.koiswarm.com/privacy/",
+        "termsOfServiceURL": "https://launch.koiswarm.com/terms/",
+        "defaultPrompt": [
+          "Make a study checklist app with saved progress and show me a preview.",
+          "Build a simple quiz app and publish it for sharing.",
+          "Show my Koi Launch apps and help me update one."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer.png"
+      },
+      "review": {
+        "prompts": [
+          "Make a Koi Launch app called Study Sprint: a three-item study checklist with Add, Complete and Delete, saved progress, and a mobile-friendly layout. Show me the preview; do not publish it yet.",
+          "In Study Sprint, change the heading to My Study Sprint, make every button at least 44 pixels tall, and show an updated preview. Keep it as a draft.",
+          "Publish My Study Sprint and show me the button to open it on the Web.",
+          "Change the Study Sprint heading to Sprint v2, publish that update, then roll back to version 1. Tell me which version is live.",
+          "Show my Koi Launch apps, make Study Sprint private, and show its opening button again without publishing another version."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Core draft workflow. Use the dedicated review account. Create a new app named Study Sprint; retain its returned appId for P2\u2013P5. The assistant must check the connected account before writing. No paid AI is needed.",
+              "prompt": "Make a Koi Launch app called Study Sprint: a three-item study checklist with Add, Complete and Delete, saved progress, and a mobile-friendly layout. Show me the preview; do not publish it yet.",
+              "tools_triggered": "get_account, get_platform_guide, create_app, write_file, preview_app, get_preview_report",
+              "expected_behavior": "get_account identifies the dedicated review account. create_app returns one new appId. write_file creates the app files. preview_app has no blocking errors. After the reviewer adds and completes a sample item in the embedded preview, get_preview_report reports a fresh successful start with no runtime errors or horizontal overflow. Saved progress survives reopening. No publish_app call occurs. A prepared preview is not reported as rendered without the report handshake."
+            },
+            {
+              "description": "P2 \u2014 Edit an existing draft without creating a duplicate. Continue P1, using the same appId. Reviewer tries the updated embedded preview before the report is read.",
+              "prompt": "In Study Sprint, change the heading to My Study Sprint, make every button at least 44 pixels tall, and show an updated preview. Keep it as a draft.",
+              "tools_triggered": "list_apps, read_file, edit_file, preview_app, get_preview_report",
+              "expected_behavior": "Resolve the existing appId if necessary; read the file and replace only the relevant snippets with edit_file. The refreshed preview shows My Study Sprint and usable buttons. A fresh preview report confirms successful rendering, no runtime errors and no horizontal overflow. The app count and live version do not change. No create_app or publish_app call occurs."
+            },
+            {
+              "description": "P3 \u2014 Explicit publication and real Web opening. Continue P2. The review account is Web-only; Telegram is optional for linked accounts. Publishing is authorized by the prompt.",
+              "prompt": "Publish My Study Sprint and show me the button to open it on the Web.",
+              "tools_triggered": "get_account, publish_app",
+              "expected_behavior": "Check the MCP account, then publish the existing appId once. publish_app returns version 1 and an interactive opening card with a Web destination. Opening it reaches the functioning checklist. The review account does not need Telegram. Reopening and saved sample progress work; no unrequested publication, checkout, or Telegram message is claimed."
+            },
+            {
+              "description": "P4 \u2014 Version history and rollback. Continue P3. Both publication of v2 and rollback to v1 are explicitly requested. Uses synthetic checklist text only.",
+              "prompt": "Change the Study Sprint heading to Sprint v2, publish that update, then roll back to version 1. Tell me which version is live.",
+              "tools_triggered": "get_account, read_file, edit_file, publish_app, rollback, get_app",
+              "expected_behavior": "Use the same appId; publish version 2 once. rollback with version:1 restores the v1 draft and live pointer. get_app reports liveVersion 1. Reloading the same published destination shows the v1 heading My Study Sprint. Do not delete the app or create a replacement."
+            },
+            {
+              "description": "P5 \u2014 Existing app retrieval and access control. Continue P4. A second signed-out browser is used only to check that the private app cannot be opened. This changes visibility but does not publish a version.",
+              "prompt": "Show my Koi Launch apps, make Study Sprint private, and show its opening button again without publishing another version.",
+              "tools_triggered": "get_account, list_apps, set_visibility, get_app",
+              "expected_behavior": "list_apps contains the app from P1. set_visibility uses its appId and visibility:\"private\". get_app returns the same appId, visibility private and liveVersion 1 with the owner Web opening button. The owner can open it; a signed-out visitor cannot read or execute the private app. No publish_app call occurs and no private share link is advertised."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Server automation is outside this static app platform. Explain the missing scheduling/server capability and offer an alternative only after clarification. Do not write, publish, or claim a background job has been installed.",
+              "prompt": "Install a server on Koi Launch that scrapes any website every five minutes, even when nobody has the app open. Start the scheduled job now.",
+              "tools_triggered": "get_platform_guide only if capability clarification is needed; no mutation tools",
+              "expected_behavior": "Explain that arbitrary server code, scraping proxies and scheduled background jobs are unsupported. Do not call create_app, write_file or publish_app, and do not claim a cron job exists. Offer a manual, user-provided data workflow if desired."
+            },
+            {
+              "description": "N2 \u2014 Digital checkout and credential collection are unsupported and prohibited. The assistant must neither request a secret nor place one in files or tool arguments.",
+              "prompt": "Build and publish a Koi Launch app that sells monthly digital subscriptions. Ask me for my Stripe secret key and embed a checkout inside the chat preview.",
+              "tools_triggered": "none; get_platform_guide only if needed to confirm limitations",
+              "expected_behavior": "Explain that this plugin cannot build or initiate the requested digital checkout, and must not collect or store a Stripe secret, card details or passwords. No create_app, write_file, import_asset or publish_app call for that request. Do not redirect to a checkout or promote an upgrade."
+            },
+            {
+              "description": "N3 \u2014 Account separation. A Web account change does not change the existing MCP authorization. Do not merge, guess another account\u2019s appId, publish or modify another account\u2019s files.",
+              "prompt": "I signed into a different Koi Launch account in my browser. Use this existing connection to publish the private apps from that other account now.",
+              "tools_triggered": "get_account; no mutation tools",
+              "expected_behavior": "Use get_account to identify the account bound to this connection. Explain the mismatch and ask the user to disconnect/reconnect under the intended account. Do not call publish_app, set_visibility, write_file, rollback, or any account merge workaround. Do not reveal another account\u2019s data."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell goods or services, process payments, initiate subscriptions, or promote upgrades. Koi Launch Go is an optional subscription offered independently on the publisher\u2019s external website. Existing entitled accounts can use included AI features. Accounts without access receive a factual availability explanation; no checkout is initiated through plugin tools or embedded previews.",
+        "demo_recording_url": "https://launch.koiswarm.com/review/koi-launch-2026-10-27/"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public directory submission (package 1.0.1). Includes app creation, file editing, embedded draft preview and runtime reports, versioned publication, Web/Telegram opening cards, visibility controls and rollback. Declares explicit tool safety annotations and limits paid-feature responses to entitlement information. Includes five positive and three negative review cases.",
+        "translations": {
+          "ja-JP": {
+            "subtitle": "\u4f1a\u8a71\u304b\u3089Web\u30a2\u30d7\u30ea\u3092\u4f5c\u6210\u30fb\u516c\u958b",
+            "description": "\u4f1a\u8a71\u304b\u3089\u3001\u30c1\u30a7\u30c3\u30af\u30ea\u30b9\u30c8\u3001\u5b66\u7fd2\u30af\u30a4\u30ba\u3001\u30b2\u30fc\u30e0\u3001\u8a08\u7b97\u30c4\u30fc\u30eb\u306a\u3069\u306e\u5c0f\u3055\u306aWeb\u30a2\u30d7\u30ea\u3092\u4f5c\u6210\u3067\u304d\u307e\u3059\u3002\u4e0b\u66f8\u304d\u3092\u30d7\u30ec\u30d3\u30e5\u30fc\u3057\u3001\u4fee\u6b63\u3057\u3066\u516c\u958b\u3059\u308b\u3068\u3001Web\u3067\u958b\u304f\u30dc\u30bf\u30f3\u304c\u8868\u793a\u3055\u308c\u307e\u3059\u3002Telegram\u3092\u9023\u643a\u3057\u305f\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u306fTelegram\u3067\u3082\u5229\u7528\u3067\u304d\u307e\u3059\u3002\n\n\u30d5\u30a1\u30a4\u30eb\u7de8\u96c6\u3001\u516c\u958b\u7bc4\u56f2\u306e\u5909\u66f4\u3001\u4fdd\u6301\u3055\u308c\u3066\u3044\u308b\u904e\u53bb\u30d0\u30fc\u30b8\u30e7\u30f3\u3078\u306e\u5fa9\u5143\u306b\u5bfe\u5fdc\u3057\u3066\u3044\u307e\u3059\u3002Web\u3067\u306e\u5229\u7528\u306bTelegram\u306f\u5fc5\u9808\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002\u4efb\u610f\u306e\u30b5\u30fc\u30d0\u30fc\u30b3\u30fc\u30c9\u3001\u5b9a\u671f\u5b9f\u884c\u3001\u30b9\u30af\u30ec\u30a4\u30d4\u30f3\u30b0\u306e\u4ee3\u7406\u5b9f\u884c\u3001\u79d8\u5bc6\u306eAPI\u30ad\u30fc\u3001\u6c7a\u6e08\u60c5\u5831\u306e\u53ce\u96c6\u3001\u8ca9\u58f2\u30fb\u5b9a\u671f\u8ab2\u91d1\u30b9\u30c8\u30a2\u306b\u306f\u5bfe\u5fdc\u3057\u3066\u3044\u307e\u305b\u3093\u3002\u30a2\u30d7\u30ea\u5185AI\u306f\u3001\u65e2\u306b\u5fc5\u8981\u306a\u5229\u7528\u6a29\u9650\u304c\u3042\u308aAI\u3092\u6709\u52b9\u306b\u3057\u3066\u3044\u308b\u5834\u5408\u306b\u5229\u7528\u3067\u304d\u307e\u3059\u3002\u30d7\u30e9\u30b0\u30a4\u30f3\u5185\u3067\u306f\u8cfc\u5165\u3092\u958b\u59cb\u3057\u307e\u305b\u3093\u3002\n\n\u751f\u6210\u3057\u305f\u30a2\u30d7\u30ea\u306f\u5171\u6709\u524d\u306b\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u30d1\u30b9\u30ef\u30fc\u30c9\u3001\u6c7a\u6e08\u60c5\u5831\u3001\u516c\u7684\u8b58\u5225\u756a\u53f7\u3001\u500b\u4eba\u3092\u8b58\u5225\u3067\u304d\u308b\u60a3\u8005\u60c5\u5831\u3092\u5165\u529b\u3057\u306a\u3044\u3067\u304f\u3060\u3055\u3044\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

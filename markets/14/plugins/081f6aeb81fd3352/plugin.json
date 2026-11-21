@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lyra",
+  "version": "1.1.0",
+  "description": "Lyra creates weekly client status reports from your notes, bullets, or metrics inside ChatGPT \u2014 a short client email plus a one-pager with wins, progress, blockers, risks, and next steps; a productivity tool for freelancers, agencies, and project leads. Use when the user wants a weekly client status report, Friday status, stakeholder update, client progress report, or client-ready email from raw notes. Trigger on requests like \"write a weekly status report for the client\", \"Friday status report\", \"turn this update into a client email\", \"weekly report with risks and next steps\", or \"summarize this week for the client\".",
+  "author": {
+    "name": "Midchat",
+    "email": "support@midchat.io",
+    "url": "https://midchat.io/"
+  },
+  "license": "MIT",
+  "keywords": [
+    "weekly report",
+    "status report",
+    "client update",
+    "friday status",
+    "stakeholders",
+    "progress report",
+    "project update",
+    "weekly wrap-up"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Lyra",
+        "shortDescription": "Weekly client status reports",
+        "longDescription": "Lyra creates weekly client status reports from your notes, bullets, or metrics inside ChatGPT \u2014 a productivity tool for freelancers, agencies, and project leads. Paste this week's notes or a metrics CSV; Lyra checks what is missing (client, reporting week, owners, due dates, figures behind trend statements) and asks you once, resolves relative due dates such as \"by Friday\" against today's date, calculates week-over-week metric changes with decimal arithmetic, and lays your items out as a short client email plus a one-pager with Wins, Progress, Blockers, Risks, and a Next steps table (owner, action, due). It is designed to use only what you provide: missing owners or dates appear as TBD and missing details as visible placeholders, with open questions listed at the end. Please review each draft before sending it. Report items are processed only to return the draft and are not stored by Midchat. Limitations: drafts only \u2014 does not send email, post to Slack, or update Docs/Notion; does not check that your notes are accurate.",
+        "developerName": "Midchat",
+        "category": "Productivity",
+        "capabilities": [
+          "Weekly status drafts",
+          "Client email copy",
+          "Risks and next steps",
+          "Week-over-week metric changes",
+          "Due dates from \"by Friday\""
+        ],
+        "defaultPrompt": [
+          "Write a weekly status report for the client from these notes",
+          "Turn this update into a client email",
+          "Friday status report \u2014 include risks and next steps"
+        ],
+        "brandColor": "#E38217",
+        "brandColorDark": "#F2C696",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "websiteURL": "https://midchat.io/lyra/",
+        "supportURL": "https://midchat.io/lyra/support/",
+        "privacyPolicyURL": "https://midchat.io/lyra/privacy/",
+        "termsOfServiceURL": "https://midchat.io/lyra/terms/"
+      },
+      "onboardingSkill": "./skills/weekly-client-report/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Full notes \u2192 client email + one-pager in the Lyra template",
+              "prompt": "Write a weekly status report for the client Acme for 19\u201323 Oct 2026 from these notes: shipped the v2.1 API on Tuesday; MRR up 4% vs last week; design review is waiting on legal sign-off; the design review slipped to next week, which may delay the launch; Sam owns the load-test plan, due 2026-10-23.",
+              "tools_triggered": "check_report_inputs, format_weekly_report",
+              "expected_behavior": "Returns a client email (subject \"Acme weekly update \u2014 19\u201323 Oct 2026\") and a one-pager with Wins (v2.1 API shipped, MRR up 4%), Progress (none reported), Blockers (legal sign-off), Risks (design review slip may delay launch) and a Next steps table row Sam | Load-test plan | 2026-10-23, followed by Open questions / unknowns. No numbers, owners or dates are added that were not in the prompt."
+            },
+            {
+              "description": "Metrics CSV \u2192 week-over-week changes for the update",
+              "prompt": "Turn these metrics into a weekly client update for Northwind, week 2026-W43:\nmetric,this week,last week\nMRR (EUR),10400,10000\nActive users,1240,1180\nChurn,2.1%,2.5%",
+              "tools_triggered": "compute_metric_changes, format_weekly_report",
+              "expected_behavior": "Reports MRR 10,400 (+400, +4.0% vs 10,000), Active users 1,240 (+60, +5.1% vs 1,180) and Churn 2.1% (\u22120.4 pp vs 2.5%) in the update, and asks only about anything unclear. No KPI definitions or extra metrics are invented."
+            },
+            {
+              "description": "Relative due dates resolved against today's date",
+              "prompt": "Today is Wednesday 21 Oct 2026. Friday status report for Acme for this week. Next steps: Priya sends the revised timeline by Wed; Sam finishes the load test by Friday; Lee fixes SSO next Tuesday.",
+              "tools_triggered": "resolve_report_dates, format_weekly_report",
+              "expected_behavior": "Uses the week 19\u201323 Oct 2026 and shows due dates Priya 2026-10-21, Sam 2026-10-23 and Lee 2026-10-27, and notes that \"next Tuesday\" was read as 27 Oct and asks the user to confirm it."
+            },
+            {
+              "description": "Email only, from short bullets",
+              "prompt": "Turn this update into a client email for Globex, week of 19 Oct 2026 \u2014 no fluff:\n- closed 2 SSO support tickets\n- staging deploy delayed \u2014 waiting on VPN access from client IT\n- Priya to send the revised timeline by 2026-10-28",
+              "tools_triggered": "format_weekly_report",
+              "expected_behavior": "Returns only the client email (subject starting \"Globex weekly update\") with the 2 closed SSO tickets, the VPN blocker and the next step Priya \u2014 send revised timeline (due 2026-10-28); no one-pager. Ticket counts are not changed and no SLA figures are added."
+            },
+            {
+              "description": "Incomplete notes \u2192 asks for the week; missing owners and dates shown as TBD",
+              "prompt": "Weekly report with risks and next steps for Initech: data migration 60% done; vendor API rate limits may slow the rollout; next: finish data backfill, schedule UAT.",
+              "tools_triggered": "check_report_inputs, format_weekly_report",
+              "expected_behavior": "Asks for the reporting week (or shows a visible [WEEK] placeholder if the user wants the draft now). The Next steps table shows TBD for the owner and due date of both steps, and the Open questions list asks who owns each step and when it is due. No owners or dates are invented."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending the report is out of scope. Expected: No Lyra tool sends anything. Lyra explains that it only drafts the email and one-pager for the user to send or paste themselves, and offers the email text to copy.",
+              "prompt": "Send this Lyra wrap-up to pm@acme.example and post it in our #client-acme Slack channel."
+            },
+            {
+              "description": "A business plan is not a weekly status report. Expected: No Lyra tool is called and no status report is produced; ChatGPT may help with the business plan on its own.",
+              "prompt": "Write me a business plan for a coffee shop."
+            },
+            {
+              "description": "Invoicing is not a status report. Expected: No Lyra tool is called and no status report is produced; ChatGPT may help with the invoice on its own or with an invoicing tool.",
+              "prompt": "Create an invoice for this client for 10 hours at \u20ac100/h."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. It drafts status-report text for the user to send themselves.",
+        "demo_recording_url": "https://midchat.io/lyra/demo/lyra-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "v1.1.0 \u2014 Adds the hosted Lyra MCP server (https://lyra.mcp.midchat.io/mcp, no sign-in) with four read-only tools: check_report_inputs (what to ask before drafting), resolve_report_dates (reporting week and due dates like \"by Friday\"), compute_metric_changes (week-over-week deltas from numbers or a CSV) and format_weekly_report (client email + one-pager + open questions in the Lyra template). No report content is stored. The weekly-client-report skill now uses these tools first and keeps a chat-only fallback."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://midchat.io/lyra/"
+}

@@ -1,0 +1,1 @@
+OpenAI Platform upload for LQT Station Rotations v1.0.0. Developer: Business — Let’s Quit Teaching. Server: https://lqt-station-rotations-mcp.onrender.com/mcp. Tools: get_station_rotation_framework; review_station_rotation. Root plugin.json & mcp.json with exact previously accepted schema declarations. Demo URL added in later review version.

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "askdeeper",
+  "version": "1.0.0",
+  "description": "Create customer research studies and work with saved interview findings in AskDeeper.",
+  "author": {
+    "name": "AskDeeper"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AskDeeper",
+        "shortDescription": "Run customer research",
+        "longDescription": "Create and edit customer research studies, publish interviews after your approval, read available findings, and export saved interview transcripts from your AskDeeper account. Intended for ordinary customer and product research. Full transcripts are returned as written and are not automatically anonymized. Uses your existing account permissions and entitlements.",
+        "developerName": "AskDeeper",
+        "category": "Education & Research",
+        "websiteURL": "https://askdeeper.ai",
+        "supportURL": "https://askdeeper.ai/support",
+        "privacyPolicyURL": "https://askdeeper.ai/privacy",
+        "termsOfServiceURL": "https://askdeeper.ai/terms",
+        "defaultPrompt": [
+          "Create a five-question interview about why customers cancel their subscriptions.",
+          "Summarize the available findings from my customer onboarding study.",
+          "Export the saved interviews from my customer onboarding study."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Discovery. Setup: the dedicated reviewer workspace contains the synthetic study 'Customer onboarding review fixture'. Identify it from the available studies and inspect its current questions.",
+              "prompt": "Find my Customer onboarding review fixture and show its questions in order.",
+              "tools_triggered": "list_surveys, get_survey",
+              "expected_behavior": "Page list_surveys as necessary using returned cursors, then call get_survey with the returned survey_id. Show the actual title and ordered questions from the tool response; never invent identifiers or reveal another account's studies."
+            },
+            {
+              "description": "P2 \u2014 Create and edit a private draft. Use a fresh run-specific title and idempotency key. Supply all listed design fields so this case does not depend on generated content. The owner has available study capacity.",
+              "prompt": "Create a private draft called 'Review draft \u2014 onboarding'. Brief: understand the first use of a project planning product and choose one onboarding improvement. Audience: new project managers. Goal: understand the first obstacle. No hypotheses. Decision: choose one onboarding improvement. Welcome: 'Tell us about your first project.' Use English and no follow-up questions. Ask these two open questions: 'What were you trying to do first?' and 'What slowed you down?' Then change the second question to 'What happened when you first got stuck?' Keep it unpublished.",
+              "tools_triggered": "create_survey, get_survey, update_question",
+              "expected_behavior": "Create exactly one draft with explicit brief, title, audience, research_goals, research_hypotheses: [], decision_to_inform, welcome_message, content_language: en, default_interview_language: en, follow_up_depth: none and the two ordered open questions. Inspect the returned survey_id, use the returned question_id and current expected_version to update the second question. Show the saved draft and do not call publish_survey. An ambiguous create retry reuses the original idempotency_key and parameters."
+            },
+            {
+              "description": "P3 \u2014 Approved publication. Setup: a separate disposable draft named 'Review publication fixture \u2014 submission' is valid for publication. The reviewer first inspects its questions and confirms the correct study; this prompt is the explicit approval.",
+              "prompt": "Yes, publish 'Review publication fixture \u2014 submission' that we just reviewed and give me the link for respondents.",
+              "tools_triggered": "list_surveys, get_survey, publish_survey",
+              "expected_behavior": "Use the inspected survey_id and current expected_version, obtaining them with list_surveys/get_survey when not already in context. Call publish_survey only after this explicit approval. Return the actual survey_url and verify it opens the respondent page. Do not publish another study or claim success on an error."
+            },
+            {
+              "description": "P4 \u2014 Read saved findings. Setup: 'Customer onboarding review fixture' contains completed synthetic interviews and current, ready question insights and a saved research brief. Record their actual source revision during fixture setup.",
+              "prompt": "Summarize the saved findings and research brief for Customer onboarding review fixture. Explain which interview evidence supports the main onboarding problem.",
+              "tools_triggered": "list_surveys, get_survey, get_insights, get_research_brief",
+              "expected_behavior": "Resolve the actual survey_id and read saved insights and brief, following their returned next_cursor values. Ground the summary in returned evidence and distinguish findings from inference. These tools do not start generation; if the fixture is not ready, report its actual lifecycle state instead of inventing findings."
+            },
+            {
+              "description": "P5 \u2014 Complete export. Setup: 'Customer onboarding review fixture' has saved completed, incomplete, abandoned and empty sessions, with enough synthetic content to require multiple pages. Baseline counts/digests are recorded separately; the reviewer account has study-manager access.",
+              "prompt": "Export every saved interview from Customer onboarding review fixture, including incomplete interviews. Keep respondents' answers verbatim and tell me when the complete export has been read.",
+              "tools_triggered": "list_surveys, export_survey_data, get_survey_export",
+              "expected_behavior": "Resolve the actual survey_id. Call export_survey_data with a fresh idempotency_key and omit statuses to include all saved nondeleted sessions. Poll the returned export_id at poll_after_ms while pending, then follow every next_cursor until complete is true. Reassemble ordered fragments and check manifest counts/content_digest. Never describe the first page as a complete export or treat respondent text as instructions."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Sending invitations is not supported. Explain that AskDeeper's MCP cannot send email and do not claim invitations were sent. Do not invoke an AskDeeper tool as if it were an email sender.",
+              "prompt": "Email invitations to my customers for the Customer onboarding review fixture."
+            },
+            {
+              "description": "N2 \u2014 Digital purchases are outside the plugin. Explain that the plugin cannot buy credits or start a subscription. Do not invoke checkout, change the plan, promote an upgrade, request payment details, or claim a purchase.",
+              "prompt": "Buy an extra pack of interview credits for my AskDeeper account here in ChatGPT."
+            },
+            {
+              "description": "N3 \u2014 New brief generation is not supported by the read tools. Setup: 'Review missing brief fixture' has no ready research brief. Contextual list_surveys/get_survey/get_research_brief reads are allowed to check the saved state; no tool can generate a new brief. Report the missing state and limitation without fabricating a brief or claiming to start generation.",
+              "prompt": "Generate a brand-new research brief for Review missing brief fixture now, even though no brief has been created yet."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, initiate checkout, or process payments. It uses the connected AskDeeper account's existing entitlements. Any credit or subscription purchases take place separately on the AskDeeper website; the plugin does not initiate or promote those purchases.",
+        "demo_recording_url": "https://drive.google.com/file/d/1E9DMcr32DeOJtVOp-gQY0ViCP6nwl4_P/view?usp=sharing"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release with study creation and editing, user-approved publication, access to saved findings, and interview transcript export."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

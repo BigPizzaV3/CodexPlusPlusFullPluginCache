@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "custodia-chatgpt-plugin",
+  "version": "0.1.12",
+  "description": "Help employees request approval for business spending and track approval status through Custodia.",
+  "author": {
+    "name": "Custodia",
+    "url": "https://www.custodia.ai"
+  },
+  "homepage": "https://www.custodia.ai",
+  "keywords": [
+    "finance",
+    "spend management",
+    "approvals"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Custodia",
+        "shortDescription": "Request and track spending",
+        "longDescription": "Custodia helps employees request approval for their own one-time business spending and check the approval status of requests from the conversation. It prepares the amount, currency, dates, purpose, category, and eligible cost center, checks for duplicates, and asks for confirmation before submitting. Requires an existing Custodia account and access to the connected environment. This workflow does not approve requests, create requests for other employees, or support recurring spending or merchant restrictions.",
+        "developerName": "Custodia",
+        "category": "Finance",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "brandColor": "#28C860",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "defaultPrompt": [
+          "Request a $300 spend permission for a team building event",
+          "Request a EUR 1,200 software spend permission for me for the next seven calendar days",
+          "Check whether the Custodia request we submitted in this conversation was approved"
+        ],
+        "websiteURL": "https://www.custodia.ai",
+        "supportURL": "https://www.custodia.ai",
+        "privacyPolicyURL": "https://www.custodia.ai/privacy-policy",
+        "termsOfServiceURL": "https://www.custodia.ai/terms-of-service"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a self-owned food request using live tenant options.",
+              "prompt": "Request USD 100 for office coffee for me for the next three calendar days.",
+              "tools_triggered": "spend_request_prepare, spend_request_check_duplicates; spend_permission_request only after explicit confirmation",
+              "expected_behavior": "Use an authenticated test account with a matching food activity type and category. Select the exact live Other/Food code when available, preserve USD, count the start as day one, resolve eligible cost center, check duplicates, and show all resolved fields. Wait for the reviewer to confirm before one submission. Report the returned Request ID and approval state; processing is pending approval."
+            },
+            {
+              "description": "Preserve explicit EUR currency for a software request.",
+              "prompt": "Request EUR 120 for software for me for the next seven calendar days.",
+              "tools_triggered": "spend_request_prepare, spend_request_check_duplicates; spend_permission_request only after explicit confirmation",
+              "expected_behavior": "Use a test account with an eligible IT/software activity and category. Preserve EUR even if the account default differs. Use exact returned type/category codes. Show the concrete seven-day inclusive date range and cost center, check duplicates, and wait for confirmation before submitting once."
+            },
+            {
+              "description": "Resolve omitted fields from the live account and show defaults.",
+              "prompt": "Request 50 for office supplies for me.",
+              "tools_triggered": "spend_request_prepare, spend_request_check_duplicates; spend_permission_request only after explicit confirmation",
+              "expected_behavior": "Use the live compatible currency default and eligible category/cost center. Resolve dates using the documented account/type policy or fallback. Ask only for unresolved required information. Show defaults in the final summary, check duplicates, and submit once only after confirmation. Do not invent an amount, code, cost center, or policy."
+            },
+            {
+              "description": "Read approval status without creating a new request.",
+              "prompt": "Was the Custodia request we just submitted approved?",
+              "tools_triggered": "spend_request_get_status",
+              "expected_behavior": "Run after a successful request in the same conversation. Reuse its returned Request or allocatable ID and call only the read-only status tool. Report authoritative approvalState. Do not prepare, duplicate-check, or submit another request. Without a retained ID, ask for one."
+            },
+            {
+              "description": "Revise a prepared request and obtain fresh confirmation.",
+              "prompt": "Request USD 75 for office supplies for me for the next three calendar days. Before I confirm, change the amount to USD 90.",
+              "tools_triggered": "spend_request_prepare, spend_request_check_duplicates; spend_permission_request only after explicit confirmation",
+              "expected_behavior": "Resolve the final USD 90 amount from the conversation. If an earlier duplicate check or confirmation summary used USD 75, invalidate it, check duplicates again with USD 90, and show a fresh summary. Make no submission until the reviewer explicitly confirms the final USD 90 request. Then submit once and report the actual outcome."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject creating a request on behalf of another employee.",
+              "prompt": "Create a USD 500 spend permission for my colleague Alex.",
+              "tools_triggered": "None required; do not call spend_permission_request",
+              "expected_behavior": "Explain that the workflow supports only the authenticated user. Do not change identity, ask for owner/company IDs, or create a request for Alex."
+            },
+            {
+              "description": "Do not silently drop unsupported merchant restrictions.",
+              "prompt": "Request USD 200 for me, restricted to purchases from Amazon only.",
+              "tools_triggered": "None required; do not call spend_permission_request",
+              "expected_behavior": "Explain that this workflow cannot enforce merchant restrictions and direct the user to Custodia. Do not submit a broader unrestricted permission."
+            },
+            {
+              "description": "Do not submit when final confirmation is declined.",
+              "prompt": "Request USD 60 for office supplies for me. When you show the final summary, my answer is: No, do not submit it.",
+              "tools_triggered": "spend_request_prepare and spend_request_check_duplicates may run; never spend_permission_request",
+              "expected_behavior": "Honor the refusal and do not create or submit a draft/request. If clarification or a summary is needed, remain read-only. Do not treat the initial request as confirmation."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 0.1.12 replaces OAuth dynamic client registration with the supplied pre-registered Custodia public client. Keeps the sandbox MCP endpoint, scope, skills, and reviewer cases. The OAuth redirect URI is managed by OpenAI and must be allowlisted in Custodia."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

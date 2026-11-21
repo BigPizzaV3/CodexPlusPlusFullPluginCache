@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "runtrip-ai",
+  "version": "1.0.0",
+  "description": "Plan a trip day by day: timed stops with costs, an estimated total, and a link to view and share the plan. Built around your dates, flights and must-sees.",
+  "author": {
+    "name": "Runtrip",
+    "email": "care@runtrip.ai",
+    "url": "https://runtrip.ai"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Runtrip AI",
+        "shortDescription": "Plan trips day by day",
+        "longDescription": "Runtrip AI plans a trip day by day, right in the conversation. Tell the assistant where you're going, for how many days and where you're departing from. If you know them, add your dates, who is travelling, when your flight lands and takes off, the places you want to see, and your interests or pace.\n\nRuntrip builds the plan with the same planner as runtrip.ai. Each day gets a title and timed stops, each with its cost, and the trip gets an estimated total for flights, stays and activities. Venues are checked against the days they are closed, and day 1 starts after your flight lands.\n\nA plan takes one to two minutes. The card shows that it is being built and fills in when it is ready; the full plan also comes back as text.\n\nEach plan is saved at an unlisted link on runtrip.ai, where you can view it and share it. A second link opens the trip in Runtrip's chat to refine it. The app plans at most 4 days of a trip; the result says how many of the requested days were planned, and the full trip can be planned on runtrip.ai. The number of plans per day is limited.\n\nRuntrip receives only the trip details the assistant sends, never the rest of your conversation. It creates no account and sets no cookie.",
+        "developerName": "Oleg Gordienov",
+        "category": "Travel",
+        "capabilities": [
+          "Plan a trip day by day with timed stops and costs",
+          "Estimate a trip's total cost",
+          "Save each plan at a shareable link"
+        ],
+        "websiteURL": "https://runtrip.ai/ai-app",
+        "supportURL": "https://runtrip.ai/privacy#contact",
+        "privacyPolicyURL": "https://runtrip.ai/privacy#ai-app",
+        "termsOfServiceURL": "https://runtrip.ai/terms",
+        "defaultPrompt": [
+          "Plan a 4-day trip to Rome from London",
+          "Plan 3 days in Lisbon for 2 adults and a 7-year-old, flying from Berlin",
+          "Plan a long weekend in Kyoto for food and temples, flying from Seoul"
+        ],
+        "brandColor": "#1C1B18",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Full brief with a landing time and a must-see",
+              "prompt": "Plan a 4-day trip to Rome from London, starting next Saturday. We land at 17:05 and we'd love to see the Colosseum.",
+              "tools_triggered": "plan_trip",
+              "expected_behavior": "Calls plan_trip with { destination: \"Rome, Italy\", days: 4, origin: \"London\", startDate: <next Saturday>, arrivalTime: \"17:05\", mustSees: [\"Colosseum\"] }. If the result is planning, the card polls get_trip_plan (or the model calls it) until the plan is ready. Shows 4 days with timed stops and costs, day 1's first stop after the airport transfer no earlier than 18:05, the Colosseum in the plan, the estimated total, and links to the plan's page and to Runtrip's chat. Example run (ChatGPT, 2026-10-23): \"Rome, Italy, 31 Oct \u2013 3 Nov 2026\", estimated total \u20ac836."
+            },
+            {
+              "description": "Request longer than the 4-day cap",
+              "prompt": "Plan a 7-day trip to Barcelona from Paris for two adults.",
+              "tools_triggered": "plan_trip",
+              "expected_behavior": "Calls plan_trip with { destination: \"Barcelona, Spain\", days: 7, origin: \"Paris\", adults: 2 }. Shows 4 days and the line \"Planned 4 of the 7 requested days. The full trip can be planned on runtrip.ai.\", the estimated total and both links. Example run (ChatGPT, 2026-10-23): Barcelona, 13\u201316 Nov 2026, 4 of 7 days, estimated total \u20ac1,314."
+            },
+            {
+              "description": "Family trip, asked in French",
+              "prompt": "Planifie un s\u00e9jour de 3 jours \u00e0 Lisbonne au d\u00e9part de Lyon, pour 2 adultes et un enfant de 7 ans.",
+              "tools_triggered": "plan_trip",
+              "expected_behavior": "Calls plan_trip with { destination: \"Lisbon, Portugal\", days: 3, origin: \"Lyon\", adults: 2, childrenAges: [7], language: \"fr\" }. Shows 3 days with day titles and stops in French, the estimated total and both links. Example run (ChatGPT, 2026-10-23): Lisbon, 13\u201315 Nov 2026, day titles in French, estimated total \u20ac1,317."
+            },
+            {
+              "description": "Departure city missing",
+              "prompt": "Plan me 3 days in Prague.",
+              "tools_triggered": "plan_trip",
+              "expected_behavior": "Asks which airport the trip departs from, then calls plan_trip with { destination: \"Prague, Czechia\", days: 3, origin: <the answer> } and shows 3 days, the estimated total and both links. Example run (ChatGPT, 2026-10-24): Prague, 14\u201316 Nov 2026, 2 adults, estimated total \u20ac653."
+            },
+            {
+              "description": "Short trip with an infant and a return flight time, asked in German",
+              "prompt": "Plane 2 Tage in Wien ab M\u00fcnchen f\u00fcr 2 Erwachsene und ein Baby, ab n\u00e4chstem Freitag. Unser R\u00fcckflug geht am letzten Tag um 18:30.",
+              "tools_triggered": "plan_trip",
+              "expected_behavior": "Calls plan_trip with { destination: \"Vienna, Austria\", days: 2, origin: \"Munich\", adults: 2, infants: 1, startDate: <next Friday>, departureTime: \"18:30\", language: \"de\" }. Shows 2 days in German, the last day planned around the 18:30 take-off, the estimated total and both links. Example run (ChatGPT, 2026-10-24): Vienna, 30\u201331 Oct 2026, in German, day 2 ending with the 15:30 transfer to the airport, estimated total \u20ac930."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Flight booking request",
+              "prompt": "Book me a flight from London to Rome on the 5th of December."
+            },
+            {
+              "description": "Visa question",
+              "prompt": "Do I need a visa to visit Japan with a UK passport?"
+            },
+            {
+              "description": "Weather question about a destination",
+              "prompt": "What's the weather usually like in Rome in December?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://youtu.be/ZYV5i6ulYXo"
+      },
+      "publication": {
+        "release_notes": "Initial release."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
