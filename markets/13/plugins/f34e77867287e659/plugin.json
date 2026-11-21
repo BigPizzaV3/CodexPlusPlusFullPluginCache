@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "formulio-recipe-workflows",
+  "version": "0.3.4",
+  "description": "Develop, import and improve confectionery recipes, and build recipe collections, with Formul.io.",
+  "author": {
+    "name": "Formul.io",
+    "email": "support@formul.io",
+    "url": "https://formul.io"
+  },
+  "homepage": "https://formul.io/mcp",
+  "keywords": [
+    "confectionery",
+    "recipes",
+    "formulation",
+    "chocolate",
+    "ice-cream"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Formul.io",
+        "shortDescription": "Confectionery calculator",
+        "longDescription": "Develop confectionery recipes with the Formul.io calculation engine and your own recipe library. Find saved recipes, inspect ingredients and formulation metrics, compare changes without saving, import existing recipes, and organize recipes into private project collections.\n\nFive included workflows help you develop a new recipe, faithfully import an existing recipe, improve a saved recipe, prototype a recipe line, or curate an existing collection. Calculations come from the Formul.io engine. Changes are saved only within your request and granted permissions.\n\nConnect your Formul.io account through OAuth. Whole files are imported in the Formul.io app. Inventory and shopping tools require those features to be enabled on your account.\n\nCalculated properties and shelf-life estimates guide formulation; they do not certify food safety or replace measurements and product testing.",
+        "developerName": "Formul.io",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://formul.io/mcp",
+        "supportURL": "https://formul.io/contact",
+        "privacyPolicyURL": "https://formul.io/privacy",
+        "termsOfServiceURL": "https://formul.io/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "defaultPrompt": [
+          "Develop a 500 g dark chocolate ganache and show its calculated metrics before saving.",
+          "Inspect my ganache and compare two ways to reduce sweetness without changing the saved recipe.",
+          "Create a private Autumn Collection from three suitable recipes in my library."
+        ]
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "The plugin does not sell goods, place orders, initiate checkout or process payments. Formul.io offers Free and Pro accounts; Pro subscription purchases are handled separately on the Formul.io website or in its mobile app, outside the MCP integration.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inspect a saved recipe. Use a dedicated review account containing Directory Demo Ganache with 200 g Dark Chocolate 70% and 100 g Heavy Cream 35%. Discover its ID by name; do not hard-code an ID. The recipe must be owned by the review account.",
+              "prompt": "Find Directory Demo Ganache in my library. Show its ingredients, formulation metrics and quality assessment. Do not change it.",
+              "tools_triggered": "list_recipes; get_recipe; get_recipe_metrics; analyze_recipe (or analysis returned by get_recipe)",
+              "expected_behavior": "The assistant finds the owned recipe, displays its actual ingredient amounts, reports metrics and assessment backed by tool results, and provides its application link. No recipe, note, version or collection is written. Missing or ambiguous matches cause a clarification instead of an invented recipe."
+            },
+            {
+              "description": "Compare a specific change without saving. Use the same unmodified Directory Demo Ganache fixture. Read the actual chocolate ingredient ID from the recipe before simulating. Run independently from any save case.",
+              "prompt": "For Directory Demo Ganache, compare changing the chocolate from 200 g to 240 g while keeping the cream at 100 g. Show the before-and-after metrics and leave my saved recipe unchanged.",
+              "tools_triggered": "list_recipes; get_recipe; simulate_changes; show_card; get_recipe",
+              "expected_behavior": "simulate_changes uses the saved recipe_id and an update of the discovered chocolate ingredient with quantity 240. The final comparison is shown once with show_card (kind comparison) and the assistant describes actual returned deltas, including any missing metric. A fresh get_recipe confirms the saved ingredient quantities remain 200 g chocolate and 100 g cream. No write tools are called."
+            },
+            {
+              "description": "Develop a new formula without persisting it. The review account needs ingredient-search and calculation permissions. Use existing catalog ingredients; if the named composition cannot be resolved, explain the missing input rather than creating an ingredient without permission.",
+              "prompt": "Develop a 500 g dark chocolate ganache for bonbon shells using 70% dark chocolate and 35% cream. Use ingredients already in Formul.io. Show the formula and calculated target bands, but do not save it yet.",
+              "tools_triggered": "get_calculator_guide; resolve_ingredients; search_ingredients when needed; simulate_changes and/or get_recipe_metrics; advise_formulation when needed; show_card",
+              "expected_behavior": "The develop-recipe workflow resolves real ingredient IDs, selects the applicable ganache style, and calculates an ad-hoc formula totaling 500 g with the appropriate phases. It reports actual metrics against the returned bands, explains any unmet targets, and shows one final calculation card with show_card. No create_recipe, create_ingredient, update_recipe, note or collection save occurs."
+            },
+            {
+              "description": "Import a self-contained source recipe with a preview and explicit confirmation. Use a dedicated account and a unique recipe name per run. The source is in the prompt, so no file attachment is required. After the preview, send the follow-up: Yes, save the exact previewed recipe with both source instructions. Use a library sugar ingredient with known composition.",
+              "prompt": "Preview an import named Directory Sugar Demo as a Custom Recipe: 200 g sugar. Keep both instructions exactly: 1. Weigh the sugar. 2. Store the sugar in a dry container. Show the ingredient mapping and wait for my approval before saving.",
+              "tools_triggered": "get_calculator_guide; import_recipe with mode preview; search_ingredients or resolve_ingredients if needed; import_recipe with mode confirm after approval; get_recipe; list_recipe_notes",
+              "expected_behavior": "The preview creates no recipe. The assistant shows the actual ingredient mapping and preserves 200 g. After explicit approval, it confirms the reviewed recipe without substitutions or quantity changes, reports the returned recipe link, and reads back the saved recipe and notes. Both source instructions are present in order. Ambiguous ingredient identity is resolved before confirmation; an unsuccessful write is not reported as saved."
+            },
+            {
+              "description": "Curate existing recipes into a private collection. Use a Pro review account with recipe read/write permissions and the seeded Signature Confections collection containing saved ganache, caramel, ice cream and pate de fruit recipes. Discover IDs and choose three distinct existing members. The target Directory Review Tasting must be absent or already private.",
+              "prompt": "Create a private collection named Directory Review Tasting using three different recipes from my Signature Confections collection. Reuse Directory Review Tasting if it already exists. Keep the original recipes unchanged and set the project brief to Compare three confectionery styles.",
+              "tools_triggered": "list_collections; get_collection; get_recipe; save_collection; get_collection",
+              "expected_behavior": "The assistant discovers the source and target collections, selects three actual owned recipes, and creates or updates one private target with add_recipe_ids and the requested project brief. A get_collection read-back verifies membership and brief. It preserves unrelated existing target members and does not write recipes. If the named target is public, it explains that visibility is changed in the Formul.io app instead of claiming it became private."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchasing is outside the MCP integration. Explain that Formul.io cannot place supplier orders or charge a payment method. Do not call add_stock or any other write tool to imply a purchase, and do not claim an order or payment succeeded.",
+              "prompt": "Buy 5 kg of dark chocolate from my supplier for this ganache and charge my saved card."
+            },
+            {
+              "description": "Sending email is unsupported. Explain the limit and optionally offer to draft a message. Do not publish a collection, change recipe visibility, call write tools, or claim that email was sent.",
+              "prompt": "Email my private Signature Confections collection to my supplier for a quotation, but do not make it public."
+            },
+            {
+              "description": "The MCP version tool lists version metadata but cannot retrieve full historical snapshots or restore them. Explain this limit and direct the user to the recipe's version history in the app. Read-only discovery with list_recipes, get_recipe or list_recipe_versions is allowed to provide the correct link. Do not reconstruct an old snapshot, call update_recipe as a substitute, or report a successful restoration.",
+              "prompt": "Restore the previous saved version of Directory Demo Ganache directly here in chat, including its full ingredient list and process."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: develop, import and improve confectionery recipes with the Formul.io calculation engine, compare changes before saving, and organize recipes into private collections. Five guided workflows are included."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

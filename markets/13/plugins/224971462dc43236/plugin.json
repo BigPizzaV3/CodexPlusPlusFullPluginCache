@@ -1,0 +1,79 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "yardi-virtuoso",
+  "version": "0.1.0",
+  "description": "Access Yardi financial reports, debt information, vendor records, and payables through your connected account.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Yardi Virtuoso",
+        "shortDescription": "Access Yardi data and tools",
+        "longDescription": "Yardi Virtuoso helps investment, property, and asset management professionals explore Yardi information through ChatGPT. Ask about financial reports, budgets, receivables, leases, debt, vendors, and payables using natural language. Available data and tools depend on your connected Yardi account and permissions.",
+        "category": "Productivity",
+        "capabilities": [],
+        "defaultPrompt": "What Yardi financial, debt, and payables information can I access?",
+        "websiteURL": "https://www.yardi.com/",
+        "supportURL": "https://www.yardi.com/company/contact-us/",
+        "privacyPolicyURL": "https://resources.yardi.com/legal/privacy-statement/",
+        "termsOfServiceURL": "https://resources.yardi.com/legal/commercialcafe/commercialcafe-portal/terms-of-service/",
+        "logo": "./assets/yardi_logo.png",
+        "composerIcon": "./assets/yardi_icon.png",
+        "developerName": "Yardi Systems, Inc"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Regression: resolve the property to a numeric HMY ID before requesting AR aging. Setup: reviewer account has access to Gardenview Terrace and tenant aging data. Confirm this fixture before running; the prior workbook recorded an invalid property-code failure.",
+              "prompt": "Show me the AR aging detail for property Gardenview Terrace summarized by tenant.",
+              "tools_triggered": "vn_mcpframework_get_autocomplete, ar_aranalytics_get_aging_detail",
+              "expected_behavior": "Resolve Gardenview Terrace using autoCompleteType=\"property\". Pass the returned numeric id as a string in propertyIds, never the property code resca02; set summarizeBy=0. Present tenant balances and aging buckets supported by the response. Ask for clarification if multiple properties match; report unavailable data or errors without inventing balances."
+            },
+            {
+              "description": "Accrual income statement with explicit reporting period. Setup: reviewer account can access Gardenview Terrace and its January 2026 accrual ledger.",
+              "prompt": "Show the accrual income statement for Gardenview Terrace for January 2026.",
+              "tools_triggered": "vn_mcpframework_get_autocomplete, gl_financialreportsmain_financial_report",
+              "expected_behavior": "Resolve the property using autoCompleteType=\"property\" and use the returned integer id in PropertyId. Set ReportType=\"incomestatement\", BookId=[1], MonthFrom and MonthTo=\"2026-01-01T00:00:00.000\", and type=\"screen\". Summarize revenue, expenses and net income only where returned data supports them; disclose missing data or errors."
+            },
+            {
+              "description": "Filtered vendor directory with transaction details. Setup: reviewer account has active vendors with readable transaction information.",
+              "prompt": "List up to 10 active vendors and show their latest transaction date and amount where available.",
+              "tools_triggered": "p2p_vendormcp_get_vendors",
+              "expected_behavior": "Call with status=\"active\", maxResults=10 and includeTransactionInfo=true. Return at most 10 matching vendors with names, codes and available last-transaction values from the response. Identify missing values instead of inventing them; do not describe this limited list as the complete vendor population."
+            },
+            {
+              "description": "Property payables with a bounded date range. Setup: reviewer account can access Gardenview Terrace payables dated January 2026.",
+              "prompt": "Show the invoices for Gardenview Terrace dated January 1 through January 31, 2026, including amounts and payment status.",
+              "tools_triggered": "vn_mcpframework_get_autocomplete, p2p_payable_get_payables",
+              "expected_behavior": "Resolve the property using autoCompleteType=\"property\". Pass its returned integer id in PropertyIds, DateFrom for 2026-01-01 and DateTo for 2026-01-31 using the live tool schema date format. Report invoice amounts and statuses from returned records. Follow pagination or explicitly label partial results; do not claim a complete total from a partial page."
+            },
+            {
+              "description": "Current debt portfolio using explicit loan filters. Setup: reviewer account has accessible active whole loans with funded or default funding status.",
+              "prompt": "Summarize my current active whole loans with funded or default funding status, including balances and maturity dates.",
+              "tools_triggered": "dmx_loan_search_loans; dmx_loan_search_loans_columns if selecting unfamiliar columns",
+              "expected_behavior": "Search with LoanStatus=\"0\", SyndicationType=\"2\" and FundingStatusTypes containing funded and default in the format accepted by the live schema. Obtain valid column names from the column catalog before selecting unfamiliar columns. Report returned balances and maturity dates, disclose pagination or missing values, and avoid double-counting loans or mixing currencies in totals. Do not invoke historical analytics for this current-state request."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported vendor modification for the documented read-only workflows. Explain that changing bank details is unavailable through this plugin and direct the user to the authorized Yardi workflow. Do not call plugin tools or claim any record was changed.",
+              "prompt": "Change a vendor bank account number in Yardi for me. I only want the update, not a lookup."
+            },
+            {
+              "description": "Unsupported payment execution. Explain that invoice retrieval does not execute payments and direct the user to the authorized payment workflow. Do not call plugin tools, initiate a transfer, or claim a payment succeeded.",
+              "prompt": "Send a $500 vendor payment from our bank account now. Do not look up invoices."
+            },
+            {
+              "description": "Unsupported ledger mutation. Explain that this plugin documents financial reporting rather than journal posting. Do not call plugin tools or claim a journal entry was created.",
+              "prompt": "Post a new $100 debit to repairs expense and a $100 credit to cash in our general ledger. I do not need a report."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Yardi Systems, Inc"
+  }
+}

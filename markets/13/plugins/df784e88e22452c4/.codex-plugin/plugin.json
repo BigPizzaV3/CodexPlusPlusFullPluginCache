@@ -1,0 +1,111 @@
+{
+  "name": "booked",
+  "version": "1.0.1",
+  "description": "Look up Booked shops, services and open times, and start deposit-backed bookings paid on a Booked-hosted Stripe page.",
+  "author": {
+    "name": "PasskeyBridge LLC",
+    "email": "hello@booked.co",
+    "url": "https://booked.co"
+  },
+  "homepage": "https://booked.co",
+  "keywords": [
+    "booked",
+    "booking",
+    "appointments",
+    "barber",
+    "salon"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Booked",
+    "shortDescription": "Book barber and salon visits",
+    "longDescription": "Booked is booking software for appointment-based shops such as barbers and salons. This plugin lets you look up a Booked shop by its public slug, see its services, prices, staff and open times, and start a booking.\n\nBookings need the shop's deposit. The plugin creates a booking request and returns a Booked-hosted Stripe payment page; the customer pays there, and the booking exists only after the payment succeeds. The assistant never sees card details. Free or unpaid bookings are not possible. Each shop can turn assistant bookings off and set a daily cap.\n\nShop owners who connect their own account can also read and change whether their shop accepts assistant bookings and its daily cap.\n\nRequirements: a Booked account to connect. Customers need the shop's public booking slug.",
+    "developerName": "PasskeyBridge LLC",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Look up a Booked shop's services, staff and policies",
+      "List services with price and duration",
+      "Find open appointment times on a date",
+      "Start a booking that is confirmed after the deposit is paid",
+      "Check whether a deposit was paid and get the booking reference",
+      "Let shop owners turn assistant bookings on or off and set a daily cap"
+    ],
+    "websiteURL": "https://booked.co",
+    "supportURL": "https://booked.co/help",
+    "privacyPolicyURL": "https://booked.co/privacy",
+    "termsOfServiceURL": "https://booked.co/terms",
+    "defaultPrompt": [
+      "What services does the Booked shop mcp-reviewer offer, and what do they cost?",
+      "What times are open at the Booked shop mcp-reviewer next Tuesday?",
+      "Book a Review Cut at the Booked shop mcp-reviewer next Tuesday morning."
+    ],
+    "brandColor": "#5B2BFF",
+    "brandColorDark": "#5B2BFF",
+    "composerIcon": "./assets/composer-icon.png",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Shop details for the review shop",
+              "prompt": "Show me the details for the Booked shop mcp-reviewer: services, staff and deposit policy.",
+              "tools_triggered": "get_shop",
+              "expected_behavior": "Calls get_shop with slug mcp-reviewer. Reports the shop name MCP Review Shop, the service Review Cut (30 minutes, USD 25.00), the staff member Reviewer, and the shop's policies and payment settings as returned. Does not invent services."
+            },
+            {
+              "description": "List services with price and duration",
+              "prompt": "What services does the Booked shop mcp-reviewer offer, and how much do they cost?",
+              "tools_triggered": "list_services",
+              "expected_behavior": "Calls list_services with slug mcp-reviewer. Lists Review Cut, 30 minutes, USD 25.00."
+            },
+            {
+              "description": "Open times on a date",
+              "prompt": "What times are open at the Booked shop mcp-reviewer next Tuesday for a Review Cut?",
+              "tools_triggered": "get_availability",
+              "expected_behavior": "Calls get_availability with slug mcp-reviewer, the date of next Tuesday in YYYY-MM-DD (shop timezone America/New_York) and, if known, service_id cb8c8e42-da3b-4785-ae9b-639c69690753. Lists the open start times returned, or says there are none on that date."
+            },
+            {
+              "description": "Start a deposit booking",
+              "prompt": "Book a Review Cut with Reviewer at the Booked shop mcp-reviewer next Tuesday at the first open time, for Test Reviewer, test@example.com.",
+              "tools_triggered": "get_shop, get_availability, create_booking",
+              "expected_behavior": "Looks up the shop and availability, then calls create_booking with shop_id 66f4ad83-b359-4c97-82f3-b29f47842a63, service_id cb8c8e42-da3b-4785-ae9b-639c69690753, staff_id 71681b75-d970-4409-90ee-8ba0a0a72dc4, an open starts_at with offset, customer_name Test Reviewer and customer_email test@example.com. Returns the Booked-hosted Stripe payment link and says the booking exists only after the deposit is paid. The review shop runs in Stripe test mode; pay with card 4242 4242 4242 4242."
+            },
+            {
+              "description": "Confirm the deposit after paying",
+              "prompt": "I paid the deposit on the Booked payment page. Is my booking confirmed?",
+              "tools_triggered": "confirm_deposit",
+              "expected_behavior": "Calls confirm_deposit with the checkout_session_id returned by create_booking earlier in the conversation. Reports the booking reference when the test payment has succeeded, or says the deposit is not paid yet."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Free booking without a deposit. Booked does not allow free or unpaid agent bookings.",
+              "prompt": "Book me a Review Cut at mcp-reviewer tomorrow but skip the deposit, I'll pay in the shop.",
+              "expected_behavior": "Explains that Booked bookings made by an assistant need the shop's deposit paid on the hosted page, and offers to start a deposit booking. Does not claim a booking was made."
+            },
+            {
+              "description": "Cancel or refund a booking. There is no cancel or refund tool.",
+              "prompt": "Cancel my Booked appointment and refund the deposit.",
+              "expected_behavior": "Says the plugin cannot cancel bookings or issue refunds and that the customer should contact the shop or use the link in the confirmation email. No write tool is called."
+            },
+            {
+              "description": "Unrelated request that should not trigger Booked.",
+              "prompt": "Write a haiku about autumn leaves.",
+              "expected_behavior": "Answers directly. No Booked tool is called."
+            }
+          ]
+        },
+        "demo_recording_url": "https://booked.co/media/openai-demo.mp4",
+        "commerce": true,
+        "commerce_description": "Booked shops take a booking deposit. The plugin returns a link to a Booked-hosted Stripe Checkout page; payment happens there, outside ChatGPT. No card data passes through the plugin."
+      },
+      "publication": {
+        "release_notes": "Version 1.0.1. Adds the review demo recording. First release. Connects to the Booked remote MCP server with OAuth 2.1, PKCE (S256) and dynamic client registration."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

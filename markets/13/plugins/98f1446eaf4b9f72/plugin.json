@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "butterspace-recipes-test",
+  "version": "0.3.15",
+  "description": "Add and scale recipes in this chat without an account. Connect Butterspace for existing recipes and saving across chats and devices.",
+  "author": {
+    "name": "Butterspace"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Butterspace Recipes",
+        "shortDescription": "Add, scale and plan recipes",
+        "longDescription": "Add recipes from text, photos or spreadsheets and save them to your recipe book. Organize categories, edit recipes, scale batches and automatically convert batch counts into ingredient shopping lists. By default, recipes stay in your chat. Optionally, connect your Butterspace account to access recipes across chats and devices, or load recipes from your existing Butterspace workspace.",
+        "developerName": "Butterspace",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "Open Butterspace and help me add a recipe from a photo, note or pasted text.",
+          "Show my recipes so I can select one.",
+          "Help me scale a recipe for tonight's service."
+        ],
+        "websiteURL": "https://butter.space",
+        "supportURL": "https://app.butter.space/help/chatgpt",
+        "privacyPolicyURL": "https://butter.space/privacy",
+        "termsOfServiceURL": "https://butter.space/terms"
+      },
+      "review": {
+        "demo_recording_url": "https://pub-b87483ffac0543829f87e07cd682e6eb.r2.dev/butterspace-chatgpt-plugin-demo.mov",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell goods or services, promote upgrades, start subscriptions, process payments or place supplier orders. It provides free recipe tools and respects existing workspace entitlements. Butterspace separately offers subscriptions in its web app; no purchase flow is exposed by this connection.",
+        "prompts": [
+          "Show my saved recipes.",
+          "Save Review loaf: yield 4 pieces, 0.8 kg Review flour. Mix thoroughly, then portion into four pieces.",
+          "Scale Test rolls to 1.5 batches without changing the original recipe."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Start disconnected in a fresh chat. Verify both first-use options. Choose Add recipes here and provide Test chat rolls: yield 10 pc., 0.5 kg Test flour, Mix. Explicitly connect only the synthetic reviewer kitchen. Then use Save recipes to Butterspace, review the destination and confirm that one recipe. Reopen the review to check retries. Never use a customer's account or data.",
+              "prompt": "Show my recipes.",
+              "tools_triggered": "open_recipe_start with {}; add_chat_recipe; native connection flow; open_recipe_library or list_recipes; review_chat_recipe_transfer; commit_chat_recipe_transfer only through explicit card confirmation",
+              "expected_behavior": "Offer Add recipes here and Connect Butterspace without forced login. Guest addition returns persistence=chat_only with no account write. After explicit connection, load the two sample account recipes without automatically copying chat recipes. Not now keeps the chat original unchanged. Confirmed copying adds Test chat rolls with linked Test flour; existing account recipes and product prices stay unchanged. Reopening review marks the confirmed copy as already copied. Tool success alone does not prove card rendering."
+            },
+            {
+              "description": "Use the synthetic reviewer workspace with fewer than 30 active recipes and no product named Review flour. The prompt provides the complete recipe and permission to save. Before repeating this case, archive only its earlier synthetic recipe and product through authorized app actions.",
+              "prompt": "Save Review loaf: yield 4 pieces, 0.8 kg Review flour. Mix thoroughly, then portion into four pieces. Create the linked ingredient product if it is missing, with unknown price.",
+              "tools_triggered": "list_recipes or open_recipe_library, then add_recipe",
+              "expected_behavior": "Read current revisions and atomically create one ordinary recipe with a linked Review flour product. Use a fresh operationId. Return persistence=account and real recipe/product IDs. Do not invent prices or modify existing products. Do not repeat the write to recover a card display."
+            },
+            {
+              "description": "Continue after saving Review loaf. Record its recipe/component/product IDs and current revisions. Open a fresh chat after the edit to verify the saved result, rather than relying on the previous conversation.",
+              "prompt": "Change Review loaf to use 0.9 kg of its existing Review flour ingredient. Keep the rest of the saved recipe unchanged.",
+              "tools_triggered": "list_recipes or open_recipe_library, get_recipe for Review loaf, then edit_recipe; list_recipes or open_recipe_library and get_recipe in a fresh chat",
+              "expected_behavior": "Use current revision tokens and a new operationId. Persist 0.9 kg with the same recipe/component/product IDs, yield and method. The fresh chat reads the edited record. On conflict, reopen and request review instead of silently overwriting."
+            },
+            {
+              "description": "Test rolls has base yield 10 pc. and 0.5 kg Test flour. Verify its saved base after scaling and use the card's Original action.",
+              "prompt": "Scale Test rolls to 1.5 batches without changing the saved recipe.",
+              "tools_triggered": "list_recipes or open_recipe_library, then scale_recipe with scale.batches=1.5",
+              "expected_behavior": "Display Batches 1.5, yield 15 pc. and 0.75 kg Test flour. The saved base remains 10 pc. and 0.5 kg; method text is unchanged. Original restores Batches 1 and yield 10 pc. No write tool is invoked."
+            },
+            {
+              "description": "The synthetic workspace contains Test rolls: 10 pc./batch and 0.5 kg Test flour; Test flatbread: 5 pc./batch and 0.2 kg of the same linked Test flour product.",
+              "prompt": "Make a shopping list for two batches of Test rolls and one batch of Test flatbread.",
+              "tools_triggered": "list_recipes or open_recipe_library, then build_shopping_list",
+              "expected_behavior": "Use the actual recipe IDs with batches 2 and 1. Combine their shared ingredient into 1.2 kg Test flour. Do not place an order, change inventory/prices or save scaled recipes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Billing is outside this connection. Explain that cancellation/refund requests require the web app or support. Do not invoke recipe write/category/archive tools, initiate checkout, promote an upgrade or claim a refund/cancellation.",
+              "prompt": "Cancel my Butterspace subscription and refund the latest payment."
+            },
+            {
+              "description": "Workspace membership and existing product prices are outside scope. Explain the limit without using recipe tools to alter roles or prices and without claiming either change succeeded.",
+              "prompt": "Make my colleague a workspace owner and change our flour price to 3 euros per kilo."
+            },
+            {
+              "description": "The plugin cannot certify allergies or food safety. Do not invent a guarantee, run write tools or describe recipe text as a verified safety audit.",
+              "prompt": "Certify that every saved recipe is safe for someone with a severe nut allergy."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "0.3.15: removed the word free from the public About description. No tool, skill, sign-in, permission, website, demo or review-case changes."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

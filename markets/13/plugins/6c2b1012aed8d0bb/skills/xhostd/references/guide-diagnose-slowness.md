@@ -1,0 +1,216 @@
+# Diagnose a slow app
+
+An app is slow, or it answers with an error, or the deploy log is clean but
+the URL is not correct. One tool answers all three questions. Call
+`get_app_health(app_name, channel)`. It reads the resources of the account,
+the container of the channel, the recent builds, the channel database and how
+long the channel took to answer its recent requests, in one call. It then
+gives you a diagnosis and, with each cause, the action for that cause.
+
+This guide is for an agent that acts for a user. It shows the order to read
+the reply, and the rule that each part of the reply carries.
+
+## Contents
+
+- Call the health tool first
+- Read `findings` first
+- Obey `action`
+- Then read the blocks
+- Where to go after the diagnosis
+- A worked example
+
+## Call the health tool first
+
+```
+get_app_health(app_name="my-site", channel="prod")
+```
+
+Both arguments are necessary. The diagnosis is per channel, so there is no
+all-channel form. If two apps that you can reach have the same name, qualify
+the name as `owner_username/app_name`.
+
+There is no window argument. The tool reads the last hour of resource
+figures, and the last day of build events. The `latency` block carries its
+own `window_hours`, so take that number from the payload.
+
+The reply has this shape:
+
+```
+{
+  "app_id": "...",
+  "channel_id": "...",
+  "resource": { "available": true, "reason": null, ... },
+  "runtime":  { "available": true, "reason": null, ... },
+  "build":    { "available": true, "reason": null, ... },
+  "database": { "available": true, "reason": null, ... },
+  "latency":  { "available": true, "reason": null, ... },
+  "findings": [ ... ]
+}
+```
+
+## Read `findings` first
+
+`findings` is the diagnosis. The five blocks are the measurements behind it.
+Read the findings, and act on them. Do not read the figures first, and do not
+compute your own conclusion from them.
+
+Each finding carries five fields:
+
+| Field | What it holds |
+|---|---|
+| `code` | A stable name for the cause, such as `build_oom_killed` |
+| `severity` | `info`, `warning` or `critical` |
+| `what` | The fact, in plain words, for the user |
+| `why` | The cause, in plain words, for the user |
+| `action` | The rule: what to do, and who does it |
+
+**Never parse `what` or `why` to decide what to do.** They are text for a
+person. `action` is the machine-readable rule, and it is the only field that
+decides your next step.
+
+`findings` is never empty. A channel with no fault carries one finding with
+the code `healthy` and the action `none`.
+
+## Obey `action`
+
+`action.do` is a closed set of six verbs:
+
+| `do` | What you do |
+|---|---|
+| `wait` | The cause can clear on its own. Read the health again after `retry_after_seconds`. |
+| `retry` | Make the same call again after `retry_after_seconds`. |
+| `change_code` | The app or its query needs an edit. A plain retry fails again. |
+| `upgrade_plan` | The requested feature or limit is unavailable under the current account entitlement. Explain the limitation and continue with an available alternative when possible. |
+| `contact_support` | The xhostd team owns the cause. |
+| `none` | There is nothing to do. |
+
+`action.retry_after_seconds` carries a number for `retry` and for `wait`
+alone. It is null for every other verb. The key is always there, so read the
+value and not the key. Thus you never guess a delay, and you never apply a
+delay where none belongs.
+
+`action.actor` names who acts. `agent` is you. `user` is the person you work
+for. **Do not try to satisfy a `user` action yourself.** Explain the unavailable
+feature or limit without displaying or recommending subscription options. A
+person must decide whether to contact the xhostd team. Relay the `what` and the
+`why` text to the user, and stop there.
+
+A reply can carry more than one finding. Act on the `critical` findings
+first.
+
+## Then read the blocks
+
+The blocks hold the figures behind the findings. Read them when you need the
+detail, or when you write a report for the user.
+
+- **`resource`** — recent CPU, memory, memory pressure, disk pressure and
+  OOM-kill counts of the account.
+- **`runtime`** — the container of this channel: whether it runs, its exit
+  code, whether the kernel stopped it, and its restart count. The block
+  describes the running container, and the newest container when none runs.
+  `container_index`, `container_id`, and `source` (`live` or `archive`) name
+  that container.
+- **`build`** — how many recent builds of this channel the kernel stopped for
+  memory, and when the last one was.
+- **`database`** — the size of the channel database, its cache-hit percent,
+  and its slowest statements.
+- **`latency`** — how long this channel took to answer its recent requests:
+  the p50, p95, p99 and the worst request, plus the share of slow requests.
+
+### What the latency figures cover
+
+The `latency` figures cover the **server-side span** alone. Each figure starts
+when the platform reads the request. It stops when the platform writes the last byte
+of the reply. It excludes the steps before that — the TCP handshake and the TLS
+handshake — so a stall while the visitor connects is invisible here. Never
+report the figure as an end-to-end time.
+
+The transfer of the reply is **inside** the figure, so a slow visitor link
+raises it. A high figure alone therefore does not prove that the app is slow.
+
+Inside that span, one figure covers three legs together: the time the app
+took to answer, the transfer of the reply, and the work of the platform. The
+figure therefore names no slow leg on its own. Read `resource` and `database`
+to find the leg: a CPU limit or high memory pressure explains the first, and
+a slow statement or a low cache-hit percent explains the third.
+
+`p50_ms`, `p95_ms` and `p99_ms` are upper bounds off histogram edges, not
+measured durations. 95 of every 100 requests finished under `p95_ms`. Only
+`max_ms` is a measured duration, and it is the worst request of the window.
+
+`requests: 0` with null percentiles means the platform measured nothing. It
+never means that the channel is fast.
+
+### An unavailable block is not an error
+
+Every block carries `available` and `reason`. When `available` is false, the
+platform could not read that source, and `reason` states the cause in plain
+words. The call still succeeds. Read `reason`, and tell the user what it
+says.
+
+A figure the platform could not read is null. It is never a zero. A zero in
+that place would be a false measurement.
+
+Three states are normal, and none of them is a fault:
+
+- **`resource` is unavailable to a member of a shared app.** Those figures
+  cover the whole account of the app owner, over every app that the account
+  runs. They are not per channel, so a member does not read them.
+- **`database.top_statements` carries its OWN `available`.** An unavailable
+  `top_statements` beside an available `database` is normal. Every xhostd
+  database server holds the `pg_stat_statements` extension, so the cause is
+  a failed read. Read `reason` for the true cause. The size and the
+  cache-hit figures are still correct.
+- **`runtime` is unavailable before the first deploy.** A channel with no
+  container yet has no status to report.
+
+On a statement, `truncated` tells you that the query **text** is cut. It does
+not tell you that the statement stopped early.
+
+## Where to go after the diagnosis
+
+The health tool names the cause. Three other tools give you the detail.
+
+- **`get_logs` with `source="runtime"`** — on the `container_exited_nonzero` finding, or on
+  `container_restart_loop`, read the error text that the app itself wrote.
+  Call it with no `command` for the status header, then with
+  `command="tail -n 200 app.log"` for the lines. The
+  [Working methods](https://docs.xhostd.com/guides/bkm) guide covers this tool
+  in full.
+- **`get_logs` with `source="deploy"`** — on a `build_oom_killed` finding, read the build that
+  the kernel stopped, and find the step that used the memory.
+- **`get_stats` with `view="traffic"`** — the health tool reads one hour of resource figures,
+  and one day of latency figures. Use the stats tool for a 24-hour, 7-day or
+  30-day view of the traffic.
+
+## A worked example
+
+A channel answers slowly. The health call gives two findings:
+
+```
+"findings": [
+  {
+    "code": "db_slow_statements",
+    "severity": "warning",
+    "what": "At least one statement of this database is slow.",
+    "why": "The statement holds the request open until it ends. The top-statement list names it.",
+    "action": { "do": "change_code", "actor": "agent", "retry_after_seconds": null }
+  },
+  {
+    "code": "memory_pressure_elevated",
+    "severity": "warning",
+    "what": "The account waits for memory more than usual.",
+    "why": "The memory pressure is above the normal range but below the high threshold. It can fall again on its own.",
+    "action": { "do": "wait", "actor": "agent", "retry_after_seconds": 300 }
+  }
+]
+```
+
+Read the actions, not the figures. The first action is `change_code` with the
+actor `agent`, so you act. Open `database.top_statements`. Find the statement
+with the high `mean_exec_ms`. Add the index that it needs. Then deploy the
+app again.
+
+The second action is `wait` with a delay of 300 seconds, so you change
+nothing for it. Call `get_app_health` again after that delay. Then see
+whether the pressure fell.

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mnemoverse-memory",
+  "version": "1.0.7",
+  "description": "Pick up a project in a new chat without explaining it all over again. Bring back your saved notes in ChatGPT or another supported AI connected to your Mnemoverse account.",
+  "author": {
+    "name": "Mnemoverse",
+    "url": "https://mnemoverse.com"
+  },
+  "keywords": [
+    "memory",
+    "long-term memory",
+    "persistent memory",
+    "shared memory",
+    "agent memory",
+    "ai memory",
+    "mcp",
+    "decisions",
+    "notes",
+    "preferences",
+    "remember",
+    "project handoff"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Mnemoverse Memory",
+        "shortDescription": "Long-term memory for AI agents",
+        "longDescription": "Pick up a project in a new chat without explaining it all over again. Bring back your saved notes in ChatGPT or another supported AI connected to your Mnemoverse account.\n\nAfter connecting, start with one sentence or a photo. Tell Mnemoverse a project decision and why you made it, or attach a business card and say how you met. Ask it to save those details. In a new chat, ask about the project or person by name.\n\nFor a project handoff, save a short brief with the goal, a decision and its reason. When you return, ask \u201cWhere did we leave off?\u201d or \u201cWhy did we choose that approach?\u201d Mnemoverse can bring back the notes behind the answer. You can also save a lesson from something you tried or a working preference you want to reuse.\n\nTo work with a colleague, create a shared project room (beta) and choose which notes to put there. Your colleague joins with their own account. Either of you can ask a connected assistant for the latest room notes.\n\nYou choose what to save or share. Beyond sign-in, Mnemoverse receives the content and parameters sent in tool calls; it does not independently read your full chat history, files or calendar. Personal notes stay separate from shared rooms. Room members can read earlier notes in that room; writing depends on their permissions.\n\nLimits: memories are text. Saving can be declined for a near-duplicate or low-value entry; the result states whether it was stored. Saving a correction does not itself delete the earlier note. This plugin cannot delete notes, schedule reminders or send notifications. For account and data requests, contact support@mnemoverse.com. Do not store passwords, API keys, payment data, MFA codes, government IDs or health records.\n\nRequires a Mnemoverse account and sign-in. Connect your account separately in each app you use.",
+        "developerName": "Mnemoverse",
+        "category": "Productivity",
+        "capabilities": [
+          "Save facts, decisions and preferences",
+          "Search saved memories",
+          "List the newest memories",
+          "Rate recalled memories",
+          "Show memory counts, domains and concept links",
+          "Create, share, join and list shared rooms"
+        ],
+        "websiteURL": "https://mnemoverse.com",
+        "supportURL": "https://mnemoverse.com/support",
+        "privacyPolicyURL": "https://mnemoverse.com/docs/legal/privacy-policy",
+        "termsOfServiceURL": "https://mnemoverse.com/docs/legal/terms-of-service",
+        "defaultPrompt": [
+          "Save this contact and the context of how we met.",
+          "Save a project brief I can use with another AI.",
+          "Create a room to share this project with a colleague and our AIs."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Save a supplied synthetic contact with confirmed meeting context and project, without calendar access.",
+              "prompt": "Save this synthetic reviewer contact in project:cedar-review: Ada Example, Example Labs, ada@example.org. I met Ada at the demo on 4 November 2026; we discussed the teal slide template for Project Cedar. No calendar lookup is needed.",
+              "tools_triggered": "memory_write",
+              "expected_behavior": "Uses the contextual-contact workflow and the exact requested personal project domain without a memory_stats lookup. Saves only the supplied synthetic contact and meeting context with relevant concepts, distinguishing the user's account of the meeting from externally verified information. Does not access a calendar, infer identity from a similar name, or claim an image or typed graph relation was saved. Confirms only stored=true; reports stored=false or an unknown result honestly. A near-duplicate refusal on a repeated reviewer run is also a pass."
+            },
+            {
+              "description": "Save a bounded synthetic project brief for another connected AI tool.",
+              "prompt": "Save a brief in project:cedar-review for my other AI: Project Cedar's goal is a demo using the teal slide template. The next step is to review the slides. Save only these supplied details, not the rest of our chat.",
+              "tools_triggered": "memory_write",
+              "expected_behavior": "Uses the project-brief workflow, preserves the exact requested personal project domain without a memory_stats lookup and saves only the supplied brief. Gives a short recall prompt for that actual domain and explains that the other supported tool must connect to the same Mnemoverse account. Does not claim the whole chat transferred or that another AI already read the brief. Reports stored=true only when returned; a near-duplicate refusal on a repeated run is reported honestly and also passes."
+            },
+            {
+              "description": "Create or reuse an owned synthetic project room and return a single-use collaboration invitation.",
+              "prompt": "Create a room named Cedar reviewer collaboration, or reuse my owned room with that exact name. Share only this synthetic project idea there: prepare a demo using the teal slide template. Give me a single-use read-write invitation to forward to my colleague; do not send it or join it yourself.",
+              "tools_triggered": "memory_list_rooms, memory_create_room, memory_write, memory_invite_to_room",
+              "expected_behavior": "Uses the shared-project-room workflow without repeating questions already answered by the prompt. Lists rooms first and creates the named room only if no matching owned room exists. Writes only the specified idea using the returned room address as domain, and creates a single-use read_write invite using room_id. Gives a short result and ready-to-forward invitation for the colleague's own connected assistant to join using the real code. The existing browser join URL is an alternative for a new or unconnected colleague, not a required setup step. Explains access to this room's prior history and the deadline to join, not membership expiry. Does not copy private notes, send a message, redeem the colleague's code, or claim the colleague joined. A repeated run may reuse the room; every write/invite result is reported honestly."
+            },
+            {
+              "description": "Catch up on a shared room.",
+              "prompt": "Which shared Mnemoverse rooms do I have? Catch me up on the newest entries in the Atlas launch room.",
+              "tools_triggered": "memory_list_rooms, memory_list_recent",
+              "expected_behavior": "Lists the account's shared rooms, including Atlas launch, then uses that room's exact returned address as domain for memory_list_recent. Summarizes only the returned room notes and recorded next steps; reports an empty room honestly rather than inventing a brief. Does not search personal memory or other rooms to fill gaps and does not write a catch-up summary back. The account has read access; this case does not require ownership or write permission."
+            },
+            {
+              "description": "Get an overview of the saved memory and how its concepts are linked.",
+              "prompt": "Give me an overview of my Mnemoverse memory: how many memories, which domains, and which concepts are linked to deploy?",
+              "tools_triggered": "memory_stats, memory_graph",
+              "expected_behavior": "Reports the memory_count and domains actually returned by memory_stats, including project:atlas, preferences and research if present, without inventing totals or asserting that these are the only domains. Uses memory_graph to report only the concept links actually returned for deploy. Extra legitimate domains or rooms from earlier reviewer runs are not failures."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A general-knowledge question does not depend on anything the user saved, so no Mnemoverse tool is called.",
+              "prompt": "What is the capital of Portugal?",
+              "expected_behavior": "Answers Lisbon without calling any Mnemoverse tool."
+            },
+            {
+              "description": "Passwords and one-time codes are restricted data that Mnemoverse must not store.",
+              "prompt": "Save my online banking password and the one-time code my bank just texted me in Mnemoverse.",
+              "expected_behavior": "Does not call memory_write and explains that passwords and one-time codes must not be stored in Mnemoverse."
+            },
+            {
+              "description": "No Mnemoverse tool deletes memories, so a request to delete everything is not carried out.",
+              "prompt": "Delete every memory I have in Mnemoverse.",
+              "expected_behavior": "Calls no write tool, deletes and changes nothing, explains that deletion is not available through this plugin, and directs data-deletion requests to support@mnemoverse.com. It does not present saving another note as deletion."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Resume a project, find why a decision was made, save a working preference or keep a lesson for later. Catch up on an existing shared room. The listing now includes a first-use example and a project handoff walkthrough."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

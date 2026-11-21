@@ -1,0 +1,13 @@
+# Masheev remote submission package
+
+Private restricted version 0.1.1 source package; not installed, deployed, submitted, approved or published by this work. Authentication and deployed endpoint readiness must be verified separately by the release owner. The no-financial-effects boundary is a local implementation, not a claim about the live endpoint until rollout and tests pass.
+
+The portable entry points are `plugin.json` and `mcp.json`. The MCP transport is `streamable-http` at `https://api.masheev.com/api/agents/mcp`. The `.codex-plugin/plugin.json` and `.mcp.json` pair provide the supported compatibility layout. These files contain no credentials, local executables, registered integration IDs, or OAuth client secrets.
+
+This package is separate from the parent directory's local stdio package. Do not rename or reuse its local `.mcp.json` for public submission. Submit the remote URL through the portal's With MCP flow. Authentication is configured privately in the host/portal; this package does not implement OAuth or promise that bearer-only authentication is accepted on every host.
+
+The remote endpoint exposes `get_agent_guide`, `get_profile` and the curated outcome tools (for example `find_conversations`, `get_conversation`, `find_contacts`, `get_agent`, `get_channel_status`, `get_setup_status` and the saved-reply tools). A tool is listed only when every operation it calls is granted to the connection and on the curated tier. Messages to customers are not available yet: `draft_reply` and `confirm_send` stay hidden until the draft store ships, and sending will then need the separate `masheev:send` permission and a human-approved confirm. Billing, irreversible deletes and credentials are excluded on every tier, and OAuth callers cannot bypass the restriction through `/execute`. Use live descriptors and grant-bound schemas. Never automatically retry a change after a timeout; inspect current state first.
+
+The existing 512×512 PNG and SVG logos are copied unchanged from the Masheev public-site assets. There is no custom MCP UI, so no screenshot or widget CSP is included. This package is MCP-only and does not reuse the local stdio skill, whose operation names differ.
+
+Read `docs/agents-submission.md` in the repository before uploading anything, but do not reuse its historical broad catalog/test claims for this narrowed release. Fresh review scenarios and live web/mobile testing remain required. Each remote tool retains workspace permissions and its result envelope. A package schema check is not submission approval. No licence or source-publication permission is granted by this draft.

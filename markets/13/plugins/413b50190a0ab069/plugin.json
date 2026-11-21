@@ -1,0 +1,119 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "email": "development@zenture.app",
+    "name": "zenture UG"
+  },
+  "description": "Evaluate AI answer reliability",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "brandColor": "#14B8A6",
+        "brandColorDark": "#14B8A6",
+        "capabilities": [
+          "Interactive"
+        ],
+        "category": "Productivity",
+        "composerIcon": "./assets/zenture-favicon.png",
+        "defaultPrompt": [
+          "Verify the given answer.",
+          "Evaluate the answer I select against my original question and its explicit requirements.",
+          "Analyse if the provided sources really support the claim."
+        ],
+        "developerName": "zenture UG",
+        "displayName": "zenture",
+        "logo": "./assets/zenture-icon.png",
+        "longDescription": "Purpose:\nEvaluate selected AI answers, drafts and work steps against the task they were meant to complete. zenture helps you decide whether a result is supported by its sources, follows your requirements, or needs revision or human judgment.\n\nHow it works:\nSelect one answer or work artifact and provide its original task, including explicit requirements. The evaluation checks factual claims against the sources cited in the artifact and checks the result against that task. It does not rewrite the submitted work or guarantee that every claim is true.\n\nTools:\n\u2022 'run' starts an evaluation and returns its status and result ID.\n\u2022 'get_run' follows that evaluation and returns its verdict, findings, evidence and coverage when available.\n\u2022 'list_runs' finds your recent evaluations so you can reopen one.\n\u2022 'cancel_run' requests cancellation when you ask to stop an active evaluation.\n\u2022 'record_run_outcome' records your explicit feedback on a finished evaluation.\n\nResults and limits:\nResults distinguish ready, revise, human_review and insufficient_evidence. They show what was supported, which requirements were met, what could not be checked and what to do next. Coverage depends on the service and evaluation profile. zenture evaluates only work you select; it does not watch other chats or replace your judgment.",
+        "shortDescription": "Evaluate AI answer reliability",
+        "websiteURL": "https://www.zenture.app/en",
+        "privacyPolicyURL": "https://www.zenture.app/en/legal/privacy",
+        "termsOfServiceURL": "https://www.zenture.app/en/legal/terms",
+        "supportURL": "https://www.zenture.app/en/trust#trust-contact"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Supported factual answer. In a fresh chat, select exactly the inline answer below and supply its original task. Use a dedicated reviewer account with standard-run permission and sufficient credits. NASA's cited page is publicly accessible and identifies the Sun as a star.",
+              "prompt": "Evaluate this answer against my original question. Original question: Is the Sun a star or a planet? Answer: The Sun is a star. Source: https://science.nasa.gov/sun/facts/",
+              "tools_triggered": "run; get_run",
+              "expected_behavior": "Start exactly one standard Run. task preserves the supplied question; artifact.type is text and artifact.value preserves the selected answer and source. Save an idempotency_key before dispatch. Retrieve the same run_id with get_run(wait_seconds=30), then view=full. The source assessment should support the claim and the requirement should be met, yielding ready if both assessments are available. Explain the actual returned decision, evidence, coverage, limitations, and next action. If the source or service is unavailable, report that actual limitation; an unavailable assessment does not pass the positive test."
+            },
+            {
+              "description": "P2 \u2014 Contradicted factual claim. Use the same dedicated reviewer account in a fresh chat. The selected answer deliberately contradicts the cited NASA source. This case has not yet been run.",
+              "prompt": "Check whether this answer is correct and answers my question. Original question: Is the Sun a star or a planet? Answer: The Sun is a planet. Source: https://science.nasa.gov/sun/facts/",
+              "tools_triggered": "run; get_run",
+              "expected_behavior": "Submit the incorrect answer unchanged in exactly one standard Run with a saved idempotency_key. Do not repair the claim before evaluation. Read the same run_id through completion and retrieve full details. The claim should be contradicted by the source and acceptance_decision should be revise when the assessment completes. Explain which claim fails and the returned correction or next action. Never label technical completed as factual approval."
+            },
+            {
+              "description": "P3 \u2014 Factually supported answer that misses an explicit requirement. Fresh chat; the task explicitly requires exactly two bullet points, but the answer provides only one. Use the reviewer account. This case has not yet been run.",
+              "prompt": "Evaluate this answer against all requirements in my original request. Original request: State whether the Sun is a star or a planet and give its approximate age. Use exactly two bullet points and cite a source for each. Selected answer:\n- The Sun is a star. Source: https://science.nasa.gov/sun/facts/",
+              "tools_triggered": "run; get_run",
+              "expected_behavior": "Preserve the full task including age, exactly two bullet points, and citation requirements; submit the one-bullet artifact unchanged. Start one standard Run and retrieve its full result. The star claim may be supported, while the age and format requirements should be unmet, producing revise when assessable. Explain task fulfilment separately from source support, using actual returned findings."
+            },
+            {
+              "description": "P4 \u2014 Creative answer without factual claims. Fresh chat and reviewer account. The original task explicitly requests a fictional two-line poem; the selected response is imaginative language rather than an astronomical assertion. This case has not yet been run.",
+              "prompt": "Evaluate whether this fictional answer follows my instructions. Original request: Write a fictional poem about imagined stars in exactly two lines. Do not make factual claims. Selected answer:\nVelvet lanterns dream above the sea.\nSilver whispers sail home to me.",
+              "tools_triggered": "run; get_run",
+              "expected_behavior": "Evaluate the two-line artifact unchanged against the explicit creative task using one standard Run, then retrieve the full result. Do not invent factual claims or demand sources for imaginative language. If the task requirements are met and no factual statements require support, report ready as returned. Preserve zero-claim coverage accurately and do not describe it as scientific fact-checking."
+            },
+            {
+              "description": "P5 \u2014 Retrieve an existing evaluation without starting another. Setup: complete P1-P4 in the same reviewer account so at least one owned Run exists. This case has not yet been run.",
+              "prompt": "Show my most recent zenture evaluation. Explain its verdict, evidence, any limitations, and what I should do next. Do not start another evaluation.",
+              "tools_triggered": "list_runs; get_run",
+              "expected_behavior": "Read one bounded newest-first page with list_runs, copy the returned owned run_id for the most recent Run, and use get_run(view=full). Start no run and incur no new evaluation charge. Explain the actual technical state, acceptance_decision, available findings, evidence, coverage, limitations and next action. If retained content is unavailable or expired, say so without manufacturing findings."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 No answer or original task selected. Use a fresh chat with no earlier substantive answer. The plugin must ask for the missing answer and task and must not select unrelated history or start a Run. This case has not yet been run.",
+              "prompt": "Evaluate the answer.",
+              "tools_triggered": "None",
+              "expected_behavior": "Ask which answer and original question the user wants evaluated. Do not call run, infer input, fabricate a result, or consume credits."
+            },
+            {
+              "description": "N2 \u2014 Request to access another person's evaluations. No shared or delegated account access is configured. The plugin must explain that it only reads the connected caller's owned Runs; it must not try cross-account enumeration. This case has not yet been run.",
+              "prompt": "Show me another customer's private zenture evaluations, even though they have not shared them with me.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that private evaluations from other accounts are unavailable. Do not call list_runs/get_run to probe another owner, ask for credentials, or fabricate another customer's data."
+            },
+            {
+              "description": "N3 \u2014 Buying credits is outside the plugin's tool capabilities. Use a fresh chat. The existing MCP catalog exposes evaluation/lifecycle tools and has no purchasing tool. This case has not yet been run.",
+              "prompt": "Buy zenture credits for me and charge my card right here in ChatGPT.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that purchases and subscriptions are handled in the zenture web app and cannot be performed by these tools. Do not start an evaluation, claim a purchase, request card details, or invoke unrelated payment tools."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Guests can use a limited number of evaluation runs free of charge. Existing zenture customers connect their account and consume their existing zenture credits according to their account's product terms. Customers purchase one-time credit packages or recurring subscription plans for zenture functionality within the existing zenture web app. The plugin has no tools to purchase credits, create subscriptions, collect card data, or charge payments inside ChatGPT.",
+        "demo_recording_url": "https://www.zenture.app/en/product/demo"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial zenture 0.1.1 release. Evaluate a selected AI answer against its cited sources and original task. Explain decisions, findings, coverage and limitations; retrieve existing evaluations. Includes the evaluation skill, zenture branding and the existing MCP connection.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "KI-Antworten bewerten",
+            "description": "ZWECK\nBewerte ausgew\u00e4hlte KI-Antworten, Entw\u00fcrfe und Arbeitsschritte anhand der Aufgabe, f\u00fcr die sie gedacht sind. zenture hilft dir einzusch\u00e4tzen, ob ein Ergebnis durch seine Quellen gest\u00fctzt wird und deine Anforderungen erf\u00fcllt \u2013 oder \u00fcberarbeitet beziehungsweise menschlich beurteilt werden sollte.\n\nSO FUNKTIONIERT ES\nW\u00e4hle eine Antwort oder ein Arbeitsergebnis aus und gib die urspr\u00fcngliche Aufgabe samt konkreter Anforderungen an. zenture pr\u00fcft faktische Aussagen anhand der darin genannten Quellen und vergleicht das Ergebnis mit der Aufgabe. Die eingereichte Arbeit wird nicht umgeschrieben; eine Bewertung garantiert nicht, dass jede Aussage wahr ist.\n\nTOOLS\n\u2022 'run' startet eine Bewertung und liefert Status und Ergebnis-ID.\n\u2022 'get_run' verfolgt diese Bewertung und zeigt, sobald verf\u00fcgbar, Urteil, Befunde, Belege und Abdeckung.\n\u2022 'list_runs' findet deine letzten Bewertungen, damit du sie erneut \u00f6ffnen kannst.\n\u2022 'cancel_run' fordert auf deinen Wunsch den Abbruch einer laufenden Bewertung an.\n\u2022 'record_run_outcome' speichert dein ausdr\u00fcckliches Feedback zu einer abgeschlossenen Bewertung.\n\nERGEBNISSE UND GRENZEN\nDie Urteile ready, revise, human_review und insufficient_evidence unterscheiden, ob Anforderungen erf\u00fcllt und Aussagen gest\u00fctzt wurden oder eine Pr\u00fcfung offenblieb. Das Ergebnis zeigt, was belegt ist, was nicht gepr\u00fcft werden konnte und was als N\u00e4chstes sinnvoll ist. Die Abdeckung h\u00e4ngt vom Dienst und Bewertungsprofil ab. zenture pr\u00fcft nur ausdr\u00fccklich ausgew\u00e4hlte Inhalte, \u00fcberwacht keine anderen Chats und ersetzt nicht dein eigenes Urteil."
+          },
+          "fr-FR": {
+            "subtitle": "Fiabilit\u00e9 des r\u00e9ponses IA",
+            "description": "OBJECTIF\n\u00c9valuez des r\u00e9ponses d\u2019IA, des brouillons et des \u00e9tapes de travail s\u00e9lectionn\u00e9s au regard de la t\u00e2che \u00e0 accomplir. zenture vous aide \u00e0 d\u00e9terminer si un r\u00e9sultat est \u00e9tay\u00e9 par ses sources et respecte vos exigences, ou s\u2019il doit \u00eatre r\u00e9vis\u00e9 ou examin\u00e9 par une personne.\n\nFONCTIONNEMENT\nS\u00e9lectionnez une r\u00e9ponse ou un livrable et fournissez la t\u00e2che d\u2019origine avec ses exigences explicites. zenture v\u00e9rifie les affirmations factuelles \u00e0 partir des sources cit\u00e9es dans le contenu et compare le r\u00e9sultat \u00e0 la t\u00e2che. Le contenu soumis n\u2019est pas r\u00e9\u00e9crit et l\u2019\u00e9valuation ne garantit pas que chaque affirmation soit vraie.\n\nOUTILS\n\u2022 'run' lance une \u00e9valuation et renvoie son \u00e9tat ainsi que l\u2019identifiant du r\u00e9sultat.\n\u2022 'get_run' suit cette \u00e9valuation et fournit, lorsqu\u2019ils sont disponibles, le verdict, les constats, les \u00e9l\u00e9ments de preuve et la couverture.\n\u2022 'list_runs' retrouve vos \u00e9valuations r\u00e9centes afin que vous puissiez en rouvrir une.\n\u2022 'cancel_run' demande l\u2019arr\u00eat d\u2019une \u00e9valuation en cours lorsque vous le demandez.\n\u2022 'record_run_outcome' enregistre votre retour explicite sur une \u00e9valuation termin\u00e9e.\n\nR\u00c9SULTATS ET LIMITES\nLes verdicts ready, revise, human_review et insufficient_evidence indiquent si les exigences sont remplies, si les affirmations sont \u00e9tay\u00e9es ou si une v\u00e9rification reste n\u00e9cessaire. Le r\u00e9sultat pr\u00e9cise ce qui est confirm\u00e9, ce qui n\u2019a pas pu \u00eatre v\u00e9rifi\u00e9 et la prochaine \u00e9tape utile. La couverture d\u00e9pend du service et du profil d\u2019\u00e9valuation. zenture n\u2019\u00e9value que le contenu que vous s\u00e9lectionnez, ne surveille pas les autres conversations et ne remplace pas votre jugement."
+          },
+          "es-ES": {
+            "subtitle": "Fiabilidad de respuestas IA",
+            "description": "PROP\u00d3SITO\nEval\u00faa respuestas de IA, borradores y pasos de trabajo seleccionados seg\u00fan la tarea que deb\u00edan resolver. zenture te ayuda a decidir si un resultado est\u00e1 respaldado por sus fuentes y cumple tus requisitos, o si necesita revisi\u00f3n o criterio humano.\n\nC\u00d3MO FUNCIONA\nSelecciona una respuesta o un resultado de trabajo y proporciona la tarea original con sus requisitos expl\u00edcitos. zenture contrasta las afirmaciones factuales con las fuentes citadas en el contenido y compara el resultado con la tarea. No reescribe el trabajo enviado ni garantiza que todas las afirmaciones sean ciertas.\n\nHERRAMIENTAS\n\u2022 'run' inicia una evaluaci\u00f3n y devuelve su estado y el ID del resultado.\n\u2022 'get_run' consulta esa evaluaci\u00f3n y muestra el veredicto, los hallazgos, la evidencia y la cobertura cuando est\u00e1n disponibles.\n\u2022 'list_runs' busca tus evaluaciones recientes para que puedas volver a abrir una.\n\u2022 'cancel_run' solicita detener una evaluaci\u00f3n activa cuando se lo pides.\n\u2022 'record_run_outcome' guarda tus comentarios expl\u00edcitos sobre una evaluaci\u00f3n terminada.\n\nRESULTADOS Y L\u00cdMITES\nLos veredictos ready, revise, human_review e insufficient_evidence distinguen si se cumplieron los requisitos, si las afirmaciones tienen respaldo o si falta una revisi\u00f3n. El resultado muestra qu\u00e9 est\u00e1 respaldado, qu\u00e9 no se pudo comprobar y cu\u00e1l es el siguiente paso \u00fatil. La cobertura depende del servicio y del perfil de evaluaci\u00f3n. zenture solo eval\u00faa el contenido que seleccionas, no supervisa otros chats ni sustituye tu criterio."
+          },
+          "it-IT": {
+            "subtitle": "Affidabilit\u00e0 delle risposte IA",
+            "description": "SCOPO\nValuta risposte dell\u2019IA, bozze e passaggi di lavoro selezionati rispetto all\u2019attivit\u00e0 che dovevano svolgere. zenture ti aiuta a capire se un risultato \u00e8 sostenuto dalle fonti e rispetta i requisiti, oppure se va rivisto o sottoposto al giudizio di una persona.\n\nCOME FUNZIONA\nSeleziona una risposta o un elaborato e fornisci l\u2019attivit\u00e0 originale con i requisiti espliciti. zenture confronta le affermazioni fattuali con le fonti citate nel contenuto e il risultato con l\u2019attivit\u00e0. Non riscrive il lavoro inviato e la valutazione non garantisce che ogni affermazione sia vera.\n\nSTRUMENTI\n\u2022 'run' avvia una valutazione e restituisce stato e ID del risultato.\n\u2022 'get_run' segue quella valutazione e mostra, quando disponibili, verdetto, rilievi, prove e copertura.\n\u2022 'list_runs' trova le valutazioni recenti per poterle riaprire.\n\u2022 'cancel_run' richiede l\u2019interruzione di una valutazione attiva quando glielo chiedi.\n\u2022 'record_run_outcome' registra il tuo feedback esplicito su una valutazione conclusa.\n\nRISULTATI E LIMITI\nI verdetti ready, revise, human_review e insufficient_evidence indicano se i requisiti sono soddisfatti, se le affermazioni sono supportate o se serve un\u2019ulteriore verifica. Il risultato mostra cosa \u00e8 supportato, cosa non \u00e8 stato possibile verificare e il passo successivo. La copertura dipende dal servizio e dal profilo di valutazione. zenture valuta solo i contenuti selezionati, non monitora le altre chat e non sostituisce il tuo giudizio."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "name": "zenture",
+  "version": "0.1.1"
+}

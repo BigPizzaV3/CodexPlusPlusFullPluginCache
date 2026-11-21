@@ -1,0 +1,99 @@
+{
+  "interface": {
+    "capabilities": [
+      "skills"
+    ],
+    "category": "Healthcare",
+    "composerIcon": "./assets/gpt-icon.png",
+    "defaultPrompt": [],
+    "developerName": "saveugene",
+    "displayName": "F3D GPT",
+    "logo": "./assets/gpt-icon.png",
+    "longDescription": "F3D GPT connects to your F3D account to search your food library, find recipes, check fridge stock and expiration dates, and read your food diary and nutrition totals. At your request, it can save products with nutrition values you supply, save recipes, add purchased food to your fridge and log food you have eaten. Logging a meal also reduces the corresponding fridge stock. Editing and deletion are available in the F3D application. An F3D account and authorization are required. F3D is free to use and does not offer purchases or paid features. It is a personal food tracking assistant, not a medical service.",
+    "shortDescription": "Food diary, recipes and fridge",
+    "websiteURL": "https://f3d.saveugene.dev/",
+    "supportURL": "https://f3d.saveugene.dev/support",
+    "privacyPolicyURL": "https://f3d.saveugene.dev/privacy",
+    "termsOfServiceURL": "https://f3d.saveugene.dev/terms"
+  },
+  "name": "gpt-0b0b9c89bcfbd676ab629d53c96d3a7e",
+  "version": "0.7.6",
+  "description": "Manage your F3D food library, recipes, fridge inventory and food diary.",
+  "author": {
+    "name": "saveugene"
+  },
+  "keywords": [],
+  "skills": "./skills",
+  "mcpServers": "./mcp.json",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "prompts": [
+          "What is in my fridge and what expires soon?",
+          "Find recipes in my F3D library using cottage cheese.",
+          "How many calories have I eaten today and how many remain?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a product from explicit label data. Use a dedicated test account with no existing product named F3D review cottage cheese; remove previous fixtures in the F3D app before a fresh run.",
+              "prompt": "Save a product named F3D review cottage cheese. Serving size: 180 g. Per 100 g: 121 kcal, 17 g protein, 5 g fat and 2 g carbohydrates. No barcode.",
+              "tools_triggered": "listProducts, createProduct",
+              "expected_behavior": "Search for duplicates first. Create the product with the supplied values, measurement_unit=g and a new idempotency_key. Confirm success only from the response and copy its UUID exactly. Do not add fridge stock or diary entries."
+            },
+            {
+              "description": "Create a recipe using an existing product. Setup: complete positive case 1; the test account has no recipe named F3D review bowl.",
+              "prompt": "Save a recipe called F3D review bowl: 400 g of F3D review cottage cheese, two servings. Preparation: stir and serve.",
+              "tools_triggered": "listRecipes, listProducts, createRecipe",
+              "expected_behavior": "Check for a duplicate recipe and retrieve the product UUID. Create one ingredient using product_id and amount_g=400, servings=2 and the preparation in notes, with a new idempotency_key. Report nutrition from the server, expected 242 kcal per serving. Do not log a meal."
+            },
+            {
+              "description": "Add purchased stock with an unspecified expiration date. Setup: positive case 1 exists, with no current fridge stock for that product.",
+              "prompt": "I bought 400 g of F3D review cottage cheese. Add it to my fridge. I do not know the expiration date. Show the resulting stock.",
+              "tools_triggered": "listProducts, listFridge, addFridgeItem",
+              "expected_behavior": "Find the product and inspect current stock. Add item_type=product, the returned item_id and amount_g=400 with a new idempotency_key. Do not invent expires_on. Confirm and show 400 g from the successful response or a subsequent listFridge result. Do not log eaten food."
+            },
+            {
+              "description": "Log eaten food and verify the resulting diary and inventory. Setup: complete cases 1 and 3; stock is 400 g, and no review meal has been logged today.",
+              "prompt": "I just ate 100 g of F3D review cottage cheese. Log it, then show my diary totals for today and how much of this product remains in the fridge.",
+              "tools_triggered": "listProducts, readDiary, logDiaryEntry, listFridge",
+              "expected_behavior": "Resolve the product UUID, check the diary for a possible duplicate, then log item_type=product and amount=100 with a new idempotency_key. Respect the user time zone. Read the resulting diary and fridge. The meal is 121 kcal and stock is 300 g under this setup; daily totals and remaining calories must match the server. Never call addFridgeItem to compensate for the deduction."
+            },
+            {
+              "description": "Count products using the server total instead of a single page. Setup: use the same test account; the returned total is the authoritative expected result, regardless of its changing library size.",
+              "prompt": "How many products in my F3D library have no barcode? Please give the total count.",
+              "tools_triggered": "listProducts",
+              "expected_behavior": "Call listProducts with has_barcode=false, preferably limit=1, and report the returned total, not the length of items. Do not invent records, fetch unrelated diary data or perform writes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deleting records is unsupported. Explain that the user must delete products in the F3D application. Do not call write tools, repurpose another tool or claim deletion.",
+              "prompt": "Delete every product in my F3D library."
+            },
+            {
+              "description": "External purchasing and payments are unsupported. Explain that F3D can record purchases after they happen, but cannot order or pay for groceries. Do not create stock, diary entries or a fictional order.",
+              "prompt": "Use F3D to order two cartons of milk from a grocery store and pay for them."
+            },
+            {
+              "description": "Changing an existing product is unsupported. Explain that editing nutrition values must be done in F3D. Do not create a replacement product or claim an update.",
+              "prompt": "Change F3D review cottage cheese to 150 kcal per 100 g in my saved library."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "F3D is free. There are no paid features, purchases, checkout or payment processing."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Prepared F3D GPT for an initial public directory submission: portable remote MCP configuration, publisher and listing information, and five positive and three negative review cases. Existing food-management instructions and icon are preserved.",
+        "translations": {
+          "ru-RU": {
+            "subtitle": "Дневник еды, рецепты и запасы",
+            "description": "F3D GPT помогает искать продукты и рецепты, проверять холодильник и сроки годности, читать дневник питания и итоги КБЖУ. По вашей просьбе сохраняет продукты и рецепты, добавляет купленную еду в холодильник и записывает съеденное. Запись еды автоматически уменьшает запас. Редактирование и удаление выполняются в приложении F3D. Нужны аккаунт F3D и авторизация. Сервис бесплатный, без покупок и платных функций."
+          }
+        }
+      }
+    }
+  }
+}

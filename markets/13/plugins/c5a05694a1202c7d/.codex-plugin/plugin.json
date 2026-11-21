@@ -1,0 +1,99 @@
+{
+  "name": "app-6aab7357ce188191921be1f32bb03492",
+  "version": "1.0.1",
+  "description": "Find and compare rental cars at supported RentGurus locations.",
+  "author": {
+    "name": "Rent Gurus",
+    "url": "https://www.rentgurus.com/"
+  },
+  "homepage": "https://www.rentgurus.com/",
+  "keywords": [
+    "car-rental",
+    "travel",
+    "rentgurus"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Rent Gurus",
+    "shortDescription": "Find and compare rental cars",
+    "longDescription": "RentGurus helps you find and compare rental cars at supported locations. Search using your pickup and return locations, dates and times, and compare available offers by price, vehicle specifications and listed inclusions. Browse representative vehicles in ChatGPT, then open RentGurus to view full inventory or continue with your selected offer. Reservations and payments are completed on the RentGurus website.",
+    "developerName": "Rent Gurus",
+    "category": "Travel",
+    "capabilities": [],
+    "websiteURL": "https://www.rentgurus.com/",
+    "supportURL": "https://www.rentgurus.com/support",
+    "privacyPolicyURL": "https://www.rentgurus.com/privacy-policy",
+    "termsOfServiceURL": "https://www.rentgurus.com/terms-and-conditions",
+    "defaultPrompt": [
+      "Find a rental car at Orlando International Airport for my trip.",
+      "Find automatic rental cars with at least five seats.",
+      "Compare rental cars for a one-way trip."
+    ],
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/composer-icon.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Same-location airport search",
+              "prompt": "Find a rental car at MCO, pickup 20 February 2027 at 10:00, return 23 February 2027 at 10:00 at MCO. Driver age 30, residence India, currency INR.",
+              "expected_behavior": "Resolve MCO and preserve trip details. Search for representative offers. Pass the exact successful nonempty result, preserving result_id, to render_car_results. Display cards and valid RentGurus links. Report empty availability accurately without inventing offers.",
+              "tools_triggered": "find_location, search_cars, render_car_results (only for nonempty successful search results)"
+            },
+            {
+              "description": "One-way rental: MIA to FLL",
+              "prompt": "Find a one-way rental car from Miami International Airport (MIA) to Fort Lauderdale-Hollywood International Airport (FLL), pickup 20 February 2027 at 10:00 and return 23 February 2027 at 10:00. Driver age 30, residence US, currency USD.",
+              "expected_behavior": "Resolve both airports and preserve MIA as pickup and FLL as return. Search using the supplied trip details. Pass the exact successful nonempty result to render_car_results and show valid RentGurus offer links. Do not replace the route with a same-location rental. If either location or one-way inventory is unavailable, explain that accurately without inventing offers.",
+              "tools_triggered": "find_location, search_cars, render_car_results (only for nonempty successful search results)"
+            },
+            {
+              "description": "Ambiguous Orlando location: clarification followed by search (two turns)",
+              "prompt": "Find cars in Orlando, pickup 20 February 2027 at 10:00, return 23 February 2027 at 10:00. Age 30, residence India, currency INR.",
+              "expected_behavior": "Run this as a two-turn test in a fresh conversation. First resolve Orlando. If multiple locations are returned, display the returned options and ask the reviewer to choose; do not search inventory or render car cards. Reviewer then sends: \"Use MCO for both pickup and return.\" Resolve MCO, retain the original February 20-23, 2027 dates, 10:00 times, age 30, residence India and INR, and call search_cars. Render the exact successful nonempty result. Explain errors or no availability without rendering. If Orlando returns only one option, the ambiguity branch was not exercised; do not invent alternatives.",
+              "tools_triggered": "Turn 1: find_location only when Orlando returns multiple options; no search_cars or render_car_results. Turn 2, after reviewer selects MCO for both locations: find_location to resolve MCO, then search_cars; render_car_results only for a successful nonempty search result."
+            },
+            {
+              "description": "Transmission, seating and inclusion filters",
+              "prompt": "Find automatic cars with at least five seats and CDW included at MCO, pickup 20 February 2027 at 10:00, return 23 February 2027 at 10:00. Driver age 35, residence India, currency INR.",
+              "expected_behavior": "Preserve all constraints. Return matching representative offers, at most five, with applied filters and counts. Do not relax filters without permission. Treat missing CDW information as not specified. Render only successful nonempty results.",
+              "tools_triggered": "find_location, search_cars, render_car_results (only for nonempty successful search results)"
+            },
+            {
+              "description": "Compact vehicle category filter",
+              "prompt": "Find compact rental cars at MCO, pickup 20 February 2027 at 10:00 and return 23 February 2027 at 10:00 at MCO. Driver age 30, residence India, currency INR.",
+              "tools_triggered": "find_location, search_cars with vehicle_type=\"compact\", render_car_results only after a successful nonempty search result",
+              "expected_behavior": "Resolve MCO and preserve the supplied trip details. Run a fresh search_cars call with vehicle_type set to compact. Return only vehicles matching the requested category under the server classification rules, at most five representative offers. Pass the exact successful nonempty result, preserving result_id, to render_car_results. If no compact cars match, explain that no matching offers were found; do not silently remove the filter or render empty results."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Car purchase outside rental scope",
+              "prompt": "I want to buy a car in Miami, not rent one. Find cars for sale.",
+              "expected_behavior": "Do not call RentGurus tools: this is a vehicle purchase request, not a rental search. Explain that RentGurus supports rental-car searches, not vehicle sales. Do not present rental offers as cars for sale."
+            },
+            {
+              "description": "Flight search outside rental scope",
+              "prompt": "Find a flight ticket from Delhi to London on 20 February 2027. I do not need a rental car.",
+              "expected_behavior": "Do not call RentGurus tools: flight search is outside the plugin scope. Explain that this plugin searches rental cars and cannot provide flight inventory. Do not fabricate flight offers or redirect the request into a car search."
+            },
+            {
+              "description": "Reversed rental window",
+              "prompt": "Find a rental car at MCO, pickup 23 February 2027 at 10:00, return 20 February 2027 at 10:00. Driver age 30, residence India, currency INR.",
+              "expected_behavior": "Explain that return precedes pickup and ask for corrected dates. Do not call search_cars or render_car_results with this invalid window, silently swap the dates, or claim availability. If invalid arguments are tested directly against search_cars, reject them before calling the inventory backend."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users compare rental cars and follow links to RentGurus to complete reservations and payments. The plugin does not create reservations or process payments.",
+        "demo_recording_url": "https://drive.google.com/file/d/10YKi0u1DYVtQsVyvDMtiGk9RB8X4DxHA/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "Repackage the existing Rent Gurus submission for the ZIP-based portal, with current production MCP configuration, existing listing assets, and reviewer test cases. No server implementation changes."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

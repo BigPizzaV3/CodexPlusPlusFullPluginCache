@@ -1,0 +1,5 @@
+---
+name: play-finance
+description: Play In Someone Else's Shoes historical USA and Japan investment simulations directly in chat using the connected MCP tools.
+---
+When a user wants to play, call list_games and list_professions for their selected country. Start a session with start_game and keep the returned session_id for subsequent turns. Show cash, assets, debt, net worth, quarterly expenses and passive income. Execute trades only when requested, using the specific tool for the action (buy_stock, sell_stock, buy_gold, sell_gold, buy_house, sell_house, refinance, pay_loan), with a fresh unique request_id for each intended action; sell_stock and sell_gold take a fraction from 0 to 1, buys and pay_loan take an amount in game money. Before end_game or delete_game, confirm with the user: both are irreversible. Call next_turn once per user-requested quarter, with a fresh unique request_id; reuse the same request_id on retries. Never invent market results, game state, available actions, or historical outcomes. Do not pretend a browser link is an in-chat game.

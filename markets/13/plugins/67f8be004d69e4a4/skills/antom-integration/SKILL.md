@@ -1,0 +1,119 @@
+---
+name: antom-integration
+description: >-
+  Antom payment integration skill for product and integration-mode selection, integration Q&A, code implementation, troubleshooting, sandbox testing, and go-live guidance.
+  Use for One-time Payments, Tokenized Payment (recurring auto-debit), Billing, Payment Element, Checkout Page, and API-only integration.
+---
+
+# Scope
+
+Use this skill to:
+- locate relevant Antom product, integration, SDK, notification, checklist, and troubleshooting knowledge
+- write or modify Antom payment integration code for the selected product, integration mode, and tech stack
+- diagnose integration issues from result codes, API names, request IDs, logs, asynchronous notifications, and sandbox or go-live symptoms
+
+# Document Access Guidelines
+
+Fetch Antom online docs with curl:
+
+```bash
+curl -sL "https://****/****.md"
+```
+
+# Get Integration Documentation
+
+Use this section as the shared knowledge lookup for product advice, Q&A, code implementation, and troubleshooting.
+
+## SDK Selection
+
+When the user has not chosen a backend tech stack, prioritize languages with official Antom SDKs listed in SDK Description; otherwise, respect the user's chosen or existing stack.
+
+Read [SDK Description](https://cdn.marmot-cloud.com/page/antom-integration-doc/references/select-sdk.md) when a server-side SDK is involved and you need to select a language, confirm the public version or installation, configure the API domain, or prepare backend code. Product-specific sample-code is selected from the matched product document.
+
+## Product Selection
+
+Read [Product Decision](https://cdn.marmot-cloud.com/page/antom-integration-doc/references/product-decision.md) for product or integration-mode advice. Use its clarification template only when needed.
+
+Choose the product through Product Decision before opening any product overview or selecting an integration mode.
+
+After product selection, prefer Checkout Page (CKP) when the user wants rapid integration and broad payment-method coverage, if it fits the selected product and scenario.
+
+## Integration Documentation Select
+
+Based on the user's selected product or capability and any applicable integration mode, locate the corresponding integration documentation:
+
+- [One-time Payments](https://cdn.marmot-cloud.com/page/antom-integration-doc/references/one-time-payments.md)
+- [Tokenized Payment](https://cdn.marmot-cloud.com/page/antom-integration-doc/references/tokenized-payment.md)
+- [Billing subscription integration](https://cdn.marmot-cloud.com/page/antom-integration-doc/billing/subscription-integration-core.md)
+
+Read the most specific sections available in the matched product doc.
+
+- After selecting a product, do not load other product docs unless comparison or migration is requested. For Billing, follow its Router and load only the selected scenario, capability, path, and operations.
+- For Q&A or product advice: infer what you can, read the closest relevant docs, and state assumptions when useful.
+- For troubleshooting: route by resultCode/resultMessage, API name, requestId, debug log, or error text first.
+
+# Writing Code
+
+Before writing or modifying code, first confirm the user's selected product and tech stack. Confirm an integration mode only when the selected flow has a payment-path or UI choice.
+
+Blocking list before coding:
+
+Do not write or modify integration code until all applicable items below are complete.
+
+- [ ] Read [Product Decision](https://cdn.marmot-cloud.com/page/antom-integration-doc/references/product-decision.md) to confirm the product category and integration mode, even when the user's request appears specific. Skip only if the user explicitly asks to skip product selection.
+- [ ] Read [SDK Description](https://cdn.marmot-cloud.com/page/antom-integration-doc/references/select-sdk.md) when a backend language or SDK is involved.
+- [ ] Read the matched product overview from `Integration Documentation Select`:
+  - One-time Payments
+  - Tokenized Payment
+  - Billing
+- [ ] From the matched product overview, route by integration mode when applicable and read only the implementation docs needed for that flow, such as Integration guide, Quick Start, API list, frontend SDK, native SDK, Element, Checkout Page, or API-only guides.
+- [ ] For coding tasks, route by the requested language or platform and read the matching product sample-code document from the same product overview before writing code. Inline examples in Quick Start, API reference, or integration guides are useful references, but they do not replace the product sample-code document.
+- [ ] If no exact sample-code exists for the requested operation, read its API contract and the selected SDK documentation or source. Do not infer SDK classes or methods from API field names; state any symbol that cannot be confirmed.
+- [ ] From the matched product overview, read the asynchronous notification document or section that matches the selected product and, when applicable, integration mode.
+- [ ] Read [FAQ (Coding)](https://cdn.marmot-cloud.com/page/antom-integration-doc/troubleshoot/faq-coding.md), scanning items that match the selected product, integration mode, payment method, and market.
+
+Generated code must:
+- keep signing and private keys on the server side
+- verify asynchronous notifications before trusting them
+- not treat client-side redirect results as final payment status
+- confirm uncertain payment status through asynchronous notification or query API
+- include development debug logging guidance when useful, masking card numbers, CVV, private keys, and secrets
+- include a brief FAQ compliance note confirming how each applicable item is handled, such as `gateway=correct region` or `settlementCurrency=matches API and merchant configuration`
+- include a brief note about the docs and validation assumptions used
+- include next-step guidance for credentials, sandbox testing, self-check, and go-live readiness when the user is building a full integration
+
+## Debug Logs
+
+**Write logs to a file** named `antom_debug.log` in the project root directory, in addition to console output. All generated integration code MUST log the API endpoint, complete request and response for each API call. Mask sensitive fields (card numbers, CVV, private keys).
+
+**Use exactly this format:**
+- Outgoing request/response: `[Antom][{timestamp}][{API endpoint}] {request/response body}`
+- Incoming async notification: `[Antom][{timestamp}][{API name}] {notification body}`
+
+> The logging code is for **development & debugging only** — remove or reduce once integration is stable.
+
+## Integration Testing and Go-live Preparation
+
+After writing integration code, read [Integration Testing and Go-live Preparation](https://cdn.marmot-cloud.com/page/antom-integration-doc/integration-guides/integration-testing-and-go-live-preparation.md) to guide the merchant through the applicable next steps: configure credentials, test local notification handling, run sandbox payments, and check what remains before going live. Also read it before giving go-live advice.
+
+If the user asks about registration, credentials, local notification debugging, sandbox testing, checklist, self-check, or go-live preparation at any point, use the guide to find and read the document for that question, then answer it.
+
+# Troubleshooting
+
+- **Error diagnosis (mandatory)**: When an Antom API call fails or the user reports an integration issue, read [Troubleshooting Guide](https://cdn.marmot-cloud.com/page/antom-integration-doc/troubleshoot/troubleshooting-guide.md) BEFORE diagnosing. Never skip directly to diagnosis CLI, Dashboard, or support.
+
+  Follow the guide's order:
+  1. **Evidence** → collect evidence from user input, console output, `antom_debug.log`, and visible local integration code/config/env files when available, masking secrets and private keys.
+  2. **API error lookup** → locate the API Result/Error codes and run local Self-check.
+  3. **Repair verification** → verify any repair before treating the issue as resolved.
+  4. **Escalation** → escalate to diagnosis CLI, Dashboard, or support only in the order and conditions allowed by the guide's diagnosis gates.
+  5. **Diagnosis Ledger** → return the compact Diagnosis Ledger defined in the guide.
+
+- **On-demand trigger**: If the user asks about an integration error, API failure, request/response issue, result code, Dashboard diagnosis, diagnosis CLI, or troubleshooting at any point, read the Troubleshooting Guide and respond inline.
+
+# Security Red Lines
+
+- Private keys must never be stored on the client side, logged, or committed to public repositories.
+- Asynchronous notifications must be signature-verified before being trusted.
+- Client-side redirect results are not final payment status.
+- Do not ask the user to pay again before confirming payment status through asynchronous notification or query API.

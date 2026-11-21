@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "voibe-transcription",
+  "version": "1.0.1",
+  "description": "Use your existing Voibe account to transcribe meetings, interviews, calls, lectures, podcast episodes, and voice memos from within ChatGPT.\n\nAsk Voibe to transcribe a recording and it will provide a secure upload link. After processing, the transcript appears in the conversation, ready for you to review, summarize, search, translate, or transform into useful work.\n\nWhat Voibe returns:\n\nA timestamped transcript\n\nSpeaker-separated dialogue\n\nA summary of the recording\n\nSpeaker names when they are stated clearly\n\nSupport for recordings in multiple languages\n\nYou can use the transcript to:\n\nCreate meeting minutes, decisions, and action items\n\nExtract attributed quotes from interviews\n\nDraft follow-up emails from calls\n\nProduce podcast show notes and chapter markers\n\nTurn lectures into study notes\n\nConvert voice memos into task lists\n\nEvaluate support calls against a rubric\n\nCompare themes across multiple recordings\n\nTranslate spoken content\n\nVoibe can also retrieve recent transcriptions associated with your connected account and show your remaining transcription allowance.\n\nSupported file types include MP3, WAV, M4A, MP4, FLAC, OGG, and WebM. Files can be up to 200 MB.\n\nAudio is deleted after transcription is completed and is not used to train models. Transcripts and summaries remain available through Voibe for 24 hours.\n\nAn existing Voibe account is required.\n\nDocumentation: https://platform.getvoibe.com/docs/mcp",
+  "author": {
+    "name": "Voibe"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Transcribe my team meeting and give me minutes: decisions, action items with owners and deadlines, open questions.",
+          "Transcribe this interview with speaker labels and timestamps, then list the 5 key quotes with who said them and when.",
+          "Transcribe this sales call and draft the follow-up email: what they asked for, objections, our promises, next steps."
+        ],
+        "developerName": "Voibe",
+        "displayName": "Voibe Transcription",
+        "longDescription": "Use your existing Voibe account to transcribe meetings, interviews, calls, lectures, podcast episodes, and voice memos from within ChatGPT.\n\nAsk Voibe to transcribe a recording and it will provide a secure upload link. After processing, the transcript appears in the conversation, ready for you to review, summarize, search, translate, or transform into useful work.\n\nWhat Voibe returns:\n\nA timestamped transcript\n\nSpeaker-separated dialogue\n\nA summary of the recording\n\nSpeaker names when they are stated clearly\n\nSupport for recordings in multiple languages\n\nYou can use the transcript to:\n\nCreate meeting minutes, decisions, and action items\n\nExtract attributed quotes from interviews\n\nDraft follow-up emails from calls\n\nProduce podcast show notes and chapter markers\n\nTurn lectures into study notes\n\nConvert voice memos into task lists\n\nEvaluate support calls against a rubric\n\nCompare themes across multiple recordings\n\nTranslate spoken content\n\nVoibe can also retrieve recent transcriptions associated with your connected account and show your remaining transcription allowance.\n\nSupported file types include MP3, WAV, M4A, MP4, FLAC, OGG, and WebM. Files can be up to 200 MB.\n\nAudio is deleted after transcription is completed and is not used to train models. Transcripts and summaries remain available through Voibe for 24 hours.\n\nAn existing Voibe account is required.\n\nDocumentation: https://platform.getvoibe.com/docs/mcp",
+        "privacyPolicyURL": "https://www.getvoibe.com/privacy/",
+        "shortDescription": "Transcripts, speakers, summary",
+        "supportURL": "https://www.getvoibe.com/help/",
+        "termsOfServiceURL": "https://www.getvoibe.com/terms/",
+        "websiteURL": "https://www.getvoibe.com",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Balance check before any work. Run the five cases in this order in one conversation; each later case uses the job created in case 2. Sign in with the reviewer account from the credentials field.",
+              "prompt": "How many transcription minutes do I have left?",
+              "tools_triggered": "get_balance",
+              "expected_behavior": "ChatGPT states the minutes remaining on the account as a number."
+            },
+            {
+              "description": "Start a transcription with speaker labels and a steered summary. ChatGPT cannot read a file itself, so the tool returns an upload page link. Fixture: download the sample recording https://voibe.s3.us-east-1.amazonaws.com/samples/voibe-sample-meeting.mp3, open the link ChatGPT gives, drop the file in, wait for the page to say transcription has started, then return to the chat.",
+              "prompt": "Transcribe a meeting recording. I need to know who said what, and a summary as decisions and action items.",
+              "tools_triggered": "create_transcription_job",
+              "expected_behavior": "ChatGPT asks to confirm the action, then gives one upload link and tells the user to open it and drop the recording in."
+            },
+            {
+              "description": "Read the result of the job created in case 2. The job passes QUEUED, PROCESSING, DONE; ChatGPT reports the state and, once DONE, the summary and the plain-text transcript. Work takes a fraction of the recording's length, so a first \"not finished yet\" answer is correct.",
+              "prompt": "Is it done?",
+              "tools_triggered": "get_transcript",
+              "expected_behavior": "When finished: the summary shaped as decisions and action items, and the transcript text. Before that: a plain statement that it is still processing and to ask again shortly."
+            },
+            {
+              "description": "Per-speaker view of the same job. Segments are returned only when asked, so this is a second call to the same tool with include_segments set.",
+              "prompt": "Show me who said what, with timestamps.",
+              "tools_triggered": "get_transcript",
+              "expected_behavior": "Lines grouped by speaker, each with a start and end time, matching the recording."
+            },
+            {
+              "description": "List the account's transcriptions after the job finished. Newest first; the job from case 2 is at the top.",
+              "prompt": "List my transcriptions.",
+              "tools_triggered": "list_transcripts",
+              "expected_behavior": "A list newest first with the job just transcribed at the top, showing its status DONE, its date and, when the model produced one, its title."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Transcription from a link. Why the plugin must not complete it: the create tool has no link parameter; Voibe does not fetch audio from third-party sites. Fixture: none.",
+              "prompt": "Transcribe this YouTube video: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+              "expected_behavior": "ChatGPT explains it cannot fetch audio from a link and offers the upload link for a downloaded recording instead. Nothing is fetched from the site."
+            },
+            {
+              "description": "A purchase inside the chat. Why the plugin must not complete it: no tool sells or grants minutes; minutes are managed in the person's Voibe account. Fixture: none.",
+              "prompt": "Buy me 100 more minutes.",
+              "expected_behavior": "ChatGPT says it cannot buy minutes from here and that minutes are managed in the Voibe account. No purchase, no checkout link."
+            },
+            {
+              "description": "A destructive action. Why the plugin must not complete it: no tool deletes or changes anything; every tool is declared non-destructive. Fixture: none.",
+              "prompt": "Delete my last transcription.",
+              "expected_behavior": "ChatGPT says it cannot delete transcriptions from here. Nothing changes on the account."
+            }
+          ]
+        },
+        "demo_recording_url": "https://voibe.s3.us-east-1.amazonaws.com/creatives/videos/voibe-chatgpt-demo.mp4",
+        "commerce": false
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Version 1.0.1. Voibe Transcription turns a recording into a speaker-labelled transcript and a summary. Four tools: start a transcription (returns an upload link), read a transcript, list transcriptions, check remaining minutes. The start-transcription tool no longer accepts a webhook address, and every tool now sets readOnlyHint, destructiveHint, openWorldHint and idempotentHint explicitly."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

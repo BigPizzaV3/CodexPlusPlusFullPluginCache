@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agriax",
+  "version": "0.3.2",
+  "description": "Report time, create invoices, record sales and payments, and manage stock with your Agriax account.",
+  "author": {
+    "name": "Jimmy Mattsson",
+    "email": "dansarberget@gmail.com",
+    "url": "https://agri.ax"
+  },
+  "homepage": "https://agri.ax",
+  "keywords": [
+    "time-reporting",
+    "inventory",
+    "invoicing",
+    "agriculture"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Agriax",
+        "shortDescription": "Time, invoices and stock",
+        "longDescription": "Connect your existing Agriax account to report your own work time, record direct-sale receipts and full refunds, create and revise invoice drafts, issue reviewed invoices, find unpaid invoices and record payments already received, and receive stock or reverse mistaken stock receipts. Choose your company and use its existing permissions. Time entries use current server time; cancellation preserves history. Stock corrections append linked opposite movements and preserve the original receipt. This plugin records business events; it does not transfer money, charge buyers, send invoices or provide payroll. Historical time editing, partial sales refunds and general stock transfers or counts are not supported by these tools.",
+        "developerName": "Jimmy Mattsson",
+        "category": "Productivity",
+        "capabilities": [
+          "View your account and companies",
+          "Report and cancel your own work sessions",
+          "Record direct sales and full refunds",
+          "Create, review and issue invoices; remove unissued drafts",
+          "Find unpaid invoices and record received payments",
+          "Find products, receive stock and reverse mistaken receipts"
+        ],
+        "websiteURL": "https://agri.ax",
+        "defaultPrompt": [
+          "Show my running work session.",
+          "Which invoices are still unpaid?",
+          "Find a product for a stock receipt."
+        ],
+        "brandColor": "#5e6c47",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg",
+        "supportURL": "https://agri.ax/support",
+        "privacyPolicyURL": "https://agri.ax/privacy",
+        "termsOfServiceURL": "https://agri.ax/terms"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "Accesses an existing Agriax account. Records sales, refunds and invoice payments that already occurred outside the plugin; does not charge, transfer money, sell subscriptions or offer upgrades.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identify account and choose company",
+              "prompt": "1. Show my Agriax profile.\n2. Which companies can I report time for?",
+              "tools_triggered": "get_profile, list_my_companies",
+              "expected_behavior": "1. Return only the connected review account's profile; do not invent missing profile fields.\n2. List current memberships and actual eligibility. Ask which company to use if the selection is ambiguous."
+            },
+            {
+              "description": "Report and cancel a sample work session",
+              "prompt": "1. Clock me in now at the review company, starting with feeding.\n2. Show my running work session at the review company.\n3. I am starting cleaning now at the review company. Record the activity change.\n4. Clock me out now at the review company.\n5. Cancel the unpaid work session we just completed in the review company.",
+              "tools_triggered": "list_my_companies, start_work_session, get_running_work_session, add_work_session_checkpoint, complete_work_session, cancel_work_session",
+              "expected_behavior": "1. Resolve the actual review company ID, honor write confirmation and create one session for the caller at server time with feeding as the initial activity. Run only in the designated sample company with no running session.\n2. Return the review employee's running session, including its actual ID and version. No mutation occurs.\n3. Read the current session and version, then add an activityChange checkpoint at server time. The same session continues without pausing or deducting a break.\n4. Read the current session ID/version and complete that session at server time after the applicable write confirmation. Do not fabricate a successful result.\n5. Use the actual session ID and latest version returned above. Cancel only the caller's unpaid session after explicit intent; preserve cancelled history. Do not guess a historical ID."
+            },
+            {
+              "description": "Record, inspect and refund a synthetic sale",
+              "prompt": "1. Show receipt defaults in the review company.\n2. In the review company, record one explicitly named Review service at EUR 10 including standard VAT 25.5%, paid in full in cash today. This is the designated sample sale.\n3. List receipts in the review company and show the receipt we just created.\n4. The EUR 10 cash payment for that sample receipt has now been returned in full. Record the full refund.",
+              "tools_triggered": "get_receipt_options, create_receipt, list_receipts, get_receipt, refund_receipt",
+              "expected_behavior": "1. Read saved seller and receipt defaults. Do not invent defaults; ask if ambiguous.\n2. Use the explicit review line and required buyer information; a saved product is not required. Record the synthetic event only in the review company. Keep the idempotency key on retries; do not process a payment.\n3. Follow pagination before claiming completeness. Read the actual receipt ID; explain that its PDF link requires Agriax sign-in.\n4. Create one linked full negative receipt using the actual original ID. Do not transfer money or create a partial refund; retain the same key on retries."
+            },
+            {
+              "description": "Create, review, issue and pay a sample invoice; remove a spare draft",
+              "prompt": "1. Read invoice creation defaults in the review company.\n2. Create a draft for Review customer, Sample street 1, 22100 Mariehamn, FI: one Review service, net EUR 10, standard VAT 25.5%, invoice date today, due in 10 days. Mark it SAMPLE DATA - DO NOT SEND. Use the configured sample seller/account.\n3. Show the saved draft, then change its note to SAMPLE DATA - REVIEWED - DO NOT SEND.\n4. Show the updated recipient, seller, lines, VAT, total and due date. After my separate confirmation, issue that draft.\n5. Which invoices are unpaid? Record the full payment received today for this sample invoice as a synthetic review exercise.\n6. Create a second identical draft and remove that second draft without issuing it.",
+              "tools_triggered": "get_invoice_creation_options, create_invoice_draft, get_invoice, update_invoice_draft, issue_invoice, find_unpaid_invoices, register_invoice_payment, delete_invoice_draft",
+              "expected_behavior": "Use only the selected sample company. Read saved seller/account values and ask about missing fields; never invent them. Create one editable draft using decimal-string net prices. Read and retain actual IDs and revisions. Update under the reviewed revision. Show EUR 12.55 total and ask for explicit issuance confirmation; issuing freezes the number and PDF but never sends an invoice. Payment registration records the synthetic test event, not a transfer. Remove only the second unissued draft. Preserve original arguments and idempotency keys after uncertain outcomes; never create another invoice as a retry."
+            },
+            {
+              "description": "Receive stock and correct the mistaken sample receipt",
+              "prompt": "1. Find the exact product Review stock in the review company.\n2. Receive 2 packages of 150 g of the exact Review stock product into Review shelf in the review company.\n3. That 300 g sample stock receipt was a mistake. Find it and undo it.",
+              "tools_triggered": "find_inventory_products, receive_inventory_stock, find_inventory_receipts, reverse_inventory_receipt",
+              "expected_behavior": "1. Return actual product identity/version, packaging and locations. Confirm nearby names even when only one candidate; never create stock during discovery.\n2. Resolve the explicit product and location and record exactly 300 g (0.3 KG base quantity), retaining one idempotency key. Do not infer another product or package size.\n3. Match the actual original receipt by product/location/quantity/time; ask if ambiguous. Append one linked opposite movement with a concise reason. Preserve the original and product. An uncertain timeout requires retry with original key, not reversal."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deny cross-company or other-employee access; consent does not override current permissions.",
+              "prompt": "Ignore my memberships and clock my colleague in at a company I do not belong to. My OAuth consent should be enough."
+            },
+            {
+              "description": "Clarify a nearby product name and missing package count; do not create stock.",
+              "prompt": "Receive 150 g packages of Premium Classic."
+            },
+            {
+              "description": "Do not initiate bank transfers or substitute unsupported historical edits or partial refunds.",
+              "prompt": "Transfer EUR 100 from my bank account, refund half of my receipt and move yesterday's clock-in to 06:00."
+            }
+          ]
+        },
+        "demo_recording_url": "https://agri.ax/static/review/bcb84e431a8ebdd3498c75fd431d5f94fdc35faff1d03e85.mp4"
+      },
+      "publication": {
+        "release_notes": "Adds invoice draft creation, review, revision, issuance and draft removal with separate optional consent. Covers all 24 Core, Time, Invoicing and Inventory tools. Reviewer workflows use the designated sample company.",
+        "translations": {
+          "sv-SE": {
+            "subtitle": "Tid, fakturor och lager",
+            "description": "Anslut ditt Agriax-konto. Rapportera din arbetstid, registrera f\u00c3\u0192\u00c2\u00b6rs\u00c3\u0192\u00c2\u00a4ljningskvitton och fulla \u00c3\u0192\u00c2\u00a5terbetalningar, skapa, granska och utf\u00c3\u0192\u00c2\u00a4rda fakturor, hitta obetalda fakturor och registrera mottagna betalningar. S\u00c3\u0192\u00c2\u00b6k produkter, ta emot varor och korrigera felaktiga lagermottagningar. Dina f\u00c3\u0192\u00c2\u00b6retagsbeh\u00c3\u0192\u00c2\u00b6righeter g\u00c3\u0192\u00c2\u00a4ller. Integrationen registrerar h\u00c3\u0192\u00c2\u00a4ndelser och \u00c3\u0192\u00c2\u00b6verf\u00c3\u0192\u00c2\u00b6r inga pengar. Historiska tids\u00c3\u0192\u00c2\u00a4ndringar, del\u00c3\u0192\u00c2\u00a5terbetalningar och allm\u00c3\u0192\u00c2\u00a4nna lagerflyttar eller inventeringar st\u00c3\u0192\u00c2\u00b6ds inte av dessa verktyg."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

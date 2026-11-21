@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "loova",
+  "version": "2.1.4",
+  "description": "Product image and video creation with Loova MCP.",
+  "author": {
+    "name": "Loova"
+  },
+  "homepage": "https://loova.ai",
+  "repository": "https://github.com/loovaai/loova-agent-plugins",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "1. Connected account, full model catalog, and a read-only estimate. Use the dedicated reviewer account with current model access and sufficient credits; run in a new conversation. No media files are required.",
+              "prompt": "Use Loova to show my connected account and credits, list the supported image and video models, and quote one widescreen image of a lone traveler in a desert at sunset. Choose an available image model and supported settings. Do not generate anything.",
+              "tools_triggered": "get_profile, get_credits, list_generation_models, quote_generation",
+              "expected_behavior": "The agent identifies the connected account, reports the current balance, and retrieves the supported model catalog. It explains that appearing in the catalog does not guarantee account access, selects valid settings, and presents the returned estimate. It submits no generation and spends no generation credits. If access is denied, it reports the returned business error rather than claiming a successful estimate."
+            },
+            {
+              "description": "2. Text-to-image with per-generation confirmation. Run after case 1 with the funded reviewer account. Retain the generated image and task ID for cases 3 and 5.",
+              "prompt": "Create a widescreen studio product photo of an unbranded red-and-cream running shoe on a light gray background. Use per-generation confirmation: show the model, settings, and credit estimate and wait for my approval. After I reply 'Approve this image generation', submit exactly one image and open its result card.",
+              "tools_triggered": "list_generation_models, quote_generation, generate_image (only after the approval follow-up), show_generation_job",
+              "expected_behavior": "The agent obtains a current quote and stops for approval. The reviewer then sends the stated approval as a separate message. Only then does the agent submit one task with an idempotency key and open its card. The agent stops polling after the card handoff. The card updates to the actual terminal status; success shows the image and applicable download/open actions, while failure is displayed honestly without an automatic paid retry."
+            },
+            {
+              "description": "3. Image-to-video with explicitly authorized automatic progression. Run after successful case 2 in the same account and connection, using its shoe image. The account must have access and enough credits for a supported 15-second image-to-video model.",
+              "prompt": "Switch to automatic progression for this conversation and Loova account. Using the shoe image we just generated, create one 15-second product showcase video with a slow orbiting camera and soft studio lighting. Preserve the shoe's appearance, use a supported model and settings, and open the task card. Do not create any additional variants.",
+              "tools_triggered": "list_generation_models, quote_generation, generate_video, show_generation_job; create_asset_upload, complete_asset_upload, get_asset_upload only if the reference needs uploading",
+              "expected_behavior": "The agent treats the explicit mode selection as authorization for this requested generation, obtains a fresh quote, and does not request another credit confirmation. It uses a verified current-environment Loova reference; if a new upload is necessary it waits for ready and uses the returned reference.url, never a third-party or upload PUT URL. It submits one task and hands progress to the card without agent polling or paid retries. Unsupported duration or unavailable entitlement is reported, not silently changed; insufficient credits or plan access produces the returned safe action link, with no purchase or generation."
+            },
+            {
+              "description": "4. Reference-video adaptation and script review gate. Run after successful cases 2 and 3, reusing their shoe image and showcase video in the same Loova account. This case tests analysis and quotation only, not final video generation.",
+              "prompt": "Use our shoe showcase video as the reference and the shoe image as the product reference for a new Loova video adaptation. Preserve the pacing and shot structure, but change the setting to a sunlit concrete courtyard. Prepare the project, show the complete proposed script and a fresh estimate, and stop for my script review. Do not submit final video generation.",
+              "tools_triggered": "list_generation_models as needed, create_video_clone_project, get_video_clone_project, quote_video_clone; upload tools only if references need uploading",
+              "expected_behavior": "The agent uses current-environment Loova URLs for every reference and creates a clone analysis project with an idempotency key. It checks analysis only as needed to obtain the script, then displays the full script and quote. It does not call confirm_video_clone_script or submit final paid generation, even if automatic progression was selected in case 3. If analysis fails it reports the actual failure rather than fabricating a script or repeatedly creating projects."
+            },
+            {
+              "description": "5. Existing-task status, result card, and output access. Use the actual image and video task IDs from cases 2 and 3. If the client does not render cards, verify the supported text/link fallback instead.",
+              "prompt": "Show the current status and result cards for the image and video tasks we created in this test. Do not recreate or modify either task. I want to inspect the outputs, download the completed files, and open the corresponding tasks in Loova.",
+              "tools_triggered": "get_generation_job, show_generation_job",
+              "expected_behavior": "The agent reads the existing tasks and presents their actual statuses and cards where supported, without creating another task or consuming generation credits. A completed card shows the correct media, download action, and corresponding Loova task link. The reviewer clicks Download and Open in Loova to verify the correct file and task. Pending or failed tasks are not represented as completed. Unsupported in-chat previews are explained and the available output/task links are provided."
+            }
+          ],
+          "negative": [
+            {
+              "description": "1. No approval and explicit cancellation must not create a task. Use a new conversation in per-generation confirmation mode with the reviewer account.",
+              "prompt": "Use per-generation confirmation. Quote one image of a blue ceramic cup on a table, but do not generate it. After you show the estimate I will reply 'Cancel; do not create this task.'",
+              "tools_triggered": "list_generation_models, quote_generation; no generate_image or generate_video",
+              "expected_behavior": "The agent shows a quote and waits. After the reviewer sends the stated cancellation as a separate message, it acknowledges cancellation without submitting a task, consuming generation credits, or interpreting the request as automatic progression."
+            },
+            {
+              "description": "2. Missing reference material must not be invented. Start a new conversation with no attachments, reference URLs, or previous task context.",
+              "prompt": "Animate this anime character walking through a sunlit forest. Keep the original illustration style.",
+              "tools_triggered": "No generation or clone creation tools; create_asset_upload may be offered for a user-supplied reference",
+              "expected_behavior": "Because no character image was supplied, the agent asks for it or offers the supported upload workflow and stops. It must not invent a reference URL or OSS key, reuse another conversation's private asset, claim an upload is ready, or submit a generation without the required material."
+            },
+            {
+              "description": "3. Unsupported model must not be silently substituted or misclassified as a purchase problem. Use the reviewer account in a new conversation; the invented identifier below is deliberately invalid.",
+              "prompt": "Quote a video using the exact Loova model code review_nonexistent_model_000. Do not substitute another model, purchase anything, or generate a task.",
+              "tools_triggered": "list_generation_models; quote_generation only if needed to confirm server validation",
+              "expected_behavior": "The agent checks the catalog and explains that the requested model is unavailable. If a quote is attempted, MODEL_NOT_AVAILABLE is reported as such. It does not translate an unknown model into PLAN_REQUIRED or INSUFFICIENT_CREDITS, invent a pricing link, substitute a model, submit a task, or request reauthorization as a remedy."
+            }
+          ]
+        },
+        "demo_recording_url": "https://res.loova.ai/uploads/mcp/b61375ef173443f3a4c9aced80cb6f32",
+        "commerce": true,
+        "commerce_description": "Generation uses the connected Loova account's credits or entitlements. When model access or credits are insufficient, the MCP may return a Loova pricing URL for plan upgrades or credit purchases. The agent displays that returned link; the plugin does not purchase automatically or collect payment details. Reviewers should use the pre-provisioned account and should not need to make purchases."
+      },
+      "publication": {
+        "release_notes": "Loova 2.1.4 \u2014 Generate images and videos in your AI agent\n\n- Image and video generation: Create images and videos from text prompts or image references, bring still images to life, and explore different styles, camera movements, and model-supported settings.\n- Creative workflows: Create short-drama scenes, animation and anime clips, and marketing content such as product images, showcase videos, and UGC-style ads. Edit images, adapt reference videos, transfer character motion, or replace characters in existing footage.\n- Models and results: Explore available models, review generation estimates, and track tasks in the conversation. View outputs in result cards, download files, or open the corresponding task in Loova.\n\nA connected Loova account is required. Available models, settings, and features depend on your account access. Reference-video adaptations require script review before final generation."
+      },
+      "interface": {
+        "displayName": "Loova",
+        "shortDescription": "AI image & video workflows",
+        "longDescription": "Turn ideas into images and videos with Loova, directly from your AI agent. Start with a text prompt, add reference materials, or bring a still image to life.\n\nBuilt for content creators, Loova combines image and video models with creative skills for everyday visual creation, short dramas, animation, anime, and marketing content.\n\nCreate images and videos. Describe a subject, scene, style, or action to generate images and videos. Use image references to guide your work, edit image backgrounds and details, or turn still images into video clips. Choose available models and their supported settings, including aspect ratio and video duration.\n\nBring stories and characters to life. Create scene images and video clips for short dramas, animation, and anime. Use reference videos to guide character motion, adapt pacing and shot structure, or replace characters in existing footage.\n\nCreate content for your audience and brand. Make product photos, showcase videos, UGC-style ads, thumbnails, and social covers. Adapt existing creative assets to different sizes and formats.\n\nFollow your work in the conversation. Upload references, explore available models, review generation estimates, and track progress. View outputs in result cards, download files, or open the corresponding task in Loova.\n\nConnect your Loova account to get started. Generation uses your account's available credits or entitlements. Available features depend on your account; in-chat previews depend on your client. Reference-video adaptations require script review before final generation.",
+        "developerName": "Loova",
+        "category": "Creativity",
+        "capabilities": [
+          "Generate and edit images",
+          "Generate and adapt videos",
+          "Prepare product and advertising creative",
+          "Check models, credits, and quotes",
+          "View generation status and results"
+        ],
+        "websiteURL": "https://loova.ai",
+        "supportURL": "https://loova.ai",
+        "privacyPolicyURL": "https://loova.ai/privacy-policy",
+        "termsOfServiceURL": "https://loova.ai/terms-of-use",
+        "defaultPrompt": [
+          "Generate a cinematic image of a lone traveler in a vast desert at sunset, with warm light and a widescreen composition.",
+          "Create a 15-second video of a detective entering a rain-soaked alley at night, with a slow tracking shot.",
+          "Animate this anime character walking through a sunlit forest. Keep the original illustration style."
+        ],
+        "brandColor": "#6754D9",
+        "composerIcon": "./assets/icon.webp",
+        "logo": "./assets/icon.webp"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

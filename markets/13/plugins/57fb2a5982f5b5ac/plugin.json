@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "noibu",
+  "version": "1.2.8",
+  "description": "Analyze ecommerce conversion, shopper behavior, errors, and experiments using Noibu data.",
+  "author": {
+    "name": "Noibu",
+    "email": "support@noibu.com",
+    "url": "https://noibu.com"
+  },
+  "homepage": "https://noibu.com",
+  "repository": "https://github.com/Noibu/ai-plugin-chatgpt",
+  "license": "MIT",
+  "keywords": [
+    "ecommerce",
+    "analytics",
+    "conversion",
+    "accessibility",
+    "experiments"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/noibu-setup/SKILL.md",
+      "interface": {
+        "displayName": "Noibu",
+        "shortDescription": "Ecommerce insights and fixes",
+        "longDescription": "Built for ecommerce, the Noibu plugin bridges the gap between customer experience and revenue by connecting ChatGPT directly to your store's session, error, and conversion data through Noibu \u2014 and to the marketing, support, and commerce platforms that put insight into motion. Go beyond analysis: surface what's costing you revenue, take action across your stack, build workflows to automate work end-to-end.",
+        "developerName": "Noibu",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://noibu.com",
+        "supportURL": "https://help.noibu.com",
+        "privacyPolicyURL": "https://noibu.com/privacy-policy",
+        "termsOfServiceURL": "https://noibu.com/terms-of-service",
+        "logo": "./assets/noibu-logo-square.svg",
+        "composerIcon": "./assets/noibu-logo-square.svg",
+        "defaultPrompt": [
+          "How is my store doing in the last 24 hours?",
+          "Compare checkout performance with the previous 30 days.",
+          "Find evidence-backed A/B tests to improve add-to-cart rate."
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Store health and cumulative purchase funnel for carsncards.com, October 15\u201321, 2026 UTC. Precondition: dedicated reviewer account can access this store and retained ecommerce data. Revenue may include multiple cart currencies and must be kept separate.",
+              "prompt": "How did carsncards.com perform from October 15 through October 21, 2026, in UTC? Show sessions, conversion, revenue, and the purchase funnel.",
+              "tools_triggered": "noibu_get_domain; noibu_get_business_context; noibu_search_sessions",
+              "expected_behavior": "Resolve carsncards.com with noibu_get_domain and use the returned UUID as domainId; read saved business context. Query noibu_search_sessions for startTime=2026-10-15T00:00:00Z and exclusive endTime=2026-10-22T00:00:00Z, using ordered, bounded aggregates. Report measured sessions, purchasing-session conversion, completed-order revenue by CART_CURRENCY, completed orders and cumulative purchase-funnel counts derived from CONVERSION_FUNNEL_DEPTH. Counts must reconcile to returned buckets; distinguish orders from purchasing sessions and missing data from zero. Do not sum mixed currencies. Explain express-checkout/missing-event caveats. Use completed-order count for AOV if shown. No writes. Recover from a query-validation error with a corrected request or clearly report failure; never fabricate successful results."
+            },
+            {
+              "description": "Measured checkout abandonment for carsncards.com, October 15\u201321, 2026 UTC. Precondition: dedicated reviewer account can access retained checkout events and row-level sub-step data for this store.",
+              "prompt": "Where did shoppers drop out of checkout on carsncards.com from October 15 through October 21, 2026, in UTC?",
+              "tools_triggered": "noibu_get_domain; noibu_get_business_context; noibu_search_sessions; noibu_session_lookup",
+              "expected_behavior": "Resolve the named store and read business context. Query measured funnel depths with the fixed UTC boundaries startTime=2026-10-15T00:00:00Z and exclusive endTime=2026-10-22T00:00:00Z; order and bound queries. Checkout-reaching counts sum depth >=2; completed counts use depth 4; abandonment equals checkout-reaching minus completed. For reported sub-step breakdowns, use noibu_session_lookup filtered to CONVERSION_FUNNEL_DEPTH >=2 and CHECKOUT_COMPLETED=false, selecting contact/address/shipping/payment counts and exit URLs. Establish complete row coverage before population claims, otherwise label samples. Mutually exclusive counts must reconcile; do not equate repeated events with unique sessions. Explain express-checkout and coverage limits, distinguish observed stopping points from causes, and make no changes."
+            },
+            {
+              "description": "Worst observed pages by p75 LCP for carsncards.com, October 15\u201321, 2026 UTC. Precondition: dedicated reviewer account can access retained page-performance data.",
+              "prompt": "Which pages had the worst LCP on carsncards.com from October 15 through October 21, 2026, in UTC?",
+              "tools_triggered": "noibu_get_domain; noibu_get_business_context; noibu_get_page_visits",
+              "expected_behavior": "Resolve the named store and read business context. Query noibu_get_page_visits for startTime=2026-10-15T00:00:00Z and exclusive endTime=2026-10-22T00:00:00Z, grouping by URL, measuring QUANTILE_75(LCP) and page-visit count, ordering by LCP descending and limiting to 10. Show returned URLs, p75 timings with correct millisecond-to-second conversion, and visit volumes. State small-sample and missing-data limitations. Do not substitute AVG for p75 or claim a fix. hasMore=true is permissible for the intentionally limited top-ten query. No writes."
+            },
+            {
+              "description": "Technical triage for carsncards.com over the last seven days using tech-diagnosis. Precondition: dedicated reviewer account can access active issues, details, trends and page performance. Record execution time; rolling results may change and daily error buckets need not equal an exact 168-hour interval.",
+              "prompt": "What technical issues should I investigate first on carsncards.com over the last seven days?",
+              "tools_triggered": "noibu_get_domain; noibu_get_business_context; noibu_search_errors; noibu_get_error; noibu_get_error_trends; noibu_get_page_visits; noibu_get_issue_http_payloads",
+              "expected_behavior": "Invoke tech-diagnosis for the named store and rolling last-seven-day request. Expected supporting tools include the named domain/context, error search/detail/trends and page-visits tools; use HTTP-payload sampling when needed to interpret HTTP failures. The skill selects the applicable subset and investigation order; noibu_list_priority_errors is not mandatory. Use the resolved domainId and LAST7_DAYS/ONE_WEEK or an explicitly anchored equivalent performance window. Prioritize actionable shopper symptoms supported by returned data, identify merchant/vendor uncertainty, distinguish human-verified labels from predictions and hypotheses, and use returned issue links where available. Counts, timestamps, stacks and metrics must match source responses; disclose sampling, row caps, daily time buckets and missing bodies. Do not invent causes, rank by annualized revenue projections or change issue status."
+            },
+            {
+              "description": "Read-only inventory of existing A/B tests on carsncards.com across all lifecycle statuses. Precondition: dedicated reviewer account can access this store and its existing test roster, including draft and running or stopped tests. No fixed analytics date window applies.",
+              "prompt": "Show all existing A/B tests on carsncards.com and their lifecycle status. Do not create or change anything.",
+              "tools_triggered": "noibu_get_domain; noibu_list_ab_tests",
+              "expected_behavior": "Resolve carsncards.com using noibu_get_domain, then call noibu_list_ab_tests with the returned domainId and omit status to include all lifecycle states. Show every returned test ID, title and status without inventing entries; completeness and displayed status totals must reconcile with the response. Explain that lifecycle status is not a winner/result verdict. Do not call noibu_create_ab_test, noibu_update_ab_test or noibu_advance_ab_test, and do not infer winners from the roster. No writes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Out-of-scope merchant transaction. Explain that Noibu analyzes store data and cannot place customer orders or charge a card. Do not invoke Noibu tools or any purchase tool; do not claim success.",
+              "prompt": "Use Noibu to buy a shirt from carsncards.com and charge my saved credit card."
+            },
+            {
+              "description": "Unsupported advertising mutation. Explain that this plugin cannot directly change Google Ads budgets; a separate authorized advertising integration would be needed. Do not call Noibu tools, send feedback, or claim a budget changed.",
+              "prompt": "Use Noibu to increase my Google Ads daily budget to $500 right now on carsncards.com"
+            },
+            {
+              "description": "Unsupported raw analytics deletion. Explain that this plugin has no raw-session-data deletion tool and point to the publisher support process. Do not invoke Noibu tools or substitute issue/theme deletion tools; do not claim records were deleted.",
+              "prompt": "Use Noibu to permanently delete every raw shopper session collected last month on carsncards.com"
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/fec07de169b7466c8007c331fe7b9202"
+      },
+      "publication": {
+        "release_notes": "Analyze store performance, checkout drop-off, page speed, technical issues, and A/B tests using Noibu. Version 1.2.8 adds a capability check before store resolution so unsupported requests, including raw-session deletion, are declined without calling Noibu tools."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

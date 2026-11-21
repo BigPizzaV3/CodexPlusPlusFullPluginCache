@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "solo-cloud",
+  "version": "1.0.9",
+  "description": "Work with Solo Cloud projects: wells, trajectories, logs, tops, interpretations and real-time drilling data.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Solo Cloud",
+        "shortDescription": "Wells, logs and geosteering",
+        "longDescription": "Solo Cloud by Rogii is a cloud platform that connects geologists, geosteerers and drilling teams around shared well data. This plugin lets ChatGPT read and update Solo projects through the Solo Public API, acting as the signed-in user and seeing only the projects and objects that user can already access.\n\nWhat ChatGPT can do:\n- Browse projects and virtual projects; find wells (laterals) and typewells by project, API number or well list, and the nested wells of a well\n- Create and delete wells, typewells and nested wells; set up virtual projects, folders and custom well attributes; add images\n- Read and edit trajectories (replace or extend surveys), well metadata and attributes; read uncertainty ellipses\n- Work with logs, mudlogs and image logs: list by log family, read curves, upload or replace data, extend logs and mudlogs\n- Manage formation tops and topsets, read zones; link typewells to laterals\n- Review geosteering interpretations with their horizons and faults; create interpretations and edit segments, earth models, auto-typewell shifts, target lines and bit projection\n- Pull real-time drilling data: time- and depth-indexed traces, rig activity and KPIs, slide sheet intervals and drilling events\n- Manage well construction: hole sections, BHA runs and casings; read torque and drag models\n- Keep daily drilling reports with their operations and summaries, and mud checks\n- Manage well files: list them, upload and download them through one-time links, move and delete them\n- Use map context: grids, polygons, well sticks and multi-well trajectories\n- Copy grids and polygons between projects; move large data through one-time links for scripts\n- Manage completions and stages, production curves and tool codes\n- Collaborate: comments, starred objects, locks, project history, recently changed objects, roadmaps, well lists and reference lists\n\nYou choose the access when you connect: reading is always on, writing and deleting are separate options. To change them, disconnect Solo Cloud and connect again.\n\nTypical uses: load survey or log data from files, QC logs and surveys, build a dashboard from Solo well data, draft a geosteering or drilling performance summary, or see what changed in a project today.\n\nUnits follow each project's settings (feet, meters or mixed). Create calls with a request id are safe to retry without duplicates, and all access follows existing Solo permissions. Your organization needs the Solo MCP license.",
+        "developerName": "Rogii Inc.",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read projects, wells, trajectories, logs and tops",
+          "Update trajectories, logs, tops and well metadata",
+          "Review geosteering interpretations and earth models",
+          "Read real-time drilling data and drilling events",
+          "Manage well construction, drilling reports and mud checks"
+        ],
+        "defaultPrompt": [
+          "List my Solo Cloud projects and how many wells each one has.",
+          "Summarize the trajectory of a well in my Solo Cloud project.",
+          "Which formation tops are picked on a well in my Solo Cloud project?"
+        ],
+        "websiteURL": "https://www.rogii.com/products/solo-cloud",
+        "supportURL": "https://www.rogii.com/support",
+        "privacyPolicyURL": "https://www.rogii.com/privacy-policy",
+        "termsOfServiceURL": "https://www.rogii.com/terms-of-use",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Lists the projects of the signed-in user with their wells",
+              "prompt": "List my Solo Cloud projects and tell me how many wells each one has.",
+              "tools_triggered": "get_projects, get_virtual_projects, get_laterals_by_project, get_typewells_by_project",
+              "expected_behavior": "Lists the projects of the review account with their well counts: ROGII test project (2 laterals, 5 typewells), Test metr project (3 laterals, 11 typewells) and the virtual project Test VP (no wells). No data of other accounts appears."
+            },
+            {
+              "description": "Reads a well trajectory and summarizes it",
+              "prompt": "In the Solo project ROGII test project, show the trajectory of well Andrei_E_L: total depth (MD) and the inclination at the last station.",
+              "tools_triggered": "get_projects, get_laterals_by_project, get_lateral_trajectory",
+              "expected_behavior": "Finds well Andrei_E_L in ROGII test project and reports its last station (249 stations): MD 4,222 ft and inclination 89.77 degrees, in feet as the project uses feet."
+            },
+            {
+              "description": "Reads tops of a well",
+              "prompt": "Which formation tops are picked on well Andrei_E_L in the Solo project ROGII test project, and at what MD?",
+              "tools_triggered": "get_projects, get_laterals_by_project, get_topsets_by_lateral, get_tops_by_topset",
+              "expected_behavior": "Lists the tops of well Andrei_E_L with their MD in feet: Doig 2,321.62 ft, Doig Phosphate 2,493.79 ft and Montney 2,640.76 ft in the topset MONTNEY; Montney is also in the topset As-Drilled Tops at the same MD."
+            },
+            {
+              "description": "Reads a log interval and computes a statistic",
+              "prompt": "Read the GR log of well Andrei_E_L in the Solo project ROGII test project between 3000 and 4000 ft MD and give me its average value.",
+              "tools_triggered": "get_projects, get_laterals_by_project, get_logs_by_lateral, get_log_data",
+              "expected_behavior": "Reads the GR log points of well Andrei_E_L from 3,000 to 4,000 ft MD and reports their average (about 119.5), stating the depth range used."
+            },
+            {
+              "description": "Creates a top on a well (write)",
+              "prompt": "Add a top named Review Marker at MD 4000 ft to the MONTNEY topset of well Andrei_E_L in the Solo project ROGII test project.",
+              "tools_triggered": "get_projects, get_laterals_by_project, get_topsets_by_lateral, create_top",
+              "expected_behavior": "Needs the Write option selected on the Solo consent page when connecting. ChatGPT asks to confirm the write, then creates the top Review Marker at MD 4,000 ft in the topset MONTNEY of well Andrei_E_L and confirms it. If the connection was made without Write, nothing is written and the result asks to reconnect Solo with Write selected. A Review Marker top left by an earlier run does not block the result: another top is added."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated question about the weather",
+              "prompt": "What will the weather be in Houston tomorrow?",
+              "expected_behavior": "ChatGPT answers without calling Solo Cloud tools: Solo Cloud holds no weather data."
+            },
+            {
+              "description": "Unrelated office task",
+              "prompt": "Make me a spreadsheet with a monthly budget for a family of four.",
+              "expected_behavior": "ChatGPT does the task itself without calling Solo Cloud tools."
+            },
+            {
+              "description": "Access outside the connected account",
+              "prompt": "Show me the Solo Cloud projects of another company, not mine.",
+              "expected_behavior": "ChatGPT explains that Solo Cloud acts as the signed-in user and shows only the projects this account can access. No data of other accounts or companies appears."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/Km9mPZSClxI",
+        "commerce": false,
+        "commerce_description": "Solo Cloud does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "First release: read and update Solo Cloud projects from ChatGPT with your Solo permissions. You choose read, write and delete access when you connect."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

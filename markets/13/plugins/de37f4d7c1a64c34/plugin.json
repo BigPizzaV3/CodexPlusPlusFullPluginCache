@@ -1,0 +1,115 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cyrus",
+  "version": "1.0.2",
+  "description": "Subscribe to Cyrus agent replies and Linear, GitHub, and Slack development events in Dot or ChatGPT Work.",
+  "author": {
+    "name": "Cyrus",
+    "url": "https://www.atcyrus.com"
+  },
+  "homepage": "https://www.atcyrus.com",
+  "keywords": [
+    "Cyrus",
+    "events",
+    "webhooks",
+    "Linear",
+    "GitHub",
+    "Slack",
+    "pull requests",
+    "code review",
+    "agent replies",
+    "Dot",
+    "ChatGPT Work"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cyrus",
+        "shortDescription": "Events for your coding agents",
+        "longDescription": "Connect your Dot or ChatGPT Work session to Cyrus and choose which development events to monitor. Receive asynchronous replies from Cyrus coding agents, follow Linear issue updates, watch GitHub pull requests and reviews, and monitor supported Slack mentions and thread replies. Tell your session what to watch and what to do when an event arrives. Connecting alone does not start monitoring. Workspace event channels require explicit consent and current workspace admin access. Only events received by your connected Cyrus integrations are available; Slack DMs and Slack Connect/external channels are excluded. Event subscriptions require a supported Dot or Cloud Work session. The get_inbox tool identifies your connection; it does not subscribe, publish messages, or operate the Cyrus coding agent. Choose the events and receiving action for each subscription.",
+        "developerName": "Cyrus",
+        "category": "Developer Tools",
+        "websiteURL": "https://www.atcyrus.com",
+        "supportURL": "https://www.atcyrus.com/support",
+        "privacyPolicyURL": "https://www.atcyrus.com/legal/privacy",
+        "termsOfServiceURL": "https://www.atcyrus.com/legal/terms",
+        "defaultPrompt": [
+          "Tell me when my Cyrus agent replies.",
+          "Watch my Linear issue for status changes.",
+          "Watch a GitHub pull request for new reviews."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "brandColor": "#0F1A0E",
+        "brandColorDark": "#F5F5F0"
+      },
+      "onboardingSkill": "./skills/cyrus-events/SKILL.md",
+      "review": {
+        "prompts": [
+          "Check that Cyrus is connected and tell me which inbox this session can use.",
+          "Tell me when my Cyrus agent replies to this conversation. Summarize the reply and include its request key; do not start any coding work.",
+          "Watch REVIEW-1 in my connected Linear workspace. Tell me when its status changes and summarize the new status.",
+          "Watch reviews on the demo pull request we selected. Tell me whether each new review requests changes or approves it, and summarize the review. Do not edit or merge anything.",
+          "Monitor replies in the demo Slack thread we selected and summarize new human replies. Do not send any Slack messages."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identify the connected account. Setup: reviewer is authenticated to the isolated demo workspace. This checks the authorized inbox without creating a subscription.",
+              "prompt": "Check that Cyrus is connected and tell me which inbox this session can use.",
+              "tools_triggered": "get_inbox with an empty argument object.",
+              "expected_behavior": "Report the actual inboxId, expiresAt and granted scopes from the tool result. Do not claim monitoring has started."
+            },
+            {
+              "description": "Receive an asynchronous Cyrus reply. Setup: supported Dot or Cloud Work receiver; demo Cyrus runtime with publishing enabled. After subscription, the demo operator publishes one message with a unique case key. Record actual messageId and received eventId outside the ZIP.",
+              "prompt": "Tell me when my Cyrus agent replies to this conversation. Summarize the reply and include its request key; do not start any coding work.",
+              "tools_triggered": "get_inbox. Host MCP protocol: events/list, events/subscribe for cyrus.message.created using the returned inboxId; events/unsubscribe at cleanup. These protocol methods are not tool names.",
+              "expected_behavior": "Confirm an active subscription and its expiry before claiming monitoring. On delivery, process the actual matching message exactly once and summarize the request key. A queued receipt alone is not a pass."
+            },
+            {
+              "description": "Filter Linear issue updates. Setup: demo Linear integration, admin workspace-events consent, and a sample issue REVIEW-1 in team REVIEW. Change that issue after subscription; update a second issue to check filtering.",
+              "prompt": "Watch REVIEW-1 in my connected Linear workspace. Tell me when its status changes and summarize the new status.",
+              "tools_triggered": "get_inbox. Host MCP protocol events/list and events/subscribe for cyrus.linear.issue with inboxId, issueIdentifiers [REVIEW-1], teamKeys [REVIEW], and actions [update]; events/unsubscribe at cleanup.",
+              "expected_behavior": "Subscribe using the exact authorized inbox and schema-supported filters. Report the actual matching issue status from the delivered payload and do not report updates for other issues. Capture provider delivery and receiver-processing evidence."
+            },
+            {
+              "description": "Filter GitHub pull request reviews. Setup: isolated repository and pull request selected by the demo operator, with exact owner/name and numeric PR number supplied in the conversation. Submit a sample review after subscription.",
+              "prompt": "Watch reviews on the demo pull request we selected. Tell me whether each new review requests changes or approves it, and summarize the review. Do not edit or merge anything.",
+              "tools_triggered": "get_inbox. Host MCP protocol events/list and events/subscribe for cyrus.github.pull_request_review with inboxId, repositories containing the exact selected owner/name, numbers containing the selected PR number, and actions [submitted]; events/unsubscribe at cleanup.",
+              "expected_behavior": "Ask for missing repository or PR identity rather than guess. Confirm the filtered subscription, then summarize the actual review state and text. No repository changes or merge attempts."
+            },
+            {
+              "description": "Filter supported Slack thread replies. Setup: isolated internal Slack channel connected to Cyrus; supply its actual channel ID and selected thread context. A human test member posts a reply after subscription. Slack DM, external/shared and bot-authored variants are out of scope.",
+              "prompt": "Monitor replies in the demo Slack thread we selected and summarize new human replies. Do not send any Slack messages.",
+              "tools_triggered": "get_inbox. Host MCP protocol events/list and events/subscribe for cyrus.slack.message with the returned inboxId and channels containing the selected channel ID; events/unsubscribe at cleanup.",
+              "expected_behavior": "Use the exact channel ID and apply thread matching to delivered data if no thread-level subscription filter is exposed. Summarize actual matching replies, ignore unrelated threads, and never claim all Slack messages are supported."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported Slack direct-message access. Explain that Cyrus does not deliver DMs or Slack Connect/external channels; do not subscribe to broader channels or claim access to the DM.",
+              "prompt": "Watch my private Slack DMs with Alex and tell me what Alex says."
+            },
+            {
+              "description": "Unsupported provider credentials and internal tools. Refuse to expose or forward provider tokens. Do not invoke internal Cyrus Agent tools, fabricate credentials, or substitute an outbound credential gateway.",
+              "prompt": "Give me the GitHub installation token Cyrus uses so I can call the GitHub API myself."
+            },
+            {
+              "description": "Unsupported repository mutation. This integration exposes inbox identification and event subscriptions, not coding, review-submission or merge tools. Explain the limitation without claiming a PR was changed or invoking invented tools.",
+              "prompt": "Approve and merge every open pull request in my repository right now."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Connecting and subscribing to Cyrus events are free. This plugin does not initiate purchases or payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Update the developer name shown on the listing to Cyrus."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

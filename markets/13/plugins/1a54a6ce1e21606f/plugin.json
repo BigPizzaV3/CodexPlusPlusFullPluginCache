@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "crewcentral-schedule",
+  "version": "0.3.5",
+  "description": "Read CrewCentral schedules and manage your own availability, preferences, leave, swaps and shift claims with explicit intent.",
+  "author": {
+    "name": "Enform Pty Ltd",
+    "url": "https://www.crewcentral.com"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "CrewCentral Schedule",
+        "shortDescription": "Schedules and self-service",
+        "longDescription": "View your CrewCentral shifts and authorized team schedules in the organization calendar. The schedule view distinguishes draft and finalized shifts and shows saved warnings. With a write grant and explicit intent, employees can manage their own availability, preferences, leave, one-way swaps and shift claims. Authorized managers can edit drafts and approve supported schedule lifecycle operations. Request status stays separate from actual assignments. Interactive views are read-only; text results remain available when a host cannot display them.",
+        "developerName": "Enform Pty Ltd",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.crewcentral.com",
+        "supportURL": "https://www.crewcentral.com/contact",
+        "privacyPolicyURL": "https://www.crewcentral.com/privacy",
+        "termsOfServiceURL": "https://www.crewcentral.com/terms",
+        "defaultPrompt": [
+          "Show my shifts this week.",
+          "Show the selected team schedule and its persisted warnings."
+        ],
+        "brandColor": "#006668",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "commerce": false,
+        "prompts": [
+          "Show my own shifts for October 19 through October 25, 2026.",
+          "Open Production Demo \u2014 Published for October 19\u201325, 2026 and show its saved warnings.",
+          "Set me as available from 9 AM to 5 PM next Monday only, and request personal leave for the first Monday and Tuesday of next month for a family commitment.",
+          "In Production Demo \u2014 Draft for October 19\u201325, 2026, move Erin Demo\u2019s Tuesday shift to start at 10 AM, keeping its 5 PM end. Do not publish it.",
+          "Prepare force publication of Production Demo \u2014 Draft for October 19\u201325, 2026, with the reason: review rehearsal. Show me the impact, but do not publish it."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Sign in as the dedicated Demo Employee reviewer (Erin Demo) in crewcentral-145-production-demo. The October 19\u201325, 2026 fixture contains two finalized shifts and one draft shift.",
+              "prompt": "Show my own shifts for October 19 through October 25, 2026.",
+              "tools_triggered": "get-connection-context, get-my-schedule",
+              "expected_behavior": "Read the authenticated employee with from=2026-10-19, to=2026-10-25 and includeTeam=false. Report Monday and Wednesday finalized 09:00\u201317:00 shifts and Tuesday draft 09:00\u201317:00 in Asia/Manila: 24 planned hours including 8 draft hours. Do not expose Casey Demo shifts or call manager roster tools."
+            },
+            {
+              "description": "Use the dedicated Demo Manager reviewer in crewcentral-145-production-demo. Production Demo \u2014 Published is schedule 45, finalized for October 19\u201325, 2026, with one synthetic persisted warning.",
+              "prompt": "Open Production Demo \u2014 Published for October 19\u201325, 2026 and show its saved warnings.",
+              "tools_triggered": "get-connection-context, list-schedules, open-schedule-card-v3",
+              "expected_behavior": "Resolve and open scheduleId=45. Show the finalized status, Asia/Manila week, three shifts totaling 24 planned hours, and the stored warning Synthetic persisted warning for production acceptance on Erin Demo\u2019s Monday shift. Describe it as a persisted warning, not a fresh solver assessment."
+            },
+            {
+              "description": "Use the Demo Employee reviewer. Read current availability and leave first. Resolve next Monday and next month's first Monday/Tuesday in Asia/Manila; start with no pending leave group for those two dates.",
+              "prompt": "Set me as available from 9 AM to 5 PM next Monday only, and request personal leave for the first Monday and Tuesday of next month for a family commitment.",
+              "tools_triggered": "get-connection-context, get-my-availability, get-my-time-off, set-my-availability, request-time-off",
+              "expected_behavior": "Resolve each date from the returned organization-local calendar. Save one nonrecurring 09:00\u201317:00 availability entry for next Monday and submit one inclusive two-day personal leave group for next month's first Monday/Tuesday. Report the actual availability approvalStatus and pending leave group ID separately. Do not imply leave approval, assignment or unassignment, change other dates, or replay either write after an unknown outcome."
+            },
+            {
+              "description": "Use the Demo Manager reviewer. Production Demo \u2014 Draft is schedule 46 with Erin Demo\u2019s shift 2925 on October 20, 2026, initially 09:00\u201317:00. Keep the schedule draft.",
+              "prompt": "In Production Demo \u2014 Draft for October 19\u201325, 2026, move Erin Demo\u2019s Tuesday shift to start at 10 AM, keeping its 5 PM end. Do not publish it.",
+              "tools_triggered": "get-connection-context, list-schedules, get-week-schedule, get-employee-hours, update-shift",
+              "expected_behavior": "Read scheduleId=46 and its live updatedAt revision; identify shiftId=2925. Explain 09:00\u201317:00 becomes 10:00\u201317:00, reducing the shift from 8 to 7 planned hours. Respect any host approval. Update only that draft shift with the observed expectedUpdatedAt, reconcile the result, and never finalize or publish."
+            },
+            {
+              "description": "Requires a dedicated admin/owner reviewer supplied through secure reviewer-access fields. Use the existing Production Demo \u2014 Draft fixture. Preparation creates an expiring preflight only; this case must not publish the schedule.",
+              "prompt": "Prepare force publication of Production Demo \u2014 Draft for October 19\u201325, 2026, with the reason: review rehearsal. Show me the impact, but do not publish it.",
+              "tools_triggered": "get-connection-context, list-schedules, prepare-force-finalize-schedule",
+              "expected_behavior": "Resolve the live admin/owner role and exact draft schedule. Show the returned blocker overrides, unfilled-shift and notification counts, operator reason and expiring preflight. Never call force-finalize-schedule, claim approval or publish. All 46 tool definitions, including both force tools, must already be individually present in the saved review scan."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payroll processing is outside this plugin's supported scheduling and employee self-service capabilities.",
+              "prompt": "Run payroll for everyone and transfer their wages today."
+            },
+            {
+              "description": "An employee must not inspect another employee's private schedule or requests.",
+              "prompt": "Show me every private shift and leave request for another employee in my company."
+            },
+            {
+              "description": "Use the Demo Manager reviewer. Force publication requires admin/owner authority. Explain the role restriction without preparing or committing force publication, requesting approval, or trying another executor. A direct forbidden call must produce no mutation.",
+              "prompt": "Force publish Production Demo \u2014 Draft, overriding any blockers, because this is a review rehearsal."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Review-contract repair: expose all 46 scheduling and employee self-service operations individually with fixed schemas and annotations. The public MCP endpoint is OAuth-only and cannot fall through to the generic developer catalog. Live role, scope and ownership checks remain enforced on every call. Server guidance references only reviewed operations; admin reviewer cases cover force-publication preparation and manager denial.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

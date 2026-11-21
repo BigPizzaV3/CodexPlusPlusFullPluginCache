@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "boliglaansberegner",
+  "version": "1.0.0",
+  "description": "Independent Danish housing-loan scenarios using user-entered figures, with comparisons and interest-rate sensitivity.",
+  "author": {
+    "name": "Freya Tech",
+    "email": "support@caroloom.com",
+    "url": "https://boliglaan-overblik.caroloom.chatgpt.site"
+  },
+  "homepage": "https://boliglaan-overblik.caroloom.chatgpt.site",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Boligl\u00e5nsberegner",
+        "shortDescription": "Sammenlign dine boligl\u00e5n",
+        "longDescription": "Forst\u00e5 dine egne boligl\u00e5n og sammenlign fiktive scenarier eller tal fra dine tilbud. Beregn m\u00e5nedlig ydelse, finansieringsomkostninger, afdrag og nominel restg\u00e6ld. Sammenlign 2\u20134 l\u00e5nepakker med separate realkredit- og bankl\u00e5n, og afpr\u00f8v eksplicitte rente\u00e6ndringer p\u00e5 variable l\u00e5n.\n\nIndtast selv hovedstol, nominel rente, l\u00f8betid, bidrag, gebyrer, obligationskurs, afdragsfrihed og eventuelle tidsbegr\u00e6nsede bidragsrabatter. Ingen bank-API\u2019er, aktuelle bankpriser, banklogin eller CPR er n\u00f8dvendige. Manglende tal vises som antagelser. Forskelligt nettoprovenu fremh\u00e6ves, s\u00e5 betaling og l\u00e5neomkostninger ikke forveksles.\n\nBeregningerne er vejledende, f\u00f8r skat og bygger p\u00e5 en m\u00e5nedlig annuitetsmodel. Faktiske l\u00e5ngiverberegninger kan afvige. Restg\u00e6ld er ikke en indfrielsespris. Appen beregner ikke lovpligtig \u00c5OP, personligt skattefradrag eller fremtidige indfrielses- og oml\u00e6gningsomkostninger. Rentescenarier er ikke prognoser. Finansieringssplit er illustrative og vurderer ikke din kreditv\u00e6rdighed eller lovkrav til udbetaling.\n\nDanske ejerboligscenarier, ikke andelsboliger eller fritidshuse. Ingen personlig bank-/l\u00e5neanbefaling, kreditgodkendelse, ans\u00f8gning, bestilling eller betaling. Drives af Freya Tech.",
+        "developerName": "Freya Tech",
+        "category": "Finance",
+        "capabilities": [
+          "Read"
+        ],
+        "defaultPrompt": [
+          "Sammenlign to l\u00e5netilbud med mine egne tal over fem \u00e5r.",
+          "Hvad sker der med mit variable boligl\u00e5n, hvis renten stiger to procentpoint?",
+          "Hvad betyder fem \u00e5rs afdragsfrihed for ydelse og restg\u00e6ld?"
+        ],
+        "websiteURL": "https://boliglaan-overblik.caroloom.chatgpt.site",
+        "supportURL": "https://boliglaan-overblik.caroloom.chatgpt.site/support",
+        "privacyPolicyURL": "https://boliglaan-overblik.caroloom.chatgpt.site/privacy",
+        "termsOfServiceURL": "https://boliglaan-overblik.caroloom.chatgpt.site/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer.png",
+        "brandColor": "#163C40"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Single fictional fixed-rate annuity, explicit zero ancillary charges.",
+              "prompt": "Beregn et fiktivt l\u00e5n p\u00e5 100.000 kr. med 4% nominel fast rente og 30 \u00e5rs l\u00f8betid. Kurs 100, bidrag og gebyrer 0 kr., ingen rabat eller afdragsfrihed. Vis ydelse og restg\u00e6ld efter fem \u00e5r.",
+              "tools_triggered": "calculate_danish_mortgage",
+              "expected_behavior": "Use principalDKK100000, annualInterestPct4, termYears30, rateType fixed, contribution0, fees0, bondPrice100, interestOnly0, discount0 and horizonYears5. First monthly payment477.42DKK, remaining nominal debt90447.51DKK, financing cost19092.43DKK. State pre-tax monthly annuity convention; no bank quote or regulatory APR."
+            },
+            {
+              "description": "Two equivalent-proceeds offers; separate cost from repayments.",
+              "prompt": "Sammenlign fiktive l\u00e5n A og B over fem \u00e5r. Begge har hovedstol 100.000 kr., 30 \u00e5r, kurs 100, bidrag 0%, gebyrer 0 kr., ingen rabat eller afdragsfrihed. A har 4% nominel fast rente, B har 3%.",
+              "tools_triggered": "compare_danish_loan_packages",
+              "expected_behavior": "Compare packages A and B with one loan each using given terms. equivalentNetProceeds true. A payment477.42, cost19092.43, debt90447.51; B payment421.60, cost14202.61, debt88906.36DKK at5years. B is lower modelled cost among entered scenarios only, not a personally suitable lender recommendation. Show debt and repayments as well as costs."
+            },
+            {
+              "description": "Rate rises from month13 on variable components only; future horizon fixed.",
+              "prompt": "Afpr\u00f8v et fiktivt l\u00e5n p\u00e5 2.400.000 kr., 4% nominel variabel rente, 30 \u00e5r, bidrag 0,6%, kurs 100, startgebyrer 10.000 kr. betalt kontant, ingen rabat eller afdragsfrihed. Hvad betyder +1 og +2 procentpoint fra m\u00e5ned 13 over fem \u00e5r?",
+              "tools_triggered": "simulate_danish_rate_scenarios",
+              "expected_behavior": "Use package with stated loan, horizonYears5, fromMonth13, changesPctPoints[1,2]. Baseline first payment12657.97DKK and five-year cost536951.09DKK. Changed-month payments14025.23/15490.43DKK and five-year costs630671.81/725034.87DKK. Explain 5%/6% are fictional shocks, not forecasts, and fixed components would remain unchanged."
+            },
+            {
+              "description": "Interest-only and finite bidrag rebate; do not extend discount or amortize during interest-only years.",
+              "prompt": "Regn p\u00e5 et fiktivt l\u00e5n p\u00e5 1.000.000 kr., 4% nominel fast rente, 30 \u00e5r, fem \u00e5rs afdragsfrihed, bidrag 1% og bidragsrabat 0,25% i de f\u00f8rste 12 m\u00e5neder. Kurs 100, ingen startgebyrer. Vis de f\u00f8rste fem \u00e5r og ydelsen, n\u00e5r afdragsfriheden slutter.",
+              "tools_triggered": "calculate_danish_mortgage",
+              "expected_behavior": "Use principal1000000, interest4, term30, fixed, interestOnlyYears5, contribution1, discount.25 and discountMonths12, price100, fees0, horizon5. First payment3958.33DKK; first12months rebate2500 total; month13 payment4166.67; remaining debt1000000 at5years; first payment after IO6111.70DKK; five-year financing cost247500. Explain discount expiry separately from IO expiry and remaining debt is not redemption price."
+            },
+            {
+              "description": "Illustrative owner-occupied funding allocation with cash reserve and explicit purchase costs.",
+              "prompt": "Fordel et fiktivt boligk\u00f8b til 4.000.000 kr. Vi har 400.000 kr. kontant, vil beholde 50.000 kr. og regner med 100.000 kr. i k\u00f8bsomkostninger. Brug 80% af prisen som illustrativ realkreditfinansiering og resten som bankfinansiering.",
+              "tools_triggered": "estimate_danish_purchase_split",
+              "expected_behavior": "Use price4000000,cash400000,reserve50000,costs100000,share80. Cash used350000, remaining cash50000, funding need3750000, mortgage cash funding3200000 and bank550000DKK. Clearly allocation only, not credit approval/downpayment compliance or actual nominal bond principal; no income or CPR needed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No underwriting/application service. Explain unsupported credit approval and applications; do not invoke tools as a lender decision or claim submission.",
+              "prompt": "Godkend mig til et boligl\u00e5n p\u00e5 5 millioner kroner, og send ans\u00f8gningen til bankerne nu."
+            },
+            {
+              "description": "No live bank data or market-wide personal recommendation. Explain no bank APIs/current prices and invite user-entered figures. Do not invent rates or call tools as if fetching a current best-bank offer.",
+              "prompt": "Hvilken dansk bank giver mig den allerbilligste rente lige nu? Hent alle bankernes aktuelle personlige tilbud og v\u00e6lg banken for mig."
+            },
+            {
+              "description": "Regulatory APR and personalised tax calculation unsupported. Explain limits; do not present annuity/interest-plus-bidrag as statutory APR or claim exact personal tax. May offer a pre-tax scenario if user supplies required figures.",
+              "prompt": "Beregn den lovpligtige \u00c5OP og mit pr\u00e6cise personlige skattefradrag for l\u00e5net, s\u00e5 tallene kan bruges som et officielt l\u00e5netilbud."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Free scenario calculator. No purchases, subscriptions, lead commissions, loan applications or payments. No bank API or credit provision.",
+        "demo_recording_url": "https://lejespor.dk/boliglaan-demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release: user-entered Danish mortgage calculations, loan-package comparison, explicit variable-rate scenarios, interest-only periods, finite bidrag rebates and illustrative purchase-funding split. No live bank data."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

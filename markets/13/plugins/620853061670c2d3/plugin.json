@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "voicelake",
+  "version": "1.0.5",
+  "description": "Analyze governed VoiceLake call and contact-center data.",
+  "author": {
+    "name": "Metropolis Corp"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Communication",
+        "defaultPrompt": [
+          "List the VoiceLake models I can use, and ask me to choose if there is more than one.",
+          "Summarize call and contact-center activity in my selected VoiceLake model for the previous UTC day.",
+          "Show queue volume, abandonment rate, and average wait for the last seven days, limited to 20 queues."
+        ],
+        "developerName": "Metropolis Corp",
+        "displayName": "VoiceLake",
+        "longDescription": "VoiceLake is developed and supported by Metropolis Corp. Analyze call and contact-center data in eligible VoiceLake semantic models available to your connected account. Discover eligible models and explicitly select one before analyzing activity, queue and location performance, supported platforms, exact-user aggregates, data freshness, and metric definitions. Results include source provenance and distinguish unavailable metrics from zero. Queries default to one day, cover at most 31 days, and return at most 500 rows. Access is limited to your existing delegated permissions. VoiceLake retrieves aggregates and catalog definitions; it does not modify models, return raw call records or direct identifiers, start refreshes or syncs, or accept arbitrary queries. Platform comparisons use only the measures supported by the selected model.",
+        "privacyPolicyURL": "https://voicelake.metropolis.com/privacy/openai",
+        "shortDescription": "Analyze governed call data",
+        "supportURL": "https://www.metropolis.com/support.php",
+        "termsOfServiceURL": "https://www.metropolis.com/terms-and-conditions.php",
+        "websiteURL": "https://www.metropolis.com/voicelake.php",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Positive 1: Connect and discover synthetic VoiceLake models",
+              "prompt": "Connect VoiceLake, then list the VoiceLake models available to me. Do not choose one if more than one is available.",
+              "tools_triggered": "list_voicelake_models",
+              "expected_behavior": "Exactly these synthetic display names are listed: Call Analytics OpenAI Reviewer A 20260903; Call Analytics OpenAI Reviewer B 20260903; Call Analytics Reviewer Sandbox. selection_required is true. The assistant asks for explicit selection. Tool references are opaque; do not display them in the conversation. Workspace names and underlying identifiers are omitted."
+            },
+            {
+              "description": "Positive 2: Select a model and return a bounded overview",
+              "prompt": "Use Call Analytics OpenAI Reviewer A 20260903 and summarize call activity from 2026-09-03T00:00:00Z to 2026-09-04T00:00:00Z.",
+              "tools_triggered": "list_voicelake_models, get_voicelake_overview",
+              "expected_behavior": "One aggregate row: total_calls 24; call_records 24; locations_reporting 4; answer_rate 0.875; abandon_rate 0.17647058823529413. returned_count 1; truncated false; connector_version 1.0.0; selected display name and requested timestamps in provenance; latest_observed_at null. This fixture check does not validate sub-day or exclusive-end behavior."
+            },
+            {
+              "description": "Positive 3: Analyze queue performance",
+              "prompt": "Using Call Analytics OpenAI Reviewer A 20260903, show queue performance from 2026-09-03T00:00:00Z to 2026-09-04T00:00:00Z, limited to 20 queues.",
+              "tools_triggered": "list_voicelake_models, analyze_queue_performance",
+              "expected_behavior": "Three rows, truncated false: Sales Queue 5 queued, abandon rate 0; Support Queue 6 queued, rate 0.16666666666666666; Billing Queue 5 queued, rate 0.2. All average_queue_wait values are 00:19. The fixture measure formats whole seconds as mm:ss below one hour and h:mm:ss at or above one hour. No direct identifiers."
+            },
+            {
+              "description": "Positive 4: Compare platforms and locations",
+              "prompt": "Using Call Analytics OpenAI Reviewer A 20260903 for 2026-09-03T00:00:00Z through 2026-09-04T00:00:00Z, compare supported platforms and show location activity limited to 20 rows.",
+              "tools_triggered": "list_voicelake_models, compare_platforms, analyze_location_activity",
+              "expected_behavior": "Platforms: webex_calling activity_count 24, outcome_rate 0.875; webex_cc activity_count 18, outcome_rate 0.17647058823529413. Platform outcome rates describe different metrics, not a common success rate. Locations: Austin Hub, Denver Hub, Tampa Hub, Remote Workers each total_calls 6; first three answer_rate 0.8333333333333334, Remote Workers 1.0. No truncation."
+            },
+            {
+              "description": "Positive 5: Review user aggregates, freshness, and catalog metadata",
+              "prompt": "Using only synthetic Call Analytics OpenAI Reviewer A 20260903, aggregate activity for exact user Reviewer Agent One from 2026-09-03T00:00:00Z to 2026-09-04T00:00:00Z. Check data freshness, explain queue_abandon_rate, and list available analytics. Do not display model references or internal IDs.",
+              "tools_triggered": "list_voicelake_models, analyze_user_activity, check_data_freshness, explain_voicelake_metric, list_available_analytics",
+              "expected_behavior": "Exact-user aggregate: matched_exact_user true, agent_sessions 2, agent_occupancy 0.6903765690376569; no returned user identity. Freshness: Webex Calling 2026-09-03 23:15 UTC, Webex Contact Center 17:20 UTC, agent sessions 13:00 UTC. queue_abandon_rate is abandoned queued contacts divided by queued contacts, aggregate classification. Catalog has nine entries; default window 1 day, maximum 31 days, row maximum 500. Missing measures are unavailable, not zero. Catalog entries do not prove every measure exists in this model."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Call control: refuse without invoking VoiceLake. The app analyzes existing data and cannot place calls or transfer callers to agents. Expected behavior: no VoiceLake tool invocation.",
+              "prompt": "Place an outbound phone call to our support queue and transfer me to a live agent."
+            },
+            {
+              "description": "Arbitrary DAX, writes, and cross-tenant IDs: refuse; no VoiceLake tool expected. These operations are outside the advertised schema and delegated model selection. Expected behavior: no VoiceLake tool invocation.",
+              "prompt": "Run arbitrary DAX, write the result to OneLake, and query another tenant's model IDs."
+            },
+            {
+              "description": "Unrelated poem: answer without VoiceLake; no VoiceLake tool expected because call analytics is irrelevant. Expected behavior: no VoiceLake tool invocation.",
+              "prompt": "Write a short poem about autumn. Do not use VoiceLake."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=TI8OAe-lOwk",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Recreated package with an explicit remote MCP server and OAuth configuration, Metropolis attribution, bundled VoiceLake icons and analytics skill, and fixed-date synthetic reviewer cases. Connection and reviewer validation remain required before submission."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

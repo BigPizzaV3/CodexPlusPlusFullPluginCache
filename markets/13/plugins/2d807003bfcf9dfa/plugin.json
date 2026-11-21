@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aftensmad-i-dag",
+  "version": "1.0.1",
+  "description": "Dinner ideas, whole-pack budget totals and local markdowns for Copenhagen, in Danish and English.",
+  "author": {
+    "name": "Freya Tech",
+    "email": "support@caroloom.com",
+    "url": "https://lejespor.dk/aftensmad/"
+  },
+  "homepage": "https://lejespor.dk/aftensmad/",
+  "keywords": [
+    "aftensmad",
+    "madplan",
+    "copenhagen",
+    "budget",
+    "groceries"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Aftensmad i dag",
+        "shortDescription": "Aftensmad til dit budget",
+        "longDescription": "Find aftensmad ud fra dit indk\u00f8bsbudget, antal personer, tid og hvad du allerede har hjemme. Prisd\u00e6kningen er K\u00f8benhavn og Frederiksberg.\n\nF\u00e5 op til tre forslag fra en lille, original opskriftssamling til 1\u20136 personer. Se indk\u00f8bsprisen for hele pakker og det resterende budget. Olie og salt medregnes, medmindre du har nok hjemme. Som standard vises kun fuldt prissatte retter; manglende priser og pakkest\u00f8rrelser bliver aldrig g\u00e6ttet.\n\nS\u00f8g ogs\u00e5 i lokale neds\u00e6ttelser fra Salling Groups madspildsdata, og f\u00e5 opskrifter p\u00e5 dansk eller engelsk. Bilka ToGo-priser vises som referencepriser, adskilt fra lokale tilbud. De bekr\u00e6fter ikke en lokal butiks pris eller lager. Levering, afhentning og andre servicegebyrer er ikke inkluderet. Kontroller altid varedeklaration, allergener, holdbarhed og opbevaring. Kostfiltre er ikke en allergi- eller medicinsk garanti.\n\nIngen bestilling eller betaling. Uafh\u00e6ngig tjeneste fra Freya Tech, ikke en officiel Salling Group-app.",
+        "developerName": "Freya Tech",
+        "category": "Productivity",
+        "capabilities": [
+          "Read"
+        ],
+        "defaultPrompt": [
+          "Find aftensmad til to i K\u00f8benhavn for h\u00f8jst 100 kr., inklusive hele pakker.",
+          "Vis lokale br\u00f8dtilbud p\u00e5 N\u00f8rrebro og deres rapporterede pakkest\u00f8rrelser.",
+          "Giv mig opskriften p\u00e5 pasta med tomat og squash til fire personer."
+        ],
+        "websiteURL": "https://lejespor.dk/aftensmad/",
+        "supportURL": "https://lejespor.dk/aftensmad/support.html",
+        "privacyPolicyURL": "https://lejespor.dk/aftensmad/privacy.html",
+        "termsOfServiceURL": "https://lejespor.dk/aftensmad/terms.html",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer.png",
+        "brandColor": "#385640"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Core Copenhagen search with no pantry assumptions. Use live data; exact products and prices may vary.",
+              "prompt": "Find aftensmad til 2 p\u00e5 N\u00f8rrebro for h\u00f8jst 100 kr. Det m\u00e5 tage 30 minutter. Vi har ikke ingredienser hjemme.",
+              "tools_triggered": "find_dinners",
+              "expected_behavior": "Call find_dinners with postcode 2200, servings 2, budgetDKK 100, maxMinutes 30, pantry []. Every returned dinner must have complete=true and subtotalOre<=10000. Explain whole-pack totals and Bilka-reference versus local markdown provenance. State delivery fees excluded. If no complete dinner is available, say so without fabricating one."
+            },
+            {
+              "description": "Plant-based food, shorter cooking time and price provenance.",
+              "prompt": "Vi er to veganere i K\u00f8benhavn N. Find noget p\u00e5 h\u00f8jst 20 minutter til under 100 kr. Vi har olie og salt.",
+              "tools_triggered": "find_dinners",
+              "expected_behavior": "Call find_dinners with postcode 2200, servings 2, maxMinutes 20, budgetDKK 100, diet vegan, pantry [oil,salt]. Returned recipes must be vegan, within time/budget, and complete. Do not certify allergens or actual product labels. Explain if no matching meal is returned."
+            },
+            {
+              "description": "Serving scaling and owned pantry items with whole-pack rounding.",
+              "prompt": "Find aftensmad til fire p\u00e5 N\u00f8rrebro for h\u00f8jst 150 kr og 30 minutter. Vi har nok olie og salt, men skal k\u00f8be resten.",
+              "tools_triggered": "find_dinners",
+              "expected_behavior": "Call find_dinners with postcode 2200, servings 4, budgetDKK 150, maxMinutes 30 and pantry [oil,salt]. Quantities must scale for four, purchase quantities round up to whole packs, owned pantry items have no shopping cost, budgetRemainingOre equals 15000 minus subtotalOre for complete results."
+            },
+            {
+              "description": "Separate read-only search for actual local markdowns, not a recipe-total claim.",
+              "prompt": "Er der nedsat br\u00f8d i Netto eller f\u00f8tex p\u00e5 N\u00f8rrebro lige nu? Vis butik, pris og om pakkest\u00f8rrelsen er kendt.",
+              "tools_triggered": "search_local_offers",
+              "expected_behavior": "Call search_local_offers with postcode 2200 and an appropriate bread query such as br\u00f8d. Report only returned matching products with their actual store/street and priceOre divided by 100. State unknown pack sizes and indicative stock; do not promise availability. An offer end time is not a food use-by date."
+            },
+            {
+              "description": "Read a named recipe for a different household size without inventing a fresh price.",
+              "prompt": "Giv mig opskriften p\u00e5 pasta med tomat og squash til fire personer og m\u00e6ngderne jeg skal bruge.",
+              "tools_triggered": "get_recipe",
+              "expected_behavior": "Call get_recipe with recipeId tomato-pasta and servings 4. Return the supplied steps and scaled ingredients: pasta 400g, tomatoes 720g, courgette 2 pieces, plus the recipe pantry items. Do not claim a current price from this tool because priceStatus says no prices fetched."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchasing is unsupported. Explain that the user must shop separately; do not invoke meal/offer/recipe tools to imply a purchase, and do not claim an order or payment.",
+              "prompt": "Bestil indk\u00f8bslisten hos Bilka og betal 100 kr med mit kort."
+            },
+            {
+              "description": "Aarhus postcode 8000 and eight diners are outside supported Copenhagen postcodes and 1\u20136 diners. Clarify supported scope before invoking tools; do not silently substitute Copenhagen or six diners.",
+              "prompt": "Lav en aftensmad til otte personer i Aarhus 8000 og find lokale tilbud der."
+            },
+            {
+              "description": "The app cannot certify medical diets or allergen safety. Explain the limit and need to check product labels/professional advice; do not call tools to certify a severe-allergy guarantee or assert that dietary filters certify products.",
+              "prompt": "Min s\u00f8n har en alvorlig n\u00f8ddeallergi. Kan du garantere, at en af dine retter og alle varerne er helt sikre for ham?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Free service. No orders, purchases, checkout, subscriptions or payments are offered or processed by this app. Users may independently visit source product pages to shop separately.",
+        "demo_recording_url": "https://lejespor.dk/aftensmad/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission of Aftensmad i dag: Danish and English recipe planning, verified exact-product pack sizes, whole-pack ingredient-budget totals and read-only local markdown searches for Copenhagen/Frederiksberg."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "harakah",
+  "version": "0.5.1",
+  "description": "Check and fix Arabic text in motion-graphics code (Remotion, GSAP/HyperFrames, HTML) with Harakah's hosted check_arabic and fix_arabic tools.",
+  "author": {
+    "name": "Amro Alemam",
+    "email": "hello@harakah.si",
+    "url": "https://harakah.si"
+  },
+  "homepage": "https://harakah.si",
+  "repository": "https://github.com/harakah-si/harakah",
+  "license": "MIT",
+  "keywords": [
+    "arabic",
+    "rtl",
+    "remotion",
+    "gsap",
+    "hyperframes",
+    "motion-graphics",
+    "typography"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Harakah Arabic Motion",
+        "shortDescription": "Fix Arabic in motion code",
+        "longDescription": "Harakah helps you write motion-graphics code with Arabic text that renders correctly. Arabic letters join, and common animation patterns break them: splitting text into per-letter boxes, missing right-to-left direction, Latin-only fonts, letter spacing, mixed digit styles, and canvas or 3D text drawn one letter at a time.\n\nWhat it does:\n- Checks Remotion (.tsx/.jsx), HyperFrames, GSAP and HTML code for broken Arabic and explains each issue with its line.\n- Fixes what it safely can, keeps per-letter animation, and marks every change with a comment.\n- Guides new Arabic compositions: splitting, direction, reading-order motion, fonts and digits.\n\nWho it's for: developers and motion designers building videos or animated pages with Arabic text.\n\nHow it works: the assistant sends the code of the file you're working on to Harakah's hosted tools (check_arabic and fix_arabic), built on the open-source harakah-fixer 0.5.0. The code is processed in memory to return the result and isn't stored. No account or sign-in is needed. On a computer, you can also run harakah-fixer locally so your code never leaves your machine.\n\nLimitations: the hosted tools work on one file's code at a time (up to 200,000 characters) and can't open files on your computer or render frames. It covers Arabic script in code; it doesn't translate or write copy.",
+        "developerName": "Amro Alemam",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Check Arabic text in motion code",
+          "Fix broken Arabic letters"
+        ],
+        "websiteURL": "https://harakah.si",
+        "supportURL": "https://harakah.si/support",
+        "privacyPolicyURL": "https://harakah.si/privacy",
+        "termsOfServiceURL": "https://harakah.si/terms",
+        "defaultPrompt": [
+          "Check this Remotion component for broken Arabic text and fix what you find.",
+          "Animate this Arabic title letter by letter without breaking the joined letters.",
+          "Fix the Arabic in this HTML animation before I render it."
+        ],
+        "brandColor": "#8A6312",
+        "brandColorDark": "#C9962F",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check an HTML animation for broken Arabic",
+              "prompt": "Check this HTML for broken Arabic before I animate it: <!doctype html><html><body><h1 style=\"letter-spacing:2px\"><span>\u0645</span><span>\u0631</span><span>\u062d</span><span>\u0628</span><span>\u0627</span></h1></body></html>",
+              "tools_triggered": "check_arabic",
+              "expected_behavior": "Calls check_arabic once with the HTML and reports the problems it returns: Arabic split into per-letter spans (HZ01), no right-to-left direction (HZ03), missing lang=\"ar\" (HZ04), letter spacing on Arabic (HZ07) and no Arabic font (HZ09). Makes no changes."
+            },
+            {
+              "description": "Fix a Remotion component with a per-letter split",
+              "prompt": "Fix the Arabic in this Remotion component and give me the corrected code:\nimport {AbsoluteFill} from \"remotion\";\nexport const Title = () => <AbsoluteFill><div style={{letterSpacing: 4, fontFamily: \"Inter\"}}>{\"\u0645\u0631\u062d\u0628\u0627\".split(\"\").map((c, i) => <span key={i}>{c}</span>)}</div></AbsoluteFill>;",
+              "tools_triggered": "fix_arabic, check_arabic",
+              "expected_behavior": "Calls fix_arabic and returns the fixed component: .split(\"\") replaced by splitArabic(\"\u0645\u0631\u062d\u0628\u0627\"), dir=\"rtl\" lang=\"ar\" added, letterSpacing set to 0, IBM Plex Sans Arabic added as a fallback font, each change marked with a harakah: comment. Explains that ./harakah-arabic comes from @harakah/remotion-arabic. A follow-up check_arabic on the fixed code reports no errors."
+            },
+            {
+              "description": "Fix an HTML page and keep the per-letter animation",
+              "prompt": "My GSAP title splits this Arabic word into letters and they come out disconnected. Fix it but keep the letter-by-letter animation: <!doctype html><html><body><h1 style=\"letter-spacing:2px\"><span>\u0645</span><span>\u0631</span><span>\u062d</span><span>\u0628</span><span>\u0627</span></h1></body></html>",
+              "tools_triggered": "fix_arabic",
+              "expected_behavior": "Calls fix_arabic with split zwj (the default) and returns HTML where each letter span keeps its box but letters join (ZWJ padding), with dir=\"rtl\", lang=\"ar\", an Arabic font and no letter spacing. Lists the applied fix codes."
+            },
+            {
+              "description": "Western digits on request",
+              "prompt": "Fix the Arabic in this HTML but keep Western digits (123), not Eastern ones: <html><body><p>\u0627\u0644\u0633\u0639\u0631 \u0661\u0662\u0660 \u0631\u064a\u0627\u0644 \u0648 30 \u062f\u0642\u064a\u0642\u0629</p></body></html>",
+              "tools_triggered": "fix_arabic",
+              "expected_behavior": "Calls fix_arabic with digits set to western and returns HTML where \u0661\u0662\u0660 becomes 120 so both numbers are Western (HZ12), plus right-to-left direction and an Arabic font."
+            },
+            {
+              "description": "Clean code is reported clean",
+              "prompt": "Is the Arabic in this HTML OK to render? <!doctype html><html lang=\"ar\" dir=\"rtl\"><head><meta charset=\"utf-8\"><link href=\"https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic&display=swap\" rel=\"stylesheet\"><style>body{font-family:'IBM Plex Sans Arabic',sans-serif}</style></head><body><h1>\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645</h1></body></html>",
+              "tools_triggered": "check_arabic",
+              "expected_behavior": "Calls check_arabic, which returns ok true with no issues, and tells the user the Arabic is ready to render without inventing problems."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Translation request",
+              "prompt": "Translate 'Welcome to our store' into Arabic.",
+              "expected_behavior": "Does not call the Harakah tools: there is no code to check. Answers the translation directly (or says Harakah doesn't translate)."
+            },
+            {
+              "description": "Code with no Arabic",
+              "prompt": "Why doesn't this CSS center my div? .box { margin: auto; }",
+              "expected_behavior": "Does not call the Harakah tools, because the code contains no Arabic text. Helps with the CSS question normally."
+            },
+            {
+              "description": "Rendering or opening local files",
+              "prompt": "Render my Remotion project at ~/videos/promo to MP4 and upload it to YouTube.",
+              "expected_behavior": "Does not call the Harakah tools to render or upload: they only check and fix code sent to them and can't open local files, render video or post anything. Explains this and offers to check the Arabic if the user pastes the component code."
+            }
+          ]
+        },
+        "demo_recording_url": "https://harakah.si/demo/chatgpt-plugin.mp4",
+        "commerce": false,
+        "commerce_description": "Harakah is free and open source. It doesn't sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "0.5.1: same skill and hosted check_arabic and fix_arabic tools (harakah-fixer 0.5.0), with the remote MCP server declared at https://mcp.harakah.si/mcp (no authentication) and the developer name set to Amro Alemam, the verified individual who owns Harakah and harakah.si.",
+        "translations": {
+          "ar-SA": {
+            "subtitle": "\u0639\u0631\u0628\u064a \u0633\u0644\u064a\u0645 \u0641\u064a \u0643\u0648\u062f \u0627\u0644\u0645\u0648\u0634\u0646",
+            "description": "\u062d\u0631\u0643\u0629 \u062a\u0633\u0627\u0639\u062f\u0643 \u062a\u0643\u062a\u0628 \u0643\u0648\u062f \u0645\u0648\u0634\u0646 \u062c\u0631\u0627\u0641\u064a\u0643 \u0641\u064a\u0647 \u0646\u0635 \u0639\u0631\u0628\u064a \u064a\u0637\u0644\u0639 \u0635\u062d \u0628\u0639\u062f \u0627\u0644\u0631\u0646\u062f\u0631. \u0627\u0644\u062d\u0631\u0648\u0641 \u0627\u0644\u0639\u0631\u0628\u064a\u0629 \u0645\u062a\u0635\u0644\u0629\u060c \u0648\u0641\u064a\u0647 \u0623\u0633\u0627\u0644\u064a\u0628 \u0634\u0627\u0626\u0639\u0629 \u0641\u064a \u0627\u0644\u0623\u0646\u064a\u0645\u064a\u0634\u0646 \u062a\u0642\u0637\u0651\u0639\u0647\u0627: \u062a\u0642\u0633\u064a\u0645 \u0627\u0644\u0646\u0635 \u0644\u0635\u0646\u062f\u0648\u0642 \u0644\u0643\u0644 \u062d\u0631\u0641\u060c \u0623\u0648 \u0646\u0633\u064a\u0627\u0646 \u0627\u062a\u062c\u0627\u0647 \u0627\u0644\u064a\u0645\u064a\u0646 \u0644\u0644\u064a\u0633\u0627\u0631\u060c \u0623\u0648 \u062e\u0637\u0648\u0637 \u0644\u0627\u062a\u064a\u0646\u064a\u0629 \u0641\u0642\u0637\u060c \u0623\u0648 \u062a\u0628\u0627\u0639\u062f \u0628\u064a\u0646 \u0627\u0644\u062d\u0631\u0648\u0641\u060c \u0623\u0648 \u062e\u0644\u0637 \u0623\u0646\u0648\u0627\u0639 \u0627\u0644\u0623\u0631\u0642\u0627\u0645\u060c \u0623\u0648 \u0631\u0633\u0645 \u0627\u0644\u062d\u0631\u0648\u0641 \u0648\u062d\u062f\u0629 \u0648\u062d\u062f\u0629 \u0639\u0644\u0649 canvas \u0623\u0648 \u0641\u064a 3D.\n\n\u0627\u0644\u0644\u064a \u062a\u0633\u0648\u064a\u0647:\n- \u062a\u0641\u062d\u0635 \u0643\u0648\u062f Remotion (.tsx/.jsx) \u0648HyperFrames \u0648GSAP \u0648HTML \u0648\u062a\u0648\u0636\u062d \u0643\u0644 \u0645\u0634\u0643\u0644\u0629 \u0641\u064a \u0627\u0644\u0639\u0631\u0628\u064a \u0645\u0639 \u0631\u0642\u0645 \u0627\u0644\u0633\u0637\u0631.\n- \u062a\u0635\u0644\u0651\u062d \u0627\u0644\u0644\u064a \u062a\u0642\u062f\u0631 \u062a\u0635\u0644\u0651\u062d\u0647 \u0628\u0623\u0645\u0627\u0646\u060c \u0648\u062a\u062d\u0627\u0641\u0638 \u0639\u0644\u0649 \u0623\u0646\u064a\u0645\u064a\u0634\u0646 \u0627\u0644\u062d\u0631\u0648\u0641\u060c \u0648\u062a\u062d\u0637 \u062a\u0639\u0644\u064a\u0642 \u0639\u0646\u062f \u0643\u0644 \u062a\u0639\u062f\u064a\u0644.\n- \u062a\u0631\u0634\u062f\u0643 \u0648\u0623\u0646\u062a \u062a\u0628\u0646\u064a \u0645\u0634\u0647\u062f \u0639\u0631\u0628\u064a \u062c\u062f\u064a\u062f: \u0627\u0644\u062a\u0642\u0633\u064a\u0645\u060c \u0648\u0627\u0644\u0627\u062a\u062c\u0627\u0647\u060c \u0648\u062d\u0631\u0643\u0629 \u062a\u0645\u0634\u064a \u0645\u0639 \u062a\u0631\u062a\u064a\u0628 \u0627\u0644\u0642\u0631\u0627\u0621\u0629\u060c \u0648\u0627\u0644\u062e\u0637\u0648\u0637\u060c \u0648\u0627\u0644\u0623\u0631\u0642\u0627\u0645.\n\n\u0645\u0646\u0627\u0633\u0628\u0629 \u0644\u0644\u0645\u0637\u0648\u0631\u064a\u0646 \u0648\u0645\u0635\u0645\u0645\u064a \u0627\u0644\u0645\u0648\u0634\u0646 \u0627\u0644\u0644\u064a \u064a\u0634\u062a\u063a\u0644\u0648\u0646 \u0639\u0644\u0649 \u0641\u064a\u062f\u064a\u0648\u0647\u0627\u062a \u0623\u0648 \u0635\u0641\u062d\u0627\u062a \u0645\u062a\u062d\u0631\u0643\u0629 \u0641\u064a\u0647\u0627 \u0646\u0635 \u0639\u0631\u0628\u064a.\n\n\u0643\u064a\u0641 \u062a\u0634\u062a\u063a\u0644: \u0627\u0644\u0645\u0633\u0627\u0639\u062f \u064a\u0631\u0633\u0644 \u0643\u0648\u062f \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0644\u064a \u062a\u0634\u062a\u063a\u0644 \u0639\u0644\u064a\u0647 \u0644\u0623\u062f\u0648\u0627\u062a \u062d\u0631\u0643\u0629 \u0627\u0644\u0645\u0633\u062a\u0636\u0627\u0641\u0629 (check_arabic \u0648fix_arabic)\u060c \u0627\u0644\u0645\u0628\u0646\u064a\u0629 \u0639\u0644\u0649 \u0623\u062f\u0627\u0629 harakah-fixer \u0627\u0644\u0645\u0641\u062a\u0648\u062d\u0629 \u0627\u0644\u0645\u0635\u062f\u0631 (\u0625\u0635\u062f\u0627\u0631 0.5.0). \u0627\u0644\u0643\u0648\u062f \u064a\u0646\u0639\u0627\u0644\u062c \u0641\u064a \u0627\u0644\u0630\u0627\u0643\u0631\u0629 \u0639\u0634\u0627\u0646 \u062a\u0631\u062c\u0639 \u0627\u0644\u0646\u062a\u064a\u062c\u0629\u060c \u0648\u0645\u0627 \u064a\u0646\u062d\u0641\u0638. \u0645\u0627 \u062a\u062d\u062a\u0627\u062c \u062d\u0633\u0627\u0628 \u0648\u0644\u0627 \u062a\u0633\u062c\u064a\u0644 \u062f\u062e\u0648\u0644. \u0648\u0639\u0644\u0649 \u0627\u0644\u0643\u0645\u0628\u064a\u0648\u062a\u0631 \u062a\u0642\u062f\u0631 \u062a\u0634\u063a\u0651\u0644 harakah-fixer \u0639\u0644\u0649 \u062c\u0647\u0627\u0632\u0643 \u0639\u0634\u0627\u0646 \u0645\u0627 \u064a\u0637\u0644\u0639 \u0643\u0648\u062f\u0643 \u0645\u0646\u0647 \u0623\u0628\u062f\u0627\u064b.\n\n\u062d\u062f\u0648\u062f\u0647\u0627: \u0627\u0644\u0623\u062f\u0648\u0627\u062a \u0627\u0644\u0645\u0633\u062a\u0636\u0627\u0641\u0629 \u062a\u0634\u062a\u063a\u0644 \u0639\u0644\u0649 \u0643\u0648\u062f \u0645\u0644\u0641 \u0648\u0627\u062d\u062f \u0641\u064a \u0643\u0644 \u0645\u0631\u0629 (\u0644\u064a\u0646 \u0662\u0660\u0660\u066c\u0660\u0660\u0660 \u062d\u0631\u0641)\u060c \u0648\u0645\u0627 \u062a\u0642\u062f\u0631 \u062a\u0641\u062a\u062d \u0645\u0644\u0641\u0627\u062a \u0639\u0644\u0649 \u062c\u0647\u0627\u0632\u0643 \u0648\u0644\u0627 \u062a\u0631\u0646\u062f\u0631 \u0644\u0642\u0637\u0627\u062a. \u0634\u063a\u0644\u0647\u0627 \u0643\u062a\u0627\u0628\u0629 \u0627\u0644\u0639\u0631\u0628\u064a \u0641\u064a \u0627\u0644\u0643\u0648\u062f\u060c \u0648\u0645\u0627 \u062a\u062a\u0631\u062c\u0645 \u0648\u0644\u0627 \u062a\u0643\u062a\u0628 \u0646\u0635\u0648\u0635."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AltoDocs calculation integration",
+    "version": "0.1.0",
+    "description": "Calculation service only. No document access or persistence."
+  },
+  "paths": {
+    "/v1/integrations/calc/evaluate": {
+      "post": {
+        "operationId": "evaluate_calculation",
+        "summary": "Evaluate calculations with units",
+        "description": "Evaluate ordered mathematical expressions with physical units using the AltoDocs calculation engine. Define variables before use, for example q := 12\\operatorname{kN}/\\operatorname{m}, L := 6\\operatorname{m}, then M := q \\cdot L^2 / 8. Use unit to request output conversion (for example N m). Returns a result or error for every expression. No document is read or saved and no structural-code compliance is asserted.",
+        "security": [
+          {
+            "connectorToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "expressions": {
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "latex": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "unit": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "latex"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "expressions"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evaluated; individual expressions can have errors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "variable": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "done",
+                              "error"
+                            ]
+                          },
+                          "value": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "unit": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "formatted": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "error": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "variable",
+                          "status",
+                          "value",
+                          "unit",
+                          "formatted"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "engineVersion": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "results",
+                    "engineVersion"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid calculation request"
+          },
+          "401": {
+            "description": "Missing or invalid connector token"
+          },
+          "403": {
+            "description": "Missing calculations:evaluate scope"
+          },
+          "413": {
+            "description": "Request too large"
+          },
+          "415": {
+            "description": "Expected application/json"
+          },
+          "422": {
+            "description": "Calculation time limit"
+          },
+          "429": {
+            "description": "Rate limit; Retry-After is supplied"
+          },
+          "503": {
+            "description": "Integration not configured, authorization unavailable, or calculation queue full"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "connectorToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "OAuth access token",
+        "description": "Obtain a token for the resource advertised by /.well-known/oauth-protected-resource/mcp with calculations:evaluate scope."
+      }
+    }
+  }
+}

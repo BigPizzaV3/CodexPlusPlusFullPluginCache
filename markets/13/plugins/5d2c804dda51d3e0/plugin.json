@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "switchbot",
+  "version": "1.0.0",
+  "description": "Connect your SwitchBot account to view devices, inspect capabilities and status, and control devices available through the connected service.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SwitchBot",
+        "shortDescription": "View and control your devices",
+        "longDescription": "Connect your SwitchBot account to list physical and infrared devices, inspect their capabilities, read available cloud status, and send device commands. You can also explore the device model catalog and preview commands without sending them. Available controls depend on the device, its configuration, and the connected service. Catalog information does not certify support on every firmware version, and command acceptance does not by itself confirm a physical action. Infrared devices generally do not provide state feedback. Scenes, scheduled automations, purchases, and MindClip recording content are not available through this plugin. The current service is a restricted US pilot and requires an explicitly admitted account and OAuth client.",
+        "category": "Other",
+        "capabilities": [],
+        "defaultPrompt": [
+          "List my SwitchBot devices.",
+          "Check the current status of my fan.",
+          "What controls are available for my devices?"
+        ],
+        "websiteURL": "https://www.switch-bot.com/",
+        "supportURL": "https://support.switch-bot.com/hc/en-us",
+        "privacyPolicyURL": "https://switchbot-devices-mcp.switchbot.net/privacy-policy",
+        "termsOfServiceURL": "https://support.switch-bot.com/hc/en-us/articles/360046272354-TERMS-OF-SERVICE",
+        "logo": "./assets/switchbot-icon.png",
+        "composerIcon": "./assets/switchbot-icon.png"
+      },
+      "review": {
+        "prompts": [
+          "List my SwitchBot devices and separate physical devices from infrared remotes.",
+          "What controls and status fields are available for Review Fan? Do not change it.",
+          "Is Review Fan on right now, and what speed does it report?",
+          "Look up Curtain models in the SwitchBot catalog and explain their listed commands. Do not control anything.",
+          "Test Review Fan: confirm it is off, turn it on and check its state, then turn it off again and check its state."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inventory. Setup: connect an admitted US reviewer account with sample devices. A zero-length infrared list is a valid result.",
+              "prompt": "List my SwitchBot devices and separate physical devices from infrared remotes.",
+              "tools_triggered": "list_devices",
+              "expected_behavior": "Call list_devices with {}. Summarize only returned deviceList and infraredRemoteList entries with their names and types. Preserve exact IDs for later calls. Do not infer missing cloud-service or room fields, and explicitly report an empty list when returned."
+            },
+            {
+              "description": "Capabilities. Setup: the dedicated reviewer account has exactly one Standing Fan named Review Fan, with no unrelated personal devices.",
+              "prompt": "What controls and status fields are available for Review Fan? Do not change it.",
+              "tools_triggered": "list_devices, get_device_info",
+              "expected_behavior": "Resolve Review Fan through list_devices and pass its exact deviceId to get_device_info with only {\"deviceId\":\"<exact ID>\"}. Explain the returned descriptive metadata and statusDefinitions. Identify available controls only from the already-declared tools that match the recognized device model; get_device_info does not return executable command schemas. Distinguish catalog information from live firmware certification. Do not read live status or invoke any state-changing tool."
+            },
+            {
+              "description": "Live status. Setup: the same Review Fan is online and its power status is readable through the cloud.",
+              "prompt": "Is Review Fan on right now, and what speed does it report?",
+              "tools_triggered": "list_devices, get_device_status",
+              "expected_behavior": "Resolve the exact fan ID, call get_device_status, and answer using the returned power and fan-speed fields. If a field is absent or the read fails, say it is unknown or unavailable rather than guessing. No command may be sent."
+            },
+            {
+              "description": "Catalog discovery independent of owned inventory. Setup: authorized connection; owning a Curtain is unnecessary.",
+              "prompt": "Look up Curtain models in the SwitchBot catalog and explain their listed model information and status fields. Do not control anything.",
+              "tools_triggered": "search_device_models",
+              "expected_behavior": "Call search_device_models with {\"query\":\"Curtain\",\"limit\":10}. Explain only returned model names, aliases, descriptions and status-field definitions. Distinguish catalog entries from devices owned by the user, and catalog information from live firmware certification. Treat total as returned count, not the size of the entire catalog. This search does not return control commands or executable schemas. Do not invoke any state-changing tool."
+            },
+            {
+              "description": "Authorized control and state verification. Setup: a dedicated, safely positioned Review Fan is initially off; its operator permits an on/off test. Both read and control OAuth scopes are granted. Stop and report a mismatch if initial power is not off.",
+              "prompt": "Test Review Fan: confirm it is off, turn it on and check its state, then turn it off again and check its state.",
+              "tools_triggered": "list_devices, get_device_info, get_device_status, turn_on_physical_battery_circulator_fan, turn_off_physical_battery_circulator_fan",
+              "expected_behavior": "Resolve Review Fan through list_devices, then call get_device_info with its exact deviceId. Confirm it is a physical Battery Circulator Fan (Standing Fan is a catalog alias); otherwise stop and report the mismatch. Read get_device_status and stop if initial power is not confirmed off. Call turn_on_physical_battery_circulator_fan once with only {\"deviceId\":\"<same exact ID>\"}, then read get_device_status. After a non-ambiguous outcome, call turn_off_physical_battery_circulator_fan once with the same deviceId and read status again. Report command acceptance separately from observed power. Never automatically replay a timed-out command; on an ambiguous result, read state and explain uncertainty. No other device or setting may be changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchasing is outside this plugin. Explain that it cannot place orders or take payment; do not invoke any SwitchBot tool or claim an order was placed.",
+              "prompt": "Buy a new SwitchBot fan and charge my saved card."
+            },
+            {
+              "description": "Recording-content retrieval is outside this device plugin. Explain that MindClip recordings/transcripts are not available through its tools. Do not invoke device tools or fabricate a summary.",
+              "prompt": "Fetch my MindClip recording from yesterday and summarize the conversation."
+            },
+            {
+              "description": "Scene creation and future automation scheduling are unavailable. Explain this limit and suggest setting the automation in the SwitchBot app. Do not issue an immediate command or claim a schedule was saved.",
+              "prompt": "Create a SwitchBot automation that turns my fan on every weekday at 7 a.m."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial SwitchBot plugin package for device discovery, capability and status queries, model catalog search, and authorized device control. The connected service currently operates as a restricted US pilot."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

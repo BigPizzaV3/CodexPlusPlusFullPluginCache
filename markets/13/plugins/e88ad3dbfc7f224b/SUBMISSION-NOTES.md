@@ -1,0 +1,1 @@
+Initial OpenAI Platform import package. Review video intentionally omitted until recorded. After obtaining YouTube URL, add `extensions.com.openai.review.demo_recording_url`, increment manifest version, repackage, and use Upload new version. Original instructional reference files are retained.

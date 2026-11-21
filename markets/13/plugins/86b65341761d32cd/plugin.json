@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "x2-pos",
+  "version": "0.1.2",
+  "description": "Connect X2 POS inventory, sales, reports and finance to ChatGPT.",
+  "author": {
+    "name": "X2 Retail"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "X2 POS",
+        "shortDescription": "Inventory, sales and finance",
+        "longDescription": "X2 POS connects ChatGPT to X2, a retail inventory, point-of-sale and finance system. Ask about products, stock and prices across branches; review sales, goods receipts, stock movements, production documents, customers and suppliers, payments, financial accounts, cash registers and shifts; get totals for any period in one answer (sales, paid and unpaid, goods sold, money movement, purchases, write-offs) with a breakdown by seller, customer, branch, category or day; get server-built reports such as revenue and margin, expenses, ABC/XYZ analysis, receivables, partner reconciliation, stale inventory, stock movement statement, purchasing, returns, sales by city, products bought together and production yield; rank products by inventory turnover; see what to reorder from suppliers based on the demand forecast; check the cash flow forecast (whether money will run short, when and by how much, and how much can be spent safely); and review recurring expenses, sales plans, sales goals and trade rules.\n\nWith the user's confirmation, X2 POS can also record operations in the company's books: sales, added order items, goods returns and payments against sales; goods receipts, stock revisions, purchase orders, write-offs, returns to suppliers, transfers between branches and payments to suppliers; production: cutting a carcass into parts, packing bulk goods and assembling products, with yield schemes and suggested parts for meat, poultry and fish; income and expense entries and finance categories; products, categories and the store's own selling prices; customers and suppliers; register shifts; recurring expenses, planned payments, sales goals and sales plans; and the store's checkout rules, such as blocking sales of a product during certain hours. Every write is two-step: the first call returns a preview of what will change and a confirmation token, and nothing is written until the call is repeated with that token.\n\nWhen the user has X2 open in their browser, X2 POS can also show things on that tab: what is on the page, open a page or document, highlight a button or a row, start a training tour, and print price labels. It does not press anything on the page: the user presses the buttons. Records are changed only by the write operations above, each with its own preview and confirmation.\n\nX2 POS records transactions in the company's accounting; it does not move money, charge cards or execute bank transfers. Access follows the connected employee's permissions in X2, and an operation that is not available to the connection is declined with the reason. Tax identification numbers and dates of birth are never returned. Only the name of a raw material is sent to an AI model when the user asks to suggest production parts. Confirmed operations may affect an enabled public storefront, configured loyalty programs, marketplace synchronization and company notifications.",
+        "developerName": "X2 Retail",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Show stock and prices in my branches.",
+          "Show revenue for the last 30 completed days.",
+          "Check my company cash flow forecast."
+        ],
+        "websiteURL": "https://x2pos.com/",
+        "supportURL": "https://x2pos.com/ru/landing/contact",
+        "privacyPolicyURL": "https://x2pos.com/agreement/personal",
+        "termsOfServiceURL": "https://x2pos.com/agreement/offer",
+        "logo": "assets/logo.png",
+        "composerIcon": "assets/logo.png"
+      },
+      "review": {
+        "prompts": [
+          "Show stock and prices in my branches.",
+          "Show revenue for the last 30 completed days.",
+          "Check my company cash flow forecast."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Browse authorized stock with pagination.",
+              "prompt": "Show my branches and product categories, then list the first 10 products available in the main branch, including prices and stock.",
+              "tools_triggered": "company_get_settings, catalog_list_categories, catalog_browse",
+              "expected_behavior": "Returns the branches and product categories and the first page of products in the branch with retail prices and stock, within the employee's access; distinguishes unavailable stock data from zero stock and changes no records."
+            },
+            {
+              "description": "Get period totals with a breakdown by branch in one call.",
+              "prompt": "How much did we sell last month, how much of it is still unpaid, and what was the average check? Break the sales down by branch, and also show the total of completed write-offs for the same month.",
+              "tools_triggered": "sum_get",
+              "expected_behavior": "Returns server-computed totals for the month (number of sales, sales amount, paid and unpaid, average check) with a breakdown by branch, and the total of completed write-offs at purchase cost; uses period totals instead of paging through individual sales and changes no records."
+            },
+            {
+              "description": "Check the cash flow forecast without changing anything.",
+              "prompt": "Will my company have enough money over the next 30 days? If there is a risk, tell me when and by how much, and how much I can spend safely.",
+              "tools_triggered": "cashflow_get",
+              "expected_behavior": "Retells the server-computed verdict (the first date below the threshold and the largest shortfall, or that there is no risk), the safe-to-spend amount and the upcoming planned payments without recalculating them, and changes no records."
+            },
+            {
+              "description": "Create a finance category only after confirmation.",
+              "prompt": "Add an expense category called Packaging. If it already exists, tell me and use the existing one. Show the preview and create it only after I confirm.",
+              "tools_triggered": "finance_list_categories, finance_create_category",
+              "expected_behavior": "Checks the existing expense categories, previews the new category with its direction, creates it only after confirmation, and refuses a duplicate name by pointing to the existing category instead of creating a second one."
+            },
+            {
+              "description": "Work on the user's open X2 tab without changing data.",
+              "prompt": "I have X2 open in my browser. Open the sales list there, find the most recent sale and highlight it for me.",
+              "tools_triggered": "screen_get, screen_open, screen_highlight",
+              "expected_behavior": "Opens the sales list on the user's X2 tab, finds and highlights the most recent sale and describes it; presses nothing on the page and changes no records. If no X2 tab is open, asks the user to open X2 in the browser."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated calendar request. Expected: Do not invoke X2 POS because it does not provide calendar access.",
+              "prompt": "What meetings are on my calendar tomorrow?"
+            },
+            {
+              "description": "External bank transfer is outside supported accounting operations. Expected: Do not invoke X2 POS to perform a bank transfer; its payment tools record company transactions rather than execute external bank transfers.",
+              "prompt": "Transfer 50000 from my bank account to another person now."
+            },
+            {
+              "description": "Macroeconomic forecast is not a company cash flow forecast. Expected: Do not invoke X2 POS; its cash flow forecast covers only the company's own accounts and planned payments, not exchange rates or markets.",
+              "prompt": "Will the tenge exchange rate against the dollar fall next month?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Updated listing and review cases to match the current X2 POS MCP submission: removed ChatGPT plan promotion and consolidated review coverage into five positive and three negative cases."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

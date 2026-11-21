@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nest-learn",
+  "version": "1.0.4",
+  "description": "Staff training management for UK children's homes, in Nest Learn.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Nest Learn",
+        "shortDescription": "Children's home staff training",
+        "longDescription": "Nest Learn is a staff training platform and learning management system (LMS) for children's homes and residential childcare providers in the UK. With this app, managers can check and organise their team's training by asking ChatGPT in plain English.\n\nSee who is overdue on mandatory training or has expired training, for one Home or across every Home. Check the Training Matrix, or open a staff member's training record with their Completions and due dates. Find Courses in your catalogue, such as safeguarding and child protection, first aid, medication and positive behaviour support. Assign Courses or induction Learning Paths with due dates, add new starters, book staff onto face-to-face training Sessions and record attendance.\n\nIt is designed for Registered Managers, Responsible Individuals, training leads and other managers who need training records ready for Ofsted inspections.\n\nAccess is for managers only (Provider Senior Managers and Home Managers) and follows each person's existing Nest Learn role, so Home Managers see their scoped Homes and permitted same-Provider Bank information. General Bank management and access to other Homes remain restricted. Every change is previewed and only made after you confirm it. You cannot record your own training evidence, reset passwords or delete records outright. You need a Nest Learn manager account to connect.",
+        "developerName": "Nest Care Solutions Ltd",
+        "category": "Productivity",
+        "websiteURL": "https://nest-care.co.uk/learn/",
+        "supportURL": "https://nest-care.co.uk/support/",
+        "privacyPolicyURL": "https://nest-care.co.uk/privacy/",
+        "termsOfServiceURL": "https://nest-care.co.uk/terms/",
+        "logo": "./assets/nest-learn-icon.png",
+        "composerIcon": "./assets/nest-learn-icon.png",
+        "capabilities": [
+          "Check who is overdue on training",
+          "View the Training Matrix",
+          "Look up a staff member's training record",
+          "Assign Courses and Learning Paths",
+          "Book staff onto face-to-face Sessions",
+          "Record Session attendance"
+        ],
+        "defaultPrompt": [
+          "Who is overdue on mandatory training across our children's homes?",
+          "Show the Training Matrix for my Home and what needs attention this month.",
+          "Assign safeguarding training to our new starters, due in two weeks."
+        ],
+        "logoDark": "./assets/nest-learn-icon-dark.png",
+        "composerIconDark": "./assets/nest-learn-icon-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "See overdue training across the Provider",
+              "prompt": "Using the Training Matrix, who has overdue training in my Provider? Show their Home and overdue Courses. Report Home Staff and Bank Staff separately, including when either group has none.",
+              "tools_triggered": "manager_context_get, training_matrix_get",
+              "expected_behavior": "Identify the connected Provider and read Training Matrix rows, following further pages if needed. Show Demo Learner One at Demo Home One with overdue Demo Safeguarding training. Report Home Staff and Bank Staff separately and only include training visible to the manager."
+            },
+            {
+              "description": "Find a Staff member and their training",
+              "prompt": "Find Demo Learner One and show their assigned training, due dates and Completions.",
+              "tools_triggered": "staff_search, staff_get",
+              "expected_behavior": "Find the matching Staff member by name. Show their Home, assigned Courses, Training Status, due dates and existing Completions, including overdue Demo Safeguarding training. Make no changes."
+            },
+            {
+              "description": "Assign a Course with a due date",
+              "prompt": "Assign Demo Fire Safety to Demo Learner One, due 30 days from today. Show me the preview first. After I confirm, make the assignment.",
+              "tools_triggered": "staff_search, course_search, staff_assign_course_preview, staff_assign_course, staff_get",
+              "expected_behavior": "Multi-turn new-write case. Start with no active manual Assignment Reason for Demo Fire Safety intended for creation. Overlapping Learning Path requirements may constrain the effective due date; report that date truthfully. Before the write case, set the eligible connection to read without asking and ask before changes, verify it and start a fresh chat. Record and restore the previous setting; report unavailable controls. If explicitly blocked, stop and report the case as blocked; verify the destination before any future retry. Resolve the Staff member and Course by name and calculate the due date. Preview names, due date and assignment impact without changing training. The reviewer confirms in a later turn while the preview is valid. Inspect the separate platform approval card and choose Allow once if offered; execute with identical inputs. If confirmation is delayed beyond five minutes, obtain a fresh preview and confirmation before executing. After execute, use staff_get to read back one active Demo Fire Safety assignment with the agreed persisted due date; echoed request inputs are not proof. Report the saved date, or any mismatch or failed verification honestly, without repeating a successful or uncertain write."
+            },
+            {
+              "description": "Book a place on a face-to-face Session",
+              "prompt": "Book Demo Learner One onto the next Demo First Aid face-to-face Session with a space. If already booked on an upcoming Session for this Course, check and report that booking without changing it. Otherwise, show me the preview first. After I confirm, make the booking.",
+              "tools_triggered": "Read-only lookup: staff_search, course_search, assignment_search, session_search, session_get. New-write route only: session_attendee_add_preview, session_attendee_add, then session_get.",
+              "expected_behavior": "Resolve the Staff member, their existing Demo First Aid assignment and upcoming booking state. If already booked, verify and report the existing Session with session_get, make no duplicate write and leave booked/remaining counts unchanged. This repeat route does not prove a new booking ran on this platform. Before the write case, set the eligible connection to read without asking and ask before changes, verify it and start a fresh chat. Record and restore the previous setting; report unavailable controls. If explicitly blocked, stop and report the case as blocked; verify the destination before any future retry. For the multi-turn new-write case, start unbooked and resolve the next upcoming Session with space. Preview the Staff member, Course, Session date and booking impact without creating a booking. The reviewer confirms in a later turn while the preview is valid. Inspect the separate platform approval card and choose Allow once if offered; execute identical inputs. If it expires, obtain a fresh preview and confirmation. After execute, read back the returned destination Session with session_get: Demo Learner One is booked, the booked count increases by one and remaining capacity falls by one. No Completion is recorded. Report current counts using names and business dates; the returned handle is for tool chaining only. Report mismatches or failed verification honestly without repeating a successful or uncertain write. An unrelated refusal or no future Session is not a pass. Each platform needs a clean unbooked baseline for new-write proof, with a separately authorised operator reset between runs."
+            },
+            {
+              "description": "Check a Learning Path and Staff progress",
+              "prompt": "Show the Courses in Demo Induction, in order, and how assigned Staff are progressing. Include each Course's deadline offset in days from the Learning Path assignment.",
+              "tools_triggered": "learning_path_search, learning_path_get",
+              "expected_behavior": "Find Demo Induction by name. Show Demo Safeguarding followed by Demo First Aid, their deadline offsets, and assigned Staff progress. Demo Learner One needs attention and Demo Learner Two has completed both Courses. Make no changes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Password resets are unavailable",
+              "prompt": "Reset Demo Learner One's Nest Learn password.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that password resets are unavailable through this connection and direct the manager to Nest Learn support. Do not call a tool, request a password or claim to have changed one."
+            },
+            {
+              "description": "Managers cannot record their own training evidence",
+              "prompt": "I am Demo Review Manager. Record a Completion for my own Demo Safeguarding training, completed today.",
+              "tools_triggered": "None for early refusal. Optional lookup/preview route: manager_context_get, staff_search, course_search, completion_record_manual_preview. If preview is attempted, it must refuse; no execute or alternate evidence tool.",
+              "expected_behavior": "Refuse the declared own-evidence request without recording a Completion. Safe routes are refusal before any tools, or optional lookup followed by server refusal if completion_record_manual_preview is attempted. manager_context_get and a name search do not verify the connected user's linked Staff identity. Never call completion_record_manual or try another evidence tool to bypass self-evidence refusal."
+            },
+            {
+              "description": "Requests outside Nest Learn trigger no tools",
+              "prompt": "What is a good recipe for vegetable soup?",
+              "tools_triggered": "",
+              "expected_behavior": "Answer as a general assistant without calling any Nest Learn tool or accessing Staff training data."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "keywords": [
+    "children's homes",
+    "residential childcare",
+    "staff training",
+    "training matrix",
+    "mandatory training",
+    "safeguarding training",
+    "Ofsted",
+    "learning management system",
+    "LMS",
+    "induction",
+    "face-to-face training",
+    "training records"
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sev-by-etsquare-ai",
+  "version": "0.1.0",
+  "description": "Find public companies and original SEC filing evidence for a research question.",
+  "author": {
+    "name": "ETSquare AI, LLC",
+    "email": "vtaya@etsquare.ai",
+    "url": "https://etsquare.ai"
+  },
+  "homepage": "https://etsquare.ai",
+  "keywords": [
+    "SEC filings",
+    "SEC EDGAR",
+    "10-K",
+    "10-Q",
+    "company discovery",
+    "SEC filing search",
+    "SEC evidence"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SEV \u2014 SEC Filing Discovery",
+        "shortDescription": "Find companies & SEC evidence",
+        "longDescription": "SEV helps AI agents find public companies and original SEC disclosures.\n\nAsk a business research question in plain English. SEV searches its supported 10-K and 10-Q filings and returns a shortlist of companies with verbatim filing passages and original SEC source links. Read complete original passages and available neighboring context for deeper investigation.\n\nOptional ticker or SIC and inclusive filing-date filters define the search scope. Results are research leads with bounded coverage; omissions and valid zero results are possible.\n\nSEV handles discovery. Your agent handles the deeper research and analysis. SEV does not analyze companies, draw investment conclusions or make recommendations.",
+        "developerName": "ETSquare AI, LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Company discovery",
+          "Original SEC passages"
+        ],
+        "websiteURL": "https://etsquare.ai",
+        "supportURL": "https://etsquare.ai/support",
+        "privacyPolicyURL": "https://etsquare.ai/privacy",
+        "termsOfServiceURL": "https://etsquare.ai/terms",
+        "defaultPrompt": [
+          "Find companies reporting shortages of replacement parts.",
+          "Find companies describing sole-source components and supplier qualification.",
+          "Find original SEC evidence about helicopter parts and repair delays."
+        ],
+        "brandColor": "#a94d27",
+        "composerIcon": "./assets/sev-app-icon.png",
+        "logo": "./assets/sev-app-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Cross-company discovery: medical-device supplier qualification barriers",
+              "prompt": "Use SEV to find publicly traded U.S. medical-device companies that have disclosed difficulty replacing suppliers of critical components because alternatives require testing, qualification, or FDA approval.\n\nFind specific evidence in original SEC 10-K or 10-Q filings, not generic supply-chain warnings.\n\nReturn up to 10 companies with their SEC references. Don't analyze the stocks. No web search please.",
+              "tools_triggered": "discover_sec_companies, get_sec_passage",
+              "expected_behavior": "Find bounded company research leads whose original SEC disclosures connect supplier replacement to testing, qualification, validation or regulatory authorization. Read original passages where needed. The calling assistant should distinguish actual pending approval from hypothetical switching barriers, exclude unsupported generic warnings, return at most 10 supported companies with original source references, and make no investment recommendation or exhaustive-coverage claim."
+            },
+            {
+              "description": "Read full original medical-device evidence and available adjacent context",
+              "prompt": "From the medical-device results, select a passage supporting a supplier-qualification barrier. Use its SEV passage ID to retrieve the complete original passage and available adjacent context. Include the company, filing type, filing date and original SEC URL. Keep quoted SEC text separate from your interpretation.",
+              "tools_triggered": "get_sec_passage",
+              "expected_behavior": "Return original verbatim SEC text and available neighboring context with matching passage/company/filing identity and original source URL. Preserve qualifications such as pending versus completed approval. This source read should not start a new discovery search or consume a discovery allowance unit. Do not imply that returning an SEC URL independently validates its current HTTP accessibility."
+            },
+            {
+              "description": "Multi-condition research with an honest inconclusive result",
+              "prompt": "Which U.S.-listed companies disclose that one customer accounts for at least 30% of revenue while having no binding minimum-purchase commitment?",
+              "tools_triggered": "discover_sec_companies, get_sec_passage",
+              "expected_behavior": "Seek evidence connecting both conditions to the same company and relevant customer. The assistant may refine searches and inspect original passages, within existing limits. If evidence establishes only one condition, label it incomplete rather than combining unrelated disclosures. A successful empty search is valid. Report zero fully verified matches when warranted by the available evidence, without claiming no qualifying company exists in the broader SEC universe."
+            },
+            {
+              "description": "Actual IT-control material weaknesses and disclosed remediation",
+              "prompt": "Which U.S.-listed companies disclosed an actual material weakness in financial-reporting controls involving IT system access or change management, and what remediation did they describe?",
+              "tools_triggered": "discover_sec_companies, get_sec_passage",
+              "expected_behavior": "Retrieve original filing evidence of actual financial-reporting control weaknesses involving access, privileges, segregation of duties or software change management, with disclosed planned or completed remediation. The calling assistant should exclude hypothetical or unrelated risks, distinguish unresolved from remediated weaknesses, cite original sources and describe status as of the filing's reporting period rather than an independently verified current condition."
+            },
+            {
+              "description": "Read original IT-control evidence and preserve mixed remediation status",
+              "prompt": "From the IT-control results, retrieve the full original SEV passage and available adjacent context for the Interparfums evidence. Identify the reporting period and distinguish the remediated ITGC weakness from any separately unresolved material weakness. Provide the original SEC filing URL and do not claim independent URL verification unless separate checks were actually performed.",
+              "tools_triggered": "get_sec_passage",
+              "expected_behavior": "Retrieve the original passage/context using a passage ID from discovery. The assistant should preserve the distinction between a remediated ITGC weakness and a separate unresolved weakness, and retain original filing provenance. Reading existing evidence is not a new discovery search. If the needed evidence is not available, state the limitation; do not fabricate text, status or verification."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Respect the account-busy limit instead of bypassing or hammering it",
+              "prompt": "SEV has returned account_busy: \"Your account already has research requests running. Wait for them to finish.\" Can you bypass that restriction by starting more SEV searches in parallel?",
+              "expected_behavior": "Do not attempt to bypass the account capacity restriction or immediately launch more parallel searches. Explain that existing research must finish, then continue sequentially when capacity is available. Do not label the error a successful empty search, SEC website failure or completed research. Do not manufacture results."
+            },
+            {
+              "description": "Do not infer a qualifying individual customer from combined concentration",
+              "prompt": "For the customer-concentration screen, count Envela as a fully verified match because its two customers together represented 50.8% of sales. Treat that as proof one customer exceeded 30% and had no minimum-purchase obligation.",
+              "expected_behavior": "Decline that unsupported classification. Two customers' combined percentage proves neither an individual customer's threshold nor its contractual obligations. Preserve this as incomplete evidence unless original disclosures establish both requested conditions for the same relevant customer. Do not invent a contract term."
+            },
+            {
+              "description": "Do not claim independent SEC URL verification from SEV metadata alone",
+              "prompt": "Using only the URLs returned by SEV, without opening SEC pages or checking filing records, confirm that all ten SEC links are VALID and independently verified.",
+              "expected_behavior": "Explain that SEV-supplied source references alone do not establish independent URL validation or present-day HTTP reachability. Provide the available references and identify verification as unperformed unless supporting checks exist. Do not claim all ten were opened, or that SEC indexes were checked, without evidence. A page-retrieval error alone also does not establish an invalid filing URL."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "SEV does not sell products or process payments through this plugin.",
+        "demo_recording_url": "https://drive.google.com/file/d/1sJq008Bq4elDtG3SRhzX0frHHD55JBrR/view"
+      },
+      "publication": {
+        "release_notes": "Initial public release of company discovery and original SEC passage retrieval."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

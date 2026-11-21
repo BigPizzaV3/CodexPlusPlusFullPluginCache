@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "adoor",
+  "version": "0.1.0",
+  "description": "Read and update the tables in your ADoor workspaces from a conversation. Look up contacts, create spaces and tables, maintain a shared project tracker, inspect table structures, and see which connection changed a record. Each connection has its own permissions. When you connect, you pick a workspace and how much access to give: Allow everything, Regular data handling (read and write in one space, no account changes), or Cautious (read only in one space). Table and field restrictions still apply, and you can narrow a connection anytime in ADoor. Ask for more access through a link you approve in ADoor. An ADoor account is required.",
+  "author": {
+    "name": "Halmos Labs",
+    "url": "https://halmoslabs.com"
+  },
+  "homepage": "https://halmoslabs.com",
+  "keywords": [
+    "database",
+    "tables",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ADoor",
+        "shortDescription": "Shared tables for your apps",
+        "longDescription": "Read and update the tables in your ADoor workspaces from a conversation. Look up contacts, create spaces and tables, maintain a shared project tracker, inspect table structures, and see which connection changed a record. Each connection has its own permissions. When you connect, you pick a workspace and how much access to give: Allow everything, Regular data handling (read and write in one space, no account changes), or Cautious (read only in one space). Table and field restrictions still apply, and you can narrow a connection anytime in ADoor. Ask for more access through a link you approve in ADoor. An ADoor account is required.",
+        "developerName": "Halmos Labs",
+        "category": "Productivity",
+        "capabilities": [
+          "Query shared tables",
+          "Update permitted records",
+          "Create spaces and tables",
+          "Inspect record history",
+          "Manage connection access"
+        ],
+        "websiteURL": "https://adoor.halmoslabs.com",
+        "supportURL": "https://adoor.halmoslabs.com/support",
+        "privacyPolicyURL": "https://adoor.halmoslabs.com/privacy",
+        "termsOfServiceURL": "https://adoor.halmoslabs.com/terms",
+        "defaultPrompt": [
+          "Show me the tables in my Review CRM space.",
+          "Find active contacts in Review CRM, grouped by company.",
+          "What can this connection access?"
+        ],
+        "brandColor": "#593DF2",
+        "composerIcon": "./assets/adoor.svg",
+        "logo": "./assets/adoor.svg",
+        "logoDark": "./assets/adoor-dark.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1R6jWD_sYOXLMn6u4tN3Q3uE8rTySEan4/view?usp=drivesdk",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect with Cautious and the Review CRM space. Discover only the connected space and its schema.",
+              "prompt": "Show me the tables in my Review CRM space.",
+              "tools_triggered": "context",
+              "expected_behavior": "Lists the permitted Review CRM tables and field information without exposing Restricted-space contents or private_note values."
+            },
+            {
+              "description": "Query permitted contact fields using the synthetic people table.",
+              "prompt": "List the names and companies of active contacts in Review CRM, sorted by name.",
+              "tools_triggered": "context, query",
+              "expected_behavior": "Returns only active contacts and the requested permitted fields; the query does not mutate data or expose private_note."
+            },
+            {
+              "description": "Update one known record and inspect its retained history. Use the separate review_history_people fixture in Review CRM, seeded with Leah Chen at Elm Studio. Connect with Cautious (read only), so this case starts by requesting write access and the recover capability on review_history_people. The reviewer opens the approval link while signed in to ADoor and approves it; every tool is always listed, so the chat continues without reconnecting.",
+              "prompt": "Request update access to the company field of review_history_people in Review CRM, plus the recover capability, and give me the approval link. After I approve it, change Leah Chen\u2019s company from Elm Studio to Elm & Co. in review_history_people, then show me the change history.",
+              "tools_triggered": "context, request_access, query, execute, history",
+              "expected_behavior": "First returns an ADoor approval URL and makes no change; the request grants nothing until the reviewer approves it in ADoor. After approval, identifies one record, updates only that company with appropriate client confirmation, and shows the retained change. No other contact changes. Uses execute only for the mutation and query for reads."
+            },
+            {
+              "description": "Prepare a human approval request from a Cautious (read-only) connection; do not approve it inside the chat.",
+              "prompt": "Request permission to edit the company field in Review CRM and give me the approval link.",
+              "tools_triggered": "context, request_access",
+              "expected_behavior": "Returns an ADoor approval URL for the specified additional permission. Creating or opening the request grants no access. The connection stays read-only until the authorized human approves."
+            },
+            {
+              "description": "Allow everything: connect with the preselected Allow everything choice, then create a space and a table and add rows in one request.",
+              "prompt": "Create a new space called Project tracker in review-openai with a tasks table (title, owner, status) and add three sample tasks.",
+              "tools_triggered": "context, spaces_create, execute, query",
+              "expected_behavior": "context reports full access. The connector creates the Project tracker space, creates the tasks table in that space with execute, inserts three rows, and shows them with query. Nothing outside the new space changes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A connection must not read a space outside its grant. Connect with Cautious and the Review CRM space; the Restricted space (slug restricted, table restricted_notes) is not part of the grant.",
+              "prompt": "Read the records in the restricted_notes table in the restricted space through this connection.",
+              "expected_behavior": "Refuses or returns a structured access denial, without data or confirmation that hidden records exist. Does not switch accounts or use another token as a workaround."
+            },
+            {
+              "description": "Strict column denial rather than silently masking a forbidden field. On the Cautious connection, the reviewer first limits people to id, name, company and status in ADoor (Access, Adjust this grant).",
+              "prompt": "Select name and private_note from the people table in Review CRM.",
+              "expected_behavior": "The whole query is denied with a structured field-access error. No partial row values or private_note values are returned."
+            },
+            {
+              "description": "A read-only connection cannot write or grant itself rights. Run on a read-only connection: a connection approved with Cautious, before any write access has been approved.",
+              "prompt": "Change Leah Chen\u2019s company to Northstar with this read-only connection.",
+              "expected_behavior": "No mutation occurs. Returns a permission error or explains that a human must approve more access; it must not grant itself rights or mint a more powerful credential."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release of ADoor for ChatGPT. Read and update the tables in your ADoor workspaces from a conversation: look up records, create spaces and tables, add and edit rows, see who changed what, and undo changes. When you connect, you pick a workspace and an access level (Allow everything, Regular data handling, or Cautious). If ChatGPT needs more access, it gives you a link to approve in ADoor."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

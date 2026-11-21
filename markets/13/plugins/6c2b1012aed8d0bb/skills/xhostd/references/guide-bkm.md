@@ -1,0 +1,598 @@
+# Working methods
+
+Each recipe shows one shape of project from start to end. This guide carries
+the advice that belongs to no recipe in particular. It tells you how to find
+the cause of a fault. It describes stack choices for the `app` and `docker` templates. It shows
+how to write code that stays correct after a redeploy. It also explains what
+each platform error tells you to do.
+
+This guide is for an agent that acts for a user. Every rule here comes with its
+reason. A rule without a reason is easy to forget when it is not convenient.
+
+## Contents
+
+- How to debug: the order to check
+- Stack choices
+- OAuth: know who the visitor is
+- Put code onto the app
+- Upgrade-safe code
+- Migration discipline
+- Secrets and environment variables
+- Blob storage
+- Budgets: know your plan's limits
+- Read a quota error
+- The undo path
+
+## How to debug: the order to check
+
+Do these checks in the given order. Each check answers a question that the
+next check depends on.
+
+**1. Did the deploy finish?** `get_logs(app_name, channel, source="deploy", deploy_id)`
+answers in its first line: `deploy <id> — <status> (sha <sha>)`, with a
+status of `queued`, `running`, `success`, `failed`, `superseded`, or
+`cancelled`. Read the status from that header, not from the log text. Poll
+while the status is `queued` or `running`. On `superseded`, a newer deploy
+request for this channel replaced this one, and the header names it: poll that
+id. On `cancelled`, a database restore of the channel started before
+the deploy ran, so it never ran: deploy again once the restore ends. The rest of the reply is the record of the build, the health check
+and the route swap. On `failed`, the reason is in the log tail, and no other
+check helps. The old container still serves the traffic, and the URL that you
+test gives you the previous version. `get_app` shows an in-flight deploy too:
+the channel's `pending_deploy` field holds `{deploy_id, sha, status}` until
+the deploy finishes, so an old `current_sha` next to a non-null
+`pending_deploy` means the deploy has not finished, not that it failed.
+
+**2. Is the container alive now?** Call `get_logs(app_name, channel, source="runtime")`
+with **no** `command`. The platform starts no container to answer this call. It
+returns the status header only:
+
+```
+container #2 (xhost-fbae88c8-41dbea1f-00000002, id 3f9a1c0b7d2e) — running
+started: 2026-07-29T21:49:26.989002493Z
+readable containers: #1, #2 (pass container_index to read an older one)
+no command given — pass one (e.g. "tail -n 200 app.log") to read the log itself
+```
+
+That header tells you if the container stopped, and if it restarts again and
+again. If the kernel stopped the container, the header says so. The exit-code
+line then carries the note `(out of memory — the container hit its memory
+limit)`. Read the header before you read one log line.
+
+**3. Then read the log.** Pass a `command`. The platform runs the command on
+the log itself:
+
+```
+get_logs(app_name="...", channel="prod", source="runtime", command="tail -n 200 app.log")
+```
+
+The command runs in a temporary Debian container. The platform copies the
+selected log to `/log/app.log`, and makes `/log` the work directory. The
+container has no network, and no access to your app or its data. The platform
+deletes the container after the command ends. These tools are available: `sh`,
+`bash`, `grep`, `sed`, `awk`, `tail`, `head`, `cut`, `tr`, `sort`,
+`uniq`, `wc`, `find`, `xargs`, `gzip`/`zcat`, `tac`, `nl`, `od`, `strings`,
+`base64`, `perl`, `python3`, `node`.
+
+There is no `jq`, `rg`, or `less`. To count matching lines, run
+`grep -c ERROR app.log`.
+Use `python3` if you must parse JSON. The platform stops the command after 30
+seconds, and limits its output to approximately 256 KiB. Send the output
+through `tail` or `head` to stay below that limit.
+
+### Read the previous container's log
+
+The line `readable containers: #1, #2` in that header lists the containers
+whose logs you can read. Container #1 is the version that you replaced. The
+platform archives the log of a container before it removes that container. Thus, after a redeploy that made
+the fault worse, you can still read why the old container was correct. You can
+also read why the new container is not correct:
+
+```
+get_logs(app_name="...", channel="prod", source="runtime",
+         command="tail -n 200 app.log", container_index=1)
+```
+
+Without `container_index`, you get the highest available index. After a
+deploy that failed its health check, that index is the crashed new container,
+and the older container still serves traffic. The header then carries a line
+such as `running now: container #1 — this reply shows #2; pass
+container_index=1 to read it`. Pass that index to read the live container.
+
+### Make the log easy to read
+
+The platform captures only the stdout and the stderr of your process. It merges
+the two into one stream, in the order that your app wrote them. Each line stays
+on its own line, and gets an RFC3339Nano timestamp at its start. An app that
+writes its logs to a file in the container puts nothing here. Two more results
+follow:
+
+- **Write the level in the line yourself.** You can find `[error] upstream
+  timeout` with `grep`. After the platform merges the two streams, a plain
+  stack trace on stderr looks the same as every other line.
+- **Do not buffer the output.** Python buffers stdout in blocks when stdout is
+  not a terminal, and the platform does not set `PYTHONUNBUFFERED`. Thus a
+  process that stops with a fault can lose its last lines, which often name the fault.
+  Set the variable yourself:
+  `set_env(app_name, key="PYTHONUNBUFFERED", value="1")`. Node does not have this
+  problem. `PYTHONUNBUFFERED` is not a reserved key, so the platform accepts
+  the write.
+
+### When the health check fails
+
+A failed health check gives a message that names every signal the probe
+accepts. No recipe deploy failed a health check. The message below thus shows
+the form that you see, without the container id. The real message carries the
+full container id:
+
+```
+health check failed for container ...: no 2xx/3xx response at
+GET / on port 3000 and no readiness file created at $XHOSTD_READY_FILE
+within 120s
+```
+
+Read the message literally. A deploy passes on **one** of two signals, the
+first signal that arrives. The first signal is an HTTP 2xx or 3xx response from
+`GET /` on the health port. The second signal is the file that
+`$XHOSTD_READY_FILE` names. The probe runs from outside the container, and it
+does not follow a redirect. Thus a 301 response passes the check, but the probe
+does not fetch the target of the redirect.
+
+Work down this list:
+
+- **The server binds the wrong address.** The probe comes from outside the
+  container. The probe cannot reach a server on `127.0.0.1` or on `localhost`,
+  whatever port that server took. Bind `0.0.0.0`.
+- **The server binds the wrong port.** Read `XHOSTD_HTTP_PORT`. Never write the
+  port into the code.
+- **There is no route at `GET /`.** An API with all its routes below `/api`
+  answers 404 at `/`. Add a simple route at `/`, or use the other signal. For
+  the other signal, create the file `$XHOSTD_READY_FILE` when your app can
+  serve.
+- **The container stopped during the boot.** The platform checks the container
+  state before both signals. Thus a process that creates the ready file and
+  then stops still fails immediately. The message is `exited during boot (exit
+  code N)`, and the platform does not wait for the timeout. After that message,
+  read the runtime log. Do not use the health-check advice above.
+
+The `static` template is the one exception. It gets no `XHOSTD_READY_FILE`, so
+the HTTP probe is the only signal for a static site. Its timeout is 10 seconds,
+not 120 seconds.
+
+## Stack choices
+
+The platform enforces nothing in this section. It describes combinations that
+run on the platform's base images with no extra setup.
+
+### On the app template
+
+The base image carries Node 22 and CPython 3.13 together. It also carries `uv`,
+`git` and a C toolchain. You do not write a Dockerfile, and you do not select
+the base image.
+
+**Python — FastAPI on uvicorn.** Put
+`uv pip install --system --no-cache -r requirements.txt` in `install.sh`. The
+`--system` flag puts the packages in the interpreter of the image. Thus
+`launch.sh` has no virtualenv to activate. Start the app with
+`exec uvicorn app:app --host 0.0.0.0 --port "$XHOSTD_HTTP_PORT"`.
+
+**Node — Express or Hono.** Put
+`npm install --omit=dev --no-audit --no-fund` in `install.sh`. Listen with
+`app.listen(Number(process.env.XHOSTD_HTTP_PORT), "0.0.0.0")`.
+
+For both stacks, pin every dependency to an exact version. With a range, two
+deploys of the same commit can install different code. The deploy that then
+fails has an empty diff.
+
+`install.sh` runs one time at the build, as root. Put `apt-get`, global `npm`
+and each compile step there. `launch.sh` runs at every container start, as the
+non-root `app` user. Keep `launch.sh` to one `exec` line and nothing more.
+
+### On the docker template
+
+Match every `FROM` in your Dockerfile to a warm base image, including a
+build-only stage in a multi-stage build. A stage that names a warm base starts
+with no pull. The platform keeps these eight images warm on every host:
+
+| Warm base |
+|---|
+| `node:22-slim` |
+| `node:24-slim` |
+| `node:26-slim` |
+| `python:3.11-slim` |
+| `python:3.12-slim` |
+| `python:3.13-slim` |
+| `python:3.14-slim` |
+| `debian:trixie-slim` |
+
+Copy your dependency manifest and install the dependencies before you copy the
+rest of the source. Write `COPY package.json package-lock.json ./`, then
+`npm ci`, *then* `COPY . .`. A change to the source alone then reuses the
+cached install layer, and does not install the dependencies again.
+
+Do not put a secret in the build. The platform injects the environment
+variables when the container runs, not when it builds the image. Thus a secret
+in an `ARG` is not available at the build. If you do write a secret into the
+image, it stays in a layer permanently.
+
+### Both
+
+Use `exec` for the final command. Without `exec`, the shell stays PID 1, and
+your server is a child of the shell. The stop signals then go to the shell, and
+the shell does not send them on. Thus every redeploy waits for a kill timeout,
+and your app does not stop correctly.
+
+## OAuth: know who the visitor is
+
+The platform can sign a user in for you. It is a simple identity provider, and
+it gives an identity token and nothing more. The edge **does not enforce the
+identity**. A request with no identity still reaches your app. Your app must
+decide what to do with that request.
+
+After the sign-in, the browser carries a `__Host-xhost_id` cookie with an RS256
+JWT in it. Verify that token correctly, every time:
+
+- Get the public keys from `https://auth.xhostd.com/xhost-auth/jwks`, and
+  select the key by the token's `kid`.
+- Accept `alg` only if it is `RS256`. Never let the token's own header select
+  the algorithm for you.
+- Check that `iss` is `https://auth.xhostd.com`. Check that `aud` is your
+  channel's hostname. Check that `exp` is in the future.
+- The identity is in `sub`. The claims `email` and `name` are next to it.
+
+If you decode the payload but do not verify the signature, you do not
+authenticate the user. Any person can read a JWT. Any person can also forge a
+JWT if you do not check the signature. Use a library that verifies the
+signature. Cache the JWKS response; do not get it again for each request.
+
+The full example is
+[Recipe: Sign in with Google](https://docs.xhostd.com/guides/recipes-oauth).
+
+## Put code onto the app
+
+Every app owns a git repo. **With git, push the code onto that repo, then call
+`deploy`.** Use `commit_files` in two situations: git is not available on the
+machine that you work on, or neither git transport can push, because there is
+no usable SSH key and no `XHOSTD_TOKEN`.
+
+A push sends only the diff. Git and the server agree on what the remote
+already holds, and only the difference goes over the network. Git also keeps
+branches, a history that you can read back, and a local copy that you edit in
+place. A changeset carries what you give it through the model's context, every
+time. `edits` and `patches` carry the region you change, and `files` carries a
+whole file.
+
+**A push stores your code; it does not deploy the code.** These are two
+separate operations, and the separation lets you name the commit that goes
+live. After a push, call `deploy(app_name, channel, ref="master")`. The `ref`
+value is a branch name, and xhostd finds the current head of that branch. Thus
+you never need to know the sha. The ref binds the channel. Pass `sha` when you
+want an exact commit; a `sha` binds nothing. If you pass both, `sha` takes
+precedence.
+
+**`sync_git_from_remote` has no part in this path.** It refreshes an app's
+mirror of a *connected source repository*. It has no relation to a push to the
+app's own repo. If
+an app has a connected source repository, the platform refuses `commit_files`,
+and you put the code in that repository.
+
+Your credential is your own token in the `XHOSTD_TOKEN` environment variable:
+a person mints it on the console [/tokens](https://console.xhostd.com/tokens)
+page, and a registered agent exports the token that registration returned.
+Send it as a header from git's environment,
+`GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://git.xhostd.com/.extraHeader GIT_CONFIG_VALUE_0="Authorization: Bearer $XHOSTD_TOKEN" git push ...`
+(git 2.31 or later), so the token is on no process's command line. Never write
+the token value into a command or a file that you commit. No tool
+result carries a token. You can also mint a scoped, short-lived token with the
+request that `get_credential_request` describes, and send it the same way from a
+variable of its own; the [Git guide](https://docs.xhostd.com/guides/git) shows
+the commands.
+[Recipe: static site](https://docs.xhostd.com/guides/recipes-static) shows the
+full sequence, from the create step to the deploy step. The four steps are the
+same on every template.
+
+## Upgrade-safe code
+
+The platform changes below your app. It builds the images again, it replaces
+the containers, and it can move a channel's database. Code that expects no
+change fails on a day when you changed nothing.
+
+**Read the injected environment; never build it again yourself.** The platform
+makes `DATABASE_URL` at every deploy from the current database endpoint of the
+channel. The `S3_*` values give the gateway that your container must use. If
+you build a connection string from values that you kept, it is correct only
+until the platform moves something.
+
+**Run migrations and listeners over `DATABASE_URL_DIRECT`.** `DATABASE_URL`
+can go through a transaction pooler, which lends a server session for one
+transaction at a time. A migration tool's session lock, `LISTEN`, and a
+session `SET` of a setting the pooler does not track, such as
+`statement_timeout`, need the session to last, so they use the direct URL. On a
+database with no pooler the two values are equal, so code that reads
+`DATABASE_URL_DIRECT` works everywhere.
+[What a transaction pooler changes](https://docs.xhostd.com/guides/recipes-postgres#what-a-transaction-pooler-changes)
+lists what else the pooler changes.
+
+**Read the platform's variables by their `XHOSTD_` names.** The platform
+injects these into the container. A name that shipped under a legacy `XHOST_`
+name keeps it, at the same value, so an app that reads the legacy name keeps
+working. A name with no legacy name shows "—". New code reads the `XHOSTD_`
+name.
+
+| Variable | Legacy name | What it carries |
+|---|---|---|
+| `XHOSTD_HTTP_PORT` | `XHOST_HTTP_PORT` | The port your server listens on. Not set on `static`. |
+| `XHOSTD_READY_FILE` | `XHOST_READY_FILE` | The path to create when the app is ready. Not set on `static`. |
+| `XHOSTD_FORWARD_PORT` | `XHOST_FORWARD_PORT` | The container-side raw TCP port, `7000`. Not set on `static`. |
+| `XHOSTD_USER` | `XHOST_USER` | The username of the project owner. |
+| `XHOSTD_SHA` | `XHOST_SHA` | The commit that the deploy runs. |
+| `XHOSTD_HOSTNAME` | — | The channel's platform hostname. The deploy health probe sends it as the `Host` header. |
+| `XHOSTD_URL` | — | `https://` plus the channel's platform hostname, with no trailing slash. It never names a custom domain. |
+| `XHOSTD_DOMAINS` | — | The channel's platform hostname and its verified custom domains, comma-separated. Treat the value as a set: don't infer a primary domain from its position, and read the platform hostname from `XHOSTD_HOSTNAME` or `XHOSTD_URL`. Deploy again after you verify or remove a domain. |
+
+`PORT` is a deprecated alias of `XHOSTD_HTTP_PORT`, with the same value. The
+platform injects `PORT`, but it will remove the alias. New code must never read
+`PORT`.
+
+**Do not write to the container file system and expect the data later.** Every
+deploy starts a new container from a new image. Your app can write data at the
+runtime. If that data is not in the database or in the blob storage, the next
+deploy loses it. Temporary files and caches are safe there. State is not safe
+there.
+
+**Do not write a container's identity into your code.** The container names,
+the indexes and the internal IPs change at every deploy.
+
+## Migration discipline
+
+A database schema change has one correct place: the start of your launch
+command. The change then runs when the container boots.
+
+```sh
+#!/bin/sh
+set -eu
+
+alembic upgrade head
+exec uvicorn app:app --host 0.0.0.0 --port "$XHOSTD_HTTP_PORT"
+```
+
+On the `docker` template, put the same command in `CMD`:
+
+```dockerfile
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app:app --host 0.0.0.0 --port $XHOSTD_HTTP_PORT"]
+```
+
+A migration cannot run at the build. The build has no environment variables,
+and thus no `DATABASE_URL`. A `RUN alembic upgrade head` line fails
+immediately.
+
+Two rules follow from the deploy sequence.
+
+**Write a migration that is safe for the previous version of your code.** The
+new container boots, it migrates the schema, and it passes its health check.
+The old container serves the traffic during that time, and the route changes
+only after that. For some seconds, the old code runs against the new schema. A
+new column, a new nullable column and a new index are all safe. If you drop or
+rename a column that the old code selects, the old code gives errors in those
+seconds. Split such a change into two deploys: first stop the use of the
+column, then drop it.
+
+**Make each migration idempotent, and let a failure stop the process.** On a
+database that is already correct, `alembic upgrade head` does nothing. That is
+the correct result, because the command runs at every container start, and also
+at every restart. If the migration fails, let the process exit. If your code
+hides a failed migration, you serve new code against an old schema. A failed
+deploy leaves the old container serving the traffic.
+
+## Secrets and environment variables
+
+Set a secret with `set_secret(app_name, key)`. It takes no value: it returns
+the request that uploads the value from a file with your own token, and a
+console link where a person pastes it. `set_secret(..., generate=True)` stores
+a generated random value. So a secret never passes through the conversation.
+The MCP tools can never read a secret back, and `list_env` returns the
+metadata only. `set_env` stores a plain variable: its value passes through the
+conversation, and the tools can read it back. Never give `set_env` a
+credential. The platform encrypts both kinds at rest. A secret is still an
+environment variable: `delete_env` deletes it, a channel override works the
+same way, and the app reads it at its next deploy.
+
+**Never commit a secret to the repo.** The build copies your repository into
+the image. On the `app` template, the Dockerfile that the platform makes does
+the copy. On the `docker` template, your own `COPY` line does it. A key that
+you commit one time stays in a layer while that image exists. The next commit
+cannot remove the key from that layer.
+
+**The platform rejects a reserved key; it does not ignore the key without a
+message.** The platform injects these keys, and `set_env` refuses to write
+them: `XHOSTD_USER`, `XHOSTD_SHA`, `XHOSTD_HTTP_PORT`,
+`XHOSTD_FORWARD_PORT`, `XHOSTD_READY_FILE`, `XHOSTD_HOSTNAME`, `XHOSTD_URL`,
+`XHOSTD_DOMAINS`, `XHOST_USER`, `XHOST_SHA`,
+`XHOST_HTTP_PORT`, `PORT`, `XHOST_FORWARD_PORT`, `XHOST_READY_FILE`,
+`DATABASE_URL`, `DATABASE_URL_READONLY`, `DATABASE_URL_DIRECT`,
+`DATABASE_HOST`, `DATABASE_PASSWORD`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
+`S3_SECRET_ACCESS_KEY`, `S3_REGION`. Every other key that starts with
+`XHOSTD_` is reserved too. If you
+want a different database, use a variable with a different name.
+
+**A change to the environment takes effect at the next deploy, not
+immediately.** The platform fixed the environment of the live container when it
+created that container. Set the value, then deploy.
+
+**A channel override has priority over an app default.** `set_env` without
+`channel` sets the default that every channel shares. `set_env` with
+`channel="prod"` sets an override for that channel only. Use the app level for
+the values that are the same everywhere. Use the channel level for the few
+values that are different.
+
+## Blob storage
+
+If a channel has object storage, the platform injects `S3_ENDPOINT`,
+`S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` and `S3_REGION`. Point
+an S3-compatible client at these values.
+
+**Use plain keys with no prefix.** Write `avatars/u123.png`, not
+`myapp/prod/avatars/u123.png`. Each channel already has its own private prefix.
+The gateway adds that prefix for you, and removes it for you. Your own
+namespace adds characters to each key and no isolation.
+
+**`.xhost/` is reserved.** The keys below it belong to the platform.
+
+**The store always keeps the old versions.** If you write over a key, the store
+keeps the old version. If you delete a key, the store writes a delete marker.
+This behaviour makes a recovery from a bad write possible. It has two results.
+A deleted object still exists until its old versions expire. Your usage figure
+counts only the live bytes, that is, the newest version of each key that is not
+deleted.
+
+**There is no public object URL.** A browser cannot download an object
+directly. Serve each object through your app. Your app then decides who can see
+the object.
+
+## Budgets: know your plan's limits
+
+Each limit fails in a different way. Thus you must know which limit you are
+near.
+
+The platform counts blob storage for the full account, across every channel.
+It applies the other limits per container or per image. Call
+`get_stats(view="overview")` for the current account's limits and remaining
+headroom; do not infer them from a subscription catalog.
+
+**The memory limit applies to the live container, not to the build.** A build
+runs under a separate 4 GB budget. Thus an image that builds correctly can
+still run out of memory when it boots under a smaller runtime limit. The kernel
+then stops the container. Read the current memory limit from
+`get_stats(view="overview")`. The status header of the runtime log tells you when the
+container exceeds it. Its exit-code line carries the note
+`(out of memory — the container hit its memory limit)`.
+
+**The charged image size is not the total image size.** The largest platform
+base image that matches is exempt. The platform counts only what your build
+adds on top. A deploy log line gives both numbers: `image 966.07 MB total,
+17.41 MB charged — base xhost-runtime:node22-py313 exempt`. Read the second
+number, not the first.
+
+**The CPU limit is a time limit.** Your plan's CPU figure is a share of CPU
+time, not a count of cores you own. Read the current value for your plan from
+`get_stats(view="overview")`.
+
+**Set the worker count yourself.** `nproc` reports the cores your container can
+run on, but `/proc/cpuinfo` still shows the full topology of the host. Thus a
+library that sizes a worker pool from `/proc/cpuinfo` starts far too many
+workers and uses all the memory. Write `--workers 2`; do not let a library
+select the number.
+
+**Port forwarding is not on every plan.** Check
+`plan_headroom.port_forwarding` in `get_stats(view="overview")`. When it is false,
+the endpoint is unavailable and the request returns a plan error, not a port.
+
+## Read a quota error
+
+The platform makes its errors different on purpose, because each error needs a
+different response. Do not retry all of them.
+
+**402 `plan_limit_exceeded` — the current entitlement does not permit this
+operation.** There are too many channels, or the entitlement does not carry
+the feature. A retry never works. Explain which feature or limit is
+unavailable, omit any purchase or plan-change URL from the error, and continue
+with an available alternative when possible.
+
+**403 `permission_denied` — the caller does not hold the role that the
+operation needs, or a project switch that the operation needs is off.** For a
+role, a retry never works. Tell the user which role the operation needs, and who
+on the project holds it. For a switch, the message names the console URL. Tell
+the user to open that URL. Retry the call after the user turns the switch on.
+`expose_port` gives this error when the port-forwarding toggle of the project is
+off.
+
+**403 `protected_action` — the operation needs a person, not an agent.** These
+controls are protected: the project members, the owner of a project, and the
+reveal of a secret value. So are external access to the database, external
+access to the object storage, the public TCP toggle, and the connect and
+disconnect of a source repository. There is no tool for any of them. The
+message names the console URL that turns them on. Tell the user to open that
+URL. A user who wants an agent to run these operations turns **agent access**
+on there first. Three operations are exceptions: a change of the owner of a
+project, and the **Connect** and the **Remove** of a git host account, such as
+a Cursor Origin account, on the console's account page. The console alone does
+each of them, and no setting changes that.
+
+**409 `channel_busy`, `restore_in_flight`, or a conflict — another operation
+is active.** `channel_busy` means a deploy holds the channel. `restore_in_flight`
+means a database restore of the channel is active: a deploy, a rewind, and a
+second restore are refused until it ends. You can retry these errors. Wait for the active
+operation to end, then try again. `get_restore_status` shows how far a restore
+got.
+
+**507 — the object storage is full.** The platform refuses a `PUT` that would
+put the account above its blob limit. Delete the objects that you do not need,
+then retry. The free space becomes available in approximately one minute. The
+store keeps the old versions, so a delete of a key does not free its old
+versions immediately.
+
+## The undo path
+
+Read this section before you need it.
+
+**The platform takes a database snapshot before every deploy that is not
+`static`.** It takes the snapshot whether you use the database or not. The
+deploy log shows `channel snapshot marker recorded`. You prepare nothing in
+advance.
+
+**To roll the data back:** call `list_channel_snapshots(app_name, channel)` to
+see the snapshots. Then call
+`restore_channel_snapshot(app_name, channel, snapshot_id, part="database")`.
+
+The call returns at once, and the restore runs in the background. A restore can
+take up to an hour; for databases under 10 GB it typically takes minutes. Tell
+the user that before you start. Poll `get_restore_status(restore_id)` and relay
+its `activity` sentence.
+
+Choose what the app does during the restore with `during_restore`:
+`read_only`, the default, keeps the app online and makes its database writes
+fail; `maintenance` shows a maintenance page and makes the writes fail; `live`
+keeps the app writing, and the restore discards those writes. In every mode, a
+write made while the restore still waits to start is discarded. xhostd's
+maintenance page answers HTTP 503, so the user's uptime monitors report the app
+as down. For the user's own page, deploy a static app first, then pass its app
+and channel as `maintenance_app` and `maintenance_channel`. That site answers
+with its own status codes.
+
+The restore loads the snapshot into a new database, and switches the channel to
+it only once the load succeeds. A failed restore leaves the database
+unchanged, and loses nothing.
+
+A restore of `prod` is a protected action. An agent credential gets 403
+`protected_action` until the app owner turns agent access on in the console.
+That control is deliberate, and it is not a formality. The database restore
+cancels the deploys still queued on the channel and lists them as
+`cancelled_deploys`: deploy again once the restore ends. A deploy that already
+runs finishes first, and the restore waits for it.
+
+**To roll the code back:** call `rewind_channel(app_name, channel)`. It moves
+the channel to the image of the last successful deploy with a commit that is
+different from the live commit. It boots an image that the platform keeps, with
+no new build and no git sync. `rewind_channel` is not available on a channel
+that deployed one commit only. To go back more than one step, `deploy` the
+older sha.
+
+**The two operations are separate, and the difference is important.**
+`rewind_channel` changes the live image and nothing more. It does not reverse
+a migration. If the bad deploy changed the schema, a rewind leaves the old code
+with a new schema. Restore the database as well, or deploy a correction.
+`rewind_channel` is not available on the `static` template, because that
+template keeps no image.
+
+**Restore the blob storage with `restore_channel_snapshot` and
+`part="files"`.** The tool rolls a channel's object storage back to a
+checkpoint and takes the same prod guard as the database restore. Pass the checkpoint id from `list_channel_snapshots`
+whose `aligned_blob` flag is true; a checkpoint with no aligned blob leg
+answers `no_aligned_blob_snapshot` (409). You can also restore from the web
+console.
+
+The [recipes index](https://docs.xhostd.com/guides) lists the recipes for all
+of this. Start with the
+[static site](https://docs.xhostd.com/guides/recipes-static). Then read the
+[Node](https://docs.xhostd.com/guides/recipes-app-node) and
+[Python](https://docs.xhostd.com/guides/recipes-app-python) app templates.

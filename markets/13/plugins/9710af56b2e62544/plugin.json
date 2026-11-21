@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "coherence-by-presage-tech",
+  "version": "0.1.0",
+  "description": "Manage Coherence organization, program, and activity configuration through the Coherence MCP server.",
+  "author": {
+    "name": "Presage Tech"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Coherence by Presage Tech",
+        "shortDescription": "Manage Coherence programs",
+        "longDescription": "View Coherence organization memberships, programs, and activity templates; read activity-authoring capabilities; and create or update program and activity configuration when your account has permission. Organization-scoped tools require an explicit organization. The connector does not manage memberships, roles, or invitations and does not expose participant records, devices, captures, or vital-sign results. Program and activity configuration is intended for non-patient templates. Freeform fields are not checked for protected health information, so do not enter patient-specific data.",
+        "developerName": "Presage Tech",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "List my Coherence organizations and show which one is selected.",
+          "List programs in my selected Coherence organization.",
+          "Read a Coherence program and its embedded activities."
+        ],
+        "logo": "./assets/coherence-icon.png",
+        "composerIcon": "./assets/coherence-icon.png",
+        "websiteURL": "https://coherence.presagetech.com/docs/mcp/",
+        "supportURL": "https://coherence.presagetech.com/docs/mcp/#support",
+        "privacyPolicyURL": "https://coherence.presagetech.com/legal/privacy/2026-01-16/",
+        "termsOfServiceURL": "https://coherence.presagetech.com/legal/tos/2025-09-09/"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "No payments or purchases occur through this connector.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: the dedicated reviewer account must have active membership in Coherence MCP \u2014 OpenAI Review (4ac5c527-0e2c-41b5-abb8-f16987e83eaa). Verify membership status independently from the current organization selection. No second or pending membership is required. The dedicated reviewer membership is active as organization Admin. The reviewer connection and these workflows were exercised in a ChatGPT development rehearsal; the uploaded submission version requires its own connection and checks.",
+              "prompt": "List my Coherence organizations; show each membership status and indicate which organization is currently selected.",
+              "tools_triggered": "list_organizations",
+              "expected_behavior": "Call list_organizations with no arguments. Include the returned review organization and report status separately from isActive. Identify a selected organization only from a returned isActive=true; if none is selected, say so. Do not invent memberships or infer selection from active membership."
+            },
+            {
+              "description": "Setup: grant the dedicated reviewer account read access to the isolated review organization. It contains the private synthetic Review Welcome Program. No listed=true filter is used because the examples are private.",
+              "prompt": "List programs in Coherence MCP \u2014 OpenAI Review, organization 4ac5c527-0e2c-41b5-abb8-f16987e83eaa, 20 per page, and tell me whether another page exists.",
+              "tools_triggered": "list_programs",
+              "expected_behavior": "Call list_programs with organizationId=4ac5c527-0e2c-41b5-abb8-f16987e83eaa, page=1, pageSize=20, and omit listed. Include the returned Review Welcome Program. Derive whether another page exists from total, page, and pageSize; do not assume an exact total because the create/update demonstration adds synthetic programs."
+            },
+            {
+              "description": "Setup: the isolated review organization contains the private Review Welcome Program with one synthetic embedded Review Welcome Instructions activity. The dedicated reviewer membership is active as organization Admin. Program retrieval was exercised through the reviewer connection in a ChatGPT development rehearsal.",
+              "prompt": "Open program review-welcome-program-1792519795133 in organization 4ac5c527-0e2c-41b5-abb8-f16987e83eaa and summarize its name and embedded activity names.",
+              "tools_triggered": "get_program",
+              "expected_behavior": "Call get_program with organizationId=4ac5c527-0e2c-41b5-abb8-f16987e83eaa and programId=review-welcome-program-1792519795133. Verify the returned identifiers match. Report Review Welcome Program and the returned embedded Review Welcome Instructions activity; summarize only returned content."
+            },
+            {
+              "description": "Setup: run only in isolated review organization 4ac5c527-0e2c-41b5-abb8-f16987e83eaa using a dedicated account with verified permission to create and update programs. This creates a private synthetic program, updates only its description, and preserves its embedded activity. Duplicate display names are possible across repeated runs; always use the newly returned programId. No deletion is supported.",
+              "prompt": "Create a private program named \"Synthetic Review Program\" in organization 4ac5c527-0e2c-41b5-abb8-f16987e83eaa with the initial description \"Synthetic review fixture only; no participant data.\" and one synthetic instruction activity titled \"Synthetic Setup\"; then change the program description to \"Synthetic review fixture updated; no participant data.\" Keep the activity.",
+              "tools_triggered": "get_activity_authoring_capabilities \u2192 create_program \u2192 update_program",
+              "expected_behavior": "First call get_activity_authoring_capabilities with an empty object. Confirm the returned contract supports step kind instruction and repeat rule oncePerActivity. Then call create_program with organizationId=4ac5c527-0e2c-41b5-abb8-f16987e83eaa, name=Synthetic Review Program, description=Synthetic review fixture only; no participant data., visibility=private, and activities=[{name=Synthetic Setup, category=wellness, steps=[{id=synthetic-instruction-step, kind=instruction, repeatRule=oncePerActivity, instructionStep={title=Synthetic Setup, message=Follow the synthetic review steps before running a demo., continueButtonLabel=Continue}}]}]. After create_program returns a nonempty program.programId, call update_program with organizationId=4ac5c527-0e2c-41b5-abb8-f16987e83eaa, that returned programId, and description=Synthetic review fixture updated; no participant data. Omit activities from update_program so the existing embedded activity is preserved. Confirm the update result still contains the returned embedded activityId and activity name."
+            },
+            {
+              "description": "Setup: the isolated review organization contains the active standalone Review Library Instructions template. The reviewer needs read access only; standalone template authoring remains platform-admin-only.",
+              "prompt": "Show me active standalone activity templates in organization 4ac5c527-0e2c-41b5-abb8-f16987e83eaa, open activity review-library-instructions-1776933f, and tell me which authoring fields and step kinds Coherence currently advertises.",
+              "tools_triggered": "list_activities \u2192 get_activity \u2192 get_activity_authoring_capabilities",
+              "expected_behavior": "Call list_activities with organizationId=4ac5c527-0e2c-41b5-abb8-f16987e83eaa, active=true, page=1, pageSize=10; get_activity with organizationId=4ac5c527-0e2c-41b5-abb8-f16987e83eaa and activityId=review-library-instructions-1776933f; and get_activity_authoring_capabilities with no arguments. Report Review Library Instructions as a standalone template. Describe authoring support only from the returned contract and distinguish standalone templates from embedded program activities."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The connector does not expose participant records, captures, or vital-sign results. Explain this limit and do not invoke any tool.",
+              "prompt": "Retrieve participants' health measurements and capture results for this program."
+            },
+            {
+              "description": "The connector cannot invite users or change memberships and roles. Explain this limit and do not invoke any tool.",
+              "prompt": "Invite a new user to my organization and grant them the administrator role."
+            },
+            {
+              "description": "The connector has no delete operation. Setting isActive=false only soft-deactivates a program, so do not substitute that mutation for a permanent deletion request.",
+              "prompt": "Permanently delete Synthetic Review Program in organization 4ac5c527-0e2c-41b5-abb8-f16987e83eaa."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/11F-EiIK9YJPUdAbvUBGKMUJYq14F108k/view?usp=drivesdk"
+      },
+      "publication": {
+        "release_notes": "Initial public-submission draft for Coherence organization, program, and activity configuration tools.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "The Productive Pixel"
+  },
+  "description": "Find a text-to-speech voice before you build with it. SpeakShelf\u2019s independent catalogue lets you compare voices from providers including Google Cloud, Amazon Polly, Azure Speech, Kokoro, and more. Check the live catalogue for current provider, voice and model availability.\n\nSearch by voice name, provider, language and region, model family, gender or tier. Explore the available models, hear a catalogue sample, and open the related provider or language page on SpeakShelf. Where supported, narrow results to voices whose declared primary locale matches the language and region you selected.\n\nNo separate SpeakShelf account or provider API key is needed for catalogue browsing. Samples use standard catalogue text; the plugin does not generate recordings from your own script. A sample may take time to prepare or be temporarily unavailable. Locale labels and the Primary filter describe catalogue metadata, not a guarantee of accent, pronunciation or audio quality. SpeakShelf is independent of the providers it lists.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "brandColor": "#0F62FE",
+        "capabilities": [
+          "Search and filter text-to-speech voices",
+          "Hear catalog voice samples",
+          "Link to related provider and language pages on Speakshelf"
+        ],
+        "category": "Productivity",
+        "composerIcon": "./assets/the-productive-pixel-speakshelf-icon.png",
+        "defaultPrompt": [
+          "Find British English text-to-speech voices and let me hear a sample.",
+          "Compare French voices from Azure Speech and Google Cloud.",
+          "Show me Premium voices for German and link me to the related Speakshelf catalog page."
+        ],
+        "developerName": "The Productive Pixel",
+        "displayName": "SpeakShelf",
+        "logo": "./assets/the-productive-pixel-speakshelf-icon.png",
+        "longDescription": "Find a text-to-speech voice before you build with it. SpeakShelf\u2019s independent catalogue lets you compare voices from providers including Google Cloud, Amazon Polly, Azure Speech, Kokoro, and more. Check the live catalogue for current provider, voice and model availability.\n\nSearch by voice name, provider, language and region, model family, gender or tier. Explore the available models, hear a catalogue sample, and open the related provider or language page on SpeakShelf. Where supported, narrow results to voices whose declared primary locale matches the language and region you selected.\n\nNo separate SpeakShelf account or provider API key is needed for catalogue browsing. Samples use standard catalogue text; the plugin does not generate recordings from your own script. A sample may take time to prepare or be temporarily unavailable. Locale labels and the Primary filter describe catalogue metadata, not a guarantee of accent, pronunciation or audio quality. SpeakShelf is independent of the providers it lists.",
+        "privacyPolicyURL": "https://speakshelf.com/privacy",
+        "shortDescription": "Find voices and hear samples",
+        "supportURL": "https://speakshelf.com/contact",
+        "termsOfServiceURL": "https://speakshelf.com/terms",
+        "websiteURL": "https://speakshelf.com"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Aligns the plugin listing, developer display name, and icons with the supplied publishing assets. Preserves the existing MCP endpoint and workflows. No server or authentication changes."
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "Public catalog search and free catalog samples. The plugin has no purchases, payments or paid speech-generation tools. Paid services on linked sites are separate from this plugin.",
+        "test_cases": {
+          "negative": [
+            {
+              "description": "Custom speech generation and purchases are unsupported. Neither search_voices nor get_voice_sample should be called to fulfill this request. Do not call paid /tts, charge credits or claim a generated download.",
+              "prompt": "Turn my paragraph 'Welcome to our product launch' into a new voice recording, charge my credits and give me the MP3."
+            },
+            {
+              "description": "Uploading audio and cloning voices are unsupported. Do not call search_voices or get_voice_sample, fetch an arbitrary audio URL, request an upload or claim a cloned voice. Explain the catalog-only scope.",
+              "prompt": "Let me upload a recording of my voice, clone it and save the new voice in Speakshelf."
+            },
+            {
+              "description": "Private accounts and personal audio libraries are unsupported. Do not call search_voices or get_voice_sample to access account data, request credentials, or claim a library change. Explain that the plugin exposes the public catalog and catalog samples.",
+              "prompt": "Open my private Speakshelf audio library and delete the recordings from last week."
+            }
+          ],
+          "positive": [
+            {
+              "description": "Catalog filtering. Run in a fresh conversation against the submitted endpoint. Assert filters and returned metadata, without assuming fixed catalog counts or voice names.",
+              "expected_behavior": "Call search_voices with provider=google, voice_locale=en-GB, gender=female, tier=premium and page_size=6. Return at most six matching voices with canonical IDs, returned model options and related provider-language links. Base the answer on the returned catalog; report an empty result honestly. Do not call get_voice_sample unless a sample is requested.",
+              "prompt": "Find female Premium Google Cloud voices for British English. Show up to six choices with their models and Speakshelf links.",
+              "tools_triggered": "search_voices"
+            },
+            {
+              "description": "Multilingual interface independent of voice locale. After the result, manually select another supported interface language in the same widget and change a catalog filter there. Check that the manual UI language remains in that instance. A later host search may create a separate widget with its own interface locale; cross-instance preference persistence is not promised.",
+              "expected_behavior": "Call search_voices with provider=azure, voice_locale=fr-FR, gender=female and interface_locale=ar. The structured result uses interfaceLocale=ar with matching applied filters. If the host renders the widget, it uses Arabic headings, filters, counts, pagination, accessible names and status messages with RTL layout, while canonical voice IDs, provider names and fr-FR remain unchanged. A manual interface-language choice remains authoritative within that widget instance, including local filter changes; a newly created widget has independent locale state. Do not infer or change voice locale from interface locale.",
+              "prompt": "Show female Azure Speech voices for French in France. Use Arabic for the catalog interface while keeping the voices French.",
+              "tools_triggered": "search_voices"
+            },
+            {
+              "description": "Azure exact Primary filtering. Use current catalog metadata; do not infer a voice's primary locale from its ID or promise any accent quality.",
+              "expected_behavior": "Call search_voices with provider=azure, voice_locale=en-GB and primary_only=true. Every returned voice is Azure, has language.code=en-GB and isPrimaryLocale=true, with a declared primaryLocale that equals the displayed locale after BCP 47 canonicalization. Missing, invalid or region- or script-mismatched primary metadata never matches. Explain that Primary is catalog locale metadata and does not guarantee accent, pronunciation or audio quality. Report no matches honestly.",
+              "prompt": "Only show primary Azure Speech voices for British English. Explain what Primary means here.",
+              "tools_triggered": "search_voices"
+            },
+            {
+              "description": "Multi-turn sample selection and actual playback. First run the search prompt; then say 'Let me hear the first returned voice using its first listed model, if it has one.' Use that response's canonical ID and model, never a fabricated fixture. For model-intent regression coverage, when search applied a canonical model, reuse that exact model unless the user explicitly overrides it. A rendered widget and a ready sample are required to verify playback mechanics; listening quality requires a separate human assessment. Within this same case, also verify the restored Gemini 2.5 Flash playback default without an applied or manual model; explicit returned alternatives remain authoritative and an intentional All search stays All. These are unrun expectations, not extra manifest cases.",
+              "expected_behavior": "First call search_voices with provider=google, voice_locale=en-US and page_size=3. On this case's explicit first-listed-model follow-up, call get_voice_sample with the selected result's exact voice_id and first returned model ID when present. For a search with an applied canonical model, retain that model unless the user explicitly overrides it; do not silently fall back to the first listed model. Describe ready, generating, busy, rate_limited, expired, unavailable or failure states from the tool result and honor retryAfter where returned. A ready URL alone is not playback proof; verify the widget's Play interaction and media progress, and if automatic playback is blocked ask for a user tap. Verify audible sound separately for the recording. Open the returned Speakshelf catalog link separately from playback. Do not send user text to paid /tts or claim sound before it occurs. For the default regression within this case, separately search Google/Gemini/en-US without a model override and choose a returned Gemini row. Its initial playback choice and resolved sample model are gemini-2.5-flash-tts. An explicit returned 3.1 Flash or 2.5 Pro choice in the global model filter wins over that preference and persists paging. A row override changes only that card's playback and need not survive result remounts; an intentional All-model search remains All.",
+              "prompt": "Find up to three Google Cloud voices for US English and show their available models.",
+              "tools_triggered": "search_voices, then get_voice_sample on the follow-up"
+            },
+            {
+              "description": "Bounded pagination across all blessed providers. After the first result, ask 'Show the next three' and then 'Go back to the previous three.' Keep the same filters, interface locale and page size. Do not assume stable results across a catalog refresh.",
+              "expected_behavior": "Call search_voices with voice_locale=en-US, page_size=3 and no provider filter. Use the returned nextCursor and previousCursor unchanged for continuation calls with the original filters and page size. Each page contains at most three matching voices. Within one catalog revision, successive pages follow deterministic order without duplicate IDs, and going back restores the previous page. If no continuation exists, explain that boundary; if a catalog refresh invalidates the cursor, restart the search rather than fabricating a page. A rendered widget retains filters and shows the returned page and derived total pages.",
+              "prompt": "Show US English voices from all available providers, three at a time.",
+              "tools_triggered": "search_voices for the first page and each requested continuation"
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://speakshelf.com",
+  "keywords": [
+    "text-to-speech",
+    "voices",
+    "audio",
+    "catalog"
+  ],
+  "name": "speakshelf",
+  "repository": "https://github.com/shouaeyb/speakshelf",
+  "version": "1.0.0"
+}

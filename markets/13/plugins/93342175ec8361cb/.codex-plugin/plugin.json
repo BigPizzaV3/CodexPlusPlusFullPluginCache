@@ -1,0 +1,115 @@
+{
+  "name": "passkeybridge",
+  "version": "1.0.0",
+  "description": "Read-only access to your PasskeyBridge organization's identity signals, audit events, alerts, posture findings, passkey coverage and pending recovery requests.",
+  "author": {
+    "name": "PasskeyBridge LLC",
+    "email": "support@passkeybridge.io",
+    "url": "https://passkeybridge.io"
+  },
+  "homepage": "https://passkeybridge.io",
+  "keywords": [
+    "passkeybridge",
+    "passkeys",
+    "identity",
+    "security",
+    "audit log"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "PasskeyBridge",
+    "shortDescription": "Identity alerts and audit logs",
+    "longDescription": "PasskeyBridge is an identity threat response service. This plugin gives read-only access to your organization's PasskeyBridge security data. It cannot change anything: all 10 tools are read-only.\n\nConnecting: an administrator of your PasskeyBridge organization signs in and approves the connection on PasskeyBridge's consent page. The page shows the client's name, the host it returns to and what it may read, and requires a fresh passkey check. An approval lasts at most 90 days. Any administrator can revoke it under Settings, AI connectors. Every approval, tool call and revocation is written to your organization's audit log.\n\nAfter approval, the plugin can read:\n- Signal summary: counts of identity signals by event type, result and processing status over a time window of up to 30 days.\n- Audit events: time, action, actor type, resource type and result. No user identities, IP data or free-text details.\n- Fired alerts: severity, time, channel type, measured value and whether each was acknowledged.\n- Posture findings from your most recent identity-provider scan, with remediation guidance.\n- Passkey coverage: organization-level counts and percentages. Counts from 1 to 4 are withheld.\n- Pending account-recovery requests waiting for guardian approval, without identifying the account owner or any guardian.\n\nAlso available: PasskeyBridge service status, verifiable credential status lookup, PasskeyBridge DID resolution and signed audit-chain checkpoints. These return no customer data.\n\nThe plugin never receives names, email addresses, phone numbers, IP addresses or user IDs.\n\nRequirements: a PasskeyBridge organization and an administrator account with a registered passkey.",
+    "developerName": "PasskeyBridge LLC",
+    "category": "Security",
+    "capabilities": [
+      "Summarize identity signals over a time window",
+      "List audit events, including failed or denied actions",
+      "List fired alerts and find the ones not yet acknowledged",
+      "Review identity-provider posture findings with remediation guidance",
+      "Report organization-level passkey coverage",
+      "List account-recovery requests waiting for guardian approval",
+      "Check PasskeyBridge service status",
+      "Look up the status of PasskeyBridge-issued verifiable credentials",
+      "Resolve PasskeyBridge DID documents",
+      "Fetch signed PasskeyBridge audit-chain checkpoints"
+    ],
+    "websiteURL": "https://passkeybridge.io",
+    "supportURL": "https://passkeybridge.io/contact",
+    "privacyPolicyURL": "https://passkeybridge.io/privacy",
+    "termsOfServiceURL": "https://passkeybridge.io/terms",
+    "defaultPrompt": [
+      "List PasskeyBridge alerts from the last 30 days that have not been acknowledged.",
+      "Which PasskeyBridge posture findings are high severity, and what remediation is suggested?",
+      "Summarize the identity signals PasskeyBridge processed for us in the last 30 days."
+    ],
+    "brandColor": "#C4934C",
+    "brandColorDark": "#C4934C",
+    "composerIcon": "./assets/composer-icon.png",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Unacknowledged alerts from the last 30 days",
+              "prompt": "List PasskeyBridge alerts from the last 30 days that have not been acknowledged.",
+              "tools_triggered": "pkb_list_alerts",
+              "expected_behavior": "Calls pkb_list_alerts with since_hours 720 and unacknowledged_only true. Lists the alerts that fired in the last 30 days and are not acknowledged, newest first, each with fired time, severity, channel type and measured value. The test organization has unacknowledged alerts of high, medium and low severity. No user, IP address or alert recipient is shown."
+            },
+            {
+              "description": "High-severity posture findings with remediation",
+              "prompt": "Which PasskeyBridge posture findings are high severity, and what remediation is suggested?",
+              "tools_triggered": "pkb_get_posture_findings",
+              "expected_behavior": "Calls pkb_get_posture_findings with severity high. Returns the high-severity findings from the most recent completed identity-provider posture scan (2 in the test organization), each with check name, category, status, score impact and remediation text, together with the scan's provider, time and posture score. Evidence details are not returned."
+            },
+            {
+              "description": "Identity signal summary for the last 30 days",
+              "prompt": "Summarize the identity signals PasskeyBridge processed for us in the last 30 days.",
+              "tools_triggered": "pkb_get_signal_summary",
+              "expected_behavior": "Calls pkb_get_signal_summary with window_hours 720. Returns the total number of identity signals in the last 30 days and counts by event type, result and processing status. Individual events and users are not returned."
+            },
+            {
+              "description": "Most recent audit events from the last 30 days",
+              "prompt": "Show the most recent PasskeyBridge audit events from the last 30 days.",
+              "tools_triggered": "pkb_list_audit_events",
+              "expected_behavior": "Calls pkb_list_audit_events with since_hours 720. Lists up to 25 audit-log entries, newest first, each with time, action, actor type, resource type and result. The list includes the AI connector actions recorded for the reviewer's own connection, such as mcp.grant.activated and mcp.tool_call. No user identities, IP data or free-text details."
+            },
+            {
+              "description": "PasskeyBridge service status",
+              "prompt": "Is the PasskeyBridge service healthy right now?",
+              "tools_triggered": "pkb_get_service_status",
+              "expected_behavior": "Calls pkb_get_service_status with no arguments. Reports the overall status of the PasskeyBridge API (for example healthy), the API version and the time of the check. Contains no customer data."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Write request: revoke a connector approval. The plugin has no write tools; approvals are revoked in PasskeyBridge under Settings, AI connectors.",
+              "prompt": "Revoke the AI connector approval for our PasskeyBridge organization.",
+              "expected_behavior": "Says it cannot change approvals because all PasskeyBridge tools are read-only, and points to Settings, AI connectors in PasskeyBridge. No tool is called, or only read tools."
+            },
+            {
+              "description": "Request for member identities. The tools return organization-level counts only and never return email addresses.",
+              "prompt": "List the email addresses of our PasskeyBridge members who have only one passkey.",
+              "expected_behavior": "Says member identities are not available: passkey coverage is returned as organization-level counts and percentages only. No email address is shown."
+            },
+            {
+              "description": "Delete request. All tools are read-only; audit events cannot be deleted through the plugin.",
+              "prompt": "Delete PasskeyBridge audit events older than 30 days.",
+              "expected_behavior": "Says it cannot delete audit events because all PasskeyBridge tools are read-only. No tool is called, or only read tools."
+            }
+          ]
+        },
+        "demo_recording_url": "https://passkeybridge.io/media/openai-demo.mp4",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Version 1.0.0, first release. Connects to the PasskeyBridge remote MCP server (10 read-only tools) with OAuth 2.1, PKCE (S256) and dynamic client registration."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "propush",
+  "version": "1.0.0",
+  "description": "Work with your Propush.me publisher account: balance, statistics, sites and zones, TrafficBack zones, postbacks, landing constructors and the Propush help docs.",
+  "author": {
+    "name": "Propeller Ads Limited",
+    "email": "mcp@propush.me",
+    "url": "https://propush.me"
+  },
+  "homepage": "https://mcp.propush.me/",
+  "keywords": [
+    "propush",
+    "push notifications",
+    "publisher",
+    "monetization",
+    "statistics"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Propush.me",
+        "shortDescription": "Manage Propush monetization",
+        "longDescription": "Propush.me is a push and in-page traffic monetization platform for publishers. This plugin connects ChatGPT and Codex to your Propush.me publisher account, so you can work with it in conversation.\n\nCheck your balance and account access. Pull statistics \u2014 impressions, subscriptions and earnings \u2014 by day, zone, site, country, OS or sub-ID, including subscriber lifetime value by subscription day. Review your sites and zones with their verification and activity status. Create TrafficBack (onclick) zones on your verified sites, and set, replace or remove postback URLs on TrafficBack zones, one at a time or in bulk. With Landing Constructor access, browse and create landing constructors and read the weekly trending GEOs digest. Search the Propush help documentation for setup answers.\n\nYou sign in with your Propush.me account through OAuth: the plugin acts only on the account you connect and never sees your password.\n\nLimitations: you need a Propush.me publisher account, and the plugin only sees that account's own data. It cannot request payouts or move money, and it cannot delete sites, zones or landing constructors \u2014 zones and constructors it creates are permanent. Sub-ID and multi-field statistics reports require the account's extended API access level.",
+        "developerName": "Propeller Ads Limited",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Check balance and account access",
+          "Report statistics by day, zone, country, OS or sub-ID",
+          "Review sites and zones",
+          "Create TrafficBack zones",
+          "Manage postback URLs",
+          "Browse and create landing constructors",
+          "Read the trending GEOs digest",
+          "Search Propush help docs"
+        ],
+        "websiteURL": "https://propush.me/",
+        "supportURL": "https://mcp.propush.me/support",
+        "privacyPolicyURL": "https://mcp.propush.me/privacy",
+        "termsOfServiceURL": "https://propush.me/terms",
+        "defaultPrompt": [
+          "What's my Propush balance, and how much did I earn in the last 7 days?",
+          "Which of my zones earned the most this month?",
+          "List my sites and zones \u2014 anything inactive or still unverified?"
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Balance plus a day-by-day traffic report for the last week.",
+              "prompt": "What's my Propush balance, and how did my traffic look over the last 7 days, day by day?",
+              "tools_triggered": "get_balance, get_statistics",
+              "expected_behavior": "Calls get_balance and states the balance in USD. Calls get_statistics for the last 7 days grouped by date_time and shows one row per day with impressions, subscriptions and earnings in USD. The test account has a small balance and light traffic: days with zero subscriptions or zero earnings are reported as zero, not left out or estimated."
+            },
+            {
+              "description": "Top zones by impressions, named through the zone list.",
+              "prompt": "Which of my zones got the most impressions in the last 30 days? Show the top 5 with their names.",
+              "tools_triggered": "get_statistics, get_zones",
+              "expected_behavior": "Calls get_statistics for the last 30 days grouped by zone_id, ranks zones by impressions and looks each zone_id up in get_zones to show the zone's title and site. Returns up to five zones with impressions, subscriptions and earnings; every zone shown exists in get_zones."
+            },
+            {
+              "description": "Last month's traffic by country, with country names instead of numeric IDs.",
+              "prompt": "Break down last month's traffic by country and show country names, not IDs.",
+              "tools_triggered": "get_statistics, get_countries",
+              "expected_behavior": "Calls get_statistics for the previous calendar month grouped by country_id, then get_countries to map each numeric country_id to a country name and ISO code. Returns a per-country table of impressions, subscriptions and earnings sorted by impressions, with no country left as a bare number."
+            },
+            {
+              "description": "Inventory review: unverified sites and zone counts per site.",
+              "prompt": "Which of my sites are still unverified, and how many zones does each verified site have?",
+              "tools_triggered": "get_sites, get_zones",
+              "expected_behavior": "Calls get_sites and get_zones, walking further pages while meta.has_more is true. Names the sites whose verification status is 1 (pending) \u2014 on the test account these include maystrova.com and geekfeed.club \u2014 and counts zones per verified site by matching each zone's site_id to the site id."
+            },
+            {
+              "description": "Write action: set the postback URL on one TrafficBack zone. Safe to repeat \u2014 it writes the same URL to the same zone.",
+              "prompt": "Set the postback URL on my zone 11383700 to https://example.com/postback?click_id={ymid}",
+              "tools_triggered": "get_zones, set_zone_postback",
+              "expected_behavior": "Finds zone 11383700 (\"pasyuk.com TrafficBack\", site 1037495) with get_zones, then calls set_zone_postback with site_id 1037495, zone_id 11383700 and the URL; ChatGPT may ask to confirm the write first. Confirms the change, and get_zones afterwards shows the URL as that zone's postback_url with the {ymid} click-id macro intact."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payout request. Moving money is out of scope: the plugin has no payout or payment tool and must not claim to start a transfer.",
+              "prompt": "Withdraw my Propush balance to my PayPal account.",
+              "expected_behavior": "No write tool is called (get_balance may be used to show the balance). The assistant explains that payouts can't be requested through the plugin and points to the Propush dashboard."
+            },
+            {
+              "description": "A zone outside the connected account. Zone 999999999 is not on the test account, so nothing may be changed.",
+              "prompt": "Set the postback URL on zone 999999999 to https://example.com/postback?click_id={ymid}",
+              "expected_behavior": "get_zones shows no zone 999999999; the assistant says the zone isn't in this account and asks which zone was meant. No postback changes \u2014 if set_zone_postback is attempted anyway, the API refuses it and nothing is written."
+            },
+            {
+              "description": "Zone creation on an unverified site. maystrova.com is still pending ownership verification on the test account, and Propush creates zones only on verified, moderation-approved sites.",
+              "prompt": "Create a new TrafficBack zone called \"Blog monetization\" on my site maystrova.com.",
+              "expected_behavior": "get_sites shows maystrova.com (site 1037509) with verification status 1 (pending). The assistant either declines up front or calls create_onclick_zone and relays its refusal (403, \"This site has not been verified yet. Please verify site ownership before creating zones.\"). No zone is created; the assistant explains the site has to be verified first."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1VRuDlpohfXq21TRucwoSmvL-mscK4bMi/view",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Initial release: balance and account access, statistics reports, sites and zones, TrafficBack zone creation, postback management, landing constructors, the trending GEOs digest and Propush help-docs search."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

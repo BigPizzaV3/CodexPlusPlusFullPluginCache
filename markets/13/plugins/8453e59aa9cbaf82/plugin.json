@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pagelantern",
+  "version": "1.2.0",
+  "description": "Inspect PageLantern monitors, graphs, monitoring locations and client reports; run HTTP checks, create uptime monitors, and pause or resume monitoring.",
+  "author": {
+    "name": "PageLantern LLC",
+    "email": "support@pagelantern.com",
+    "url": "https://pagelantern.com"
+  },
+  "homepage": "https://pagelantern.com",
+  "keywords": [
+    "uptime",
+    "website-monitoring",
+    "http",
+    "monitoring",
+    "pagelantern"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PageLantern",
+        "shortDescription": "Monitoring and client reports",
+        "longDescription": "Connect a PageLantern workspace to inspect monitors, settings, check history, observed uptime, graphs and results by monitoring location. Read existing client report packs and frozen report metrics with reports:read; members and viewers see approved reports only. With separately approved permissions, owners and admins can run HTTP checks, create public HTTP uptime monitors, or pause and resume monitoring. Existing workspace roles, plan limits and retention apply. The plugin cannot generate, approve, download or send reports, delete monitors, edit other settings, change billing or configure alerts. Check history, graphs and location results exclude Page Speed monitors.",
+        "developerName": "PageLantern LLC",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Inspect monitors, history and uptime",
+          "Show response-time and observed-success graphs",
+          "Compare recorded monitoring locations",
+          "Read client report packs and frozen metrics",
+          "Run HTTP checks",
+          "Create, pause and resume HTTP monitoring"
+        ],
+        "websiteURL": "https://pagelantern.com",
+        "supportURL": "https://pagelantern.com/contact",
+        "privacyPolicyURL": "https://pagelantern.com/privacy",
+        "termsOfServiceURL": "https://pagelantern.com/terms",
+        "defaultPrompt": [
+          "Show my website monitors and a response-time graph.",
+          "Compare my homepage results by monitoring location.",
+          "Summarize my latest approved client report."
+        ],
+        "brandColor": "#A96F08",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inspect an existing monitor, its graph and recorded locations with read-only access.",
+              "prompt": "For Review homepage, show its settings, last 20 checks, 24-hour uptime and response-time graph. List the available monitoring locations and compare its recorded results by actual location over 24 hours.",
+              "tools_triggered": "list_monitors, get_monitor, get_monitor_history, get_monitor_uptime, list_locations, get_monitor_location_results, get_monitor_graph",
+              "expected_behavior": "Resolve the unique monitor using pagination when needed. Read settings, 24h history limited to 20, full-window 24h uptime, location catalogue, 24h location results and a response_time graph. Display the returned PNG where supported and explain its primary-location observations, gaps, coverage and retention. Distinguish requested from actual probe location, catalogue probe availability from website health, truncated samples from full-window uptime, and missing data from downtime. Do not start checks."
+            },
+            {
+              "description": "Read an existing approved client report using read-only report permission.",
+              "prompt": "Find the Review client report pack, list its report editions, and summarize the latest approved report with its reporting period and PageLantern link.",
+              "tools_triggered": "list_report_packs, get_report_pack, get_report",
+              "expected_behavior": "Follow pack and edition cursors, resolve the unique pack and use a returned report_id. Require reports:read. Members and viewers see approved editions only. Explain frozen successful-check metrics, coverage, metric version and any truncation; distinguish the report period from current monitor health and observed check success from continuous availability. If no approved report exists or metrics expired, say so. Link only to the returned signed-in PageLantern page; do not generate, approve, download, publish or email a report."
+            },
+            {
+              "description": "Run a known existing HTTP uptime monitor.",
+              "prompt": "Run my Review homepage monitor now.",
+              "tools_triggered": "list_monitors, run_monitor",
+              "expected_behavior": "Find the unique HTTP monitor named Review homepage, pass its returned id as monitor_id to run_monitor, and report the actual result. Ask which monitor if the name is ambiguous; do not create a monitor. Requires separately approved monitors:run and Owner/Admin; if absent, explain the required authorization instead of claiming the check ran."
+            },
+            {
+              "description": "Pause and then resume a known monitor using explicit write authorization.",
+              "prompt": "Pause my Review homepage monitor, then resume it. I understand this briefly stops monitoring.",
+              "tools_triggered": "list_monitors, pause_monitor, resume_monitor",
+              "expected_behavior": "Resolve the unique monitor, require monitors:write and Owner/Admin, pause it and report changed, then resume it and report changed. Explain that pausing stops checks and may close incidents; resuming schedules checks and does not prove a successful check."
+            },
+            {
+              "description": "Create an authorized HTTP monitor with an explicit interval and expected status.",
+              "prompt": "Monitor https://pagelantern.com/robots.txt every 15 minutes, expect HTTP 200, and name it Review robots (15 min). I am authorized to monitor it.",
+              "tools_triggered": "create_uptime_monitor",
+              "expected_behavior": "Create one HTTP uptime monitor with name Review robots (15 min), url https://pagelantern.com/robots.txt, interval_seconds 900, and expected_status 200. Respect workspace monitor limits and surface an entitlement error without changing the plan. Requires monitors:write and Owner/Admin. The created monitor is enabled; do not claim a successful check before one is recorded."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deletion and report delivery are unsupported.",
+              "prompt": "Delete all my monitors and email every client their latest report.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that the plugin cannot delete monitors or send reports and direct the user to PageLantern. Do not call mutations or claim deletion, delivery, publication or report generation."
+            },
+            {
+              "description": "The connection is scoped to the authorized workspace. Do not return or guess another customer's monitor data.",
+              "prompt": "Show monitors and client reports in another customer workspace that I do not have access to.",
+              "tools_triggered": "",
+              "expected_behavior": "Decline access outside the connected workspace; do not guess foreign monitor or report identifiers. A separate authorized connection is required. Private and unapproved reports must not be disclosed to members or viewers."
+            },
+            {
+              "description": "Private network targets are outside public HTTP uptime monitoring. Do not create or probe a loopback target.",
+              "prompt": "Create an uptime monitor named Internal admin for http://127.0.0.1:8080/admin.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that a public website URL is required; do not call create_uptime_monitor. A direct tool invocation must also be rejected server-side without creating a monitor."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin reads monitoring resources and existing client reports, and performs explicitly requested monitor actions in an existing PageLantern workspace. It does not sell products, change subscriptions or process payments."
+      },
+      "publication": {
+        "release_notes": "1.2.0: Adds read-only client report packs and frozen report metrics, monitoring location catalogue and observed location results, and PNG monitor graphs. Fourteen tools retain workspace and role boundaries; default access requests monitors:read and reports:read. Run and write actions still require separately approved scopes. OAuth metadata discovery now has a dedicated bounded burst budget."
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "apps": "./.app.json"
+    }
+  }
+}

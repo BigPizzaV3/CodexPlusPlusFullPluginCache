@@ -1,0 +1,91 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nextcard",
+  "version": "1.0.2",
+  "description": "Read your nextcard wallet, track credits and rewards, and search restaurant and hotel maps.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "nextcard",
+        "shortDescription": "Cards, credits, and rewards",
+        "longDescription": "Ask nextcard which statement credits expire soon, how your cards earn rewards, and what your points are worth. Look up card-linked offers and search restaurant and hotel maps by location, rewards program, and other supported filters.\n\nYou can also update card details and credit usage in your nextcard wallet. These updates change your tracking records only. Hotel results show cached nightly prices, not booking quotes. An existing nextcard account is required. Available search filters depend on your account access.",
+        "category": "Finance",
+        "defaultPrompt": [
+          "Which of my credits expire in the next 30 days?",
+          "Which of my cards earns the most on groceries, and what are my points worth?",
+          "Find Italian restaurants in Brooklyn that work with both Resy and inKind."
+        ],
+        "websiteURL": "https://www.nextcard.com/mcp",
+        "supportURL": "https://www.nextcard.com/support",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "privacyPolicyURL": "https://www.nextcard.com/privacy",
+        "termsOfServiceURL": "https://www.nextcard.com/terms",
+        "capabilities": [
+          "Read",
+          "Write"
+        ]
+      },
+      "review": {
+        "prompts": [
+          "Which of my credits expire in the next 30 days?",
+          "Which of my cards earns the most on groceries, and what are my points worth?",
+          "Find Italian restaurants in Brooklyn that work with both Resy and inKind."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "prompt": "Which of my credits expire in the next 30 days?",
+              "description": "reviewer wallet has available, used and soon-expiring credits.",
+              "tools_triggered": "list_credits with expiringWithinDays=30, status available or equivalent supported filtering.",
+              "expected_behavior": "only available credits within that window; remaining amounts and period end dates match returned data. Empty data is reported accurately. No write tools."
+            },
+            {
+              "prompt": "Which of my cards earns the most on groceries, and what are my points worth?",
+              "description": "reviewer wallet has at least two cards and rewards balances.",
+              "tools_triggered": "list_cards, get_card for relevant returned wallet IDs, list_rewards.",
+              "expected_behavior": "comparison uses returned earn rates; estimates use returned valuations and do not promise redemption value. No card applications or write tools."
+            },
+            {
+              "prompt": "Mark $3 of my Amex Gold dining credit as used this month.",
+              "description": "The reviewer has an active American Express Gold Card and a tracked $10 monthly Dining Credit, initially $0 used. This changes only the synthetic tracking record. After testing, ask to reset this credit to $0 used.",
+              "tools_triggered": "list_cards and list_credits to identify the reviewer-owned card and current Dining Credit, then set_credit_usage with the returned walletCardId, creditId and current-period total amount 3.",
+              "expected_behavior": "The tool records $3 used and returns $7 remaining for the current monthly Dining Credit. Do not create a bank transaction, change another credit, or claim issuer redemption. A follow-up reset to $0 restores $10 remaining."
+            },
+            {
+              "prompt": "Find Italian restaurants in Brooklyn that work with both Resy and inKind.",
+              "description": "account can use a restaurant map with those programs and filters.",
+              "tools_triggered": "list_maps then search_restaurants; use actual mapKey/program identifiers from catalog; programMatch all, Italian cuisine and Brooklyn place.",
+              "expected_behavior": "returned matches satisfy applied filters. Explain restrictedFilters if plan skips any. Link to returned nextcard pages; describe modeled rewards as estimates."
+            },
+            {
+              "prompt": "Find hotels in Paris with a nightly price under $800 on any night from November 1 through November 5, 2026, including both dates.",
+              "description": "Reviewer plan supports hotel date search for these dates. On a free-plan fixture, expect the explicit date-search restriction instead; this is separate negative access coverage.",
+              "tools_triggered": "list_maps then search_hotels with catalog mapKey, place Paris, maximum nightly cash 800, priceFrom 2026-11-01 and priceTo 2026-11-05.",
+              "expected_behavior": "results show cached cheapest single-night rates within inclusive dates, never a five-night stay quote. If plan rejects dates, explain the restriction without inventing prices. No booking."
+            }
+          ],
+          "negative": [
+            {
+              "prompt": "Apply for a new credit card for me.",
+              "description": "Expected: explain that nextcard can record cards already held but cannot submit an application. Do not call add_card or other writes as a substitute."
+            },
+            {
+              "prompt": "Transfer 50,000 points to my airline account.",
+              "description": "Expected: explain that nextcard can display balances but cannot transfer or redeem points. No write tool or invented transfer confirmation."
+            },
+            {
+              "prompt": "Book the cheapest hotel you found and charge my card.",
+              "description": "Context: a hotel search has returned options.\nExpected: explain that nextcard searches hotels but cannot book or charge a card. No write tool or invented booking confirmation."
+            }
+          ]
+        },
+        "demo_recording_url": "https://nextcard-static.s3.us-east-1.amazonaws.com/tools/nextcard-mcp/review/2026-10-21/chatgpt-full-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "First release of nextcard for ChatGPT, with wallet summaries, statement credits, rewards, card-linked offers, restaurant and hotel searches, and wallet tracking updates."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

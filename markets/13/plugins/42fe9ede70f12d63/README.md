@@ -1,0 +1,210 @@
+# SignatureAPI Agent Skills
+
+[SignatureAPI](https://signatureapi.com) is an e-signature API for developers: send documents for
+signature, embed signing in your app, and track progress with webhooks. These are its Agent Skills. Four skills let
+AI coding agents design, build and troubleshoot e-signature integrations from the command line:
+one decides how an app should use SignatureAPI and writes the design, one builds the signing
+flow from that design, one diagnoses a flow that already exists, and one answers questions from
+the current docs.
+
+## Install
+
+**Let your agent do it.** Paste this into Claude Code, Codex, Cursor, or any agent that can read a
+URL, and it installs the right thing for itself:
+
+```text
+Set up SignatureAPI for me. Read https://signatureapi.com/docs/ai-toolkit/mcp/connecting-clients.md
+and follow the section for the agent you are running in. If I am working on a codebase, install the
+SignatureAPI plugin (skills plus MCP server) rather than the MCP server alone. Ask me before opening
+a browser for sign-in, and never print tokens or keys. When you are done, prove it works by listing
+my 5 most recent test-mode envelopes, then tell me what you changed and how to undo it.
+```
+
+**Or do it by hand.** There are two install paths. They share the same skill content but are not equivalent — pick
+based on whether you also want the hosted MCP server (`https://mcp.signatureapi.com/mcp`,
+OAuth-authenticated) configured.
+
+**Cross-runtime** (Claude Code, Codex, Cursor, Copilot, Amp, Antigravity, and others) — installs
+the skills only, no MCP configuration:
+
+```bash
+npx skills add signatureapi/skills
+```
+
+**Plugin install** — installs the same skills *and* configures the hosted MCP server in one
+step. Every ecosystem below installs from this same repo root — nothing is mirrored per
+ecosystem, so the plugin path and the `npx skills` path always carry identical skill content:
+
+| Ecosystem | Install |
+|---|---|
+| Claude Code | `/plugin marketplace add signatureapi/skills` then `/plugin install signatureapi@signatureapi` |
+| Cursor | **Dashboard → Plugins → Add Marketplace**, import `signatureapi/skills`, then **Customize → Install** the `signatureapi` plugin (see [Cursor's plugin docs](https://cursor.com/docs/plugins)) |
+| Codex | `codex plugin marketplace add signatureapi/skills` then `codex plugin add signatureapi@signatureapi`, then `codex mcp login signatureapi` |
+| Grok Build | `grok plugin marketplace add signatureapi/skills` then `grok plugin install signatureapi --trust` (or `/marketplace` inside Grok Build) |
+| Gemini CLI | `gemini extensions install https://github.com/signatureapi/skills` |
+| Any agent-plugins.org-compatible client | Point it at this repo root — `plugin.json` and `mcp.json` follow the [agent-plugins.org 1.0.0 schema](https://agent-plugins.org/specification) |
+
+Installing the plugin configures the MCP server; SignatureAPI sign-in is a separate step.
+Claude Code reports `! Needs authentication` until you run `/mcp`. Codex's marketplace manifest
+declares `policy.authentication: "ON_INSTALL"`, so an interactive install may offer the sign-in
+right away; if it does not (a non-interactive install does not), run
+`codex mcp login signatureapi`. Gemini CLI's manifest declares `oauth.enabled: true`; run
+`/mcp auth signatureapi` inside Gemini CLI if it does not prompt.
+
+Each plugin install is all-or-nothing: skills and MCP server install and uninstall together.
+There's no flag to take one without the other, and (for Claude Code) `claude mcp remove` refuses
+to remove a plugin-owned server. If you want the skills without the MCP server, use the
+`npx skills` path instead.
+
+Working directly in this repo also picks up the MCP server via the checked-in root `.mcp.json` —
+the same file the Claude Code and Grok Build plugins install elsewhere.
+
+## Update
+
+New skill content reaches existing installs through each client's update command. Only Codex
+(on startup) and Cursor (when an admin enables Auto Refresh) update on their own.
+
+| Ecosystem | Update |
+|---|---|
+| Claude Code | `/plugin marketplace update signatureapi`, then `/plugin update signatureapi@signatureapi`, then `/reload-plugins` |
+| Codex | Automatic on startup, or `codex plugin marketplace upgrade signatureapi` |
+| Cursor | **Dashboard → Plugins → Refresh** on the marketplace, or enable Auto Refresh |
+| Grok Build | `grok plugin marketplace update`, then `grok plugin update` |
+| Gemini CLI | `gemini extensions update signatureapi`, then restart Gemini CLI |
+| `npx skills` | `npx skills update` |
+
+## Session-start check
+
+The plugin runs a short check when a new session starts. It stays silent unless the project uses
+SignatureAPI. A project uses SignatureAPI when one of these holds:
+
+- A `.env*` file in the project root names a `SIGNATUREAPI_` variable.
+- `package.json` lists a dependency with `signatureapi` in its name.
+- `docs/signatureapi-integration.md` exists.
+- The session has `SIGNATUREAPI_KEY` or `SIGNATUREAPI_API_KEY` set.
+
+For such a project, it checks these things:
+
+- `SIGNATUREAPI_KEY` is set in the session or in a `.env*` file, and holds a test key.
+- No live key (`key_live_`) sits in an env file that Git tracks or that is a template, such as
+  `.env.example`.
+- `SIGNATUREAPI_WEBHOOK_SECRET` is set wherever `SIGNATUREAPI_WEBHOOK_ID` is.
+- The `signatureapi` CLI runs, when it is on `PATH`. When it is not, the fixes use
+  `npx --yes signatureapi`.
+
+It adds a few lines of fixes to the agent's context only when something needs fixing. It reports
+variable and file names only, never a value. It makes no network request and sends nothing
+anywhere. It reads only the project root, runs for about two seconds at most, and never blocks
+the session.
+
+| Host | Support | Turn it off |
+|---|---|---|
+| Claude Code | Runs on new sessions | Disable the plugin in `/plugin`, or set `"disableAllHooks": true` in settings |
+| Codex | Runs after you trust it in `/hooks` | Leave it untrusted in `/hooks`, or set `hooks = false` under `[features]` in `config.toml` |
+| Cursor | Runs on new sessions; Cursor may not add the text to the agent's context | Disable or uninstall the plugin |
+| Gemini CLI, Google Antigravity, Grok Build and agent-plugins.org clients | Not wired; these get the skills and the MCP server only | Nothing to turn off |
+
+Claude Code, Codex and Cursor each read their own file under `hooks/`. All of them run
+`hooks/session-start.mjs`.
+
+## Skills
+
+- **[signatureapi-architecture](skills/signatureapi-architecture)** — decide how your app should
+  use SignatureAPI, and write the design document (`docs/signatureapi-integration.md`) the
+  integrate skill builds from. Needs no API key.
+- **[signatureapi-integrate](skills/signatureapi-integrate)** — build or change an integration
+  from an approved design: create an envelope, place signature fields, wire up webhooks, embed
+  signing in a web or native mobile app, and verify the flow end to end against a real
+  test-mode envelope.
+- **[signatureapi-diagnose](skills/signatureapi-diagnose)** — diagnose an integration that
+  misbehaves: an envelope stuck in processing, a webhook that never arrived, a recipient who
+  never got the signing email, a missing deliverable, or a validation error on create.
+- **[signatureapi-docs](skills/signatureapi-docs)** — answer SignatureAPI questions from the
+  current docs: finds pages through the docs index by meaning, reads them in full, and links
+  every claim. The other skills use it for docs questions. Needs no API key.
+
+Skills are written in plain language and stay timeless and public; `STYLE.md` has the rules and `npm test` checks them.
+
+The two surfaces are kept apart on purpose. The code an agent writes into your application calls
+the REST API (`https://api.signatureapi.com/v1`); the MCP server and the bundled scripts are the
+agent's own tools for inspecting and proving the flow while it works, and never a runtime
+dependency of your app. The skills inline concepts and gotchas only — field names, enum values,
+event types and limits are read from the published OpenAPI spec on demand, and a CI test fails
+this repo whenever an identifier a skill mentions stops existing in that spec.
+The integrate and diagnose skills also carry a handful of scripts for the parts an agent shouldn't improvise:
+querying the OpenAPI spec instead of reading a 108 KB docs page, minting a test document and
+creating a test envelope, watching for events, walking a real browser through a ceremony, and
+pulling a verdict for a stuck envelope. Credentials and local webhooks go through the
+SignatureAPI CLI (`npx signatureapi init`, `listen`).
+
+## Requirements
+
+- A SignatureAPI key in the `SIGNATUREAPI_KEY` environment variable. Read from the environment
+  only — never pass it as a command-line argument, since argv is exposed in shell history and
+  process listings on any shared or logged system.
+  `npx signatureapi init` writes your test key to the project's env file after you sign in in
+  the browser, without printing it. Or copy it from the dashboard's API keys page.
+- For local webhooks, `npx signatureapi listen --forward-to <local url>` registers a test-mode
+  endpoint, tunnels it to your handler, and writes its signing secret to the env file.
+- Node.js 22 or later.
+
+## Safety
+
+- **signatureapi-integrate works in test mode only.** A `key_live_` key is refused, and there is
+  no flag or setting that bypasses this — the capability doesn't exist in the code. Test-mode
+  envelopes are free, watermarked, not legally binding, and send no email to recipients.
+- **signatureapi-diagnose is read-only by construction.** Every script issues GET requests only
+  (a test enforces it), and its `allowed-tools` frontmatter pre-approves only reading files and
+  fetching from signatureapi.com; running a script still asks for your approval. It runs against
+  either a test or a live key and reports which mode it resolved, so diagnosing a production
+  envelope during an incident is safe.
+- **Your API key only goes to SignatureAPI.** The scripts read `SIGNATUREAPI_KEY` from the
+  environment and send it only to `https://*.signatureapi.com`; they refuse any other
+  `SIGNATUREAPI_BASE_URL`.
+- **Privacy:** the plugin processes data under the [Data Processing Addendum](https://signatureapi.com/dpa).
+
+## Docs
+
+- Full documentation: https://signatureapi.com/docs
+- Agent router (start here for machine-readable docs): https://signatureapi.com/AGENTS.md
+- OpenAPI spec: https://spec.signatureapi.com/openapi.yaml
+
+## Contributing
+
+Issues and pull requests are welcome: https://github.com/signatureapi/skills
+
+To release, bump `version` in `package.json` and run `npm run manifests`, so every manifest
+carries the new version. Claude Code keeps existing installs on the cached version until that
+number changes. Do not publish GitHub Releases: once one exists, Gemini CLI installs follow
+release tags instead of the default branch.
+
+For OpenAI directory submissions, `interface.shortDescription` is the subtitle and must
+fit within 30 characters; `interface.longDescription` allows up to 4,000 characters.
+Keep the subtitle concise and put detailed functionality in the long description.
+Set `interface.supportURL` explicitly: `homepage` and `author.url` do not populate it.
+Use the plugin-specific privacy notice for `interface.privacyPolicyURL`.
+These values come from `generate-manifests.mjs`; regenerate the manifests after changing them.
+Check the current [submission requirements](https://developers.openai.com/plugins/deploy/submission-errors)
+before uploading: local package validation is less strict than final directory submission.
+
+When a rewrite makes `test/spec-drift.test.mjs` report an unused allowlist entry, check whether the
+rewrite dropped that content before deleting the entry. Compare the backticked identifiers of the old
+and new skill (and its references); restore anything lost unintentionally.
+
+After changing a skill's `SKILL.md` frontmatter (name, description) or the
+package version, run `npm run manifests` and commit every regenerated manifest in the same
+change — `npm test` fails otherwise. That's every per-ecosystem plugin/marketplace manifest
+(`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`, `.agents/plugins/`, `.grok-plugin/`,
+`gemini-extension.json`, root `plugin.json`/`mcp.json`), the hook files under `hooks/`
+(`claude-hooks.json`, `codex-hooks.json`, `cursor-hooks.json`), the root `.mcp.json`, and
+`agent-skills.json` — all derived from `skills/*/SKILL.md` frontmatter and the constants
+in `generate-manifests.mjs`, never hand-edited. The
+`agent-skills.json` payload is also served from elsewhere (the
+`https://signatureapi.com/.well-known/agent-skills` discovery endpoint), so
+that redeploy has to happen together with the commit, not sometime after
+it — a stale served copy re-introduces the exact stale-manifest problem
+`npm test` exists to catch.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

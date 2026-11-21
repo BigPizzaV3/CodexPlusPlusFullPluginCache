@@ -1,0 +1,374 @@
+---
+name: vsb-image
+renamed_from: image
+description: >
+  Pick the right Visual Sandbox model for any image task and prompt it well.
+  Trigger when the user wants to generate, edit, restyle, upscale, or remove
+  the background from images via the vsb CLI. All execution goes through
+  `vsb run image/<slug>` — sync, ~5–10s for the standard models. Always
+  verify slugs with `vsb models --modality image --json` first.
+license: Proprietary. See LICENSE for the terms.
+---
+
+## Default model in ChatGPT
+
+For a new image from a prompt, call `image_recraft_v4_1_flash` ($0.01 an image).
+It takes no reference image, so for an edit of a photo call `image_nano_banana_2_lite`.
+Use another model only when the person names one or asks for what these cannot do.
+This rule comes before the defaults in the table below.
+
+# Image generation with vsb
+
+> **On the MCP surface?** If the `visual-sandbox` MCP tools are in your
+> tool list, use `generate` and `get_job` instead of the shell commands
+> below. The model choice and the prompt craft on this page still apply.
+> See `vsb` → Two ways to run.
+
+Image runs are sync — `vsb run image/<slug>` blocks until done (typically
+5–10s). No `--async` needed, but **still start the run in a background shell**
+(Claude Code: `run_in_background: true`) so the turn stays free and parallel
+variations fan out (vsb critical rule 6).
+
+Pipe `--json` and `--download "<template>"` to capture results, then
+**open every finished image in Preview** — `open -a Preview <file>` — so the
+user sees the picture instead of a link
+(vsb critical rule 12). Download
+to a scratch folder (`mktemp -d`) for that; a **project** save still needs the
+opt-in from vsb critical rule 5.
+Hand back the share page `https://visualsandbox.com/share/<job_id>/`, never a
+raw CDN URL.
+
+> **Before writing any image prompt, read
+> [`vsb-image-prompting`](../vsb-image-prompting/SKILL.md).** It covers the universal
+> rules, the prompt-anatomy slot list, the reference-image keep/ignore
+> pattern (what to take from an attached image and what to ignore — without
+> this, watermarks and text overlays leak into outputs), and the camera /
+> lens / lighting / grade vocabulary banks. This skill only covers
+> *picking* a model — the prompt-craft itself lives in `image-prompting`,
+> with model-specific quirks in [`vsb-nano-banana`](../vsb-nano-banana/SKILL.md) and
+> [`vsb-ugc-people`](../vsb-ugc-people/SKILL.md).
+
+## Rules for every paid image run
+
+- **Keep a simple request simple.** "Make an image of X" is one image: no
+  questionnaire, no extra drafts, no variations nobody asked for.
+- **One request is one paid attempt.** A complaint or "fix it" is not a yes
+  for a new run. Say what you would change, and ask first.
+- **Review mode (MCP).** A run of 10 cents or more can answer
+  `awaiting_approval`. In ChatGPT, call `show_media`; elsewhere, give the
+  `share_url`. Never press Generate for the person.
+- **Branded work** reads the brand first with `get_theme`
+  ([`vsb-library-themes`](../vsb-library-themes/SKILL.md)).
+
+## Picking a model
+
+Verify the live catalog with `vsb models --modality image --json | jq '.models[] | {slug, category, owner}'`.
+
+| Task | Default slug | Why |
+|------|--------------|-----|
+| Fast text-to-image / edit | `image/nano-banana-2-lite` | Google. Default. Cheapest (~$0.05/image), fastest, ~5s, on the newer NB2 architecture. Handles both text-to-image AND image edits — the same endpoint switches modes when a reference image array is non-empty. |
+| Same cost, original model | `image/nano-banana` | The original Gemini 3 model at the same ~$0.05/image. Fall back here if a lite result looks off. |
+| Higher quality / 4K / web-grounded | `image/nano-banana-2.1` | Google. The update to NB2: sharper output, cleaner text, steadier subjects across edits. **Pick it over `nano-banana-2`:** it costs about half as much at 1K and 2K (~$0.05 at 1K, ~$0.07 at 2K, ~$0.15 at 4K), and each of `google_search` / `image_search` adds a small charge, as on NB2. `resolution` `1K`/`2K`/`4K`, ten aspect ratios plus `match_input_image` (the default). References go in `image_input`: up to 14, but the backup route reads only the first three. |
+| Existing NB2 work | `image/nano-banana-2` | Full NB2 — adds `resolution` (up to 4K) and web-search grounding as a paid add-on. Superseded by `nano-banana-2.1`; keep it only for a project already built on its look. |
+| Top-tier Google output | `image/nano-banana-pro` | Most expensive of the family, sharpest detail. |
+| Fast OpenAI generate or edit, up to 4K | `image/gpt-image-2.5-flare` | OpenAI. The fast tier of GPT Image 2.5 and the default OpenAI pick. One endpoint for text-to-image and edit. ~7–12s at 1K, ~12–24s at 4K, where `gpt-image-2` averages ~50s, and about half the price at high quality. `quality` is `low`/`medium`/`high`/`xhigh`/`max`; `resolution` is a separate control at `1K`/`2K`/`4K`; eight aspect ratios plus `match_input_image`. `background: transparent` returns a real alpha channel (the schema switches JPG to PNG for you). References go in `image_input`. |
+| Precise edits that must hold across many passes | `image/gpt-image-2.5-sunburst` | OpenAI. The precision tier of GPT Image 2.5, slower than Flare. It changes only what you name and keeps the face, the composition and the light, also across multi-image composites and long chains of edits. One flat price per image for each `quality` tier (~$0.02 `low`, ~$0.06 `medium`, ~$0.16 `high`, ~$0.32 `xhigh`, ~$0.63 `max`); the ratio and the references do not move it. Seven aspect ratios plus `match_input_image`, `background: transparent`, JPG/PNG/WEBP. **No `resolution` field, so use Flare for 4K.** No seed. References go in `image_input`. Explore in Flare, finish here. |
+| Photoreal / text rendering / multi-ref edit | `image/gpt-image-2` | OpenAI, the older tier. Best for legible typography, posters, product mockups. Slower and pricier than `gpt-image-2.5-flare`; reach for it only when a Flare result looks off. |
+| Cheapest text-to-image | `image/z-image-turbo` | Tongyi-MAI via PrunaAI. Cheapest image model in the catalog, 8-step, sub-second. Renders short English and Chinese text well. **Takes no reference image, so it cannot edit.** Apache 2.0 license. |
+| Fast iteration that still takes references | `image/flux-2-klein-9b` | Black Forest Labs. 4-step, sub-second, one endpoint for text-to-image and edit. Up to 5 references, output up to 4 MP. **FLUX Non-Commercial License — never use it for client work or paid ad creative.** |
+| Cheap edits with up to 10 references, native 4K | `image/flux-3-image-klein` | Black Forest Labs. The compact FLUX 3 model (5.6B), newer than Klein 9B and scored above it by BFL. One endpoint for text-to-image and edit; up to 10 references in `image_input`, called "image 1", "image 2" in the prompt. `resolution` is `1K`/`1.5K`/`2K`/`4K`, 15 aspect ratios plus `match_input_image`, optional `seed`. ~$0.02/image up to 2K, ~$0.05 at 4K, and references are free. Weak on exact counts, charts and diagrams. **FLUX Kommunity License: free commercial use only for a user with annual revenue under $5M. Ask before you use it for client work.** |
+| Many references, product + character compositing | `image/seedream-5-pro` | ByteDance. Takes up to 10 references and holds detail at 1K or 2K. The edit-capable model with the highest reference count. Commercial use allowed. |
+| Posters, packaging, real brands and places, flat price at 2K | `image/grok-imagine-image-2` | xAI. Plans typography and layout before drawing, and names real brands, cities, and landmarks straight from the prompt. **One flat price per output image, so 2K at medium quality costs the same as a 1K draft.** Takes one reference image (a single string, not an array), so it cannot composite several. Slow: ~53s at medium/2K, ~15s at low/1K. Commercial use allowed. |
+| Change one region, keep every other pixel | `image/flux-fill-pro` | The only mask model in the catalog. It repaints the masked area and carries the rest of the photo through unchanged. It also outpaints. |
+| Budget volume, 3K, or a related set in one run | `image/seedream-5-lite` | ByteDance. The light tier of Seedream 5, on the same endpoint. One flat price per output image at 2K or 3K, up to 14 references, and a sequential mode that returns a whole set (storyboard, character sheet, brand kit) from one prompt, billed per image returned. Step up to `image/seedream-5-pro` when a single frame is the deliverable. |
+| Illustration, anime, painterly, one style across a series | `image/krea-2-medium` | Krea. Foundation model tuned for expressive artistic directions, with style transfer from up to 10 reference images and a `creativity` control (`raw`/`low`/`medium`/`high`) that sets how far it departs from the prompt. Faster and steadier than Large across a batch. **Style transfer only, so it cannot edit a photo.** Commercial use allowed. |
+| Photorealism with real texture, grain and motion blur | `image/krea-2-large` | Krea. Twice the size of Medium, with the richest output at `creativity: high`. Same 10 style references, same 8 aspect ratios including 2.35:1, same optional `moodboard_id`. Slower and pricier than Medium, so compose in Medium and finish here. **Style transfer only, so it cannot edit a photo.** Commercial use allowed. |
+| Instruction edits: a product into a new scene, a color or outfit swap, a local fix | `image/krea-3` | Krea. Fast instruction-following editor, the edit model of the Krea family. Up to 8 images in `image_input`. `thinking_mode` `fast` (default) or `high` for multi-step edits; `resolution` `1K`/`2K`. `regional_edit: true` (experimental, needs an image) changes only the part that must change and keeps every other pixel. ~$0.04–0.10 per output image by mode and resolution, **plus ~$0.03 per input megapixel**, so send inputs of about 1 MP. Text-to-image is experimental and small text is weak. No style references, no `output_format` field. Commercial use allowed. |
+| Art-directed poster, ad or brand image from a short prompt | `image/recraft-v4.1` | Recraft. Tuned with designers: it picks the layout, the palette and the light, and sets quoted text into the composition. ~$0.05/image flat, about 1 MP, 11 aspect ratios, prompts up to 10,000 characters. **Text-to-image only: no reference image, so it cannot edit.** Commercial use allowed; outputs may not train AI models. |
+| Cheap, fast drafts with a designed look | `image/recraft-v4.1-flash` | Recraft. Its fastest, cheapest model, with quality close to V4.1. ~$0.01/image flat (`image/z-image-turbo` is still cheaper), about 1 MP, the same 11 aspect ratios. No styles. **Text-to-image only, so it cannot edit.** Render the final with `image/recraft-v4.1`. |
+| Put real clothing on a real person | `image/p-image-try-on` | Pruna AI. Person photo plus up to 6 garment photos; face, pose, body and background carry through untouched, and a whole outfit layers in one pass. `garment_images` is a list even for one item. Shows the look, never the fit. Footwear is the weakest category; eyewear, handheld items, gloves and stacked jewelry are unsupported. Billed per run PLUS per input megapixel, so resize inputs before sending. |
+| Background removal | `image-enhance/pixelcut-remove-background` | Pixelcut. The default remover, and free. Transparent PNG at the full input size in about 3s. Clean edges with no halo of the old background colour, keeps fine hair strands, keeps clear parts such as a plastic lid or the plate under a dish, and leaves no stray specks on product shots. Category is `image-enhance`, not `image`. |
+| Background removal, second try | `image-enhance/recraft-remove-background` | Recraft. Also free. Use it only when the Pixelcut cutout misses on a hard image; its edges keep a faint halo of the old background colour. |
+| Upscale, portraits and print | `image-enhance/upscale` | Topaz. Same — `image-enhance` category. Tuned for photographic realism, with five named enhance models and a face refinement step. One flat rate per image whatever the size. |
+| Cheap, fast upscale at volume | `image-enhance/p-image-upscale` | Pruna AI. About a second a run. `upscale_mode: target` names the output in megapixels; `factor` multiplies each side (2/4/6/8). `enhance_details` and `enhance_realism` both default off; Realism is for AI-generated sources. Charged by the size of the result, so it is cheapest on small outputs. Pick `image-enhance/upscale` (Topaz) for portraits and print. |
+| SVG, vector, logo, icon, cut file | see [`vsb-vector`](../vsb-vector/SKILL.md) | Not an image model job. Quiver for icons; `vector/recraft-v4.1-svg` for a new SVG from a prompt at a flat price; a flat PNG from this page traced by `vector/recraft-vectorize` for detailed art. |
+
+**Tier up for detail-critical work.** The cheap defaults are for simple,
+throwaway, or high-volume generations. When the task is detail-critical —
+legible in-image text (signs, tattoos, posters, packaging), dense scenes with
+many named elements, ad creative the user will publish, or precise multi-ref
+identity edits — go straight to `image/nano-banana-pro` or
+`image/gpt-image-2.5-flare` (Flare at `xhigh` or `max` when typography
+legibility is the single hardest constraint; nano-banana-pro for photoreal
+scenes that *contain* text or fine detail).
+The ~$0.15–0.20/image premium is cheaper than three failed $0.05 retries.
+
+## Prompt patterns
+
+### Nano Banana family (text-to-image)
+
+```bash
+vsb run image/nano-banana \
+  --prompt "a calico cat curled on a sunlit windowsill, soft morning light, shallow depth of field" \
+  --aspect_ratio 16:9 \
+  --output_format jpg \
+  --download "./out/{request_id}.{ext}" \
+  --json
+```
+
+Nano Banana likes concrete nouns + lighting + camera language. Aspect ratios
+(`1:1`, `16:9`, `3:2`, `4:3`, `5:4`, `4:5`, `3:4`, `2:3`, `9:16`, `21:9`) are
+strict enums — use `vsb schema image/nano-banana --json` to confirm before
+passing.
+
+### Nano Banana (image edit — multi-ref)
+
+```bash
+URL1=$(vsb upload ./photo.jpg --json | jq -r '.url')
+URL2=$(vsb upload ./reference.jpg --json | jq -r '.url')
+
+vsb run image/nano-banana \
+  --prompt "Use Image A (cat photo) as the IDENTITY source — keep the cat's fur pattern, eye color, and proportions exactly. Use Image B (windowsill photo) as the BACKGROUND source — match the location and ambient light, but ignore any other subjects in it. Render: the cat from Image A curled up on the windowsill from Image B, matching the windowsill's ambient lighting. No logos, no captions, no watermarks." \
+  --image_input "[\"$URL1\",\"$URL2\"]" \
+  --aspect_ratio match_input_image \
+  --download "./out/" \
+  --json
+```
+
+Naming each reference (`Image A`, `Image B`) and giving it a role
+(`IDENTITY source`, `BACKGROUND source`) is the universal multi-ref rule —
+see [`vsb-image-prompting`](../vsb-image-prompting/SKILL.md) §Multi-reference for
+the full template.
+
+Pass JSON-array inputs as a literal — `parseValue` auto-coerces. The exact
+field name (e.g. `image_input`) is whatever `vsb schema image/nano-banana
+--json` returns; never guess. `vsb run` pre-validates flags against the
+schema and rejects unknown keys with a "Did you mean…?" hint before any
+charge is incurred.
+
+`aspect_ratio: "match_input_image"` keeps the dimensions of the first
+reference.
+
+You can pass server-side paths directly too — any `/media/predictions/...`
+URL from a prior `vsb run` works without re-uploading.
+
+### GPT Image 2 (typography, posters, mockups)
+
+```bash
+vsb run image/gpt-image-2 \
+  --prompt "minimal poster: bold serif headline 'NORTHWIND' on a kraft paper background, registration marks in the corners" \
+  --quality high \
+  --aspect_ratio 3:4 \
+  --output_format png \
+  --download "./out/{request_id}.png" \
+  --json
+```
+
+GPT Image 2 specifically excels when you need **legible, multi-line text** baked
+into the image. Quality enum is `auto|low|medium|high`. `n` (1–4) gives
+multiple variants in one call.
+
+### FLUX Fill Pro (masked edit and outpaint)
+
+The only model that edits through a mask. Everything outside the mask survives
+the run byte for byte, so use it for object removal, a product swap, new text
+on a sign, or a retouch. Fields are `image` (a single string, not an array),
+`mask`, and `outpaint`.
+
+```bash
+SRC=$(vsb upload ./kitchen.jpg --json | jq -r '.url')
+MASK=$(vsb upload ./kitchen-mask.png --json | jq -r '.url')
+
+vsb run image/flux-fill-pro \
+  --prompt "a white marble countertop, same warm window light, same grain" \
+  --image "$SRC" \
+  --mask "$MASK" \
+  --guidance 30 \
+  --download "./out/{request_id}.png" \
+  --json
+```
+
+Four rules decide the result:
+
+- The mask is black and white, the same size as the source. White repaints,
+  black keeps. The mask may instead ride in the source image's alpha channel.
+- Describe what must be there, not the edit. Write "a blue knit sweater". Do
+  not write "change the shirt". An empty prompt makes the model paint
+  something rather than nothing.
+- Mask a little wider than the object, and include its shadow and its
+  reflection. The model invents a new object to explain a shadow you leave
+  behind.
+- High `guidance` leaves a visible seam. Lower it to about 30 for retouching
+  and object removal, so the fill settles into the surrounding light and grain.
+
+To outpaint instead, set `--outpaint` to `zoom_out_1.5x`, `zoom_out_2x`,
+`make_square`, `extend_left`, `extend_right`, `extend_up`, or `extend_down`.
+An `outpaint` preset makes the model ignore the mask. Output size follows the
+input, so there is no aspect-ratio field and outpainting is the one case that
+changes the dimensions.
+
+### Krea 3 (instruction edit and regional edit)
+
+```bash
+SRC=$(vsb upload ./living-room.jpg --json | jq -r '.url')
+
+vsb run image/krea-3 \
+  --prompt "Change the sofa to deep green velvet. Keep everything else the same." \
+  --image_input "[\"$SRC\"]" \
+  --regional_edit true \
+  --resolution 2K \
+  --json
+```
+
+Lead with the change, then add one sentence about what stays. Do not list
+everything that should stay. With several images, name each one by what it
+shows: "put the sneaker from the second image on the person in the first".
+
+`regional_edit` keeps every pixel outside the change, so it is the one way to
+edit the latest output again without a loss in quality. Use it for a local
+change: recolor or swap an object, add or remove an element, change the words
+on a sign. Leave it off for a restyle, a relight or a new scene. It is
+experimental: slower than a regular edit, and the quality can be lower.
+
+Each input image adds a charge by its megapixels. About 1 MP per input is
+enough. With five or more inputs, each one is reduced to 1536 px on its long
+edge, so send four or fewer when every reference needs its full detail. The
+`seed` does not reproduce a result, because the model expands the prompt
+first.
+
+### Seedream 5 Pro (up to 10 references)
+
+```bash
+vsb run image/seedream-5-pro \
+  --prompt "the bottle from Image A on the marble surface from Image B, studio softbox light" \
+  --image_input "[\"$URL1\",\"$URL2\"]" \
+  --resolution 2K \
+  --aspect_ratio 1:1 \
+  --json
+```
+
+One endpoint covers generate and edit, the same as Nano Banana. Iterate at
+`--resolution 1K`, then rerun the winning prompt at `2K` for print and crops.
+
+### Grok Imagine 2.0 (layout and typography, flat price at any size)
+
+```bash
+vsb run image/grok-imagine-image-2 \
+  --prompt "a vintage travel poster for Kyoto, Mount Fuji behind cherry blossoms, art deco typography reading 'KYOTO', rich flat color blocks" \
+  --aspect_ratio 2:3 \
+  --resolution 2K \
+  --quality medium \
+  --json
+```
+
+To edit, pass one reference through `--image`. The field is a **single
+string**, not an array, so this model cannot composite several references.
+
+```bash
+URL=$(vsb upload ./storefront.jpg --json | jq -r '.url')
+vsb run image/grok-imagine-image-2 \
+  --prompt "make the sky a dramatic sunset" \
+  --image "$URL" \
+  --json
+```
+
+Four rules decide the result:
+
+- **Always deliver at `--resolution 2K --quality medium`.** The price is flat
+  per output image, so 2K costs the same as 1K. `low` at `1K` is only worth it
+  as a speed setting: about 15 seconds against about 53 seconds.
+- **Waxy, over-smoothed skin means the quality knob is wrong.** Pin medium and
+  2K, then name the camera, the lens, the light direction, and the
+  imperfections to keep (skin texture, stray hair, film grain).
+- **Write long, specific prompts and put the style directive last.** Short
+  prompts get generic results here. Name real brands, cities, and landmarks
+  rather than describing them; the model knows them.
+- **On an edit, describe only the change.** Re-describing the whole frame makes
+  the model rewrite more than you asked. `aspect_ratio` is ignored on an edit,
+  because the output keeps the shape of the source.
+
+`aspect_ratio` also accepts `auto`, which lets the model pick the frame that
+suits the prompt. `2:1` and `1:2` are in the enum and are rare elsewhere in the
+catalog, so this is the model for site headers and tall mobile banners.
+
+### Z-Image Turbo (cheapest, text-to-image only)
+
+```bash
+vsb run image/z-image-turbo \
+  --prompt "a neon ramen shop sign that reads 'MIDNIGHT', wet asphalt reflection, night" \
+  --aspect_ratio 3:2 \
+  --output_megapixels 2 \
+  --json
+```
+
+It has no reference-image field at all, so it cannot edit. Short English and
+Chinese text is its strength. Quote the exact text and name the surface it
+sits on. Long paragraphs break down.
+
+### Background removal
+
+```bash
+URL=$(vsb upload ./product-photo.jpg --json | jq -r '.url')
+vsb run image-enhance/pixelcut-remove-background \
+  --image "$URL" \
+  --download "./out/cutout.png" \
+  --json
+```
+
+If the cutout misses on a hard image, run the same command with
+`image-enhance/recraft-remove-background`, the fallback.
+
+Note the category is `image-enhance`, not `image`, and both removers
++ `upscale` take a single string field (currently `image`) — different from
+Nano Banana's array. Always run `vsb schema image-enhance/<slug> --json` first
+to confirm field names; the CLI rejects unknown flags with a "Did you mean…?"
+hint before submitting.
+
+## Cost estimation
+
+```bash
+vsb pricing image/nano-banana --json | jq '.user_cost_estimate'
+# 0.04875 → roughly 5 cents per image
+```
+
+Nano Banana family is cents-per-image. GPT Image 2 is ~$0.05–0.20 depending on
+quality. Background removal is free. Upscale is cents per image.
+
+`z-image-turbo`, `flux-2-klein-9b`, and `nano-banana-2` bill per output
+megapixel or per resolution tier, so `user_cost_estimate` comes back `null`
+and the tier table holds the numbers. Read it before you pick a size:
+
+```bash
+vsb pricing image/z-image-turbo --json | jq '.tiers'
+```
+
+## Common gotchas
+
+- **A second edit on the same image degrades it.** Every model redraws the
+  whole picture on each pass, so loss compounds. Never feed your own last
+  output back in as `image_input` — grow the prompt and re-run from the
+  original instead. Full workflows in
+  [`vsb-image-iteration`](../vsb-image-iteration/SKILL.md). Two exceptions
+  keep every pixel outside the change: `flux-fill-pro` with a mask, and
+  `krea-3` with `regional_edit: true`.
+- **`output_format` defaults to `jpg` on every image model except
+  `flux-fill-pro`,** which defaults to `png` because a fill is usually the
+  input to the next fill. `krea-3` has no `output_format` field. Pass
+  `--output_format png` whenever the output may become an input.
+
+- **Input field names vary by model** — Nano Banana uses an array (currently `image_input`), most enhance models take a single string (currently `image`), GPT Image 2 has its own shape. `vsb run` pre-validates against the schema, so just `vsb schema <slug>` once and copy the exact field name.
+- **`aspect_ratio: "match_input_image"` only makes sense in edit mode** (when reference images are set). For text-to-image alone it falls back to a default.
+- **`output_format` defaults to `jpg`.** If you want transparent PNG (e.g. for compositing), set `--output_format png` and remember the alpha channel is only meaningful for edit/cutout flows.
+- **`z-image-turbo`, `recraft-v4.1` and `recraft-v4.1-flash` cannot edit.**
+  They have no reference-image field. If the task attaches any image, pick
+  another model before you write the prompt.
+- **`flux-2-klein-9b` is non-commercial.** Never pick it for client work,
+  paid ad creative, or anything the user will sell. Use Nano Banana,
+  GPT Image 2, or Seedream 5 Pro instead.
+- **`flux-fill-pro` takes `image` as a single string, plus a `mask`.** It is
+  the only model with a mask. There is no brush tool in the composer yet, so
+  an explicit mask arrives as a file through the CLI.
+- **`grok-imagine-image-2` takes `image` as a single string too,** so it edits
+  from one reference and cannot composite. Pick `seedream-5-pro` or
+  `nano-banana-2-lite` when the job needs several references.
+- **Don't loop `vsb run` inside a tight shell loop** — use a small batch (≤5 in parallel via `&`) to respect the provider's rate limit.

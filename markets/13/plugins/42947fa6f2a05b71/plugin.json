@@ -1,0 +1,110 @@
+{
+  "name": "form-backend",
+  "version": "0.1.2",
+  "description": "Connect website forms to Jotform, collect responses, and manage submission emails through conversation.",
+  "author": {
+    "name": "Jotform Inc."
+  },
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Form Backend",
+        "shortDescription": "Forms and emails for agents",
+        "longDescription": "Connect your existing website forms to Jotform directly inside ChatGPT and Codex. Describe what you need to connect your form, collect responses, and set up submission emails while keeping your website\u2019s design.\n\nKey Features:\n\n- Connect existing website forms to a submission backend\n- Update backing form fields when your website form changes\n- View collected responses and ask AI to summarize them\n- Set up email notifications for new submissions\n- Configure confirmation emails for people who submit your form\n- Customize notification and confirmation email content\n\nUse Form Backend for contact forms, lead capture, feedback, registrations, applications, and internal requests.",
+        "developerName": "Jotform Inc.",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Connect my form to Form Backend",
+          "Show responses I got from my form",
+          "Send me emails when I get form responses"
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "brandColor": "#FF6100",
+        "brandColorDark": "#FFB629",
+        "websiteURL": "https://www.jotform.com/agents/form-backend/",
+        "privacyPolicyURL": "https://www.jotform.com/privacy/",
+        "termsOfServiceURL": "https://www.jotform.com/terms/",
+        "supportURL": "https://jotform.com/contact"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect an existing contact form. Use contact-form.html as the website source. The reviewer must be signed in to the dedicated test account. Use a unique website_id for each clean run. Retain the returned form_id, submission key, endpoint, and mapping as context for P2\u2013P5.\n\nFixture: fixtures/contact-form.html is included in the package. Attach it or paste the complete HTML below with the P1 prompt. This fixture intentionally prevents submission until the returned integration is connected; opening it alone does not submit a response.\n\n<!doctype html>\n<html lang=\"en\"><meta charset=\"utf-8\"><title>Form Backend Review Contact</title>\n<body><h1>Contact us</h1>\n<form id=\"review-contact\">\n<label>Name <input name=\"full_name\" type=\"text\" required></label><br>\n<label>Email <input name=\"email\" type=\"email\" required></label><br>\n<label>Topic <select name=\"topic\" required><option value=\"General\">General</option><option value=\"Support\">Support</option></select></label><br>\n<label>Message <textarea name=\"message\" required></textarea></label><br>\n<button type=\"submit\">Send</button><p id=\"status\" role=\"status\"></p>\n</form>\n<script>document.querySelector('form').addEventListener('submit', function(event) { event.preventDefault(); document.querySelector('#status').textContent='Review fixture only: connect the returned Form Backend integration before submitting.'; });</script>\n</body></html>\n",
+              "prompt": "Connect this existing website contact form to Form Backend. Name the backing form Form Backend Review Contact. Preserve the form\u2019s design and field names. Give me the submission integration and explain where to use it.",
+              "tools_triggered": "create_form_backend",
+              "expected_behavior": "Calls create_form_backend with the exact fields full_name (text, required), email (email, required), topic (select, required, options General and Support), message (textarea, required). Returns a real form_id, submit_url, submission_key, and mapping consistent with the tool result. The integration uses the returned endpoint and mapping without redesigning the form. Does not claim a submission has been sent."
+            },
+            {
+              "description": "Update the existing backing form from P1. In the HTML fixture, add Sales to the topic options and add an optional text field named company. Keep every existing field. Provide the complete updated HTML and retain P1 conversation context.",
+              "prompt": "I added Sales as a topic and an optional Company text field named company to this contact form. Update the existing backing form and its integration to match the complete updated form.",
+              "tools_triggered": "update_form_backend; update_response_email only if the returned email-review flags require it",
+              "expected_behavior": "Uses the existing form_id and current_submission_key with all five current fields. Calls update_form_backend rather than creating a duplicate. Preserves field names, types, and required flags. Reports the added company field and topic option according to the result. Replaces the website submission key and mapping with returned values where changed. Checks and explains any email-review flags; never reports old credentials as current after rotation."
+            },
+            {
+              "description": "Read actual sample responses for the backing form from P1/P2. Before running, use the returned integration to submit two synthetic records: Review Alex, General, Please send product details; and Review Sam, Support, Please help with setup. Use only inboxes controlled by the reviewer. Record successful submission confirmation; do not assume the fixture alone submits. Retain form_id in context.",
+              "prompt": "Show the responses for this contact form and summarize what each person needs.",
+              "tools_triggered": "list_form_responses",
+              "expected_behavior": "Calls list_form_responses with the actual form_id. Shows the two seeded sample records returned by the tool and accurately summarizes the General and Support requests. Any additional returned records are identified rather than silently omitted. Does not invent submissions, fabricate counts, or imply live monitoring or unsupported server-side filtering."
+            },
+            {
+              "description": "Configure owner notifications and visitor autoresponses on the existing review form. Confirm that the test account owner address and the fixture submitter addresses are reviewer-controlled inboxes. Use the returned email question ID from the current mapping. After configuration, submit one clearly labelled synthetic test response to verify delivery to those inboxes.",
+              "prompt": "For this form, email me whenever someone responds and send the respondent a confirmation. Use owner subject New contact form response and message A new contact form response has arrived. Use confirmation subject We received your message and message Thanks for contacting us. We will reply soon.",
+              "tools_triggered": "configure_response_emails",
+              "expected_behavior": "Calls configure_response_emails with the existing form_id, notify_owner=true, reply_to_submitter=true, and the real email_field_qid from the mapping. Passes the requested plain-text subjects and messages. Confirms enabled settings only after a successful tool result. Configuration alone is not described as proof of email delivery; verify both emails after the controlled sample submission and record delivery evidence."
+            },
+            {
+              "description": "Edit the existing visitor autoresponder configured in P4. Use the real full_name question ID from the latest field mapping for an answer placeholder. Submit a new synthetic response using a reviewer-controlled inbox to verify rendering after the edit.",
+              "prompt": "Update this form\u2019s respondent confirmation email. Set its subject to Thanks for reaching out. Use a clean HTML message with an orange heading, thank the person by name, and say that we received their message.",
+              "tools_triggered": "update_response_email",
+              "expected_behavior": "Calls update_response_email with the existing form_id and email_kind=visitor_autoresponder, the exact new subject, and real HTML with inline styles. Uses a {q_ID} placeholder containing the actual full_name question ID, not the field label or an invented ID. Preserves the recipient email field. Confirms the edit based on the result; verifies readable personalization and HTML in the controlled test inbox before marking the case Passed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "File upload handling is unsupported by the backing-form field schema. Expected safe fallback: explain the limitation and suggest using a separate suitable upload solution. No Form Backend tool should be invoked for the requested upload; do not silently discard it or create a text substitute.",
+              "prompt": "Connect a form that uploads a PDF r\u00e9sum\u00e9 and stores the uploaded file through Form Backend.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explains that Form Backend does not support file uploads and does not call create_form_backend or update_form_backend for the upload request."
+            },
+            {
+              "description": "Payment processing is outside this plugin\u2019s supported behavior. Expected safe fallback: explain that a dedicated payment integration is needed. Do not request card details, create card fields, call Form Backend tools for payment collection, or claim a charge succeeded.",
+              "prompt": "Use Form Backend to collect a customer\u2019s card number and charge a registration fee of $25.",
+              "tools_triggered": "None",
+              "expected_behavior": "Does not invoke a Form Backend tool to collect card details or process payment. Explains the unsupported payment operation and suggests a suitable payment integration without pretending it is configured."
+            },
+            {
+              "description": "Collecting authentication secrets is outside the stated tool contract. Expected safe fallback: explain that passwords and API keys should not be collected through this form backend and suggest a dedicated authentication or secret-management flow. No tool invocation for the requested secret fields.",
+              "prompt": "Connect a form with required account_password and api_key fields so we can collect users\u2019 passwords and API keys in Form Backend.",
+              "tools_triggered": "None",
+              "expected_behavior": "Does not create or update backing fields for authentication secrets, request real credentials, or claim they are safely stored. Explains the limitation and offers an appropriate alternative workflow."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1L-m7C7HWTQBWkqcoi5TyMJqtiiYD4DNu/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "Form Backend 0.1.1: Connect existing website forms to Jotform, update backing fields, read responses, configure owner notifications and visitor confirmations, and edit email content. Includes Jotform Inc branding, updated prompts and listing text, website/support/privacy/terms links, and a direct Form Backend MCP endpoint configuration."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "keywords": [
+    "jotform",
+    "form backend",
+    "website forms",
+    "HTML forms",
+    "contact forms",
+    "lead capture",
+    "form submissions",
+    "email notifications",
+    "confirmation emails",
+    "autoresponders"
+  ]
+}

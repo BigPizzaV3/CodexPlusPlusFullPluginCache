@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "card4u-postcards",
+  "version": "0.1.0",
+  "description": "Card4U Postcards turns photos, artwork, and messages into physical postcards. Create and preview personalized travel, holiday, Christmas, New Year, and thank-you greetings, or direct-mail postcards for customer acquisition and reactivating existing customers. Edit the recipient address and design, then place an order only after explicit confirmation.",
+  "author": {
+    "name": "Card4U"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Create a personal postcard from my attached vacation photo for my family. Write a warm message and show me the preview first.",
+          "Design a Christmas postcard for friends with a heartfelt message. Let me review it before sending.",
+          "Create a thank-you postcard for a customer. Show the draft and price before I order."
+        ],
+        "developerName": "Card4U",
+        "displayName": "Card4U Postcards",
+        "longDescription": "Card4U Postcards turns photos, artwork, and messages into physical postcards. Create and preview personalized travel, holiday, Christmas, New Year, and thank-you greetings, or direct-mail postcards for customer acquisition and reactivating existing customers. Edit the recipient address and design, then place an order only after explicit confirmation.",
+        "privacyPolicyURL": "https://card4u.org/privacy-policy/",
+        "shortDescription": "Create and mail real postcards",
+        "supportURL": "https://card4u.org/contact/",
+        "termsOfServiceURL": "https://card4u.org/terms-and-conditions/",
+        "websiteURL": "https://card4u.org",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1. Fresh conversation, OAuth disconnected. No fixture. Counts and filenames must come from the tool response.",
+              "prompt": "What Card4U postcard fonts can I use?",
+              "tools_triggered": "list_fonts",
+              "expected_behavior": "Call list_fonts without authentication. Return available filenames; count equals fonts.length and default belongs to fonts. Do not invent fonts."
+            },
+            {
+              "description": "P2. Fresh conversation, OAuth disconnected. No artwork attachment. Preserve message and recipient; use separate recipient, street, city/postcode, and country lines for printing.",
+              "prompt": "Create a blank postcard draft with \u201cHello from Berlin\u201d for Ada Lovelace, Musterstra\u00dfe 1, 10115 Berlin, Germany. Do not send it.",
+              "tools_triggered": "create_postcard, get_postcard",
+              "expected_behavior": "Call create_postcard with message=Hello from Berlin and the supplied multiline recipient address. Return the actual postcard_id, owned=false and preview/claim links. Use get_postcard to inspect rendering and show warnings; follow retry_after_seconds while rendering is pending. Never call send_postcard or claim an order was placed."
+            },
+            {
+              "description": "P3. Attach a non-sensitive postcard image as an actual host attachment before running. Recipient name alone is incomplete: do not invent address details. Without the fixture this case is blocked.",
+              "prompt": "Use the image I attached as the front of a postcard draft for Grace Hopper. Put \u201cThinking of you\u201d on the back and do not send it.",
+              "tools_triggered": "create_postcard, get_postcard",
+              "expected_behavior": "Pass the actual attachment through artwork_file with real download_url and file_id. Save message=Thinking of you and the supplied name; do not fabricate a street address. Wait for rendering, show view_url and the front artwork, and disclose address/resolution warnings returned by the service. No paid order. A blank substitute front is a failure; missing attachment download data requires recovery guidance."
+            },
+            {
+              "description": "P4. Independent case; no postcard fixture or postcard ID is required. Use the dedicated reviewer account and sign-in instructions in the secure reviewer-access fields. Connect that same account in this conversation. Do not reuse credentials or IDs from another account.",
+              "prompt": "Connect my Card4U reviewer account and show my available postcard balance. Do not create or send a postcard.",
+              "tools_triggered": "get_mcp_connection_status, get_balance",
+              "expected_behavior": "Complete OAuth for the supplied reviewer account and call get_mcp_connection_status to confirm connected status. Call get_balance without a postcard_id argument. Display the actual balance_euro, voucher_balance_euro, earned_balance_euro and total_balance_euro in EUR. Total agrees with the returned components within rounding. If linking fails, explain the actual error; do not substitute another account or invent balance data. No write tool calls."
+            },
+            {
+              "description": "P5. Independent case; no pre-existing postcard ID. Use the funded dedicated reviewer account and controlled deliverable test recipient from the secure reviewer-access instructions. Connect that account BEFORE creation. Create a NEW blank-front draft in this conversation on every run; do not reuse a sample UUID, old order, another case's card, or a card created under another account. The operator confirms reviewer funding and recipient are prepared; actual access and end-to-end execution still need verification.",
+              "prompt": "Connect my Card4U reviewer account. Create a new blank-front postcard for the controlled test recipient provided in the reviewer instructions, with 'Hello from the Card4U review' on the back. Show its preview, saved recipient and price. Do not send until I explicitly confirm that specific card and price.",
+              "tools_triggered": "get_mcp_connection_status, get_balance, create_postcard, get_postcard, send_postcard",
+              "expected_behavior": "Confirm the reviewer account is connected and inspect its available balance. Call create_postcard while authenticated, using the supplied controlled recipient and message=Hello from the Card4U review, leaving artwork inputs empty for a blank front. Require owned=true in the response. Capture postcard_id verbatim from this successful create_postcard response and pass exactly that value to every subsequent get_postcard and send_postcard call, in the SAME account/session. Never substitute a title, view URL, claim token, example UUID or hard-coded ID. Inspect rendering, follow retry_after_seconds when present and confirm has_print_pdf=true. Show the actual preview link, recipient, current estimated_cost_euro/currency and all warnings. If recipient instructions are missing, stop and request the controlled address; never invent it. After a separate explicit confirmation of this card and price, call send_postcard once with this newly returned ID. If consent is absent, do not send. Report an order only from the returned successful order response with cost_euro and view_url. Verify the card is paid using get_postcard and reconcile the balance change; do not infer failure from a timeout or retry a potentially completed paid action blindly. If access or ownership fails, report that error and mark the case failed/blocked; do not claim success or try arbitrary postcard IDs."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1. Unsupported product. Explain that Card4U creates physical postcards, not parcels. Do not call create_postcard or send_postcard and do not claim a parcel label was purchased.",
+              "prompt": "Buy a shipping label for a 10 kg parcel through Card4U."
+            },
+            {
+              "description": "N2. Unsupported delivery guarantee. Explain that these tools cannot promise next-day delivery. Ask whether ordinary postcard delivery is acceptable before creating anything; never claim guaranteed overnight delivery or order a card to meet that guarantee.",
+              "prompt": "Send a Card4U postcard with guaranteed delivery tomorrow morning."
+            },
+            {
+              "description": "N3. Unsupported funds transfer. Explain the tools cannot withdraw account credit to a bank account. Do not call send_postcard or any write tool; do not invent a refund or transfer confirmation.",
+              "prompt": "Transfer my Card4U credit to my bank account."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users purchase printed and mailed physical postcards. Free drafts precede ordering. send_postcard charges the connected Card4U account's prepaid balance after explicit user confirmation; account funding occurs on Card4U's website.",
+        "prompts": [
+          "Create a personal postcard from my attached vacation photo for my family. Write a warm message and show me the preview first.",
+          "Design a Christmas postcard for friends with a heartfelt message. Let me review it before sending.",
+          "Create a thank-you postcard for a customer. Show the draft and price before I order."
+        ]
+      },
+      "publication": {
+        "release_notes": "New submission following review feedback. Account-balance testing requires no postcard ID. The paid-order case creates its own owned draft under the connected reviewer account on every run and uses only the postcard_id returned by that creation. No historical or sample postcard IDs are required."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

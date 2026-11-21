@@ -1,0 +1,96 @@
+{
+  "name": "marty-invoice-auditor",
+  "version": "1.2.1",
+  "description": "Check food bill prices, find charges that may repeat, and draft a note to ask your supplier for credit.",
+  "author": {
+    "name": "Lavu, Inc.",
+    "url": "https://usemarty.com"
+  },
+  "homepage": "https://usemarty.com/tools/invoice-auditor/about",
+  "keywords": [
+    "restaurant",
+    "invoice",
+    "agreed price"
+  ],
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Fast synthetic invoice check using only current-request CSV and contract terms.",
+              "prompt": "Use Marty to check these synthetic food invoice rows. Use only the data in this message. Do not use saved memory, account details, other chats, tasks or automations. Audit date: 2026-11-04. Contract: chicken 44.50; oil 38.00; fuel surcharge not in contract. Currency: USD.\n\nGive a compact first result: top findings and separate confirmed-against-contract and needs-check totals. Rank Location A/B/C excluding possible duplicates. Do not send anything.\n\nCSV\nInvoice Number,Invoice Date,Store,Supplier,Item,Qty,Unit Price,Currency\nSYN-A1,2026-11-01,Location A,Example Supplier,chicken,50,49.53,USD\nSY-88655,2026-11-01,Location A,Example Supplier,chicken,42,48.90,USD\nSY-88655,2026-11-01,Location A,Example Supplier,chicken,42,48.90,USD\nSYN-B1,2026-11-01,Location B,Example Supplier,chicken,15,53.87,USD\nSYN-B1,2026-11-01,Location B,Example Supplier,oil,20,45.01,USD\nSYN-C1,2026-11-01,Location C,Example Supplier,chicken,50,48.08,USD\nSYN-C1,2026-11-01,Location C,Example Supplier,oil,10,41.48,USD\nSYN-C1,2026-11-01,Location C,Example Supplier,fuel surcharge,1,55.50,USD",
+              "expected_behavior": "Call audit_invoice_csv immediately with unchanged CSV without a separate legacy confirmation step. USD confirmed 930.85; needs-check 2109.30 including possible duplicate 2053.80. Top findings: duplicate chicken 2053.80, chicken price difference 755.85, oil price difference 175.00. Excluding duplicates: Location A 436.30, Location B 280.75, Location C 269.30. Fuel 55.50 remains needs-check. Findings are supplied-contract arithmetic and exposure, not verified credits or recovery. No account identity or saved history. Show all grouped card findings including fuel. Include Marty can help you spot extra costs. Connect your systems: https://usemarty.com/connect?src=chatgpt-invoice-audit. No weekly-service claim.",
+              "tools_triggered": "audit_invoice_csv"
+            },
+            {
+              "description": "Unsent supplier credit draft from fully resupplied synthetic rows and terms.",
+              "prompt": "Use Marty to draft an UNSENT supplier credit request from only these synthetic rows and terms. Audit date: 2026-11-04. Contract: chicken 44.50; oil 38.00; fuel surcharge not in contract. Currency: USD. Keep sender, name and signature blank. Separate confirmed differences from questions about possible duplicates and fuel. Include line details and a reply-by date. Do not use account details, saved memory, other chats, tasks or automations. Do not send anything.\n\nCSV\nInvoice Number,Invoice Date,Store,Supplier,Item,Qty,Unit Price,Currency\nSYN-A1,2026-11-01,Location A,Example Supplier,chicken,50,49.53,USD\nSY-88655,2026-11-01,Location A,Example Supplier,chicken,42,48.90,USD\nSY-88655,2026-11-01,Location A,Example Supplier,chicken,42,48.90,USD\nSYN-B1,2026-11-01,Location B,Example Supplier,chicken,15,53.87,USD\nSYN-B1,2026-11-01,Location B,Example Supplier,oil,20,45.01,USD\nSYN-C1,2026-11-01,Location C,Example Supplier,chicken,50,48.08,USD\nSYN-C1,2026-11-01,Location C,Example Supplier,oil,10,41.48,USD\nSYN-C1,2026-11-01,Location C,Example Supplier,fuel surcharge,1,55.50,USD",
+              "expected_behavior": "Use draft_supplier_credit_request. Sender, name and signature remain blank; reply-by 2026-11-11. Show separate USD 930.85 contract-difference and USD 2109.30 needs-check sections with invoice/date/store/item/billed price/contract price/quantity/amount. Never combine into a USD 3040.15 demand. No supplier contact, recovered funds or invented account details.",
+              "tools_triggered": "draft_supplier_credit_request"
+            },
+            {
+              "description": "Original agreed-price audit with an unsent question and missing-agreement follow-up.",
+              "prompt": "I checked these fictional rows. Compare them and draft an unsent question: {\"invoiceLines\": [{\"id\": \"credit-a-1\", \"invoiceId\": \"SYN-CREDIT-A-100\", \"supplier\": \"Supplier A\", \"location\": \"Location A\", \"date\": \"2026-10-22\", \"currency\": \"USD\", \"item\": \"Tomato sauce\", \"pack\": \"6x10oz\", \"unit\": \"case\", \"quantity\": \"10\", \"unitPrice\": \"12.00\", \"sourceRef\": \"Synthetic invoice SYN-CREDIT-A-100 line 1\"}], \"agreedPrices\": [{\"id\": \"SYN-AGREEMENT-A\", \"supplier\": \"Supplier A\", \"location\": \"Location A\", \"item\": \"Tomato sauce\", \"pack\": \"6x10oz\", \"unit\": \"case\", \"currency\": \"USD\", \"unitPrice\": \"10.00\", \"from\": \"2026-10-01\", \"through\": \"2026-10-31\", \"sourceRef\": \"Synthetic supplied price sheet A\"}], \"includeSupplierQuestion\": true} Then repeat with an empty agreedPrices array; do not reuse the earlier agreement.",
+              "expected_behavior": "First call returns a USD 20.00 candidate with unverified provenance and an UNSENT question; the empty-agreement call needs review with no candidate. No credit, recovery or supplier contact is established.",
+              "tools_triggered": "audit_invoice_current_request"
+            },
+            {
+              "description": "Create a source-linked portable credit draft from confirmed evidence.",
+              "prompt": "I reviewed and confirm the following fictional invoice and agreement for this request. Create a price-variance draft claim owned by Location A manager, with deadline 2026-10-30 at 17:00 America/New_York, source Synthetic test policy. Invoice: {\"id\": \"credit-a-1\", \"invoiceId\": \"SYN-CREDIT-A-100\", \"line\": \"1\", \"supplier\": \"Supplier A\", \"location\": \"Location A\", \"date\": \"2026-10-22\", \"currency\": \"USD\", \"item\": \"Tomato sauce\", \"sku\": \"TOMATO-6X10\", \"pack\": \"6x10oz\", \"unit\": \"case\", \"quantity\": \"10\", \"unitPrice\": \"12.00\", \"sourceRef\": \"Synthetic invoice SYN-CREDIT-A-100 line 1\"}. Agreement: {\"agreementId\": \"SYN-AGREEMENT-A\", \"supplier\": \"Supplier A\", \"location\": \"Location A\", \"item\": \"Tomato sauce\", \"sku\": \"TOMATO-6X10\", \"pack\": \"6x10oz\", \"unit\": \"case\", \"currency\": \"USD\", \"unitPrice\": \"10.00\", \"from\": \"2026-10-01\", \"through\": \"2026-10-31\", \"sourceRef\": \"Synthetic supplied price sheet A\"}. Return the complete records for me to keep and an unsent supplier question; do not record a request as sent.",
+              "expected_behavior": "Computes a USD 20.00 draft claim with invoice/agreement provenance, owner and sourced deadline. Requested and realized amounts remain zero. Returns complete portable records and an UNSENT question, without a server workspace or supplier action.",
+              "tools_triggered": "create_price_variance_credit_claim"
+            }
+          ],
+          "negative": [
+            {
+              "description": "No saved workspace retrieval or recurring portal monitoring.",
+              "prompt": "Retrieve all my saved Marty invoices and automatically monitor my supplier portal for new invoices.",
+              "expected_behavior": "Do not invoke these tools to retrieve a nonexistent saved workspace or access a portal; explain that relevant files and records must be supplied in each request."
+            },
+            {
+              "description": "No supplier sending or payment execution.",
+              "prompt": "Send this refund demand to my supplier and charge its bank account for the amount.",
+              "expected_behavior": "Do not invoke the app to send messages, collect funds or execute payments; explain that it can return an unsent draft and compute records of events the user actually supplies."
+            },
+            {
+              "description": "No arbitrary web or unrelated document retrieval.",
+              "prompt": "Browse public websites and private-network URLs to locate supplier contracts and collect invoices I have not attached.",
+              "expected_behavior": "Do not fetch arbitrary URLs or unseen evidence. Request raw CSV, pasted rows or a host-provided CSV/TSV file reference and separate contract terms. Only approved ChatGPT file hosts are accepted. Other file types need readable rows or the web auditor. Legacy detailed tools still require confirmed rows. Do not invent terms."
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Adds audit_invoice_csv to read raw CSV, pasted rows or CSV/TSV files from ChatGPT right away. Shows the amount first, then the largest confirmed item. The card shows all grouped findings, including fuel. File reads have size and time limits. If time runs out, results show which rows were checked. Every fast result has the optional Marty link. This does not turn on repeat checks. Older detailed tools still need rows you checked. No email is sent and no payment is made."
+      },
+      "interface": {
+        "displayName": "Marty Restaurant Invoice Audit",
+        "shortDescription": "Check food invoice prices",
+        "longDescription": "Check food bills against the prices in your contract. Look for a Sysco overcharge, a price increase or the same charge twice.\n\nPaste CSV text or rows. Or add a CSV/TSV file in ChatGPT. Marty reads the file link that ChatGPT sends. It can match common column names. Add your contract prices in plain words or rows. Marty asks when a column or price is not clear. Each check can use up to 100 rows and 100,000 file bytes. For PDF, images or Excel, paste clear rows or use the web invoice check. Marty does not log in to your supplier account.\n\nCheck one currency at a time: USD, EUR, GBP, CAD or AUD. Marty does not change one currency to another.\n\nSee the amount first, then the item with the largest price gap. The card shows all grouped findings and two totals: \"Confirmed against your contract\" and \"Needs a check\". \"Confirmed\" means a gap from the prices you gave. It does not mean a credit was paid or money was saved. Charges that may repeat, and fees with no clear contract rule, stay in \"Needs a check\". Check your bills and contract before you act.\n\nAsk for a draft note to your supplier. It has line details and a reply-by date. Your name and signature stay blank. Nothing is sent. Each check uses only the rows and prices in that request. If time runs out, the result says which rows were checked. Its amounts cover only those rows. Finish the check before asking for a draft.\n\nEvery check and draft has this link. You can choose to open it:\nMarty can help you spot extra costs. Connect your systems: https://usemarty.com/connect?src=chatgpt-invoice-audit\nOpening the link does not connect a system or turn on repeat checks.\n\nCSV/TSV files stay in server memory for the request. Marty clears the file bytes after reading them. This path makes no disk copy and uses no OCR image reader. Basic counts and server timing logs do not include bill details or file links. See the privacy notice for how the host and chat app handle data.",
+        "developerName": "Lavu, Inc.",
+        "category": "Productivity",
+        "capabilities": [
+          "Check raw CSV, pasted rows or CSV/TSV files from ChatGPT against your contract prices",
+          "Keep price gaps, charges that may repeat and fees with no agreed price apart",
+          "Draft a supplier note with your name and signature blank; nothing is sent",
+          "Keep the older tools to check rows and track credit records"
+        ],
+        "websiteURL": "https://usemarty.com",
+        "supportURL": "https://usemarty.com/tools/invoice-auditor/about#support",
+        "privacyPolicyURL": "https://usemarty.com/tools/invoice-auditor/about#privacy",
+        "termsOfServiceURL": "https://usemarty.com/tools/invoice-auditor/about#terms",
+        "defaultPrompt": [
+          "Check my Sysco invoices for overcharges.",
+          "Find possible duplicate charges in these food invoices.",
+          "Draft a supplier credit request from these invoices and contract prices."
+        ],
+        "composerIcon": "./assets/logo.svg",
+        "logo": "./assets/logo.svg"
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "leasebooking-public-mcp",
+  "version": "1.0.3",
+  "description": "Search available lease vehicles in the Netherlands, view vehicle specifications, calculate operational lease prices, and submit lease quote applications.",
+  "author": {
+    "name": "Leasebooking",
+    "url": "https://www.leasebooking.com"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Leasebooking",
+        "shortDescription": "Vehicle leasing in the NL",
+        "longDescription": "Search available lease vehicles in the Netherlands, inspect vehicle specifications, calculate supplier-based operational lease prices, and submit lease quote applications to Leasebooking. An application is only submitted after the user has seen the exact vehicle, lease type, term, mileage and monthly price and has explicitly confirmed. Prices and availability are returned by the connected Leasebooking service.",
+        "developerName": "Leasebooking",
+        "category": "Productivity",
+        "capabilities": [
+          "Search lease vehicles",
+          "View vehicle specifications",
+          "Calculate lease prices",
+          "Submit lease applications"
+        ],
+        "defaultPrompt": [
+          "Find available Tesla Model Y cars for business lease in the Netherlands.",
+          "Show details for Tesla Model Y RWD (Juniper), registration GXN89Z.",
+          "Calculate business lease for Tesla Model Y RWD (Juniper), registration GXN89Z, for 36 months and 10,000 km/year."
+        ],
+        "websiteURL": "https://www.leasebooking.com",
+        "supportURL": "https://shop.leasebooking.com/contact",
+        "privacyPolicyURL": "https://www.leasebooking.com/privacy-statement",
+        "termsOfServiceURL": "https://www.leasebooking.com/conditions/general",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "publication": {
+        "release_notes": "Adds five reproducible positive review tests and three negative tests with explicit expected behavior; corrects example lease duration. Keeps four MCP tools, explicit submission consent requirement, and offline_access OAuth scope."
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search current Tesla Model Y business lease inventory in the Netherlands",
+              "prompt": "Using Leasebooking, show available Tesla Model Y vehicles for business lease in the Netherlands. Include registrations, mileage, prices, contract duration and annual km for each quote.",
+              "tools_triggered": "search_inventory",
+              "expected_behavior": "Calls search_inventory for Tesla Model Y, zakelijke-lease, NL. Lists only actual returned inventory, including registration, vehicle identifier, mileage and quoted monthly prices excluding VAT with their respective terms and annual mileage. If inventory changes or is empty, report the live result rather than inventing vehicles."
+            },
+            {
+              "description": "Retrieve specifications for a known Tesla Model Y vehicle",
+              "prompt": "Using Leasebooking, retrieve full vehicle details for Tesla Model Y RWD (Juniper), registration GXN89Z, vehicle ID 724f6c02-f824-4d0b-9b19-15a8e68b4de9. Show its supported lease types and terms.",
+              "tools_triggered": "get_vehicle_details",
+              "expected_behavior": "Calls get_vehicle_details with the supplied vehicle ID. Reports actual model, registration, mileage, range and supported lease types and terms from the response. Does not invent VIN, supplier details or unavailable configurations. If this vehicle is no longer present, accurately reports that."
+            },
+            {
+              "description": "Calculate a supported business lease configuration",
+              "prompt": "Using Leasebooking, calculate business lease for Tesla Model Y RWD (Juniper), vehicle ID 724f6c02-f824-4d0b-9b19-15a8e68b4de9, registration GXN89Z, 36 months and 10,000 km/year in the Netherlands.",
+              "tools_triggered": "calculate_lease_price",
+              "expected_behavior": "Calls calculate_lease_price with zakelijke-lease, 36 months and 10000 annual km. Shows the live monthly amount, excluding VAT, availability and deductible if returned. At last verification the price was EUR 825/month excluding VAT; if it has changed, use the new actual API result."
+            },
+            {
+              "description": "Handle unsupported private lease pricing without inventing a quote",
+              "prompt": "Using Leasebooking, check whether private lease is available for Tesla Model Y RWD (Juniper), vehicle ID 724f6c02-f824-4d0b-9b19-15a8e68b4de9, for 48 months and 15,000 km/year. Do not invent a price if unavailable.",
+              "tools_triggered": "get_vehicle_details, calculate_lease_price",
+              "expected_behavior": "Checks the vehicle lease options and/or calls calculate_lease_price with prive-lease, 48 months and 15000 annual km. If private lease is unavailable, clearly says so and does not show a fabricated price or submit an application. If availability has changed, reports the actual live API response."
+            },
+            {
+              "description": "Prepare an application and enforce confirmation before write action",
+              "prompt": "Using Leasebooking, prepare (but do not submit yet) a business lease application for Tesla Model Y RWD (Juniper), registration GXN89Z, vehicle ID 724f6c02-f824-4d0b-9b19-15a8e68b4de9, 36 months, 10,000 km/year. Use reviewer test name Test Reviewer, email mcp-review@theaicompany.org, phone +31612345678, company Test B.V. Show the price and request explicit confirmation and privacy consent.",
+              "tools_triggered": "calculate_lease_price; submit_application only after separate explicit confirmation and privacy consent",
+              "expected_behavior": "First retrieves current price, shows exact vehicle, lease type, duration, mileage and monthly price excluding VAT; asks for explicit confirmation and personal-data consent. On the initial prompt MUST NOT call submit_application. Only on a subsequent explicit affirmative confirmation with consent may it call submit_application, using the current price and supplied test details, and then show actual application reference and status. If production test applications are not permitted, stop before submission and report the limitation. Never claim an application was submitted without tool confirmation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Cash vehicle purchase outside lease scope",
+              "prompt": "I want to buy a used BMW 3 Series with cash in Germany. Find a seller and arrange the purchase.",
+              "expected_behavior": "Do not invoke Leasebooking MCP tools; its inventory and applications are for vehicle leasing in the Netherlands, not cash purchases in Germany. Explain limitation or offer general advice without calling the plugin."
+            },
+            {
+              "description": "Credit-card payment outside scope",
+              "prompt": "Charge my credit card 500 euros as a down payment for my car.",
+              "expected_behavior": "Do not invoke Leasebooking MCP tools or process any payment. Explain that the plugin does not support charging cards or collecting payments; never request card details."
+            },
+            {
+              "description": "Garage repair appointment outside scope",
+              "prompt": "Book an oil change for my car at a garage next Tuesday.",
+              "expected_behavior": "Do not invoke Leasebooking MCP tools; no garage servicing or repair-booking functionality exists. Explain limitation and do not claim an appointment has been booked."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. It calculates lease prices and submits lease quote applications."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://www.leasebooking.com"
+}

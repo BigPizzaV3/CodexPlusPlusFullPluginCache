@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "likelyread",
+  "version": "1.0.1",
+  "description": "Ask which of your tracked emails were opened, and see campaign open rates, sending statistics and sender health from your Likelyread account.",
+  "author": {
+    "name": "Likelyread",
+    "url": "https://likelyread.com"
+  },
+  "homepage": "https://likelyread.com",
+  "repository": "https://github.com/Hugo-SEQUIER/likelyread",
+  "license": "MIT",
+  "keywords": [
+    "email",
+    "open tracking",
+    "email opens",
+    "campaigns",
+    "deliverability"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Likelyread",
+        "shortDescription": "See which emails were opened",
+        "longDescription": "Likelyread shows which of your emails were opened. A tracked email carries a 1x1 image (the pixel) at the end of its HTML part. When the recipient's mail app loads it, Likelyread records a hit and classifies it as an open, a view of your own, or a privacy prefetch.\n\nConnect your Likelyread account to ask about your results in a conversation:\n- which emails were opened, and when\n- every hit on one email, with how it was classified and why\n- open rates and median time to first open for each campaign\n- totals, a daily timeline and the hours when your emails get opened\n- the health of a sending address: SPF, DKIM and DMARC records, a safe daily pace and the open-rate trend\nIt can also move an email to another campaign.\n\nThis plugin reads results. It does not send email or add tracking to emails written in the conversation. Emails are tracked by the Likelyread Chrome extension when you send them from Gmail, or by an agent you connect to Likelyread with a token.\n\nAn open means the image loaded, not that someone read the email. Gmail caches images, so repeat opens may not show. Apple Mail Privacy Protection loads images on delivery, which Likelyread counts as a prefetch, not an open. Some mail apps block images, so a missing open does not prove an email was ignored.\n\nYou sign in with your Likelyread account. Campaign analytics, statistics and sender health are not available on every plan. Track only recipients who agreed to it where the law requires consent, as in the EU.",
+        "developerName": "Likelyread",
+        "category": "Productivity",
+        "websiteURL": "https://likelyread.com",
+        "supportURL": "https://likelyread.com/support",
+        "privacyPolicyURL": "https://likelyread.com/privacy",
+        "termsOfServiceURL": "https://likelyread.com/terms",
+        "defaultPrompt": [
+          "Which of the emails I sent this week were opened?",
+          "Did anyone open my last email, and when?",
+          "Show the open rate of each of my campaigns."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Which emails were opened: the answer sorts the test account's sample emails by status, and does not count an Apple Mail privacy prefetch as an open.",
+              "prompt": "Which of my emails were opened, and which weren't?",
+              "tools_triggered": "list_emails",
+              "expected_behavior": "Of the 13 sample emails, 8 were opened, among them \"Proposal for Harbourline\" and \"Invoice 2026-041\". 3 were not opened: \"Pilot pricing for your team\", \"Partner newsletter, October\" and \"Coffee next week?\". 2 were only loaded by Apple Mail Privacy Protection on delivery (\"Quick question about your Q4 roadmap\", and the \"October investor update\" sent to arjun@kestrel.example), and the answer does not count them as opened. It says \"opened\", never \"read\"."
+            },
+            {
+              "description": "One email's hits: the answer goes through every hit on one email, and leaves the sender's own view out of the opens.",
+              "prompt": "Did Maya open my proposal for Harbourline, and when?",
+              "tools_triggered": "list_emails, get_email",
+              "expected_behavior": "Yes. \"Proposal for Harbourline\", sent to maya@harbourline.example, was opened twice through Gmail's image proxy: 42 minutes after it was sent, and again a day after it was sent. The load 8 seconds after sending was the sender's own compose window (a self-view), not an open."
+            },
+            {
+              "description": "Campaign results and opening hours: the answer compares the campaigns' open rates and says at what hours the emails got opened.",
+              "prompt": "Compare the open rates of my campaigns, and tell me at what hours my emails got opened over the last 90 days.",
+              "tools_triggered": "list_campaigns, get_stats",
+              "expected_behavior": "Partner follow-ups leads with 75% (3 of 4 emails opened, median time to first open 30 minutes), then Q4 outreach with 60% (3 of 5, 42 minutes) and Investor update with 50% (1 of 2, 40 minutes). Emails only prefetched by Apple Mail count as not opened, and the 2 emails without a campaign may be listed apart. Over 90 days: 13 emails, 8 opened (62%), 11 opens, and the hours with the most opens, in a time zone the answer states or asks for. Once the campaign case has moved \"Coffee next week?\", Partner follow-ups shows 3 of 5 (60%)."
+            },
+            {
+              "description": "Sender health: the answer checks the sending address's DNS records, its safe daily pace and its open-rate trend, and changes nothing.",
+              "prompt": "Is my sending address set up well? Check SPF, DKIM and DMARC.",
+              "tools_triggered": "sender_health",
+              "expected_behavior": "For the test account's sending address (the address it signs in with), the answer says whether SPF, DKIM and DMARC records were found for its domain in public DNS, how many emails it can safely send today, and how the recent open rate compares with the earlier one."
+            },
+            {
+              "description": "Moving an email to another campaign: the answer finds the email and changes only its campaign. Run it after the campaign comparison, whose numbers it changes.",
+              "prompt": "Move my \"Coffee next week?\" email to the Partner follow-ups campaign.",
+              "tools_triggered": "list_emails, set_campaign",
+              "expected_behavior": "\"Coffee next week?\", sent to jules@fernhill.example without a campaign, is now in the existing campaign \"Partner follow-ups\", spelled exactly that way. Its status (not opened) and everything else stay the same."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending or tracking a new email. In ChatGPT, Likelyread reads results only: it has no tool that sends an email or adds the tracking image, so the answer must not claim that an email is tracked.",
+              "prompt": "Send an email to maya@harbourline.example asking for a call, and track whether she opens it.",
+              "expected_behavior": "The answer does not say the email is tracked. It explains that this connection cannot track new emails, and that the Likelyread Chrome extension tracks the emails the user sends from Gmail."
+            },
+            {
+              "description": "Locating or identifying the person who opened an email. The tools give a hit's time, its kind and how the image was loaded, never an IP address, a location or a device, and the answer must not guess them.",
+              "prompt": "Where was Maya when she opened my proposal, and what device was she using?",
+              "expected_behavior": "The answer says Likelyread does not show where someone was or what device they used. It may say when the proposal was opened and that the image loaded through Gmail's image proxy, but it guesses no place and no device."
+            },
+            {
+              "description": "Deleting tracked emails. No tool deletes emails, so the answer must not claim that any were deleted.",
+              "prompt": "Delete all my tracked emails.",
+              "expected_behavior": "Nothing is deleted, and the answer does not claim otherwise. It says it cannot delete emails from the conversation, and may point to the Likelyread dashboard, where emails can be deleted."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/qwlYuVVvq7A"
+      },
+      "publication": {
+        "release_notes": "First release. Ask which of your tracked emails were opened, go through every hit on one email and how it was classified, compare campaign open rates, see your totals and the hours when your emails get opened, check a sending address's SPF, DKIM and DMARC records, and move an email to another campaign. The plugin reads your results: it does not send or track emails."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

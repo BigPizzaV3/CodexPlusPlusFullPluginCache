@@ -1,0 +1,393 @@
+# PoultryLog 1.0.0 tool reference
+
+The current MCP server registers 381 tools. This package connects to that server; tool definitions are imported through live MCP discovery. A reference file is not a tool-registration mechanism.
+
+For exact descriptions, input/output schemas, annotations and scope alternatives, inspect [tool-catalog.json](tool-catalog.json). Use actual connected schemas before calling a tool. Tool presence grants no account permission.
+
+## Account and workspace discovery
+
+Use `list_workspace_memberships` for membership roles and access states, and `read_account_preferences` for the saved preference record. `get_user_context` farm identities and conventions do not replace those results.
+
+## Registered names
+
+- `accept_processor_invitation` — Accept your processor invitation
+- `acknowledge_dashboard_alert` — Acknowledge dashboard alerts
+- `acknowledge_dashboard_alerts` — Acknowledge dashboard alerts
+- `acknowledge_house_alert` — Acknowledge a house alert incident
+- `acknowledge_house_alerts` — Acknowledge selected house alert incidents
+- `acknowledge_processor_alert` — Acknowledge a processor alert
+- `acknowledge_processor_finding` — Acknowledge a processor comparison finding
+- `add_cull_log` — Record culled birds
+- `add_egg_log` — Record egg production
+- `add_equipment_log` — Record equipment service
+- `add_farm_expense` — Record a farm expense
+- `add_farm_note` — Add a farm observation
+- `add_farm_task` — Create a farm task
+- `add_feed_delivery` — Record a feed delivery ticket
+- `add_feed_inventory` — Record feed stock
+- `add_feed_log` — Record feed consumption
+- `add_flock_income` — Record flock income
+- `add_house_note` — Add a house observation
+- `add_mortality_log` — Record bird mortality
+- `add_treatment_log` — Record an administered treatment
+- `add_vaccination_log` — Record a vaccination
+- `add_water_log` — Record house water use
+- `add_weight_log` — Record sampled bird weights
+- `add_worker_note` — Add worker note
+- `analyze_flock` — Review a flock
+- `analyze_house` — Review a house
+- `append_annual_compliance_row` — Append annual compliance evidence
+- `append_flock_performance_file_chunks` — Append private performance-file chunks
+- `append_flock_performance_note_chunk` — Upload a private performance-note chunk
+- `apply_compliance_certificate_fields` — Apply reviewed certificate fields
+- `approve_decision_card` — Approve a decision card
+- `approve_worker_leave` — Approve worker leave
+- `assemble_flock_performance_note` — Verify a complete private performance note
+- `assign_farm_task` — Assign a farm task
+- `attach_platform_processor_checklist` — Add a processor checklist source
+- `begin_flock_performance_file_transfer` — Begin a private performance-file transfer
+- `begin_flock_performance_note_transfer` — Begin a private large performance note
+- `cancel_worker_leave` — Cancel pending worker leave
+- `clock_in_worker` — Clock worker in
+- `clock_out_worker` — Clock worker out
+- `clone_house_configuration` — Copy house configuration
+- `close_annual_compliance_sheet` — Close an annual compliance sheet
+- `close_out_flock` — Close out a flock
+- `compare_flock_finances` — Compare recorded flock finances
+- `compare_house_configurations` — Compare saved house configuration versions
+- `compare_houses` — Compare flock houses
+- `compare_processor_growers` — Compare growers and explain findings
+- `compare_processor_houses` — Benchmark processor houses
+- `complete_farm_onboarding` — Complete first farm setup
+- `connect_processor` — Review and consent to a processor connection
+- `correct_decision_card_entity` — Correct a suggested entity
+- `correct_equipment_log` — Correct equipment service evidence
+- `correct_feed_delivery` — Correct a feed delivery ticket
+- `correct_financial_entry` — Correct a recorded expense or income
+- `correct_flock_placements` — Correct flock placements
+- `correct_fuel_log` — Correct fuel tank reading
+- `correct_health_record` — Correct recorded health facts
+- `correct_observation` — Correct a house or farm note
+- `correct_operational_log` — Correct an operational log
+- `correct_operational_log_time` — Correct an operational log time
+- `correct_worker_attendance` — Correct worker attendance
+- `correct_worker_leave` — Correct worker leave
+- `create_annual_compliance_sheet` — Open an annual checklist sheet
+- `create_billing_checkout` — Prepare your hosted subscription checkout
+- `create_billing_portal` — Prepare your hosted billing portal
+- `create_checklist_draft` — Create a checklist draft
+- `create_decision_card` — Create a decision card
+- `create_depreciation_asset` — Create depreciation asset
+- `create_equipment` — Create equipment record
+- `create_farm` — Create a farm
+- `create_flock` — Create a flock and place birds
+- `create_flock_performance_record` — Create a reviewed performance sheet
+- `create_house` — Create a house
+- `create_inventory_part` — Create inventory part
+- `create_maintenance_schedule` — Create maintenance schedule
+- `create_owner_workspace` — Create an owned workspace
+- `create_platform_processor` — Create a platform processor organization
+- `create_platform_processor_snapshot` — Create a retained processor report
+- `create_recurring_reminder` — Create a recurring reminder
+- `create_service_vendor` — Create service vendor
+- `create_voice_audio_note` — Save an original recording without transcription
+- `create_voice_text_note` — Create a text note
+- `create_work_order` — Create work order
+- `create_worker_profile` — Create worker profile
+- `deactivate_account` — Deactivate your account
+- `delete_annual_compliance_sheet` — Delete an annual compliance sheet
+- `delete_compliance_attachment` — Delete a reviewed checklist attachment
+- `delete_decision_card` — Delete a decision card
+- `delete_depreciation_asset` — Delete depreciation asset
+- `delete_equipment` — Delete equipment
+- `delete_equipment_invoice` — Delete an equipment document
+- `delete_equipment_log` — Delete an equipment service entry
+- `delete_farm` — Delete a farm
+- `delete_farm_checklist` — Delete a grower checklist source
+- `delete_farm_task` — Delete a farm task
+- `delete_feed_ticket_image` — Remove one feed ticket photo
+- `delete_financial_entry` — Delete a financial entry
+- `delete_flock_performance_document` — Delete a reviewed performance supporting document
+- `delete_flock_performance_record` — Delete a reviewed performance sheet and its attachments
+- `delete_fuel_log` — Delete manual fuel reading
+- `delete_health_record` — Delete one recorded health event
+- `delete_house` — Delete a house
+- `delete_inventory_part` — Delete inventory part
+- `delete_maintenance_schedule` — Delete maintenance schedule
+- `delete_observation` — Delete a house or farm note
+- `delete_operational_log` — Delete one operational log
+- `delete_part_image` — Remove one part photo
+- `delete_recurring_reminder` — Delete a recurring reminder
+- `delete_service_vendor` — Delete service vendor
+- `delete_unused_flock` — Delete an unused flock record
+- `delete_voice_note` — Delete a voice note
+- `delete_work_order` — Delete work order
+- `delete_worker_attendance` — Delete worker attendance
+- `delete_worker_note` — Delete worker note
+- `delete_worker_profile` — Delete worker profile
+- `describe_compliance_checklist` — Review checklist fields
+- `describe_house_configuration` — Describe native house configuration fields
+- `discover_workflows` — Discover farm workflows
+- `download_annual_compliance_sheet` — Download an annual checklist sheet
+- `download_compliance_attachment` — Download a checklist attachment
+- `download_equipment_invoice` — Download equipment document
+- `download_feed_ticket_image` — Download a feed ticket photo
+- `download_finance_import_template` — Download a finance import template
+- `download_flock_performance_file` — Download a protected performance file
+- `download_part_image` — Download a saved part photo
+- `download_platform_processor_snapshot` — Download a saved processor report
+- `download_voice_note_audio` — Download original voice-note audio
+- `edit_annual_compliance_header` — Correct annual sheet header facts
+- `edit_annual_compliance_row` — Correct an annual compliance row
+- `edit_depreciation_asset` — Edit depreciation asset
+- `edit_equipment` — Edit equipment record
+- `edit_farm_details` — Edit farm facts
+- `edit_farm_task` — Edit farm task details
+- `edit_flock_details` — Edit flock details
+- `edit_flock_performance_record` — Replace reviewed performance-sheet fields
+- `edit_house` — Edit a house
+- `edit_inventory_part` — Edit inventory part
+- `edit_maintenance_schedule` — Replace maintenance schedule
+- `edit_platform_processor` — Edit a platform processor organization
+- `edit_recurring_reminder` — Edit a recurring reminder
+- `edit_service_vendor` — Edit service vendor
+- `edit_voice_note_transcript` — Edit reviewed note text
+- `edit_work_order` — Replace work order facts
+- `edit_worker_profile` — Edit worker profile
+- `email_platform_processor_report` — Email a saved processor report
+- `export_finance_csv` — Export finance records
+- `generate_platform_processor_code` — Generate a platform processor join code
+- `get_active_alerts` — Review active house alerts
+- `get_farm_details` — Review farm facts
+- `get_metric_history` — Review metric history
+- `get_onboarding_context` — Inspect farm setup readiness
+- `get_processor_thresholds` — Review processor tolerances
+- `get_user_context` — Your PoultryLog farms
+- `get_workflow_recipe` — Read a verified farm workflow recipe
+- `import_finance_file` — Import reviewed finance records
+- `index_compliance_attachment` — Approve optional checklist search indexing
+- `inspect_processor_alert` — Explain a processor alert
+- `inspect_processor_finding` — Explain a processor comparison finding
+- `investigate_anomaly` — Investigate unusual house records
+- `invite_processor_team_member` — Invite a processor team member
+- `link_flock_performance_disclosure` — Link a reviewed placement disclosure
+- `list_annual_compliance_sheets` — Review annual compliance sheets
+- `list_annual_compliance_text_sources` — Find original annual evidence text
+- `list_asset_text_sources` — Find original equipment, part and vendor text
+- `list_compliance_attachments` — Find checklist attachments
+- `list_compliance_templates` — Find farm checklists
+- `list_dashboard_alerts` — List native dashboard alerts
+- `list_decision_card_entity_matches` — Read suggested entity matches
+- `list_decision_cards` — Find decision cards
+- `list_equipment` — Find farm equipment
+- `list_equipment_invoices` — Find equipment documents
+- `list_equipment_logs` — Review equipment service history
+- `list_farm_compliance` — Review farm compliance records
+- `list_farm_expenses` — Review recorded expenses
+- `list_farm_tasks` — Review farm tasks
+- `list_farm_workers` — Find farm workers
+- `list_farms` — List your farms
+- `list_feed_deliveries` — Review feed delivery tickets
+- `list_feed_inventory` — Review feed stock
+- `list_flock_income` — Review recorded income
+- `list_flock_performance_documents` — Find supporting performance documents
+- `list_flock_placement_houses` — Find flock placement houses
+- `list_flock_text_sources` — Find original flock details
+- `list_flocks` — List active or recent flocks
+- `list_fuel_logs` — Read manual fuel tank readings
+- `list_health_records` — Review recorded treatments and vaccinations
+- `list_house_alert_rules` — Read saved house alert rules
+- `list_house_medicators` — Find house medicator choices
+- `list_house_worker_assignments` — Read daily house responsibility
+- `list_houses` — List farm houses
+- `list_maintenance_schedules` — Find maintenance schedules
+- `list_maintenance_text_sources` — Find original maintenance text
+- `list_observations` — Review house and farm observations
+- `list_operational_logs` — Find operational log records
+- `list_part_images` — Review saved part photos
+- `list_parts_inventory` — Find parts and current stock
+- `list_placement_disclosures` — Find original placement disclosures
+- `list_platform_processor_audit` — Review platform processor audit events
+- `list_platform_processor_code_sources` — Find every original processor join code
+- `list_platform_processor_codes` — Review platform processor join codes
+- `list_platform_processor_history_sources` — Find complete processor history evidence
+- `list_platform_processor_links` — Review platform processor sharing links
+- `list_platform_processor_snapshots` — Find saved platform processor reports
+- `list_platform_processor_sources` — Find every platform processor organization
+- `list_platform_processor_template_sources` — Find processor checklist sources
+- `list_platform_processors` — Review platform processor organizations
+- `list_processor_compliance` — Find submitted processor checklists
+- `list_processor_connections` — List farm processor connections
+- `list_processor_team` — Review processor team access
+- `list_processors` — Find your processor organizations
+- `list_push_subscriptions` — List your push subscription records
+- `list_recurring_reminders` — Review flock reminders
+- `list_reminder_text_sources` — Find original recurring reminder text
+- `list_reminder_workspaces` — Review workspaces for shared reminders
+- `list_service_vendors` — Find service vendors
+- `list_voice_note_actions` — Read voice-note suggestions
+- `list_voice_notes` — Find voice notes
+- `list_work_orders` — Find maintenance work orders
+- `list_worker_attendance` — Read original worker attendance
+- `list_worker_leave` — Read worker leave and original balances
+- `list_worker_notes` — Read original worker notes
+- `list_worker_text_sources` — Find complete worker text sources
+- `list_workspace_memberships` — List your workspace memberships
+- `lookup_farm_address` — Look up an address candidate
+- `prepare_finance_export` — Prepare complete finance CSV
+- `prepare_processor_changes` — Prepare a processor change
+- `processor_report_link` — Open a combined processor report
+- `publish_flock_performance_file_transfer` — Review and publish a verified performance file
+- `query_farm_records` — Query related farm records together
+- `queue_flock_performance_file_verification` — Request private performance-file verification
+- `read_account_preferences` — Read your account preferences
+- `read_annual_compliance_sheet` — Read original annual sheet rows
+- `read_annual_compliance_text` — Read complete original annual evidence
+- `read_asset_change_text` — Review complete prepared equipment, part, stock, maintenance, fuel, service-log, reminder, annual compliance, flock details/placements or vendor text
+- `read_asset_text` — Read complete original asset text
+- `read_billing_context` — Read your billing context
+- `read_billing_session` — Read your hosted billing session status
+- `read_compliance_attachment_cleanup_status` — Read checklist attachment cleanup status
+- `read_compliance_attachment_index_status` — Read checklist search indexing status
+- `read_compliance_attachment_text` — Read original checklist attachment text
+- `read_compliance_certificate_field` — Read a certificate proposal field
+- `read_compliance_upload_status` — Check your checklist attachment preparation
+- `read_compliance_upload_text` — Read prepared checklist attachment details
+- `read_dashboard_alert` — Read a native dashboard alert
+- `read_decision_card` — Read a decision card
+- `read_decision_card_entity_match_text` — Read original entity-match text
+- `read_decision_card_text` — Read original decision text
+- `read_depreciation_assets` — Read depreciation assets
+- `read_equipment_cleanup_status` — Read equipment cleanup status
+- `read_equipment_record` — Read equipment details
+- `read_equipment_upload_status` — Read document upload status
+- `read_farm_compliance` — Read a farm checklist
+- `read_feed_ticket_image` — Review a saved feed ticket photo
+- `read_feed_ticket_image_cleanup_status` — Check feed ticket photo cleanup
+- `read_feed_ticket_image_upload_status` — Check feed photo publication
+- `read_finance_export_chunk` — Read complete finance CSV part
+- `read_finance_import_text` — Read complete import text
+- `read_financial_entry_text` — Read original financial entry text
+- `read_flock_performance_cleanup_status` — Read your performance file cleanup status
+- `read_flock_performance_file_chunk` — Read a protected performance file in small chunks
+- `read_flock_performance_file_publication` — Check performance-file publication
+- `read_flock_performance_file_text` — Read complete original performance file text
+- `read_flock_performance_file_transfer` — Check your private performance-file transfer
+- `read_flock_performance_file_verification` — Check private performance-file verification
+- `read_flock_performance_link_text` — Read complete original performance disclosure-link text
+- `read_flock_performance_links` — Read performance-sheet disclosure links
+- `read_flock_performance_note_transfer` — Check your private note transfer
+- `read_flock_performance_records` — Read original flock performance sheets
+- `read_flock_performance_source` — Read original performance source-file details
+- `read_flock_performance_text` — Read complete performance notes or prepared text
+- `read_flock_performance_upload_status` — Read your performance file upload status
+- `read_flock_placements` — Read flock placement history
+- `read_flock_text` — Read complete original flock details
+- `read_house_alert_incident` — Read saved house alert incident and display state
+- `read_house_configuration` — Read house configuration and history
+- `read_house_record` — Read house setup
+- `read_maintenance_schedule` — Read maintenance schedule
+- `read_maintenance_text` — Read complete original maintenance text
+- `read_part_cleanup_status` — Read part cleanup status
+- `read_part_image_cleanup_status` — Check part photo cleanup
+- `read_part_image_upload_status` — Check part photo publication
+- `read_part_stock` — Read original part stock and movements
+- `read_placement_disclosure_text` — Read complete original placement evidence
+- `read_platform_processor_code_text` — Read complete original processor join-code evidence
+- `read_platform_processor_history_text` — Read complete original processor history text
+- `read_platform_processor_text` — Read complete original processor organization text
+- `read_processor_checklists` — Read selected compliance evidence
+- `read_processor_connection` — Read a farm’s processor connection
+- `read_processor_invitation_status` — Check your processor invitation delivery
+- `read_processor_proposal_text` — Read complete proposed processor text
+- `read_processor_report_email_status` — Check processor report email delivery
+- `read_push_notification_setup` — Read your browser notification setup
+- `read_push_test_notification` — Check your test notification delivery
+- `read_reminder_text` — Read complete original recurring reminder text
+- `read_reminder_workspace_text` — Read complete reminder workspace name
+- `read_service_vendor` — Read service vendor details
+- `read_voice_audio_publication_status` — Check recording save status
+- `read_voice_note` — Read a voice note
+- `read_voice_note_text` — Read original voice-note text
+- `read_voice_transcription_status` — Check an approved transcription request
+- `read_voice_transcription_text` — Read a retained paid transcript
+- `read_work_order` — Read work order facts
+- `read_worker_access` — Read worker login and page access
+- `read_worker_attendance_text` — Read complete attendance note
+- `read_worker_change_text` — Review complete prepared worker text
+- `read_worker_compensation` — Read original worker hourly rate
+- `read_worker_invitation_status` — Read invitation delivery status
+- `read_worker_leave_text` — Read complete leave reason
+- `read_worker_note_text` — Read complete original worker note
+- `read_worker_profile` — Read original worker profile
+- `read_worker_profile_text` — Read complete worker profile text
+- `read_workspace_membership_text` — Read complete workspace membership name
+- `record_fuel_log` — Record fuel tank level
+- `record_part_stock_movement` — Record part stock movement
+- `record_worker_attendance` — Record manual worker attendance
+- `register_push_subscription` — Save a browser notification subscription
+- `reject_decision_card` — Reject a decision card
+- `reject_worker_leave` — Reject pending worker leave
+- `remove_flock_performance_source` — Remove a reviewed performance-sheet source
+- `replace_worker_permissions` — Replace worker page permissions
+- `report_agent_feedback` — Report a missing agent capability
+- `request_worker_leave` — Request worker leave
+- `reset_house_alert_rules` — Reset house alert rules
+- `reset_house_configuration` — Reset house configuration
+- `review_compliance_certificate_fields` — Review extracted certificate fields
+- `review_finance_import` — Review a finance import
+- `review_flock_finances` — Review recorded flock finances
+- `review_flock_financial_evidence` — Review direct financial evidence
+- `review_processor` — Review processor growers and alerts
+- `revoke_all_push_subscriptions` — Turn off all saved device notifications
+- `revoke_platform_processor_code` — Revoke a platform processor join code
+- `revoke_processor_team_member` — Revoke processor team access
+- `revoke_push_subscriptions` — Remove selected push subscription records
+- `save_house_configuration` — Save house configuration
+- `save_house_worker_assignment` — Save daily house responsibility
+- `save_voice_transcription_result` — Review and save a retained paid transcript
+- `select_workspace_membership` — Select a workspace for this connector
+- `send_push_test_notification` — Send your test notification
+- `send_worker_login_invitation` — Queue worker login invitation
+- `set_farm_task_status` — Update a farm task status
+- `set_flock_recurring_reminders` — Set flock reminder selection
+- `set_house_alert_rule` — Change a saved house alert rule
+- `set_language_preference` — Change account interface language
+- `set_lifecycle_email_preference` — Change optional farm-email consent
+- `set_navigation_visibility` — Change navigation visibility
+- `set_processor_tolerance` — Change one processor tolerance
+- `set_support_admin_mode` — Set official support access mode
+- `set_voice_note_category` — Set a voice-note category
+- `set_worker_hourly_rate` — Set worker hourly rate
+- `set_worker_workspace_role` — Change worker workspace role
+- `setup_platform_processor_pilot` — Set up the Churchfield processor pilot
+- `snooze_dashboard_alert` — Snooze dashboard alerts
+- `snooze_dashboard_alerts` — Snooze dashboard alerts
+- `snooze_house_alert` — Snooze a house alert incident
+- `stage_asset_changes` — Prepare complete equipment, part, stock, maintenance, fuel, service-log, reminder, annual compliance, flock details/placements or vendor changes privately
+- `stage_compliance_attachment` — Prepare a checklist attachment privately
+- `stage_equipment_invoice` — Stage an equipment document
+- `stage_feed_ticket_image` — Prepare a feed ticket photo privately
+- `stage_finance_import` — Stage a finance import file
+- `stage_flock_performance_file` — Stage a performance file privately
+- `stage_flock_performance_note` — Prepare a performance note privately
+- `stage_part_image` — Prepare a part photo privately
+- `stage_voice_audio` — Prepare an original recording privately
+- `stage_worker_changes` — Prepare complete worker changes privately
+- `submit_checklist` — Submit a completed checklist
+- `submit_voice_note_for_extraction` — Optionally process a reviewed note
+- `suggest_flock_placement_disclosures` — Review native placement-disclosure suggestions
+- `transcribe_voice_note_audio` — Approve paid transcription of an original recording
+- `transfer_flock_birds` — Transfer flock birds
+- `unapprove_worker_leave` — Remove worker leave approval
+- `unlink_flock_performance_disclosure` — Remove a reviewed disclosure link
+- `unlink_platform_processor_farm` — End platform processor sharing for a farm
+- `unlink_processor_connection` — Revoke a farm processor connection
+- `update_checklist_draft` — Edit a checklist draft
+- `upload_compliance_attachment` — Publish a reviewed checklist attachment
+- `upload_equipment_invoice` — Upload staged equipment document
+- `upload_feed_ticket_image` — Publish a prepared feed ticket photo
+- `upload_flock_performance_document` — Attach a reviewed performance document
+- `upload_flock_performance_source` — Publish a reviewed performance-sheet source
+- `upload_part_image` — Publish a prepared part photo
+- `verify_financial_entry_currency` — Verify recorded currency

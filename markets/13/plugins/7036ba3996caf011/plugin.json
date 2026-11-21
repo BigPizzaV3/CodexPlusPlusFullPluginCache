@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "highlevel-v2",
+  "version": "1.1.0",
+  "description": "Work with live HighLevel business data and perform authorized actions across contacts, conversations, opportunities, appointments, workflows, and other available HighLevel features.",
+  "author": {
+    "name": "HighLevel",
+    "email": "support@gohighlevel.com",
+    "url": "https://www.gohighlevel.com/"
+  },
+  "homepage": "https://www.gohighlevel.com/",
+  "keywords": [
+    "crm",
+    "contacts",
+    "conversations",
+    "appointments",
+    "workflows"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "HighLevel",
+        "shortDescription": "Manage CRM data and workflows",
+        "longDescription": "Work with live HighLevel business data from ChatGPT and Codex. Find and summarize contacts, opportunities, conversations, tasks, and appointments. Create and update records, send messages, enroll contacts in workflows, manage content, and use other available HighLevel operations, including supported commerce and account-management actions.\n\nConnect through OAuth using your HighLevel agency account and work in the sub-accounts authorized for the connection. Access to multiple sub-accounts is available when enabled for your installation. Available actions depend on your granted permissions, account entitlements, and the active HighLevel operation catalog.\n\nIdentify the intended records and sub-account before making changes. Preview a change when requested and confirm consequential actions before execution. Results reflect the service response; missing permissions or unavailable operations are reported.",
+        "developerName": "HighLevel",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read CRM data",
+          "Create, update, and delete records",
+          "Send messages",
+          "Manage appointments",
+          "Manage workflows and other authorized HighLevel operations"
+        ],
+        "websiteURL": "https://www.gohighlevel.com/",
+        "supportURL": "https://help.gohighlevel.com/support/home",
+        "privacyPolicyURL": "https://www.gohighlevel.com/privacy-policy",
+        "termsOfServiceURL": "https://www.gohighlevel.com/terms-of-service",
+        "defaultPrompt": [
+          "Find the five most recently added contacts in my HighLevel sub-account.",
+          "Show my open opportunities and appointments for this week in HighLevel.",
+          "Preview creating a contact in HighLevel and ask me for the contact details."
+        ],
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.loom.com/share/3ede9d77f11e433a8250ae89dda88532",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Select an authorized review sub-account and paginate its contacts. Prepare at least 21 sample contacts.",
+              "prompt": "Which HighLevel sub-accounts can I access? Let me choose the review sub-account, then show its first 20 contacts and tell me whether there are more. When I ask for the next page, continue from the returned pagination information.",
+              "tools_triggered": "list_locations; search_operations; describe_operation when needed; execute_operation for each page",
+              "expected_behavior": "Return only authorized locations and read contacts in the selected location. Use returned pagination parameters for the next page. Discovery results are operation metadata, not contact records. Show only returned data and do not call one page the complete contact list."
+            },
+            {
+              "description": "Read open opportunities and appointments. Prepare an open opportunity and appointments in MCP Review Calendar during the review week, with a known sub-account timezone.",
+              "prompt": "In my selected HighLevel review sub-account, show open opportunities and this week's appointments in MCP Review Calendar. Use the sub-account timezone.",
+              "tools_triggered": "list_locations if needed; search_operations; describe_operation; execute_operation",
+              "expected_behavior": "Resolve the calendar, filters, date range, and timezone from the operation contracts and account data, asking for missing context when necessary. Return actual opportunity and appointment data. Do not invent identifiers, times, values, or statuses, and do not change records."
+            },
+            {
+              "description": "Preview and then create a contact after explicit confirmation. Ensure facade.write-review@example.com is absent before the case.",
+              "prompt": "Preview creating a contact named Facade Write Review with email facade.write-review@example.com in my selected HighLevel review sub-account. Show the preview and wait. Save it only after I confirm.",
+              "tools_triggered": "search_operations; describe_operation; execute_operation with dryRun true; execute_operation without dryRun only after confirmation",
+              "expected_behavior": "Check for an existing matching contact, inspect the create contract, and show the preview without creating the contact. Explain that the preview does not verify upstream authorization. After confirmation, execute with required inputs and idempotencyKey and report the returned result. Verify the record by a read. Do not blindly repeat an uncertain write."
+            },
+            {
+              "description": "Send an external message with recipient and content confirmation. Prepare one uniquely named MCP Review Recipient contact whose email address is controlled by the review team and an authorized sending configuration.",
+              "prompt": "In my selected HighLevel review sub-account, prepare an email to MCP Review Recipient with subject HighLevel plugin review and body This is a controlled plugin review test. Show me the exact recipient and content, and send only after I confirm.",
+              "tools_triggered": "search_operations; describe_operation; execute_operation for recipient lookup and, after confirmation, sending",
+              "expected_behavior": "Resolve the unique test recipient and show the destination, subject, and body. Wait for confirmation before sending. Use the discovered sending operation and required inputs. Report the upstream message status or identifier; do not claim delivery without delivery evidence or retry an uncertain send automatically."
+            },
+            {
+              "description": "Delete one disposable contact after explicit confirmation. Prepare facade.delete-review@example.com and retain unrelated sample contacts for comparison.",
+              "prompt": "Delete only the test contact with email facade.delete-review@example.com in my selected HighLevel review sub-account. Show me which record you found and ask for confirmation first.",
+              "tools_triggered": "search_operations; describe_operation; execute_operation for lookup and, after confirmation, deletion",
+              "expected_behavior": "Resolve exactly one matching contact and confirm its location and identity before deletion. Execute only the confirmed deletion with required inputs and idempotencyKey. Verify its absence and preserve unrelated contacts. Ambiguity or missing authorization stops the mutation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General CRM advice does not require account access.",
+              "prompt": "What is the difference between a contact and an opportunity in a CRM? Do not access my HighLevel account.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain the concepts using general knowledge without calling HighLevel tools."
+            },
+            {
+              "description": "Ambiguous records must not be modified. Prepare two John Doe contacts with different email addresses in the review sub-account.",
+              "prompt": "Change John Doe's last name to Reviewed in my selected HighLevel review sub-account.",
+              "tools_triggered": "search_operations; describe_operation when needed; execute_operation for read-only lookup only",
+              "expected_behavior": "Find the matching contacts and ask the user which record is intended. Do not update either contact before the ambiguity is resolved and the action is authorized."
+            },
+            {
+              "description": "Drafting from supplied text must not trigger account access or message sending.",
+              "prompt": "Draft a follow-up email to a prospective customer saying we can meet next Tuesday. Use only this information; do not look up contacts or send anything.",
+              "tools_triggered": "None",
+              "expected_behavior": "Return draft text using the supplied information. Do not invoke HighLevel tools, resolve recipients, or send a message."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Depending on granted permissions, the HighLevel catalog includes product, invoice, payment-record, subscription, payment-provider, and wallet-charge operations. These capabilities remain available through the shared executor and are part of the requested review scope."
+      },
+      "publication": {
+        "release_notes": "Version 1.1.0 updates the plugin package format, adds the HighLevel OAuth connection and a workflow skill, and refreshes the listing and review cases. The four-tool facade and its full authorized operation catalog are preserved."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

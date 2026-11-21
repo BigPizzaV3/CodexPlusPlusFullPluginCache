@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "quotedpart",
+  "version": "0.1.4",
+  "description": "Price machined parts from a STEP/IGES model or PDF drawing in your QuotedPart shop, at its own rates: cost breakdown, price breaks by quantity, and the estimate saved as a quote in your account. Needs a QuotedPart account.",
+  "author": {
+    "name": "Helios One Oy",
+    "email": "support@quotedpart.com",
+    "url": "https://quotedpart.com"
+  },
+  "homepage": "https://quotedpart.com",
+  "repository": "https://github.com/Helios-One-Oy/quotedpart-plugins",
+  "license": "MIT",
+  "keywords": [
+    "cnc",
+    "machining",
+    "quote",
+    "manufacturing",
+    "pricing",
+    "step",
+    "cad"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "QuotedPart",
+        "shortDescription": "Price machined parts from CAD",
+        "longDescription": "QuotedPart prices machined parts the way a job shop does. Give it a STEP or IGES model, a PDF drawing, or both, and it measures the part, picks a process (CNC milling, CNC turning, sheet laser or additive), builds the routing and returns a price breakdown: material, each machine operation with setup and run time, programming, finishing, extra charges and markup, at several quantities, with lead time. You can change the material, quantity or process and re-price without uploading again. Every estimate is saved as a quote in your QuotedPart account, priced with your shop's own machines, rates, materials and markup, and comes with a link that opens it there.\n\nWho it is for: job shops that quote with QuotedPart. It needs an existing QuotedPart account: the first time, you sign in to QuotedPart and allow the assistant. You can unlink it any time under Integrations in QuotedPart.\n\nLimits: prices are estimates from your shop's rates, not a quote sent to anyone. Parts must be single solid bodies or clear drawings; assemblies, weldments and drawings that leave sizes open come back as needing input. Files you price are saved with the quote in your shop, as described in QuotedPart's privacy policy.",
+        "developerName": "Helios One Oy",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Price a part from a STEP/IGES model or PDF drawing",
+          "Compare materials and quantities",
+          "List your shop's materials and rates",
+          "Save each estimate as a quote in your QuotedPart account"
+        ],
+        "websiteURL": "https://quotedpart.com",
+        "supportURL": "https://quotedpart.com/about",
+        "privacyPolicyURL": "https://quotedpart.com/privacy",
+        "termsOfServiceURL": "https://quotedpart.com/terms",
+        "defaultPrompt": [
+          "What would this STEP file cost to machine in 6061 aluminum, 25 pieces?",
+          "What would this part cost in 304 stainless at 10 and 100 pieces?",
+          "What's the unit price of this part at 1, 10 and 100 pieces in aluminum?"
+        ],
+        "brandColor": "#2256F2",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://github.com/Helios-One-Oy/quotedpart-plugins/blob/main/media/demo-claude-code.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Price a STEP model from a URL",
+              "prompt": "How much would this part cost to machine in 6061 aluminum, 25 pieces? https://quotedpart.com/samples/HX-1042%20mounting%20bracket.step",
+              "tools_triggered": "estimate_price",
+              "expected_behavior": "Returns unit price and line total in the shop's currency at 25 pcs with the cost lines (material, mill setups, programming), other quantity breaks, lead time and the quote link in the signed-in QuotedPart account; says it is an estimate from the shop's rates."
+            },
+            {
+              "description": "Model plus drawing",
+              "prompt": "Quote this bracket using its drawing for material and finish: model https://quotedpart.com/samples/HX-1042%20mounting%20bracket.step drawing https://quotedpart.com/samples/HX-1042%20mounting%20bracket.pdf",
+              "tools_triggered": "estimate_price, get_quote",
+              "expected_behavior": "Prices the part with the material and finish read from the drawing (Al 6061, anodize), reports the drawing facts used and the quote link. If the drawing read is still running it calls get_quote and then reports."
+            },
+            {
+              "description": "Change material without re-upload",
+              "prompt": "Price https://quotedpart.com/samples/HX-2210%20drive%20shaft.step in 6061, then tell me what it costs in 304 stainless instead.",
+              "tools_triggered": "estimate_price, update_estimate",
+              "expected_behavior": "First estimate in 6061, then update_estimate on the same quote (by its number, such as Q-1001, or its quote_id) with 304 stainless; shows both unit prices side by side."
+            },
+            {
+              "description": "List materials for a process",
+              "prompt": "Which materials can QuotedPart price for CNC turning?",
+              "tools_triggered": "list_materials",
+              "expected_behavior": "Lists material names (and ids) valid for cnc_turn in the signed-in account's shop, without inventing any."
+            },
+            {
+              "description": "Quantity comparison",
+              "prompt": "What's the unit price of https://quotedpart.com/samples/HX-3307%20cover%20plate.step at 1, 10 and 100 pieces in aluminum?",
+              "tools_triggered": "estimate_price",
+              "expected_behavior": "One estimate with quantities 1, 10 and 100; table of unit prices showing setup cost spread over the lot; quote link."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No part given. QuotedPart prices only from a part's STEP/IGES/DXF model or PDF drawing, so it cannot price a part it has not seen.",
+              "prompt": "How much does a CNC bracket cost?",
+              "expected_behavior": "Does not call estimate_price and does not invent a price. Asks for a STEP/IGES/DXF model or PDF drawing (a file or a public link), plus the material and quantity if they are not given."
+            },
+            {
+              "description": "Not a part file. A spreadsheet is not a STEP, IGES, DXF or PDF file, so there is nothing to measure or price.",
+              "prompt": "Price this spreadsheet for me: https://example.com/budget.xlsx",
+              "expected_behavior": "No price is shown. Either it does not call estimate_price, or the server refuses the .xlsx file and the assistant passes that one-line error on. It asks for a STEP/IGES/DXF model or PDF drawing of the part instead."
+            },
+            {
+              "description": "Ordering and payment. QuotedPart returns price estimates only; it has no tool to choose a shop, place an order or take payment.",
+              "prompt": "Order 50 of these brackets from a shop and pay with my card.",
+              "expected_behavior": "Calls no tool to order or pay and asks for no card details. Says that QuotedPart only estimates prices and cannot place orders or take payment, and offers to estimate the part if a file is given."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "QuotedPart returns price estimates only. It does not sell parts, place orders or process payments."
+      },
+      "publication": {
+        "release_notes": "First release: sign in to your QuotedPart account, price a part from a STEP/IGES model or PDF drawing with your shop's rates, compare materials and quantities, and open the quote in your account."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

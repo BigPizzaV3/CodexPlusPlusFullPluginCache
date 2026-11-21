@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "monthwe",
+  "version": "0.1.6",
+  "description": "Connect Monthwe to review a monthly budget, find recorded transactions, preview and confirm statement imports, and compare budget scenarios without saving changes.",
+  "author": {
+    "name": "Kunho Lim",
+    "email": "kunho.lim@limitedfactory.info"
+  },
+  "homepage": "https://our-month-public.our-month.workers.dev",
+  "keywords": [
+    "budget",
+    "finance",
+    "monthwe",
+    "\uc6b0\ub9ac\ud55c\ub2ec"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Monthwe",
+        "shortDescription": "Budget, search and import",
+        "longDescription": "Use your connected Monthwe household in ChatGPT to review monthly budgets, recorded income and expenses, and separately recorded actual savings. Search transactions by month, description, category, account or signed amount. Preview extracted statement rows and duplicate warnings, then import only after you explicitly approve the preview. Compare a one-off expense or changed budget items without saving the scenario. Requires a Monthwe account, completed household setup, access to the corresponding Monthwe features and OAuth authorization for that household. The MCP connection does not access email accounts or raw statement files, connect to banks, retrieve bank balances, make payments, or automatically edit budgets.",
+        "category": "Finance",
+        "logo": "./assets/app-icon.png",
+        "composerIcon": "./assets/app-icon.png",
+        "supportURL": "https://our-month-public.our-month.workers.dev/support",
+        "defaultPrompt": [
+          "Show my budget and recorded spending for this month.",
+          "Find my grocery transactions for this month.",
+          "Simulate an extra expense without saving it."
+        ],
+        "developerName": "Kunho Lim",
+        "websiteURL": "https://our-month-public.our-month.workers.dev/mcp/about",
+        "privacyPolicyURL": "https://our-month-public.our-month.workers.dev/privacy",
+        "termsOfServiceURL": "https://our-month-public.our-month.workers.dev/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Requires the dedicated reviewer account and empty AUD review household supplied through the secure reviewer-access fields. Normal Google sign-in and Pioneer free Pro access were verified. Select the review household and approve OAuth before running the cases. This case is read-only and does not assume fixed balances.",
+              "prompt": "Show my Monthwe plan, recorded spending, savings goal and separately recorded actual savings for October 2098. Keep those amounts separate.",
+              "tools_triggered": "get_month_summary",
+              "expected_behavior": "Call get_month_summary with month=2098-10. Report the returned household currency, planned income/expenses/surplus, recorded income/expenses/surplus, savingsGoalCents and actualSavedCents from that response. Convert integer hundredths using its currency; preserve a null actualSavedCents as not recorded, distinct from zero. Explain carriedFrom/planIsSaved if the month is inherited or unsaved. bankBalanceCents must be null and must not be described as a bank balance. Do not call either import tool or invent sample balances."
+            },
+            {
+              "description": "Preview only. Continue with the selected household and its actual currency from the monthly summary. Choose a fresh account alias Review Import followed by a unique run suffix, at most 80 characters total, and use it consistently for this case and the following confirmation/search cases. Use the prompt itself as the complete synthetic statement fixture; no attachment or publisher account is needed. Whole-unit amounts also work for KRW/JPY.",
+              "prompt": "Use a fresh sample account alias for this review run and preview these extracted October 2098 statement rows in my household currency. Do not import yet: 2098-10-15, Review groceries, expense 12 whole currency units, groceries, reference review-import-001; 2098-10-16, Review coffee, expense 4 whole currency units, eating, reference review-import-002; 2098-10-15, Review groceries, expense 12 whole currency units, groceries, reference review-import-001.",
+              "tools_triggered": "get_month_summary, preview_statement_import",
+              "expected_behavior": "Use get_month_summary(month=2098-10) for the household currency and importCategories if not already known. Call preview_statement_import with that currency, the fresh run account alias, and three rows with amountCents -1200, -400, -1200 and their supplied externalId references. All dates remain in 2098-10; the first and third rows are identical. Show all rows, currency, account, expiry and duplicate flags. For a genuinely fresh alias return expectedInserted=2, duplicates=1 and requiresExplicitConfirmation=true. Do not call confirm_statement_import or claim transactions were saved. The preview persists a temporary draft, so do not describe the operation itself as entirely read-only."
+            },
+            {
+              "description": "Explicit approval in the same conversation and OAuth connection immediately after the preceding preview. First display that preview to the user, then send this approval within its 15-minute lifetime. Preserve the returned draftId and the chosen run account alias. Only synthetic transactions in this displayed preview may be saved.",
+              "prompt": "I approve exactly that displayed October 2098 sample preview in my household currency and its sample account alias. Save the two unique transactions and skip the duplicate.",
+              "tools_triggered": "confirm_statement_import, search_transactions",
+              "expected_behavior": "Only after this explicit approval, call confirm_statement_import with the exact displayed draftId and confirmed=true. Report inserted=2 and duplicates=1 from the receipt, then search month=2098-10 and the exact run account alias to verify the two saved sample rows. Repeating the same approved draft returns replayed=true without additional imports. If it expired or relevant revisions/permissions changed, explain the returned error and require a fresh displayed preview and fresh approval; do not silently save a replacement draft."
+            },
+            {
+              "description": "Filtered search and pagination after the two preceding preview/confirmation cases. Continue with the exact fresh sample account alias used there. The two required matching sample transactions now exist; no personal transaction fixture or fixed publisher account is required.",
+              "prompt": "Find the Review sample expenses we just imported in October 2098 in that same sample account, between 1 and 50 whole currency units each. Show one per page, then show the next page.",
+              "tools_triggered": "search_transactions",
+              "expected_behavior": "Call search_transactions with month=2098-10, query=Review, kind=expense, the exact sample account alias, minAmountCents=-5000, maxAmountCents=-100 and limit=1. Reuse the returned nextCursor with identical filters for the next page. Return Review coffee (-400 cents, 2098-10-16), then Review groceries (-1200 cents, 2098-10-15), exactly once each. Exclude records in other accounts/months and never invent a cursor or claim records exist after a failed preceding import."
+            },
+            {
+              "description": "Read-only scenario using the current selected household currency, monthly plan and original savings goal. Refresh the summary revision immediately before simulation. No predefined income/expense totals are assumed; the imported sample transactions do not change the budget plan.",
+              "prompt": "For October 2098, compare my current plan with an extra expense of 1200 whole units of my household currency. Show the impact on the plan surplus and the original savings goal without saving changes.",
+              "tools_triggered": "get_month_summary, simulate_budget",
+              "expected_behavior": "Call get_month_summary(month=2098-10), then simulate_budget with the returned currency and revision, oneOffExpenseCents=120000, and no expense/income item replacements. scenario.surplus must equal baseline.surplus minus 120000, surplusChangeCents=-120000, goalGapCents=max(0,savingsGoalCents-scenario.surplus), meetsGoal must match the comparison, and saved=false. Explain amounts using the actual response, not invented fixed balances or exchange rates. Re-reading summary must show the original plan, actual savings and revision; no bank balance or daily cash-flow forecast is provided."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Bank connection and live bank balance are unsupported. Explain that Monthwe only exposes the connected household records and cannot log in to a bank or retrieve a live balance. Do not invoke any Monthwe tool as a substitute for a bank balance, request bank credentials, or claim a connection succeeded.",
+              "prompt": "Log into my bank and tell me my available balance right now."
+            },
+            {
+              "description": "Payments and transfers are unsupported. Explain that Monthwe cannot move money or pay a bill. Do not call the import tools, simulation or transaction search to pretend to execute a payment, and do not claim money moved.",
+              "prompt": "Pay my AUD 150 electricity bill from my bank account now."
+            },
+            {
+              "description": "Email access and recurring autonomous ingestion are unsupported. Explain that this MCP cannot open email, schedule monitoring or import transactions without a displayed preview and explicit approval. Do not invoke Monthwe tools, request email credentials, or claim a schedule was created.",
+              "prompt": "Read my inbox every morning and automatically add every bank statement to Monthwe without asking me again."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Monthwe is currently available free through its website during the POC period. This MCP plugin does not sell products or process payments, and new subscription purchases are currently disabled. Existing Apple subscriptions, if any, are managed separately through Apple.",
+        "demo_recording_url": "https://our-month-public.our-month.workers.dev/review/monthwe-demo-20261022.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial public Monthwe MCP release: household-scoped OAuth, monthly summaries, transaction search, statement preview and explicitly approved imports, and unsaved budget simulations. Includes browser consent origin handling and native callback compatibility.",
+        "translations": {
+          "ko-KR": {
+            "subtitle": "\uc6d4 \uc608\uc0b0\u00b7\uac70\ub798 \uc870\ud68c\uc640 \uba85\uc138\uc11c \uac00\uc838\uc624\uae30",
+            "description": "\uc5f0\uacb0\ud55c \uc6b0\ub9ac\ud55c\ub2ec \uac00\uacc4\ubd80\uc758 \uc6d4 \uc608\uc0b0\u00b7\uac70\ub798\u00b7\uc9c1\uc811 \uae30\ub85d\ud55c \uc2e4\uc81c \uc800\ucd95\uc744 \uad6c\ubd84\ud574 \uc870\ud68c\ud569\ub2c8\ub2e4. \uac70\ub798\ub97c \uac80\uc0c9\ud558\uace0, \ucd94\ucd9c\ub41c \uba85\uc138\uc11c \uac70\ub798\ub97c \uc911\ubcf5\uacfc \ud568\uaed8 \ubbf8\ub9ac\ubcf8 \ub4a4 \uba85\uc2dc\uc801\uc73c\ub85c \uc2b9\uc778\ud558\uc5ec \uac00\uc838\uc635\ub2c8\ub2e4. \uc608\uc0b0 \uc2dc\ubbac\ub808\uc774\uc158\uc740 \uc800\uc7a5\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. \uacc4\uc815\u00b7\uac00\uacc4\ubd80 \ucd08\uae30 \uc124\uc815\u00b7\ud574\ub2f9 \uae30\ub2a5 \uc774\uc6a9 \uad8c\ud55c\u00b7OAuth \uc5f0\uacb0\uc774 \ud544\uc694\ud569\ub2c8\ub2e4. \uc774\uba54\uc77c \uacc4\uc815\uc774\ub098 \uba85\uc138\uc11c \uc6d0\ubcf8\uc744 \uc77d\uc9c0 \uc54a\uc73c\uba70 \uc740\ud589 \uc5f0\uacb0\u00b7\uc794\uc561 \uc870\ud68c\u00b7\uacb0\uc81c\u00b7\uc790\ub3d9 \uc608\uc0b0 \uc218\uc815\uc740 \uc81c\uacf5\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4."
+          }
+        },
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

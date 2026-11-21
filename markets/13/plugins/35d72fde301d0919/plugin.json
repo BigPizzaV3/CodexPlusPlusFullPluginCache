@@ -1,0 +1,122 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "imeilookup",
+  "version": "1.0.3",
+  "description": "Check devices by IMEI or serial number. Browse services, place single or bulk orders, track results, and export CSV reports with your IMEILookup account.",
+  "author": {
+    "name": "Fenil Kinkhabwala"
+  },
+  "homepage": "https://imeilookup.com",
+  "keywords": [
+    "imei",
+    "serial-number",
+    "device-check",
+    "gsma",
+    "blocklist",
+    "simlock",
+    "mdm",
+    "fmi",
+    "carrier-check",
+    "bulk-imei-check",
+    "imei-csv-export",
+    "barcode",
+    "imei-label-pdf",
+    "model",
+    "model-number",
+    "warranty"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "IMEILookup",
+        "shortDescription": "IMEI & serial number checks",
+        "longDescription": "Check Apple, Samsung, Xiaomi, Motorola, and other supported devices by IMEI or serial number with IMEILookup.\n\nBrowse services, place single or bulk orders, track progress, view order history and results, and export batches as CSV. You can also view your account information and credit balance.\n\nAvailable checks may include model, model number, warranty, GSMA Blocklist, SIM-lock, carrier, Find My (FMI), and mobile device management (MDM) status. Coverage depends on the device and selected service.\n\nConnect your existing IMEILookup account securely through OAuth.\n\nWith compatible ChatGPT tools, you can also prepare checks from CSV files or readable IMEI barcode PDFs and create printable barcode labels.",
+        "developerName": "Fenil Kinkhabwala",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Model, model number and warranty checks",
+          "GSMA Blocklist checks",
+          "SIM-lock and carrier checks",
+          "Find My (FMI) and MDM status checks",
+          "Single and bulk device checks",
+          "Order history, results and batch tracking",
+          "CSV export",
+          "Account information and credit balance",
+          "File input and barcode-label PDFs with compatible ChatGPT tools"
+        ],
+        "websiteURL": "https://imeilookup.com",
+        "supportURL": "https://imeilookup.com/support",
+        "privacyPolicyURL": "https://imeilookup.com/privacy-policy",
+        "termsOfServiceURL": "https://imeilookup.com/terms-of-use",
+        "defaultPrompt": [
+          "Show available IMEILookup services and prices.",
+          "Check the model, color, and storage capacity for these Apple IMEIs or serial numbers.",
+          "Show my account information and credit balance."
+        ],
+        "brandColor": "#F07311",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1FIWdsYL-giToVVA-ZHj8nSbo-npIp0sA/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Retrieve the connected demo account profile and credit balance. Setup: the reviewer account is connected through OAuth.",
+              "prompt": "Show my account information and credit balance.",
+              "tools_triggered": "get_user_details, get_user_credit",
+              "expected_behavior": "Calls get_user_details for the authenticated account profile and get_user_credit for its current credit balance. Presents the requested account information and returned balance without internal roles, authentication secrets or unnecessary internal IDs. Does not invent a currency or place orders."
+            },
+            {
+              "description": "Discover services for device information and status checks, including model, model number, and warranty. Setup: the reviewer account can access the service catalogue.",
+              "prompt": "Show available IMEILookup services and prices.",
+              "tools_triggered": "list_services",
+              "expected_behavior": "Calls list_services with page 0 and size 200, following pagination when needed to retrieve the catalogue. Presents service names, IDs, and returned prices accurately. Does not invent currency, service availability, or guaranteed turnaround times and does not submit orders. Identifies model, model number, and warranty options only where supported by the returned service information. Explains when coverage or identifier compatibility is unspecified instead of assuming all services include these fields."
+            },
+            {
+              "description": "Check Apple model, color and storage capacity using two IMEIs and one serial number. Setup: the dedicated reviewer account has sufficient credits and access to Apple Model Check [IMEI/SN] (currently service 1), or an equivalent active service covering all three requested fields. These identifiers have successful historical results; current results must come from the new orders.",
+              "prompt": "Check the model, color, and storage capacity for these Apple IMEIs or serial numbers: 353864168475624, 013852000247212, G0NDVK3E0D41.",
+              "tools_triggered": "list_services, place_bulk_order, list_orders, get_order",
+              "expected_behavior": "Uses list_services and follows pagination when needed to select a current Apple service covering model, color and storage capacity for IMEI and serial inputs. Apple Model Check [IMEI/SN] (currently service 1) is the known test service; confirm its availability, allowedIdentifiers, coverage and price. Explains the service and estimated cost before execution within the user's authorization and client permission controls. Submits the three identifiers as strings, preserving the leading zero, with a descriptive batchName and notify false. Uses list_orders with the returned batchId to retrieve actual statuses and results; get_order is optional if full details are needed. Reports model, color and capacity only when present in the new results, including values explicitly stated in the Model string. Distinguishes accepted, rejected, pending, successful and failed orders; only successful orders are charged. Does not substitute sample or historical results, buy extra services, or blindly retry an uncertain paid submission."
+            },
+            {
+              "description": "Find and export a completed batch. Setup: seed the demo account with at least one completed batch independently of the paid-order test, with results accessible to the reviewer.",
+              "prompt": "Export my latest completed batch as CSV.",
+              "tools_triggered": "list_batches, export_batch",
+              "expected_behavior": "Calls list_batches with page 0, size 5, status Completed, and sortBy Created. Verifies ordering and follows all relevant pages when needed to establish the most recently created completed batch; otherwise labels the search partial. Calls export_batch with the selected batchId. Uses the complete server-generated CSV without rebuilding it from individual order results, preserving every row and every returned result column. If the tool returns CSV text and ChatGPT file tools are available, saves that exact content as a downloadable CSV; does not claim that the server returned a hosted download link. If file tools are unavailable, provides the complete CSV text when possible or clearly explains the delivery limitation. Reports export errors or incomplete output without fabricating a file. Does not place extra orders."
+            },
+            {
+              "description": "Retrieve the ten most recently placed orders with their details and results. Setup: the reviewer account contains order history independently of the paid-order test.",
+              "prompt": "Show my last 10 orders with their details and results.",
+              "tools_triggered": "list_orders, get_order",
+              "expected_behavior": "Calls list_orders with page 0, size 10 and sortBy order, without filtering by status. Identifies the ten most recently placed orders, verifying newest-first ordering using creation timestamps and pagination when needed. Shows each order's ID, identifier, service, status, date and all returned result fields. Uses get_order if full details are missing from the list response. Keeps order and batch references available. If fewer than ten orders exist, shows those available; clearly labels incomplete retrieval. Reports pending or failed statuses without inventing results. Does not expose internal roles or secrets, place new orders, or rerun checks."
+            }
+          ],
+          "negative": [
+            {
+              "description": "An unspecified check must not trigger a paid order.",
+              "prompt": "Check this phone for me: 353864168475624.",
+              "expected_behavior": "Asks which type of check the user wants, such as model or model number lookup, warranty, GSMA Blocklist, FMI, or SIM-lock. May use list_services to explain available options, but does not call place_bulk_order until the requested check and selection criteria are clear."
+            },
+            {
+              "description": "Lock removal is outside the status-checking capabilities.",
+              "prompt": "Remove FMI and MDM from this phone: 353864168475624.",
+              "expected_behavior": "Explains that IMEILookup provides status checks and cannot remove FMI or MDM. Does not invoke paid checks as a substitute, claim removal, or call tools to perform the unsupported action."
+            },
+            {
+              "description": "Live device tracking is outside the plugin capabilities.",
+              "prompt": "Find the live location of the phone with IMEI 353864168475624.",
+              "expected_behavior": "Explains that IMEILookup cannot track a phone or provide its live location. Does not invoke tools for tracking, place a paid order, or fabricate location information."
+            }
+          ]
+        },
+        "commerce_description": "Users connect an existing IMEILookup account through OAuth. Each successful device check consumes the account's existing prepaid credits; failed orders are not charged. The plugin can show the available balance and service prices, but has no tool to purchase credits, process payments, start a subscription or upgrade a plan."
+      },
+      "publication": {
+        "release_notes": "Improves service selection using allowed identifier types, simplifies ordering guidance, and updates the Apple model, color and storage test. Includes service browsing, account information, order tracking and CSV export."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

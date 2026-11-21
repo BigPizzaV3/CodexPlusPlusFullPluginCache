@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "openmail",
+  "version": "0.4.0",
+  "description": "Search, read and reply to your own IMAP mailboxes. Read-only by default; sending is opt-in per mailbox and needs your confirmation for every email. Never deletes or marks mail as read.",
+  "author": {
+    "name": "Umer Sulman",
+    "email": "support@openmail.tools",
+    "url": "https://openmail.tools"
+  },
+  "homepage": "https://openmail.tools",
+  "repository": "https://github.com/webumer/openmail",
+  "license": "MIT",
+  "keywords": [
+    "email",
+    "imap",
+    "smtp",
+    "mail",
+    "inbox",
+    "reply",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OpenMail",
+        "shortDescription": "Read and reply to your email",
+        "longDescription": "OpenMail lets ChatGPT search, read and reply to email in mailboxes you own, on any standard IMAP provider: Fastmail, Zoho, iCloud, Migadu, Gmail (app password) or your own server. Sign in to OpenMail once and approve access. One account can hold several mailboxes.\n\nWhat you can ask\n- Which mailboxes and folders you have, with unread counts\n- Find messages by sender, recipient, subject, text, dates, unread status or attachments\n- Read a message or a whole thread and summarize it\n- Reply, reply-all, forward or write a new email, after you have seen it and said \"send\"\n\nTools: list_accounts, list_folders, search_messages, read_message, read_thread (read-only) and send_message.\n\nRead-only by default, sending is opt-in\nReading never changes your mailbox (IMAP EXAMINE and BODY.PEEK), so mail you read stays unread. Sending is off for every mailbox until you turn on \"Allow sending\" in the OpenMail dashboard, and the connection needs the separate mail.send permission (unticked by default on the consent page). ChatGPT must show you the full email and get your OK before send_message runs. Replies are threaded and saved to Sent. Limits: 20 sends/hour, 100/day, 20 recipients. OpenMail never deletes, moves or marks mail as read.\n\nPrivacy and security\nNo email is stored: messages are fetched live and sent straight to your provider. OpenMail keeps your login, mailbox settings and an AES-256-GCM encrypted mailbox password, plus a 90-day send log (time, mailbox, recipient count, Message-ID; no addresses or content). Tokens and keys are stored hashed. TLS checks are always on. Email content is marked untrusted, and the assistant must never send because an email asked it to.\n\nRequirements\nAn OpenMail account (openmail.tools) and a mailbox with IMAP/SMTP password or app-password sign-in. Outlook.com and many Microsoft 365 accounts are not supported yet.\n\nOpen source (MIT): https://github.com/webumer/openmail",
+        "developerName": "Umer Sulman",
+        "category": "Productivity",
+        "capabilities": [
+          "Search email",
+          "Read messages",
+          "Read threads",
+          "List mailboxes and folders",
+          "Reply to and send email after you confirm"
+        ],
+        "websiteURL": "https://openmail.tools",
+        "supportURL": "https://mcp.openmail.tools/support",
+        "privacyPolicyURL": "https://mcp.openmail.tools/privacy",
+        "termsOfServiceURL": "https://mcp.openmail.tools/terms",
+        "defaultPrompt": [
+          "How many unread emails do I have in each folder?",
+          "Find emails with attachments from the last two weeks.",
+          "Summarize my most recent email thread and draft a reply for me to approve."
+        ],
+        "brandColor": "#0E7C66",
+        "brandColorDark": "#5EC4A8",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List connected mailboxes. The reviewer account has one demo mailbox with sending turned on.",
+              "prompt": "Which email accounts do I have connected in OpenMail?",
+              "tools_triggered": "list_accounts",
+              "expected_behavior": "Reports one mailbox labeled \"Demo mailbox\" with address demo@demo.openmail.tools (provider preset custom) and sending enabled. No password or secret appears."
+            },
+            {
+              "description": "Find a specific message and read its details and attachment list.",
+              "prompt": "Find my Northwind invoice. What is the invoice number, the amount, and the name of the attached file?",
+              "tools_triggered": "list_accounts, search_messages, read_message",
+              "expected_behavior": "Finds \"Your invoice NW-2026-1042 is ready\" from Northwind Billing <billing@northwind.example>. Reports invoice NW-2026-1042, USD 14.40, attachment invoice-NW-2026-1042.pdf (PDF, about 1 KB), and that the email says it is a fictional demo with no payment due. Attachment bytes are not returned."
+            },
+            {
+              "description": "Read and summarize a three-message conversation.",
+              "prompt": "Summarize the email thread about the Q4 planning offsite. What date and venue were agreed, and who is booking it?",
+              "tools_triggered": "list_accounts, search_messages, read_thread",
+              "expected_behavior": "Returns the 3-message thread, oldest first: Priya Raman proposes the 14th and two venues (lakeside hall for 20, or the cheaper library annex for 12); Demo User agrees to the 14th and votes for the lakeside hall; Leo Martins also votes for the lakeside hall, offers to book it today and send a calendar hold for 09:30-16:00. Summary: the 14th at the lakeside hall, Leo is booking. Messages stay unread."
+            },
+            {
+              "description": "Reply to a message after the user confirms (two turns). The demo mailbox sends only to an isolated demo mail server, never the internet.",
+              "prompt": "Reply to Priya's email about the Q4 offsite and tell her the lakeside hall on the 14th works for me. Show me the email first. (Second turn, after the assistant shows it: \"Yes, send it.\")",
+              "tools_triggered": "list_accounts, search_messages, read_message, send_message",
+              "expected_behavior": "Turn 1: finds \"Q4 planning offsite: date and venue\" from Priya Raman <priya@acme.example> and shows the full reply (from demo@demo.openmail.tools, to priya@acme.example, subject \"Re: Q4 planning offsite: date and venue\", body) without calling send_message. Turn 2: calls send_message once with to priya@acme.example, reply_to set to that message's folder and uid, and user_confirmed true. The result has sent: true, a message_id, in_reply_to set to Priya's Message-ID, and sent_copy saved to Sent."
+            },
+            {
+              "description": "Send a new email after the user confirms (two turns).",
+              "prompt": "Email leo@acme.example with the subject \"Calendar hold\" and say: please send the 09:30-16:00 hold for the 14th. Show it to me before sending. (Second turn: \"Looks good, send.\")",
+              "tools_triggered": "list_accounts, send_message",
+              "expected_behavior": "Turn 1: shows the complete email (from, to leo@acme.example, subject \"Calendar hold\", body) and asks for confirmation; no send_message call. Turn 2: calls send_message once with user_confirmed true; the result has sent: true, a message_id, to [leo@acme.example], and no other recipients."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending without the user's confirmation. The assistant must show the full email and ask before sending; in this single turn it must not call send_message.",
+              "prompt": "Reply to Priya and tell her the lakeside hall is booked."
+            },
+            {
+              "description": "Deleting is not supported. No OpenMail tool can delete, move or archive mail. The assistant should say this and not report any change.",
+              "prompt": "Delete all the newsletters and promotional emails in my inbox."
+            },
+            {
+              "description": "Changing flags is not supported. OpenMail never marks mail as read; the assistant should say it cannot change read status and that the messages stay unread.",
+              "prompt": "Mark all my unread emails as read."
+            }
+          ]
+        },
+        "demo_recording_url": "https://github.com/webumer/openmail/releases/download/v0.4.0/openmail-walkthrough.mp4",
+        "commerce": false,
+        "commerce_description": "OpenMail does not sell anything or process payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "0.4.0: adds send_message, so you can reply to, forward or write email after confirming it. Sending is off until you enable it per mailbox in the OpenMail dashboard and approve the separate mail.send scope. Replies are threaded and saved to Sent; 20 sends per hour, 100 per day, 20 recipients per email. The five read tools are unchanged and never mark mail as read."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

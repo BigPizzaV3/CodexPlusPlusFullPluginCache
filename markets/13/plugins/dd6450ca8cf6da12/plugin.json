@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "domaincanary",
+  "version": "1.0.0",
+  "description": "Check a domain's SPF, DKIM and DMARC records, build an SPF record, find out what a bounce means and read a DMARC aggregate report.",
+  "author": {
+    "name": "Final Dynamics LLC",
+    "email": "contact@domaincanary.com",
+    "url": "https://domaincanary.com"
+  },
+  "homepage": "https://domaincanary.com/guides/check-your-domain-from-chatgpt-or-claude",
+  "keywords": [
+    "dmarc",
+    "spf",
+    "dkim",
+    "email authentication",
+    "dns",
+    "bounce"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DomainCanary",
+        "shortDescription": "Check SPF, DKIM and DMARC",
+        "longDescription": "DomainCanary checks the email authentication records your domain publishes in DNS and shows you what to fix. Ask for a check to see your live DMARC, SPF and DKIM records, plain-English explanations of any problems, and the exact records to publish. Tell us which services send your email and we'll build one SPF record for all of them, tracking your DNS lookups against the limit of ten. You can also paste a bounce message to see why a server refused your mail, what to change and when the bounces will stop. Or upload a DMARC aggregate report to see which senders passed and failed.\n\nUse this whenever mail bounces or fails authentication. We read public DNS and the text and files you give us, with no access to your mailbox or server logs. We never change your DNS, so you publish the records yourself at your DNS host. You don't need an account, and we never write anything you check to a database or a log. Every answer links to the matching page on domaincanary.com.",
+        "developerName": "Final Dynamics LLC",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Check DMARC, SPF and DKIM records",
+          "Build an SPF record",
+          "Explain a bounce code",
+          "Read a DMARC aggregate report"
+        ],
+        "websiteURL": "https://domaincanary.com/",
+        "supportURL": "https://domaincanary.com/about",
+        "privacyPolicyURL": "https://domaincanary.com/privacy",
+        "termsOfServiceURL": "https://domaincanary.com/terms",
+        "defaultPrompt": [
+          "Check the email authentication on example.com",
+          "Build an SPF record for Google Workspace and Mailchimp",
+          "What does 550 5.7.515 mean and how do I fix it?"
+        ],
+        "brandColor": "#E69B00",
+        "brandColorDark": "#FDD820",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check a domain that publishes all three records",
+              "prompt": "Check the email authentication on domaincanary.com",
+              "tools_triggered": "check_domain",
+              "expected_behavior": "Reads the live DMARC, SPF and DKIM records for domaincanary.com, gives a verdict with the findings for each record, and ends with a link to the checker page on domaincanary.com."
+            },
+            {
+              "description": "Check a domain with no DMARC record",
+              "prompt": "Does neverssl.com have a DMARC record? What should it publish?",
+              "tools_triggered": "check_domain",
+              "expected_behavior": "Reports that _dmarc.neverssl.com has no DMARC record and offers a p=none TXT record to publish there, with the advice to add a rua= mailbox. If neverssl.com has published DMARC since this case was written, the answer shows that record instead."
+            },
+            {
+              "description": "Build one SPF record for two senders",
+              "prompt": "Build an SPF record for Google Workspace and Mailchimp",
+              "tools_triggered": "build_spf",
+              "expected_behavior": "Returns one SPF record with include:_spf.google.com and include:servers.mcsv.net ahead of ~all, the count of DNS lookups against the limit of ten, and a link to the SPF record generator."
+            },
+            {
+              "description": "Explain a pasted bounce",
+              "prompt": "What does this bounce mean? 550 5.7.515 Access denied, sending domain [example.com] does not meet the required authentication level.",
+              "tools_triggered": "explain_bounce",
+              "expected_behavior": "Explains what the receiving server refused, what to change and when the bounces stop, and links to the 550 5.7.515 page on domaincanary.com."
+            },
+            {
+              "description": "Read a pasted DMARC aggregate report",
+              "prompt": "Which senders failed in this DMARC report? <?xml version=\"1.0\" encoding=\"UTF-8\"?><feedback><report_metadata><org_name>google.com</org_name><email>noreply@google.com</email><report_id>review-1</report_id><date_range><begin>1754956800</begin><end>1755043199</end></date_range></report_metadata><policy_published><domain>example.com</domain><p>none</p></policy_published><record><row><source_ip>209.85.220.41</source_ip><count>42</count><policy_evaluated><disposition>none</disposition><dkim>pass</dkim><spf>pass</spf></policy_evaluated></row><identifiers><header_from>example.com</header_from></identifiers><auth_results><dkim><domain>example.com</domain><result>pass</result></dkim><spf><domain>example.com</domain><result>pass</result></spf></auth_results></record><record><row><source_ip>198.51.100.7</source_ip><count>3</count><policy_evaluated><disposition>none</disposition><dkim>fail</dkim><spf>fail</spf></policy_evaluated></row><identifiers><header_from>example.com</header_from></identifiers><auth_results><spf><domain>spoof.example</domain><result>fail</result></spf></auth_results></record></feedback>",
+              "tools_triggered": "analyze_report",
+              "expected_behavior": "Reports that google.com sent the report for example.com, that 45 messages were counted, 42 passed and 3 failed, and that 198.51.100.7 is the failing source. In ChatGPT the same tool also takes the report as an uploaded .xml, .gz or .zip file."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Domain registration is out of scope",
+              "prompt": "Renew my domain registration",
+              "expected_behavior": "No DomainCanary tool is called. The assistant says in one line that the plugin checks email authentication records and cannot renew a domain."
+            },
+            {
+              "description": "Sending mail is out of scope",
+              "prompt": "Send a test email from my domain",
+              "expected_behavior": "No DomainCanary tool is called. The assistant says in one line that the plugin reads DNS records and reports and cannot send email."
+            },
+            {
+              "description": "A network question unrelated to email",
+              "prompt": "What is my IP address?",
+              "expected_behavior": "No DomainCanary tool is called. The assistant says in one line that the plugin checks a domain's email records and cannot see the user's connection."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=dm_WekeQ2fo",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "First release. Check a domain's DMARC, SPF and DKIM records, build an SPF record for the services that send your mail, explain a bounce, and read a DMARC aggregate report."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

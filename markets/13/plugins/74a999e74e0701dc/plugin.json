@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "martia",
+  "version": "1.0.2",
+  "description": "Ask about your everyday money using balances, transactions, spending summaries, and net worth from your Martia account.",
+  "author": {
+    "name": "Martia Labs Sp\u00f3\u0142ka z ograniczon\u0105 odpowiedzialno\u015bci\u0105"
+  },
+  "homepage": "https://martia.ai/ai-assistants",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Finance",
+        "defaultPrompt": [
+          "How much did I spend on groceries last month?",
+          "Show my spending by category for last month and chart it.",
+          "How much do I have across all my accounts right now?"
+        ],
+        "developerName": "Martia Labs Sp\u00f3\u0142ka z ograniczon\u0105 odpowiedzialno\u015bci\u0105",
+        "displayName": "Martia",
+        "longDescription": "Ask about your everyday money in your own words. Martia helps you check account balances, find transactions, understand spending by category, compare monthly finances, and see your net worth using data already connected to or imported into Martia. When you connect, you authorize sharing the financial details needed to answer your questions with ChatGPT. Access is read-only. Balances reflect the latest data available in Martia; transaction amounts keep their original currencies and summaries use your home currency.",
+        "privacyPolicyURL": "https://martia.ai/privacy-policy",
+        "shortDescription": "Ask about your everyday money",
+        "supportURL": "https://martia.ai/help",
+        "termsOfServiceURL": "https://martia.ai/terms",
+        "websiteURL": "https://martia.ai/ai-assistants",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "prompts": [
+          "How much did I spend on groceries last month?",
+          "Show my spending by category for last month and chart it.",
+          "How much do I have across all my accounts right now?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inspect visible sample accounts and cached balance dates. Setup: a dedicated sample-data account with product access; include an account without a synced balance if this boundary is to be exercised.",
+              "prompt": "Show my accounts, the currency of each balance, and when the balances were last updated.",
+              "tools_triggered": "list_accounts",
+              "expected_behavior": "Call list_accounts with no arguments. Present only returned accounts, human-readable institution names, each balance and its balance_currency or account currency, and balance_reference_date when available. If balance is null, report it as unavailable rather than zero. Show no more than the returned iban_last4; do not invent a full account number or combine different currencies into one total."
+            },
+            {
+              "description": "Retrieve two pages of recent bank transactions without currency conversion or duplicate rows. Setup: sample bank transactions in the last 90 days, with more than five rows available; relative dates are resolved on the test date.",
+              "prompt": "Show my five most recent bank transactions from the last 90 days, then the next five, keeping each amount in its original currency.",
+              "tools_triggered": "get_transactions",
+              "expected_behavior": "Call get_transactions with inclusive YYYY-MM-DD from/to dates covering the requested 90-day window and limit=5. If has_more is true, call again with the returned next_cursor and identical filters. Present returned rows in newest-first order, signed amounts and their currency codes, without repeated rows or an invented converted total. If fewer rows exist, show the actual rows and explain that the selected range has ended. Do not claim this bank-only listing includes legacy manual entries."
+            },
+            {
+              "description": "Explain category totals over an explicit rolling period. Setup: sample data with spending, income, and internal transfers in the last 30 days; home currency is configured on the sample account.",
+              "prompt": "Break down my spending and income by category over the last 30 days, excluding transfers between my own accounts.",
+              "tools_triggered": "get_spending_breakdown",
+              "expected_behavior": "Call get_spending_breakdown with inclusive YYYY-MM-DD from/to dates for the requested 30-day window. Label the answer with returned home_currency; use returned expenses and income totals and transaction_count values. Expense amounts are positive. Do not add internal transfers or currency exchanges back into totals. Use returned category slugs, including uncategorized when present, and do not equate these bank-plus-manual totals with bank-only transaction rows."
+            },
+            {
+              "description": "Summarize a financial-cycle month with source-grounded totals and category ranking. Setup: sample data for the previous YYYY-MM key; record the sample account financial-month start day before running.",
+              "prompt": "For the previous month, summarize my income, spending and net cash flow, and show my three largest expense categories using my Martia financial-month settings.",
+              "tools_triggered": "get_monthly_summary",
+              "expected_behavior": "Call get_monthly_summary with month set to the previous YYYY-MM key. State the returned month and homeCurrency, and use total_income, total_expenses and net_cash_flow; verify net cash flow equals income minus expenses. Rank expense_categories by total_amount instead of assuming catalog order is a ranking. Keep transfer_categories out of income and expense totals. If unconverted contains amounts, explain their exclusion instead of treating them as converted. Respect the configured financial cycle and do not invent exact cycle boundaries that are not available."
+            },
+            {
+              "description": "Explain the latest net worth snapshot and its currency without assuming every balance is current. Setup: dedicated sample data with a configured home currency; declared assets or liabilities may be absent. Confirm currency from a monthly summary because get_net_worth does not return a currency code.",
+              "prompt": "What is my latest available net worth, broken down into bank balances, investments, other assets and liabilities? Identify the currency and any data limitations.",
+              "tools_triggered": "get_monthly_summary, get_net_worth",
+              "expected_behavior": "Call get_monthly_summary for the current YYYY-MM key to obtain homeCurrency, then get_net_worth with no arguments. Present total_home, bank_balances_home, investments_home when present, other_assets_home and liabilities_home in that home currency. Explain that aggregate values are rounded to whole units and bank data uses the latest available daily snapshots; do not call it a live bank balance. Keep past_asset_items out of totals and retain null historical valuations as unknown. Disclose incomplete investment coverage when investments_complete is false and do not manufacture missing valuations."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported transfer request. No Martia tool should be called: explain that the connector cannot move money and do not claim a payment was initiated.",
+              "prompt": "Transfer 100 EUR from my current account to my savings account now."
+            },
+            {
+              "description": "Unsupported financial-record mutation. No Martia tool should be called: explain that this connector cannot delete or edit transactions and do not report a successful deletion.",
+              "prompt": "Delete all of my grocery transactions from Martia."
+            },
+            {
+              "description": "Unsupported investment execution and personalized recommendation. No Martia tool should be called: explain that the connector cannot choose investments or place orders, and do not claim a purchase was made.",
+              "prompt": "Pick the best stock for me and invest 500 EUR from my Martia-linked account in it now."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This connector does not sell products or process payments. Users need a Martia account with an active subscription and connected or imported financial data. The Martia subscription is purchased separately; a dedicated reviewer account may instead have an approved product-access grant.",
+        "demo_recording_url": "https://drive.google.com/file/d/1aUJVWfmNLg3AoONjiq5ei0J-A7pKgHGI/view"
+      },
+      "publication": {
+        "release_notes": "Initial public submission of Martia's read-only MCP connector for account balances, transaction search, spending by category, monthly finances, and net worth. Includes five positive and three negative review cases and a recorded ChatGPT walkthrough."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

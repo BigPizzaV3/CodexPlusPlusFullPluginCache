@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "boligposten",
+  "version": "0.1.0",
+  "description": "Manage property information and prepare social media content from your Boligposten account.",
+  "author": {
+    "name": "Webagent AS",
+    "url": "https://boligposten.com"
+  },
+  "homepage": "https://boligposten.com/claude-og-chatgpt",
+  "keywords": [
+    "real-estate",
+    "property",
+    "social-media"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Boligposten",
+        "shortDescription": "Property marketing for agents",
+        "longDescription": "Boligposten helps real estate agents work with their own property portfolio and prepare social media content. Find properties and read their current facts, consult writing guides, prepare channel-specific drafts for connected Facebook and Instagram accounts, and review the content calendar. You can also maintain property details and record leads explicitly supplied by you.\n\nDrafts are shown in a review card. Publishing or scheduling requires you to press the corresponding button on the card. A message in the conversation does not publish a post. Only information available to your connected Boligposten account is accessible.\n\nRequires an existing Boligposten account with active subscription access. Social publishing requires a supported channel connected in Boligposten. Boligposten is provided by Webagent AS.",
+        "developerName": "Webagent AS",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Vis meg de aktive boligene mine.",
+          "Hjelp meg \u00e5 lage et innlegg om en bolig.",
+          "Hva ligger i innholdskalenderen min?"
+        ],
+        "websiteURL": "https://boligposten.com/claude-og-chatgpt",
+        "supportURL": "https://boligposten.com/contact",
+        "privacyPolicyURL": "https://boligposten.com/privacy-policy",
+        "termsOfServiceURL": "https://boligposten.com/terms-of-service",
+        "logo": "./assets/boligposten.png",
+        "composerIcon": "./assets/boligposten.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find and read the latest active sample property. Setup: the dedicated reviewer account must contain an active sample property imported into the dedicated test account with complete facts and at least one saved image. Read-only workflow.",
+              "prompt": "Vis meg den nyeste aktive boligen min, med pris, adresse og status.",
+              "tools_triggered": "get_broker_context, list_properties, get_property",
+              "expected_behavior": "Call get_broker_context for the connected account, list_properties with status=active and then get_property using an id returned by that list. Report price_asking_nok as NOK and use only returned address and facts. Distinguish property lifecycle status from desired/observed channel states; do not claim the property is published because it is active. Make no writes."
+            },
+            {
+              "description": "Read the writing guide for a sold-property announcement. Setup: authenticated reviewer account with active Boligposten access. No property or social connection is needed.",
+              "prompt": "Hva anbefaler Boligposten at et solgt-innlegg inneholder?",
+              "tools_triggered": "get_broker_context, get_guide",
+              "expected_behavior": "Call get_guide with topic=solgt and explain the structure and cautions based on its returned content. If the guide is unavailable, explicitly report that limitation rather than inventing its contents. Do not save or publish a post."
+            },
+            {
+              "description": "Prepare one Facebook preview after the reviewer has approved the text in conversation. Setup: active sample property in the dedicated test account with a saved picture, completed broker profile and a Facebook test channel connected. In the conversation select that property and agree on a short factual announcement, Facebook feed format and the main property image before the prompt below. The card must be reviewed; this case does not authorize pressing Publish or Schedule.",
+              "prompt": "Teksten er godkjent. Klargj\u00f8r Facebook-innlegget for boligen vi valgte, med hovedbildet, s\u00e5 jeg kan se kortet f\u00f8r publisering.",
+              "tools_triggered": "get_broker_context, get_property, get_guide, prepare_post",
+              "expected_behavior": "Read the selected property and the ny-bolig guide before composing; use the agreed text and an actual media[].id from get_property. Call prepare_post once with property_id and one target having platform=facebook, format=feed, the agreed content and media_ids. Display the saved draft review card. Confirm that nothing has been published and instruct the reviewer to use the card button for any later publication. Do not invoke publish_post or schedule_post from the model."
+            },
+            {
+              "description": "Inspect the content calendar and distinguish drafts, scheduled and published editions. Setup: the dedicated account contains the draft from the previous case; include a separate planned sample only if one actually exists. Read-only workflow.",
+              "prompt": "Hva har jeg av utkast og planlagte innlegg i Boligposten akkurat n\u00e5?",
+              "tools_triggered": "get_broker_context, get_content_calendar",
+              "expected_behavior": "Call get_content_calendar without inventing date filters. Summarize returned editions by their actual state and platform, include scheduled times only when present, and do not describe a saved draft as published. If there are no scheduled posts, say so. Do not change the calendar."
+            },
+            {
+              "description": "Record an explicitly supplied fictional lead on a sample property. Setup: select the sample review property in the same conversation; use only the supplied fictional lead contact details. Creates one record and must only be run once per review unless an existing returned lead id is used for an update.",
+              "prompt": "Registrer en testinteressent p\u00e5 boligen vi valgte: Demo Interessent, demo.interessent@example.com. Notat: Fiktiv testhenvendelse for OpenAI-gjennomgangen.",
+              "tools_triggered": "get_broker_context, list_properties, get_property, upsert_lead",
+              "expected_behavior": "Resolve the selected property from the connected account and call upsert_lead with its actual property_id, name=Demo Interessent, email=demo.interessent@example.com and the exact supplied note. Omit phone because none was provided. Report the saved lead id returned by the tool. Do not send email or messages, and do not invent a successful write if the tool returns an error."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported direct marketplace publication. Explain that this plugin cannot create a FINN listing or pay FINN charges. Do not call any Boligposten tool or claim a listing was published.",
+              "prompt": "Opprett og publiser en helt ny boligannonse direkte p\u00e5 FINN, og betal annonsegebyret for meg."
+            },
+            {
+              "description": "Unsupported mortgage application. Explain that the plugin does not submit mortgage applications or contact a lender. Do not call Boligposten tools or claim an application was sent.",
+              "prompt": "Send en boligl\u00e5nss\u00f8knad til banken min gjennom Boligposten."
+            },
+            {
+              "description": "Unsupported subscription checkout. Explain that purchases and subscription changes are not available through this plugin; refer the user to their existing Boligposten account settings if useful. Do not invoke tools, charge a card, or claim a subscription was changed.",
+              "prompt": "Oppgrader Boligposten-abonnementet mitt her i chatten og belast kortet mitt."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "There is no separate plugin fee, checkout, purchase flow or payment tool. Access requires an existing Boligposten account with an active subscription or active trial. Any subscription billing is managed outside this plugin through Boligposten.",
+        "demo_recording_url": "https://zolntwdbqksijqhykbxa.supabase.co/storage/v1/object/public/webagent-media/boligposten/2026/openai-review-demo-2026-10-19.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission with account-scoped property lookup, writing guides, social post draft cards, content calendar and lead recording. Publishing and scheduling require the user to press the corresponding card button.",
+        "translations": {
+          "nb-NO": {
+            "subtitle": "Boligmarkedsf\u00f8ring for meglere",
+            "description": "Boligposten hjelper eiendomsmeglere med egen boligportef\u00f8lje og innhold til sosiale medier. Finn boliger og hent oppdaterte fakta, bruk skriveoppskrifter, klargj\u00f8r kanaltilpassede utkast for tilkoblede Facebook- og Instagram-kontoer og se innholdskalenderen. Du kan ogs\u00e5 vedlikeholde boliginformasjon og lagre interessenter du selv oppgir.\n\nUtkast vises p\u00e5 et kort for gjennomgang. Du m\u00e5 selv trykke Publiser eller Planlegg p\u00e5 kortet. En melding i samtalen publiserer ikke innlegget. Bare informasjon som er tilgjengelig for den tilkoblede Boligposten-kontoen kan hentes.\n\nKrever en eksisterende Boligposten-konto med aktiv abonnementstilgang. Publisering krever en st\u00f8ttet kanal tilkoblet i Boligposten. Boligposten leveres av Webagent AS."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

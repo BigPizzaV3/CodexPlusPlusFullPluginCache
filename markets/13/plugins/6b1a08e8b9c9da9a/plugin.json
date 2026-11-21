@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "terminal-commands-public",
+  "version": "0.6.0",
+  "description": "Work on approved projects and receive command results directly through server tools.",
+  "author": {
+    "name": "HAMDI KAHLOUN"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Terminal Commands",
+        "shortDescription": "Run commands on your machines",
+        "longDescription": "Terminal Commands connects ChatGPT and compatible MCP clients to computers and servers you control. Choose a saved project, inspect files, edit bounded text files, run locally approved commands, and review command activity and source changes. Active commands return progress and completion through server tools without requiring the workspace card or chat page to remain open. Your computer and companion must remain running; local approvals and host usage limits still apply. The plugin cannot restart a Chat turn that the host has ended or cancelled. Dedicated filesystem tools stay within approved roots; approved executable programs run with your operating-system permissions and are not sandboxed. The gateway stores bounded process output and project source baselines, with a default seven-day retention period for output and baselines; task metadata remains longer to prevent accidental re-execution. Manage paired devices and tasks at https://mcp.terminalcommands.fr/.",
+        "developerName": "HAMDI KAHLOUN",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Terminal",
+          "Filesystem",
+          "Saved projects",
+          "Command activity",
+          "Source changes"
+        ],
+        "defaultPrompt": [
+          "Show my connected machines.",
+          "Run git status in my selected project and show the result.",
+          "Show the changes made during this request."
+        ],
+        "websiteURL": "https://terminalcommands.fr/",
+        "supportURL": "https://mcp.terminalcommands.fr/assets/support.html",
+        "privacyPolicyURL": "https://mcp.terminalcommands.fr/assets/privacy.html",
+        "termsOfServiceURL": "https://mcp.terminalcommands.fr/assets/terms.html",
+        "logo": "./assets/terminal-commands-icon.png",
+        "composerIcon": "./assets/terminal-commands-icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://terminalcommands.fr/assets/terminal-commands-demo.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "A dedicated reviewer account has an online protocol-v2 companion exposing only a disposable sample-project root. Start with open_workspace for a general device check; this does not require selecting a project.",
+              "prompt": "Show my connected machines, then show the operating system and approved folders for the review machine.",
+              "tools_triggered": "open_workspace, list_devices, get_system_info",
+              "expected_behavior": "Call open_workspace with {} before device tools. Return only devices owned by the signed-in reviewer account. Use the returned review deviceId for get_system_info and report its actual platform and configured sample root. Do not invent a device or require project selection just to list devices."
+            },
+            {
+              "description": "The reviewer account has a saved project named Terminal Commands Review. Its approved folder contains README.md with non-sensitive sample text.",
+              "prompt": "In Terminal Commands Review, list the files and read README.md.",
+              "tools_triggered": "open_workspace, list_directory, read_text_file, finish_project_request",
+              "expected_behavior": "Open a new request using the exact saved projectName, its original goal and a fresh stable requestId. Use the returned deviceId and project path for directory and README reads. Report actual bounded contents, remain inside the selected project, and finish the request before the final reply. If the saved project or machine is unavailable, report that state without guessing another folder."
+            },
+            {
+              "description": "The disposable review project is reset before this case and has no review-note.txt. File writes are enabled with local companion approval.",
+              "prompt": "In Terminal Commands Review, create review-note.txt containing \"review complete\", then read it back and show what changed.",
+              "tools_triggered": "open_workspace, write_text_file, read_text_file, get_project_changes, finish_project_request",
+              "expected_behavior": "Open the selected saved project with a fresh requestId and original goal. Create only review-note.txt within its returned path after local approval, then read back exactly \"review complete\". Show the actual baseline change and finish the request. Report a denied write honestly; do not overwrite an existing file silently or claim success without confirmation."
+            },
+            {
+              "description": "The saved Terminal Commands Review project is a disposable Git repository. The reviewer companion allowlists git, with local approval for execution.",
+              "prompt": "Run git status in Terminal Commands Review and show its actual output and exit code.",
+              "tools_triggered": "open_workspace, submit_project_process, wait_process_task, finish_project_request",
+              "expected_behavior": "Open a fresh request for the exact saved project. Submit git with args [\"status\"] through submit_project_process using the returned runId and one stable operationId. If still active after the initial observation, repeatedly call wait_process_task with the same taskId, latest eventSequence and timeoutMs 15000 until terminal. Report actual bounded output and exitCode; never resubmit to retrieve output. Completion uses server tools independently of a loaded card. Finish only after the command is terminal and the request is handled."
+            },
+            {
+              "description": "The saved review project allowlists node. Execution and termination both require companion approval. Use a one-minute timer with a task timeout exceeding one minute, then request cancellation in the same request.",
+              "prompt": "In Terminal Commands Review, start a temporary Node.js process that waits for one minute, then cancel it and check whether it actually stopped.",
+              "tools_triggered": "open_workspace, submit_project_process, cancel_process_task, wait_process_task, get_process_task, finish_project_request",
+              "expected_behavior": "Open the selected project, then submit node with args [\"-e\",\"setTimeout(() => {}, 60000)\"] and timeoutMs 120000, using stable run and operation IDs. After execution approval, request cancellation of that exact taskId. Require local termination approval and inspect/wait for its confirmed terminal state. Report pending or unknown honestly until reconciled. Never claim a rejected or unconfirmed cancellation stopped the process, never replay the command, and never mark the request finished while it remains active or unconfirmed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Conceptual command advice requires no machine operation; do not invoke any Terminal Commands tool.",
+              "prompt": "Explain what git status does without accessing my machine."
+            },
+            {
+              "description": "The app does not search public websites; use an available web-research capability or explain that limitation without accessing a machine.",
+              "prompt": "Find public documentation explaining the Node.js event loop. Do not access my computer."
+            },
+            {
+              "description": "Standalone code generation requires no device inspection or execution; provide code without invoking this app.",
+              "prompt": "Write a JavaScript function that sorts numbers. Do not read files or run it."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Terminal Commands is free to use for now and does not sell products or process payments.",
+        "prompts": [
+          "Show my connected machines.",
+          "List the files in Terminal Commands Review and read its README.md.",
+          "Create a small JavaScript function in Terminal Commands Review, test it, and show the changes."
+        ]
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Gateway 0.6.0 adds saved-project request context, command Activity and source Changes, and direct server-side waiting for command progress and completion. Active command results do not depend on a loaded workspace card or an open chat page. Local approvals, account scoping, stable operation IDs and reconciliation of unknown outcomes remain required. This does not restart ended Chat turns or bypass host limits."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

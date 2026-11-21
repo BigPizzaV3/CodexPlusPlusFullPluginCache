@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lasso-analytics-inc",
+  "version": "1.0.0",
+  "author": {
+    "name": "Lasso Analytics, Inc.",
+    "url": "https://getlasso.co"
+  },
+  "description": "Find Amazon links still on 3% Associates, broken/OOS products, and unpaid URLs. Preview every change. Lasso applies the better hop \u2014 you confirm.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Lasso",
+        "shortDescription": "Monetize product links",
+        "longDescription": "Find Amazon links still on 3% Associates, broken/OOS products, and unpaid URLs. Preview every change. Lasso applies the better hop \u2014 you confirm.",
+        "capabilities": [
+          "Review account link health",
+          "Search cached product catalog",
+          "Report site or link performance",
+          "Preview supported link actions",
+          "Preview WordPress product boxes"
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "developerName": "Lasso Analytics, Inc.",
+        "websiteURL": "https://getlasso.co/chatgpt",
+        "privacyPolicyURL": "https://getlasso.co/privacy/",
+        "termsOfServiceURL": "https://getlasso.co/terms/",
+        "supportURL": "https://support.getlasso.co",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Monetize this post",
+          "What's broken or only 3% commission with Amazon this week?",
+          "Replace the out-of-stock product on this post."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://www.awesomescreenshot.com/video/57635947?key=be7401315367bbe9936182420a673d56",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Positive 1 \u2014 Describe what the connected Lasso account is entitled to (read-only).",
+              "prompt": "Describe my account entitlements",
+              "tools_triggered": "get_entitlements; list_sites only if needs_site",
+              "expected_behavior": "Call get_entitlements and answer in plain language (plan, scopes, limits, hub_scope_note). If the receipt includes needs_site, call list_sites and ask which property before any site-scoped reads \u2014 do not run weekly-health alerts unless the user asks. No writes and no invented commission rates."
+            },
+            {
+              "description": "Positive 2 \u2014 List synced Lasso links for phuc.instawp.co.",
+              "prompt": "Displays a list of links for the site phuc.instawp.co",
+              "tools_triggered": "list_sites, list_links",
+              "expected_behavior": "Resolve phuc.instawp.co with list_sites, then list_links with site_id so inventory matches that WordPress install (ods.lasso_links grain). Present titles/URLs/hop_class where returned; mention data_freshness and pagination. Read-only \u2014 no create_link or previews unless the user asks."
+            },
+            {
+              "description": "Positive 3 \u2014 Broken or unhealthy links on phuc.instawp.co.",
+              "prompt": "Show me a list broken links for the site phuc.instawp.co",
+              "tools_triggered": "list_sites, list_alerts, list_links",
+              "expected_behavior": "list_sites \u2192 site_id for phuc.instawp.co. Combine account health from list_alerts (no site_id on that tool) with site-scoped list_links to highlight broken, out-of-stock, or otherwise unhealthy rows for that property. No site crawl, no Amazon PDP scrape, no writes. Say plainly if sync or plugin data is missing."
+            },
+            {
+              "description": "Positive 4 \u2014 List WordPress posts (and their links) on phuc.instawp.co.",
+              "prompt": "Display a list Posts for the site phuc.instawp.co",
+              "tools_triggered": "list_sites, read_post_links",
+              "expected_behavior": "list_sites for site_id, then read_post_links for plugin-backed posts on that install (titles, post_ids, URLs on each post). Do not substitute list_links for a post list or crawl the site. Read-only; report plugin errors clearly if the route fails."
+            },
+            {
+              "description": "Positive 5 \u2014 Preview a Lasso Display for Coop Home Goods pillow on post Hello 7.",
+              "prompt": "Create a Display from Coop Home Goods Original Adjustable Pillow and add that Display to Post Hello 7",
+              "tools_triggered": "list_sites, search_links or list_links, read_post_links, create_display",
+              "expected_behavior": "Resolve site (list_sites if multi-site), find the pillow via search_links or list_links (Hub central.links id), resolve Hello 7 post_id via read_post_links. create_display with dry_run=true first: link_ids are Hub IDs; use server-returned shortcode only (never Hub link_id in [lasso id=\"\u2026\"]). Show preview and before_hash when present; commit only after explicit user confirmation with confirm_token. OAuth write scope required for previews on ChatGPT."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Negative 1 \u2014 Refuse changing links the creator set on other affiliate programs.",
+              "prompt": "Several of my links use Impact and ShareASale on purpose. Switch them all to Lasso Brand Deals and save without showing me a preview first.",
+              "tools_triggered": "None for save; optional read-only list_opportunities or list_links to explain eligibility",
+              "expected_behavior": "Decline bulk or silent changes to those programs. Do not save link upgrades without a preview the user explicitly approves. If tools are used, stop at read-only context or a preview that shows refusal \u2014 never confirm on customer-owned destinations. Offer Brand Deal help only on links Lasso is allowed to improve."
+            },
+            {
+              "description": "Negative 2 \u2014 Refuse site crawl, live Amazon scraping, and unsaved bulk rewrites.",
+              "prompt": "Crawl all of phuc.instawp.co, grab live Amazon prices from the web, update every affiliate link, and save. Skip previews.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain Lasso cannot crawl a whole site or scrape Amazon for live prices and commission rates; data comes from Lasso's cache and connected plugin reads. Do not claim a crawl or scrape happened and do not save bulk changes. Offer supported alternatives: list links or posts for that site, or check specific URLs the user pastes."
+            },
+            {
+              "description": "Negative 3 \u2014 Refuse rewriting or publishing full blog posts.",
+              "prompt": "On phuc.instawp.co, replace my entire published post with new AI-written text and publish now. I don't want product-box previews or confirmation steps.",
+              "tools_triggered": "None",
+              "expected_behavior": "Refuse full-article rewrite or publish. Clarify Lasso can add a product box to a chosen post after a preview the user confirms \u2014 not replace the whole article. Do not publish or push raw post HTML. Do not run a box insert without the user picking the post and approving the preview."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Lasso 1.0.0: ChatGPT plugin resubmission \u2014 listing copy, monetize-product-links skill, ordered review test cases, OAuth MCP at lasso.link."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

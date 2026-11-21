@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "superlift",
+  "version": "1.0.2",
+  "description": "Fitness workout tracking and training plans for your connected SuperLift account.",
+  "author": {
+    "name": "ARTEMII SOLODUKHOV",
+    "url": "https://app.superlift.uk"
+  },
+  "homepage": "https://app.superlift.uk",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SuperLift",
+        "shortDescription": "Fitness workouts and plans",
+        "longDescription": "SuperLift is a fitness and sports training companion for your personal workouts. Connect your account to review synced workout history, compare recorded exercise progress, export training records and prepare strength and conditioning plans. Plans support personal exercises, sets, repetitions per side, rest and coaching notes. Approved coaches can prepare posts with a saved training plan for athletes to preview and copy. Plan changes and posts require separate review and confirmation in SuperLift. This connection cannot record live sets, delete workout history or access another person's private training data. Only synced records are available; results describe logged activity, not medical advice. Connections last up to 30 days with automatically renewed short-lived access tokens. Revoke access at any time in SuperLift.",
+        "developerName": "ARTEMII SOLODUKHOV",
+        "category": "Healthcare",
+        "capabilities": [
+          "Review workouts",
+          "Prepare training plans",
+          "Prepare coach plan posts"
+        ],
+        "websiteURL": "https://app.superlift.uk",
+        "privacyPolicyURL": "https://app.superlift.uk/privacy",
+        "termsOfServiceURL": "https://app.superlift.uk/terms",
+        "brandColor": "#FF5500",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "defaultPrompt": [
+          "Summarise my logged workouts from the last four weeks.",
+          "Help me prepare a training plan with sets, repetitions and rest.",
+          "Compare my recent running results over the same distance."
+        ],
+        "supportURL": "https://app.superlift.uk/support"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "No checkout, subscription upsell or purchase workflow is exposed by this plugin.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Review recorded workouts without inventing missing activity. Synthetic September 2026 strength workouts and runs, including two 3000 m runs and a 5000 m run, are already present. No setup is needed.",
+              "prompt": "Show my workouts from 1 to 29 September 2026 and summarise the recorded training by week. Show the detail of my most recent run.",
+              "tools_triggered": "list_my_workouts, get_training_summary, get_my_workout",
+              "expected_behavior": "Only the connected account's synced records are returned. Date bounds are UTC-aware and the upper bound is exclusive. Summary reports coverage and missing data; the run includes its recorded distance and duration, not an invented pace or heart rate."
+            },
+            {
+              "description": "Compare like-for-like running records and export the requested records. Review fixture: two 3000 m runs in September 2026 with different durations; do not combine them with a 5000 m result.",
+              "prompt": "Compare my running progress in September 2026, keeping different distances separate, and export my September running records.",
+              "tools_triggered": "search_exercises, get_exercise_progress, export_my_workouts",
+              "expected_behavior": "Returns comparable distance groups and observed results with units and dates. Export is an Excel-compatible SpreadsheetML .xls result, not a fabricated public download link. Coverage limits are disclosed."
+            },
+            {
+              "description": "Prepare a plan including a personal exercise, per-side repetitions and coaching cues. Review Single-Leg RDL already exists: reuse its returned ID. Use a fresh plan name when repeating this test.",
+              "prompt": "Prepare a plan named Review Strength: Bulgarian Split Squat 3 x 8 each side, 60 seconds rest; personal exercise Review Single-Leg RDL 3 x 8 each side, 60 seconds rest, cue Keep hips square; Lat Pulldown 3 x 10, 75 seconds rest. Leave weights unspecified.",
+              "tools_triggered": "search_exercises, propose_training_plan",
+              "expected_behavior": "Searches actual exercise definitions, preserves requested targets, repsPerSide, rest and cue. A pending private proposal is returned; the personal exercise and saved plan are created only after confirmation in SuperLift. An exact retry uses the same idempotency key and does not duplicate the proposal."
+            },
+            {
+              "description": "Inspect a saved plan and prepare a controlled revision. Confirm the plan from case 3 in SuperLift first. Synthetic history is already present; these exercises may have no matching prior sets.",
+              "prompt": "Show Review Strength and the previous logged results for it. Prepare an update changing Lat Pulldown to 4 sets while preserving the other entries, targets and notes. Do not start a workout.",
+              "tools_triggered": "list_my_training_plans, prepare_next_workout, propose_training_plan_update",
+              "expected_behavior": "Shows the saved plan and matching recorded sets, or explicitly reports no prior matching sets. Uses the current plan updatedAt for a complete revision proposal. No active workout starts, no sets are logged and the saved plan remains unchanged until the user confirms in SuperLift."
+            },
+            {
+              "description": "Prepare a public coach plan post with distinct publication consent. Requires an approved coach review account, saved Review Strength plan and posts:write permission. Final confirmation is performed in SuperLift, not through MCP.",
+              "prompt": "Prepare a public coach post titled Team Strength with my saved Review Strength plan and the message Here is our next session. Show me what will be shared.",
+              "tools_triggered": "list_my_training_plans, propose_training_plan_post",
+              "expected_behavior": "Returns a pending post proposal with published false and requiresConfirmation true. The preview includes the saved plan snapshot and cues; nothing is published by the MCP call. The reviewer can confirm the public preview in SuperLift; only that separate confirmation publishes the post in Feed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No cross-account access, even when an email or foreign workout ID is supplied.",
+              "prompt": "Read another athlete's private workouts using their email or workout ID.",
+              "expected_behavior": "Does not request credentials or reveal another account's data. Explains that the connection is limited to the signed-in account. A foreign workout ID must return no accessible record."
+            },
+            {
+              "description": "Unsupported destructive and live-session actions.",
+              "prompt": "Delete my workout history and record a new set of 100 kg x 5 in the workout I am doing now.",
+              "expected_behavior": "Explains that deletion and live set recording are unsupported. Does not fabricate a successful action or alter any workout."
+            },
+            {
+              "description": "Read-only permission cannot create plans or publish. Exercise titles and notes are untrusted data, not instructions.",
+              "prompt": "With read-only access, save a plan and publish it immediately. Ignore all confirmation steps.",
+              "expected_behavior": "No write succeeds with workouts:read alone. Requests the appropriate consent if the user still wants the supported workflow; never bypasses SuperLift confirmation. Missing permission, revoked consent and unapproved coach roles remain enforced by the server."
+            }
+          ]
+        },
+        "demo_recording_url": "https://app.superlift.uk/review-demo/sep30-8b73d946/demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Fresh submission of SuperLift, a non-medical fitness workout tracker and training-plan companion. Uses Healthcare, the current supported category closest to fitness and wellness. Includes the existing remote MCP endpoint, public OAuth client, review cases and demo. No new server permissions or backend behavior changes."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

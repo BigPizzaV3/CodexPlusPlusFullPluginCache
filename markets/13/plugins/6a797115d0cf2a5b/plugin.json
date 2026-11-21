@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rockhopper",
+  "version": "0.1.2",
+  "description": "Governance, attribution, version control, reviews, and comments for files enrolled in Rockhopper.",
+  "author": {
+    "name": "Rockhopper",
+    "email": "support@rockhopper.co"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Rockhopper",
+        "shortDescription": "File governance & audit trails",
+        "longDescription": "How it works\n\nRockhopper MCP connects your governed spreadsheets, presentations, and documents to your AI assistant, so it can pull the latest version, change history, and approval status of your critical files while you work.\nUse MCP when you\u2019re already working on something bigger:\n\n- Preparing reports or board decks: Pull the latest approved version of a model or metric directly into your draft, so you\u2019re never working from a stale copy.\n- Reviewing changes before sign-off: See exactly what changed between versions, down to the cell, and whether each edit was made by a person or an AI agent.\n- Managing approvals: Request, approve, or cancel a review on a specific version without leaving your workflow.\n- Catching up on discussion: Read, reply to, and resolve comment threads on a file in one place, instead of hunting through email and chat.\n\nHow it works:\nYour AI assistant can search your enrolled files by name, comment text, or version notes, then cite the specific version, change, or comment it\u2019s drawing from. No more switching tabs to find \u201cwhich version is final\u201d or \u201cwho changed this number.\u201d\nThe difference:\nInstead of digging through folders and asking around to confirm what\u2019s current, your AI pulls the right version and its full history automatically. You stay focused on the work, knowing exactly where every number came from.\nWorks on files enrolled in your Rockhopper workspace from Microsoft OneDrive, SharePoint, or Google Drive. Rockhopper does not edit cell data or formulas directly.",
+        "developerName": "Rockhopper",
+        "category": "Business & Operations",
+        "websiteURL": "https://www.rockhopper.co",
+        "supportURL": "https://www.rockhopper.co/contact/",
+        "privacyPolicyURL": "https://www.rockhopper.co/privacy-policy/",
+        "termsOfServiceURL": "https://www.rockhopper.co/terms-and-conditions/",
+        "logo": "./assets/rockhopper.png",
+        "composerIcon": "./assets/rockhopper.png",
+        "defaultPrompt": [
+          "Find the latest version of a file in my Rockhopper workspace.",
+          "Show who changed a file and whether those edits came from AI or a person.",
+          "Show the comments and pending approvals for a file."
+        ]
+      },
+      "review": {
+        "prompts": [
+          "Find the latest version of a file in my Rockhopper workspace.",
+          "Show who changed a file and whether those edits came from AI or a person.",
+          "Show the comments and pending approvals for a file."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Positive 1: File discovery. Setup: sign in to the reviewer test workspace with an enrolled file named Review Test. Run first; retain the returned platformId for cases 2\u20134.",
+              "prompt": "Find the enrolled file named \u2018Review Test\u2019.",
+              "tools_triggered": "list_files(search=\"Review Test\"); search_files(query=\"Review Test\", matchIn=\"name\") if needed.",
+              "expected_behavior": "Returns the correct enrolled Review Test file and its platformId, grounded in the tool response; does not substitute another similarly named file."
+            },
+            {
+              "description": "Positive 2: Reviews and comments. Setup: continue after Positive 1 using the same file. The fixture must contain review requests and comments. Inspect review status across file versions where required.",
+              "prompt": "Are there any reviews or comments for this file?",
+              "tools_triggered": "get_file_versions(fileMsId=<platformId from Positive 1>); get_reviews(versionId=<returned version id>) for relevant versions; get_file_comments(fileMsId=<same platformId>).",
+              "expected_behavior": "Reports outstanding status of reviews and retrieves comments, with status and discussion summaries supported by returned data."
+            },
+            {
+              "description": "Positive 3: Review approval. Setup: continue after Positive 2. A pending review with subject href must exist on Review Test and the signed-in reviewer must be assigned to it. Reset this fixture to a pending review before each repeat; do not use an already approved review.",
+              "prompt": "Approve \u201chref\u201d review.",
+              "tools_triggered": "get_reviews(versionId=<version containing href>); approve_review(reviewId=<returned id of the href review>).",
+              "expected_behavior": "Approves the review named href using its returned review ID and reports approval only after the tool confirms success. Does not approve another review."
+            },
+            {
+              "description": "Positive 4: Version comparison. Setup: continue with Review Test from Positive 1. It must have at least two committed versions with known changes; retain an independent expected change list in the test workspace before execution. Latest and last mean the newest and immediately preceding committed versions.",
+              "prompt": "What changed between the latest version and the last version?",
+              "tools_triggered": "get_file_versions(fileMsId=<platformId from Positive 1>); get_cell_history(fileMsId=<same platformId>, sheetName=<exact fixture sheet>, cellAddress=<fixture cell>) as needed to substantiate the comparison.",
+              "expected_behavior": "Matches the known changes in the test file between the two identified versions, including available old/new values and locations. Does not substitute uncommitted changes for a historical comparison or invent a complete diff when returned history is insufficient."
+            },
+            {
+              "description": "Positive 5: Cross-file unresolved discussions. Setup: the signed-in reviewer can access all enrolled test files. Record the expected unresolved threads across those files before execution, including file names and thread contents; include resolved threads to check exclusion.",
+              "prompt": "Summarize the unresolved comment threads on all files.",
+              "tools_triggered": "list_files(); get_file_comments(fileMsId=<each returned platformId>).",
+              "expected_behavior": "Matches the test files\u2019 unresolved threads, grouped by file and grounded in returned comments and replies. Excludes resolved threads and identifies any inaccessible files instead of claiming complete coverage."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Negative 1: Purchases are outside Rockhopper functionality. Explains the limitation; invokes no Rockhopper tool.",
+              "prompt": "Buy a Microsoft 365 subscription through Rockhopper."
+            },
+            {
+              "description": "Negative 2: Email delivery is unsupported. Explains the unsupported action, invokes no Rockhopper tool, and claims no email was sent.",
+              "prompt": "Send this file to the board by email."
+            },
+            {
+              "description": "Negative 3: Calendar scheduling is unsupported. Explains the unsupported action, invokes no Rockhopper tool, and claims no meeting was created.",
+              "prompt": "Schedule a meeting with this file\u2019s reviewers."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/1f96544e5c944b2fb38040b2ae300795"
+      },
+      "publication": {
+        "release_notes": "Initial public submission of the Rockhopper MCP connector for file governance, attribution, version history, approvals, comments, and file discovery."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

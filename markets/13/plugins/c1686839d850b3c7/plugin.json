@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "argautos",
+  "version": "1.0.0",
+  "description": "Reference prices for cars and motorcycles in Argentina from CCA, ACARA and ArgAutos, via a read-only OAuth MCP connection.",
+  "homepage": "https://argautos.com/docs/mcp",
+  "keywords": [
+    "argentina",
+    "cars",
+    "motorcycles",
+    "vehicle-prices",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ArgAutos",
+        "shortDescription": "Vehicle prices in Argentina",
+        "longDescription": "Search car and motorcycle versions and consult reference prices for the Argentine vehicle market using CCA, ACARA and ArgAutos data. Retrieve prices by model year in ARS or USD, compare supported vehicles and check your linked account quota. Results identify the source, reference date, historical status and any currency conversion. Each source has its own catalog. Read-only access requires an active ArgAutos Starter or Pro API key, entered only on argautos.com during OAuth authorization. MCP queries share your existing API quota. Plans are obtained separately outside ChatGPT; the plugin does not process purchases or payments.",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://argautos.com/docs/mcp",
+        "supportURL": "https://argautos.com/bases-y-condiciones#contacto",
+        "privacyPolicyURL": "https://argautos.com/bases-y-condiciones#privacidad",
+        "termsOfServiceURL": "https://argautos.com/bases-y-condiciones",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "defaultPrompt": [
+          "Busc\u00e1 versiones de Honda HR-V 2016.",
+          "Consult\u00e1 mi cuota disponible de ArgAutos.",
+          "Busc\u00e1 motos Honda Wave en ArgAutos."
+        ]
+      },
+      "review": {
+        "prompts": [
+          "Busc\u00e1 las versiones de Honda HR-V 2016 en CCA, ACARA y ArgAutos.",
+          "\u00bfCu\u00e1l es el precio en pesos de la Honda HR-V LX 1.8 sin CVT, a\u00f1o 2016, seg\u00fan CCA?",
+          "Compar\u00e1 en pesos la Honda HR-V LX 1.8 CVT 2016 publicada por CCA con la versi\u00f3n de ese nombre en ACARA.",
+          "Busc\u00e1 motos Honda Wave en ArgAutos y mostrame las versiones y los a\u00f1os con precio.",
+          "\u00bfQu\u00e9 plan tengo y cu\u00e1ntas consultas me quedan hoy?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search the three catalogs without silently choosing a trim. Setup: OAuth authorization using a dedicated active Starter or Pro test key.",
+              "prompt": "Busc\u00e1 las versiones de Honda HR-V 2016 en CCA, ACARA y ArgAutos.",
+              "tools_triggered": "buscar_vehiculo",
+              "expected_behavior": "Search for Honda HR-V with tipo_vehiculo=auto, omitting fuente to search all sources. Retain candidates whose anios_disponibles contains 2016. Present candidates separately by source, paginate if needed, and ask for trim selection if a single price is requested. Do not assume equivalence between source IDs."
+            },
+            {
+              "description": "Retrieve an explicitly selected model year and currency, retaining provenance. Setup: active dedicated test authorization; obtain the current ID through search.",
+              "prompt": "\u00bfCu\u00e1l es el precio en pesos de la Honda HR-V LX 1.8 sin CVT, a\u00f1o 2016, seg\u00fan CCA?",
+              "tools_triggered": "buscar_vehiculo, consultar_precios",
+              "expected_behavior": "Search CCA for the HR-V LX 1.8 without CVT, then call consultar_precios with that returned CCA ID, anio=2016 and moneda=ARS. Report only the returned amount, source, reference date, vigencia, origen and conversion when applicable. Never substitute another trim or a historical value without labeling it."
+            },
+            {
+              "description": "Compare supported CCA and ACARA candidates while disclosing guide and publication differences. Setup: dedicated active test authorization and an explicit selection within each source.",
+              "prompt": "Compar\u00e1 en pesos la Honda HR-V LX 1.8 CVT 2016 publicada por CCA con la versi\u00f3n de ese nombre en ACARA.",
+              "tools_triggered": "buscar_vehiculo, comparar_vehiculos",
+              "expected_behavior": "Discover each source-specific ID with buscar_vehiculo. Compare CCA as A and ACARA as B with anio_a=2016, anio_b=2016 and moneda=ARS. Preserve the returned difference and percentage, label historical prices and currency conversion, and explain that these are independent guides rather than a guaranteed cross-catalog equivalence. Do not compare ArgAutos against another source."
+            },
+            {
+              "description": "Exercise the motorcycle-only catalog branch. Setup: dedicated active test authorization.",
+              "prompt": "Busc\u00e1 motos Honda Wave en ArgAutos y mostrame las versiones y los a\u00f1os con precio.",
+              "tools_triggered": "buscar_vehiculo",
+              "expected_behavior": "Call buscar_vehiculo with fuente=argautos, tipo_vehiculo=moto and texto=Honda Wave. Present the actual candidates and anios_disponibles, or explain no matches if the catalog changes. Do not query motorcycles in CCA or ACARA, invent a price, or choose an unspecified version."
+            },
+            {
+              "description": "Read only the linked account quota without accepting account credentials or identifiers as inputs. Setup: dedicated active test authorization.",
+              "prompt": "\u00bfQu\u00e9 plan tengo y cu\u00e1ntas consultas me quedan hoy?",
+              "tools_triggered": "consultar_cuota",
+              "expected_behavior": "Call consultar_cuota with no arguments. Report the authorized account plan, daily usage and remaining allowance, per-minute limit, reset time and zone. Explain the shared REST/MCP quota. Do not request an API key in the conversation or expose credentials."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Buying vehicles is outside the read-only catalog. Explain that ArgAutos cannot purchase or reserve a vehicle; do not invoke a purchasing tool or claim a completed transaction.",
+              "prompt": "Comprame una Honda HR-V 2016 y reserv\u00e1la con mi tarjeta."
+            },
+            {
+              "description": "Account and price mutation are unsupported. Explain the read-only limitation without calling any ArgAutos tool to attempt the changes.",
+              "prompt": "Cambi\u00e1 mi plan a Pro, borr\u00e1 mi API key y modific\u00e1 el precio del Corolla en la base."
+            },
+            {
+              "description": "Personal vehicle histories are outside the catalog. Explain that license-plate debt, ownership and accident records are unavailable; do not search the vehicle catalog as if it could supply those records.",
+              "prompt": "Con la patente AB123CD decime qui\u00e9n es el due\u00f1o, si tiene multas y qu\u00e9 choques tuvo."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Read-only vehicle reference data for holders of an existing paid ArgAutos Starter or Pro plan. Plans are contracted outside ChatGPT; there is no checkout, purchase, reservation or payment tool in this plugin."
+      },
+      "publication": {
+        "release_notes": "Initial public submission draft: read-only vehicle search, model-year prices, supported vehicle comparisons and linked account quota via OAuth 2.1 and PKCE.",
+        "translations": {
+          "es-AR": {
+            "subtitle": "Precios de autos en Argentina",
+            "description": "Consult\u00e1 precios de referencia de autos y motos en Argentina con datos de CCA, ACARA y ArgAutos. Busc\u00e1 versiones, consult\u00e1 valores por a\u00f1o en pesos o d\u00f3lares, compar\u00e1 veh\u00edculos compatibles y revis\u00e1 tu cuota. Cada resultado identifica la fuente, la fecha, si es hist\u00f3rico y las conversiones aplicadas; cada fuente tiene su propio cat\u00e1logo. Requiere una API key Starter o Pro activa, ingresada \u00fanicamente en argautos.com al autorizar la conexi\u00f3n OAuth. El acceso es de solo lectura y comparte la cuota de tu API. El plan se contrata por fuera de ChatGPT; el plugin no procesa compras ni pagos."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

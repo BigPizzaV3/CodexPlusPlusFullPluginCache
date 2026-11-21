@@ -1,0 +1,52 @@
+---
+name: chartglow
+description: Create or modify ChartGlow Bar Race, Line Race, Bubble Race and Treemap Race charts from user data, verified sources or two published Explore examples, with units and attribution.
+---
+
+# ChartGlow
+
+ChatGPT prepares the complete structured dataset and configuration and sends them directly to ChartGlow. Use data supplied by the user or sources ChatGPT actually retrieved and verified. Preserve values, units, coverage and source references; never invent measurements or citations, fill gaps, or silently discard observations. ChartGlow validates and renders data with its native engine; it does not fetch or independently verify source contents, call Gemini or another server-side AI. Explain an essential data ambiguity or missing verifiable source; otherwise create directly with reasonable defaults instead of asking nonessential preference questions.
+
+## Create or change a chart
+
+Use `create_chart` with the complete dataset, time/entity/value mapping, provenance and supported options. Respect the user's chart type, language and visual choices. Bar Race, Line Race, Bubble Race and Treemap Race are supported. Honor an explicit type. Otherwise choose Line for temporal trajectories or a two-series history, Bar for rankings, and Bubble/Treemap for within-period shares when the metric is positive. The tool default is Bar; choose a supported chartType deliberately when the story calls for another type. Do not imply that Bubble/Treemap area is an absolute scale across dates. Default to 9:16 for direct data unless the user requests another supported ratio (4:5, 1:1 or 16:9). Keep a selected example's composition settings unless the user requests a change. Limits: 2,000 rows, 50 entities, 120 periods; finite values and strictly positive Bubble/Treemap values.
+
+Bubble uses relative areas normalized within each period, bounded native radii and automatic force positions, without x/y coordinates. Treemap uses rectangular areas relative to each period total, with gutters and interpolation during transitions. Neither provides a fixed absolute area scale across time: compare displayed numbers for absolute changes. Animation adds no reported observations. Bubble radius sizing and bubbleScale, custom element positions, margins, typography, image shapes, opacity and timeline placement are not exposed plugin options. Do not promise a pixel-exact reproduction of an Explore composition.
+
+Use `modify_chart` with the complete current envelope and a bounded patch. Preserve its project id, revision and untouched fields. Include replacement dataset, mapping or provenance only when intentionally changed; verify newly retrieved data as for creation. Explain validation errors and request corrected input rather than dropping rows.
+
+Choose `options.visualTheme` on creation or `patch.visualTheme` on modification from the presets currently listed in the connected tool schema (including `infographic` when offered). Omitted theme keeps native defaults on creation and existing styling on modification. Explicit selection reapplies the preset; entity hex colors can be applied on top with `options.colors` or `patch.colors`. Never change data to match a theme.
+
+Images use `mapping.image` and exact published URLs: the five Apple category PNGs at `https://www.chartglow.app/examples/apple-revenue/category-0.png` through `category-4.png`, or the four SVGs `https://www.chartglow.app/examples/renewable-power/hydro.svg`, `https://www.chartglow.app/examples/renewable-power/solar.svg`, `https://www.chartglow.app/examples/renewable-power/wind.svg`, `https://www.chartglow.app/examples/renewable-power/bioenergy.svg`. Keep image/series associations and rights notices. Do not manufacture flag columns, ISO codes or image URLs for country datasets. Country flags and custom images are native editor features: use **Edit in ChartGlow** to customize them. Preserve supported assets already supplied by the user or by a selected Explore example. Arbitrary external images, alternative hosts/paths, credentials, queries or fragments are rejected. Do not imply Apple logos are supplied.
+
+## Privacy and supported data
+
+Use non-sensitive, task-specific datasets. Do not request or send passwords, API keys, sign-in codes, payment-card details, government identifiers or protected health information. If supplied data contains restricted information, ask for a redacted or aggregated dataset before calling ChartGlow. Never send unrelated conversation history or broad profile data. Explain that chart rows, configuration and sources are sent to ChartGlow to render the chart; opening the editor prepares that exact chart for the native handoff. Refer privacy questions to https://www.chartglow.app/legal/privacy and do not claim unverified retention or deletion guarantees.
+
+## Readability and data meaning
+
+Use `options.decimals` (integer 0–6) and `options.compact` on creation, or the corresponding patch fields, for native number display. For exact counts prefer decimals 0 and compact false when readable. These settings never round or replace dataset values. Omitted number settings retain defaults at creation and the current settings on modification.
+
+`dynamicBarHeight` controls the native Bar geometry; default true, and an explicit false is preserved. For a social video in portrait 9:16 or 4:5, use `safeZone: universal` unless the user requests a platform preset (`tiktok`, `instagram`, `youtube`, `x`). These presets reuse native title/subtitle/source/timeline/ticker positions and plot margins. `safeZone: none` restores native layout coordinates; it does not hide text. Social presets are unsupported for 1:1 or 16:9. Omission preserves the current layout; explicitly reapply a preset after changing aspect ratio if desired. Safe zones are a conservative starting point, not a guarantee against every platform overlay or text collision; inspect the real preview/export.
+
+Preserve annual observations, stocks, rates and cumulative totals as supplied. Never cumulate stocks, rates or percentages. If a cumulative comparison would help an additive flow, explain the meaning and start date and obtain the user's choice before transforming the dataset; compute it once in chronological order, retain the annual source and clearly label the resulting metric. Native Cumulative Sum is not exposed by these tools: never promise a hidden toggle or cumulate already cumulative input. The two fixed examples below must remain noncumulative.
+
+For rejected input, use the returned field/row indications to explain what needs correction, translating into the user's language. Row numbers in tool validation feedback are 1-based. Do not repeatedly retry unchanged arguments, drop observations, invent data or turn missing values into zero. Internal failures return a generic message without server details; the prior chart remains available.
+
+## Start from an Explore example
+
+When the user wants an example or one of these published subjects, call read-only `get_explore_examples` without arguments to offer two short choices in the user's language, including type, coverage, unit and links. Respect an already explicit selection; no extra preference question is needed. Call with `slug: apple-revenue` or `slug: renewable-power` to retrieve the complete dataset from the single native catalogue, supported configuration and provenance as `selected.createChart`. Pass that object to `create_chart`; do not retype or maintain another dataset in these instructions. For subsequent edits, use the returned chart envelope with `modify_chart`.
+
+Apple is a Treemap with 25 observations, five categories and FY2021–2025 nominal annual net sales in USD billions. Fiscal years end in September; FY2023 has 53 weeks. Gear+ means the full Wearables, Home and Accessories category. Renewables is a Bubble with 44 IRENA observations for Hydro, Solar, Wind and Bioenergy, 2015–2025, in GW of year-end installed electrical capacity, not generation or annual additions. Excluded technologies and missing observations are not zero. Keep Cumulative Sum OFF for both.
+
+The selection returns full `sourceRecord`, definition, licence, image rights and coverage notices plus composition limitations. Present relevant notices in the user's language. The chart envelope retains units and source links, including the public full rights record; it does not embed the longer notices. These are fixed published datasets, not live feeds. Only these two examples are available through this tool; it cannot fetch arbitrary URLs or other catalogue entries. Discovery/selection create no project, transfer, save, video or AI call. Direct verified datasets remain available without using an example.
+
+## Suggestions and MP4
+
+After creation, offer at most two optional improvements only when they address a specific visible or data-related need. Respect the destination and choices already expressed; do not routinely suggest another theme, a different ratio or five extra seconds. After a small edit, confirm only the requested change unless a new issue needs explaining. Use the user's language. Do not apply suggestions, transform data or start a transfer without the user choosing.
+
+Explain the MP4 path once when relevant to the request; do not repeat it after every edit. The user clicks **Export Video** in the widget, opens the native ChartGlow editor, signs in if needed, saves the project, then uses the browser editor's MP4 export controls. The widget action only prepares and opens the exact current chart; it does not itself save to an account or export a file. Do not expose the hidden preparation tool as a model action, bypass account limits, or claim saving/export completion until the native interface confirms it.
+
+## Widget controls
+
+The widget uses English interface labels; chart titles, labels and source notes keep the user's language. Its playback controls are minimal. **Chart essentials** lets the user change chart type, native theme and aspect ratio directly; those user-initiated changes preserve data and provenance. **Edit in ChartGlow** opens the native editor for complete customization, country flags and images. **Export Video** opens the native save/export flow; it does not instantly produce a video. Describe the user outcome, without link expiry, ticket or temporary-transfer details. If opening fails, invite the user to try again without claiming a save or export.

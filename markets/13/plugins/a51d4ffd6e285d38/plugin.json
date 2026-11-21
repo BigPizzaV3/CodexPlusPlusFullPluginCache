@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "orvo",
+  "version": "0.1.0",
+  "description": "Connect your AI assistant to Orvo to search people, read notes and relationship intelligence, and update records with your permission.",
+  "author": {
+    "name": "Orvo",
+    "email": "office@getorvo.com",
+    "url": "https://www.getorvo.com"
+  },
+  "homepage": "https://www.getorvo.com/ai-assistants",
+  "license": "MIT",
+  "keywords": [
+    "orvo",
+    "relationships",
+    "personal-crm",
+    "contacts",
+    "notes",
+    "stakeholders",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Orvo",
+        "shortDescription": "Your relationships, connected",
+        "longDescription": "Bring your Orvo relationship memory into your AI assistant. Search people and notes, read existing relationship summaries, personality profiles and stakeholder insights, filter your network, and retrieve open actions and opportunities. Your assistant can analyse the original notes itself, use Orvo's existing intelligence, or combine both. With your permission, it can add and update people, organise tags and groups, write notes, manage follow-up actions and opportunities, update reporting lines, and request a refreshed relationship summary. The assistant chooses which tools to use for your request; the plugin does not impose fixed workflows.\n\nSign in with Orvo and choose Read only or Read and make changes. Access follows your Orvo permissions. People and notes deleted through the integration move to Recently deleted. Calendar events, synced emails, message sending, billing and permanent deletion are not exposed by Orvo's MCP server. Your assistant can combine Orvo with its separately connected tools.\n\nAn eligible Orvo web account is required. Mobile-only accounts are not supported. See the linked Orvo website for account requirements.",
+        "developerName": "Orvo",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Find the people whose Orvo notes mention a conference and show me the context.",
+          "Read Sarah Peterson's notes and relationship summary in Orvo, then help me prepare for a conversation.",
+          "Add a note in Orvo that I spoke with Sarah Peterson and create a follow-up action to send her the deck."
+        ],
+        "websiteURL": "https://www.getorvo.com/ai-assistants",
+        "supportURL": "https://www.getorvo.com/ai-assistants",
+        "privacyPolicyURL": "https://www.getorvo.com/privacy",
+        "termsOfServiceURL": "https://www.getorvo.com/termCondition",
+        "logo": "./assets/orvo.png",
+        "composerIcon": "./assets/orvo.png"
+      },
+      "review": {
+        "prompts": [
+          "Find the people whose Orvo notes mention a conference and show me the context.",
+          "Read Sarah Peterson's notes and relationship summary in Orvo, then help me prepare for a conversation.",
+          "Add a note in Orvo that I spoke with Sarah Peterson and create a follow-up action to send her the deck."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Existing record and intelligence retrieval. Setup: the connected demo account owns Sarah Peterson and has at least one visible note. Record the actual profile, notes and any existing summary before the run. No mutation is requested.",
+              "prompt": "Find Sarah Peterson in Orvo. Show her current company and role, the latest notes, and any existing relationship summary. Tell me if a summary is missing; don't generate one.",
+              "tools_triggered": "search_contacts(query containing Sarah Peterson), then get_contact(id equal to the returned Sarah id); get_relationship_summary(contact_id equal to that id) is optional if needed. No write tools.",
+              "expected_behavior": "Returns only Sarah's accessible profile and notes, preserving dates. Any summary is identified as an existing generated summary. If absent, reports that it is absent without generating one. No invented company, role, note or summary."
+            },
+            {
+              "description": "P2: Search raw notes and reason from them. Setup: on Sarah's record add one dated fictional note: 'Met at NorthstarDemoConf. Interested in a product introduction; promised to send the deck.' No other record contains NorthstarDemoConf. The fixture is for review, not a runtime workflow.",
+              "prompt": "Which people have notes mentioning NorthstarDemoConf in Orvo, and what did I promise them? Show the evidence from the notes.",
+              "tools_triggered": "search_notes(query containing NorthstarDemoConf); get_contact(id equal to a returned contact id) may retrieve the full note if the search excerpt is insufficient. No write tools.",
+              "expected_behavior": "Identifies Sarah and the commitment to send the deck from the returned note. Uses note dates and text as evidence. Does not confuse note creation time with a meeting date that was never recorded or claim an exhaustive result when truncated."
+            },
+            {
+              "description": "P3: Filter the network. Setup: record which of the four demo people have tier core. Temporarily set Sarah to core if none do, recording her original tier for reset.",
+              "prompt": "Show my core-circle people in Orvo, with their company and relationship health. Don't change anything.",
+              "tools_triggered": "filter_contacts(tier=core); get_contact may supply additional details for returned ids. No write tools.",
+              "expected_behavior": "Returns only accessible people in tier core and bases company and health on tool results. No invented contact, change to tiers or calendar action."
+            },
+            {
+              "description": "P4: User-directed note plus follow-up. Setup: consent grants read and make changes; Sarah exists; no existing note or open action contains OrvoDemoFollowup. Use a fresh fixture or reset after the run.",
+              "prompt": "In Orvo, add a note to Sarah Peterson: 'OrvoDemoFollowup: We discussed the introduction and I promised to send the deck.' Create an action for Sarah titled 'OrvoDemoFollowup: Send Sarah the deck', with no due date. Then check what was saved.",
+              "tools_triggered": "search_contacts, add_note(contact_id=Sarah id,text matching the requested note), create_action(contact_id=Sarah id,title matching the requested title, due_date omitted), followed by get_contact and/or list_open_actions to verify.",
+              "expected_behavior": "Creates one note and one action linked to the correct Sarah. Reports success only from successful responses and read-back. Does not send the deck, schedule a meeting, or claim an external notification."
+            },
+            {
+              "description": "P5: Current profile versus dated history. Setup: record Sarah's original company and role, and preserve a copy of her notes. Read-and-write consent is granted. Reset profile afterwards.",
+              "prompt": "Sarah Peterson now works at Northstar Demo Labs as Product Director. Update her Orvo profile, keep her old notes unchanged, and show me the saved profile.",
+              "tools_triggered": "search_contacts, update_contact(id=Sarah id,company=Northstar Demo Labs,role=Product Director), get_contact(id=Sarah id).",
+              "expected_behavior": "Changes only the requested profile fields, verifies the new company and role, and preserves all historical notes. No edit_note, deletion, new contact or summary generation is needed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Calendar capability boundary. Setup: only Orvo is connected; no calendar tool is available. Expected: explain that Orvo cannot read availability or create calendar events and that a separate calendar connection is needed. Do not invoke an Orvo write tool or claim that an Orvo action is a calendar invitation.",
+              "prompt": "Using only Orvo, check my calendar and book a meeting with Sarah tomorrow at 10. Don't create an Orvo task instead."
+            },
+            {
+              "description": "N2: Mail capability boundary. Setup: only Orvo is connected. Expected: explain that Orvo does not expose synced email or message sending. No Orvo tools are appropriate to reading an inbox, and no email should be fabricated.",
+              "prompt": "Read the last email in my inbox through Orvo and quote its full text."
+            },
+            {
+              "description": "N3: Billing capability boundary. Expected: explain that the plugin cannot modify billing and direct the user to Orvo account billing controls. No Orvo tools should be invoked and no cancellation or refund claimed.",
+              "prompt": "Cancel my Orvo subscription and refund my latest payment using this plugin."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/DDmFa9JTGh0",
+        "commerce": false,
+        "commerce_description": "The plugin exposes no purchase, checkout, payment or subscription-management tools. It is free to install but requires an active Orvo web account on a 14-day trial or a paid plan. Orvo web subscriptions are purchased and managed on getorvo.com using Stripe. Mobile-only accounts cannot use this integration."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial Orvo plugin: connect the existing MCP server with browser sign-in and user-selected read or read-and-write access. No bundled skills, fixed workflows, hooks or local executables."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

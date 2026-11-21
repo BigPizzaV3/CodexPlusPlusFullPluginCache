@@ -1,0 +1,1 @@
+OpenAI-ready ZIP: upload directly; do not upload the GitHub starter ZIP. MCP URL is configured. Both tools must still be tested and scanned in OpenAI. Verify Render domain with token in OPENAI_DOMAIN_CHALLENGE environment variable. Demo recording URL is not included yet; add the actual recording in review information before submission.

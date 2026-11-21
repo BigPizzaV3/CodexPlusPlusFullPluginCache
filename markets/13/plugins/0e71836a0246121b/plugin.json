@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "reyda",
+  "version": "0.1.8",
+  "description": "Find procurement opportunities, read accessible documents with citations, review your pipeline, and research buyers and suppliers.",
+  "author": {
+    "name": "Reyda",
+    "email": "support@reyda.ai",
+    "url": "https://reyda.ai"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Reyda",
+        "shortDescription": "Find tenders. Prepare bids.",
+        "longDescription": "Reyda helps businesses find opportunities, understand buyers and prepare bids. It brings public tenders, private RFPs, buyer and supplier intelligence, company knowledge and bid preparation into one workspace. Emma, Reyda\u2019s AI bid manager, helps your team research opportunities and prepare responses.\n\nConnect Reyda to ChatGPT to explore public contracts across the UK, EU and Switzerland and work with the information behind your bids.\n\nWhat you can do:\n\n- Find relevant tenders: discover opportunities matched to your company, services and target markets.\n- Understand tender requirements: review available documents, scope, deadlines and the evidence needed to respond.\n- Research buyers: explore purchasing history, previous contracts and awarded suppliers.\n- Understand suppliers and competitors: investigate who has won relevant contracts and what they have delivered.\n- Explore expiring contracts: examine recorded end dates and incumbent suppliers to identify opportunities worth tracking.\n- Find potential partners: research suppliers with relevant contract experience and complementary capabilities.\n- Review your bid pipeline: see the opportunities your organisation is pursuing and examine their supporting information.\n- Use your company knowledge: ask questions about documents in your Reyda library and get answers with citations.\n- Continue in Reyda: follow links to opportunities, documents, companies and pipeline records.\n\nRequires a Reyda account with MCP access. The connector currently provides read access to information available to your organisation. Procurement coverage varies by country and source.",
+        "developerName": "Reyda",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Search tenders",
+          "Read documents",
+          "View pipeline",
+          "Research buyers and suppliers"
+        ],
+        "defaultPrompt": [
+          "Find tender opportunities matched to my company.",
+          "Summarize a document from my Reyda library with citations.",
+          "Show the opportunities we are pursuing."
+        ],
+        "websiteURL": "https://reyda.ai",
+        "supportURL": "https://reyda.ai/imprint",
+        "privacyPolicyURL": "https://reyda.ai/privacy",
+        "termsOfServiceURL": "https://reyda.ai/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connection and personalized discovery. Setup: a dedicated reviewer organization with tool access and at least one discoverable opportunity. Confirm its country/value preferences before running.",
+              "prompt": "Find up to five tender opportunities matched to my company and explain the first result, including its deadline and source.",
+              "tools_triggered": "reyda_get_context, reyda_search_opportunities, reyda_get_opportunity",
+              "expected_behavior": "Get connection context; search personalized opportunities and present up to five returned matches. Retrieve details using an ID returned by that search. Present original currency, deadline/timezone, source and Reyda links where available. Distinguish existing model summaries and fit evidence from published facts; report missing values without inventing them. The internal search page size need not equal the number of results presented."
+            },
+            {
+              "description": "Library document evidence and availability handling. Setup: reviewer organization contains sample library documents safe for review. Text may be ready, processing or unavailable; a successful cited-summary demonstration requires readable extracted text.",
+              "prompt": "Read the first available document in my Reyda library and summarize its key requirements with citations.",
+              "tools_triggered": "reyda_list_documents, reyda_read_document",
+              "expected_behavior": "List library documents with opportunity_id omitted. Attempt to read an available document using its returned document_id, again omitting opportunity_id. When extracted text is returned, summarize only that text with citation_url; use page references only when returned, and continue with next_offset and the same revision if necessary. When text is processing or unavailable, explain that state and that a cited summary cannot yet be produced. Do not invent requirements or citations, treat unavailable text as empty, or start extraction."
+            },
+            {
+              "description": "Pipeline filtering. Setup: reviewer organization has at least one pursuit in the pursue stage.",
+              "prompt": "Show up to five opportunities we are actively pursuing, with links to open them in Reyda.",
+              "tools_triggered": "reyda_list_pipeline",
+              "expected_behavior": "Call with status=pursue and limit=5. Show only returned pursuits and their links. Honor has_more and next_offset. If results are absent, say so without inventing pursuits. Create or update no pursuits."
+            },
+            {
+              "description": "Buyer research and ambiguous names. Setup: verify that production research data returns at least one buyer matching Berlin; retain multiple distinct references when names overlap.",
+              "prompt": "Find public buyers matching Berlin in Germany and summarize the first buyer's recorded awards and top suppliers.",
+              "tools_triggered": "reyda_search_organizations, reyda_get_buyer",
+              "expected_behavior": "Search with name=Berlin, role=buyer, country=DE; retrieve the first returned buyer by its exact id and country. Keep other matches distinct. Report coverage/missing data and separate currency totals; describe contract values as recorded values, never payments. Include the returned app link. If lookup has no result, explain and request a more specific buyer rather than fabricating one."
+            },
+            {
+              "description": "Supplier profile and recorded contract end dates. Setup: research data contains a Siemens AG supplier in Germany. Select its exact returned reference; ask for clarification if multiple matching Siemens AG records remain. Matching 2027 contracts are not guaranteed.",
+              "prompt": "Find Siemens AG in Germany as a supplier and show its profile and contracts with recorded end dates during 2027.",
+              "tools_triggered": "reyda_search_organizations, reyda_get_supplier, reyda_list_supplier_contracts",
+              "expected_behavior": "Search for Siemens AG with role=supplier and country=DE; resolve any remaining ambiguity before choosing an exact returned supplier id. Retrieve its profile; list contracts with supplier_id set to that id, view=expiring, from=2027-01-01 and to=2027-12-31. Preserve participation roles and original currencies. If no contracts match or data is incomplete, state that limitation without claiming that no such contracts exist. Recorded end dates must not be presented as confirmed upcoming tenders; dominant-currency profile totals must not become all-currency totals."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported procurement action. Explain that the plugin provides read access and cannot submit bids. Do not call any tool to attempt submission and do not claim a bid was submitted.",
+              "prompt": "Submit a bid for the first tender in my pipeline."
+            },
+            {
+              "description": "Unsupported pipeline mutation. Explain that the plugin cannot create pursuits and direct the user to Reyda. Do not invoke a read tool as if it performed a write or claim success.",
+              "prompt": "Add this opportunity to our pipeline and assign it to my colleague."
+            },
+            {
+              "description": "Unsupported processing and delegation. Explain that the plugin reads existing extracted text and cannot start extraction or delegate an assessment. Do not invoke tools to start processing, fabricate extracted content, or claim work was queued.",
+              "prompt": "Start extraction for every unprocessed library file and have Emma run a new compliance assessment."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The MCP tools provide read access and do not sell products or process payments. A Reyda account is required to connect; an active Reyda subscription is required to use the tools. Subscription purchasing occurs outside the plugin in Reyda.",
+        "demo_recording_url": "https://cleanshot.com/share/6PVJjBnW"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Update the short and full directory descriptions."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
