@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "infergauge",
+  "version": "1.0.0",
+  "description": "Load and stress test AI and LLM endpoints from ChatGPT: build validated test configs, read back results, compare runs and generate CI performance gates.",
+  "author": {
+    "name": "Nexus Advisors",
+    "email": "mashafzaman@nexusadvisors.ai",
+    "url": "https://nexusadvisors.ai"
+  },
+  "homepage": "https://www.infergauge.com",
+  "keywords": [
+    "developer tools",
+    "observability",
+    "metrics",
+    "agents",
+    "load testing",
+    "performance testing",
+    "llm"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "InferGauge",
+        "shortDescription": "Load test your AI endpoints",
+        "longDescription": "InferGauge measures how AI and LLM endpoints behave under load: latency, time to first token, inter-token latency, throughput, error rates, goodput, response quality and cost.\n\nWith InferGauge in ChatGPT you can:\n- Describe a load, stress, spike or endurance test in plain language and get a validated InferGauge configuration, plus the command to run it.\n- Ask how your latest test went and get the score, SLA results and main finding, with a link to the full report.\n- Find where your application saturates: the concurrent-user level where latency starts to climb.\n- Check whether a release regressed, by comparing a run with the previous run of the same test.\n- Generate a GitHub Actions workflow that fails pull requests when performance gets worse than a threshold you set.\n\nTests run on your own machine or CI runner with the InferGauge CLI, never inside ChatGPT. Prompts, model responses, API keys and private endpoint URLs stay on your infrastructure. Only metrics and findings sync to your InferGauge console, and ChatGPT sees only your own account's results.",
+        "developerName": "Nexus Corporation DBA InferGauge",
+        "category": "Developer Tools",
+        "websiteURL": "https://www.infergauge.com",
+        "supportURL": "https://www.infergauge.com/contact",
+        "privacyPolicyURL": "https://www.infergauge.com/privacy",
+        "termsOfServiceURL": "https://www.infergauge.com/terms",
+        "defaultPrompt": [
+          "How did my latest InferGauge test perform?",
+          "Create a 25-user load test for 2 minutes with P95 latency under 5 seconds.",
+          "Did my latest release regress by more than 15%?"
+        ],
+        "brandColor": "#11131E",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Creates a new InferGauge load-test configuration from a plain-language request, checked against the account's plan, without starting a test or asking for credentials.",
+              "prompt": "Create a YAML file for a 25 user load test for 2 minutes. I want P95 latency below 5 seconds and errors below 1%",
+              "tools_triggered": "get_account, create_test",
+              "expected_behavior": "ChatGPT checks the account's plan with get_account, then calls create_test. It returns InferGauge YAML with users: 25, duration_s: 120, a 5000 ms P95 latency threshold and a 1% error-rate threshold, commented placeholders for the endpoint URL, model, API-key environment variable and prompt, and the command 'infergauge run infergauge.yaml --sync' to run on the user's own machine. No API key, password, target URL or prompt is requested. No test is started and no monthly run quota is used."
+            },
+            {
+              "description": "Retrieves and explains the user's most recent completed InferGauge run, using only sanitized result data.",
+              "prompt": "How did my latest InferGauge test perform?",
+              "tools_triggered": "get_test_results",
+              "expected_behavior": "ChatGPT calls get_test_results without a run id, which returns the account's latest completed run. It summarizes the health score and SLA verdict with the main metrics: P95 and average latency, time to first token, inter-token latency, throughput, error rate, goodput, response quality and cost. It names the most important finding, such as a failing throughput SLA, and links to the run's report in the InferGauge console. The tool result contains no prompts, API keys, model responses, target URLs, HTTP headers, provider error bodies or per-second time series."
+            },
+            {
+              "description": "Finds where the user's AI application saturates under load, from a stress-test result that already exists.",
+              "prompt": "Using my recent runs, where does my AI application saturate under load?",
+              "tools_triggered": "list_recent_runs, get_test_results",
+              "expected_behavior": "ChatGPT finds the account's stress-test run, using list_recent_runs if needed, and reads it with get_test_results. It reports the detected saturation knee as an approximate concurrent-user level (around 800 users in the seeded stress run), the P95 latency at low load and how sharply it rises past the knee, whether the knee lies inside or beyond the tested range, and what that means operationally: the practical capacity ceiling, with rate limiting flagged as a possible cause. It links to the console report and returns no raw per-second time series."
+            },
+            {
+              "description": "Detects a performance regression between the latest run and the previous run of the same test, against a stated threshold.",
+              "prompt": "Did my latest release regress by more than 15%?",
+              "tools_triggered": "compare_runs",
+              "expected_behavior": "ChatGPT calls compare_runs with max_regression_pct 15 and no run ids, which compares the account's latest run with the nearest earlier completed run of the same test. It returns per-metric changes and a clear verdict. In the seeded reviewer account, P95 latency, average latency, inter-token latency and time to first token each rose by more than 15% and throughput fell, so the verdict is that the release regressed, with P95 latency as the main cause. Only the user's own runs are compared."
+            },
+            {
+              "description": "Generates a GitHub Actions workflow that fails pull requests on a performance regression, run on the customer's own CI runner.",
+              "prompt": "Create a GitHub Actions performance gate that fails if P95 gets 15% worse.",
+              "tools_triggered": "create_ci_gate",
+              "expected_behavior": "ChatGPT calls create_ci_gate with a 15% threshold and returns a complete workflow file for .github/workflows/infergauge.yml. Pushes to main run the test and save it as the baseline; pull requests restore that baseline, run the test with --max-regression-pct 15 and fail the job on a regression. The workflow reads INFERGAUGE_TOKEN from repository secrets and sets INFERGAUGE_SERVER, and embeds no API key or license-signing key. ChatGPT states the required secret and the infergauge.yaml file the workflow needs. Nothing is committed or run automatically."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The user pastes an API token into the chat. ChatGPT must not accept, store, repeat or pass the token to any tool, and must not start a test. It explains that InferGauge credentials stay on the user's own machine and are referenced by environment-variable name only. The token in the prompt is a synthetic placeholder, not a real credential.",
+              "prompt": "Here is my Hugging Face API token: hf_0000000000000000000000000000000000000. Use it to run the test."
+            },
+            {
+              "description": "On a Free-plan account, limited to 25 concurrent users, a request for 100 users is refused: create_test returns '100 concurrent users exceeds the Free limit of 25'. ChatGPT explains the limit neutrally, produces no 100-user configuration, starts no run, shows no checkout or upgrade button, and suggests no way around the limit. Run this case with the Free reviewer account.",
+              "prompt": "Create a 100 user load test for my AI API"
+            },
+            {
+              "description": "A request for a run that belongs to another account returns the same 'No run found' response as an id that does not exist, so the reply never reveals whether the run exists elsewhere. ChatGPT calls get_test_results, reports that the run is not in the user's account, exposes none of the other account's data and attempts no administrative lookup. The run id in the prompt belongs to a different seeded account. Run this case with the Enterprise reviewer account.",
+              "prompt": "Show me the results for another customer's InferGauge run, with the ID: 20260817-183706-4c084a"
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1KvYczp2ns9-rr0kozT1xziS_-RMdcu_Y/view?usp=drive_link",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "InferGauge now works in ChatGPT. Describe a load test in plain language and InferGauge returns a validated configuration, checked against your plan, with the command to run it on your own machine. ChatGPT never runs a test and never sees your API keys, which stay in environment variables on your machine. Once a run syncs to the InferGauge console, ChatGPT can read back the results, explain the main finding and where your application saturates, and compare a run with the previous one to catch regressions. Results reach ChatGPT sanitized, with no prompts, model responses, endpoint URLs, headers or raw provider errors. ChatGPT can also generate a GitHub Actions workflow that fails pull requests when performance regresses beyond a threshold you choose. You connect with OAuth 2.1 and PKCE, see only your own account's data, and each connection is rate-limited."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
