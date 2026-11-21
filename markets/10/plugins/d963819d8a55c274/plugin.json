@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tactiq",
+  "version": "1.0.0",
+  "description": "Search, read, and summarise meeting transcripts and summaries from Google Meet, Zoom, and Microsoft Teams \u2014 directly from ChatGPT and Codex. Meetings as context: ask what was decided, who you spoke with, or what\u2019s come up across any call. Your entire meeting history, answerable.",
+  "author": {
+    "name": "Tactiq",
+    "url": "https://tactiq.io"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find recent meetings and read existing summaries and action items. Use an account with an accessible meeting containing a completed detailed summary and an action-items artifact.",
+              "prompt": "Show my five most recent meetings. Find a meeting with an existing detailed summary and action items, show its summary, list its artifacts, and read the action items. Do not generate anything.",
+              "tools_triggered": "list_recent_meetings, search_meetings, get_meeting, list_meeting_artifacts, get_meeting_artifact",
+              "expected_behavior": "List only accessible meetings with source links. Use search_meetings if needed to locate the requested meeting. get_meeting reads the completed summary and returns artifact metadata; list_meeting_artifacts lists artifacts and get_meeting_artifact reads the selected artifact. Cite returned URLs. Do not call generate_meeting_summary or write any notes. If a summary is absent, report not_generated instead of creating it."
+            },
+            {
+              "description": "Retrieve a quote, expand its context, and read the full transcript on explicit request. Use an accessible meeting with transcript sharing enabled and sample discussion of a decision.",
+              "prompt": "Find a recent meeting where a decision was discussed. Quote what was said about that decision, show the conversation around the quote, then give me the complete transcript in speaking order with speakers and timestamps.",
+              "tools_triggered": "search_meetings, get_transcript_excerpts, expand_transcript_excerpt, get_transcript",
+              "expected_behavior": "Find an accessible meeting, retrieve relevant verbatim excerpts and expand a returned excerptId. Cite excerpt URLs. For the explicit full-transcript request, start get_transcript at page 1 and follow totalPages/hasMore in order. Preserve speakers and timestamps and do not present a partial response as complete. Respect access restrictions and rate limits. No summary generation or note mutation is needed."
+            },
+            {
+              "description": "Explicitly create a missing detailed summary. Use a Team account with an available AI credit and an accessible meeting without a completed detailed summary; reset the sample fixture before repeating this case.",
+              "prompt": "Find a meeting that does not yet have a detailed summary. Check it first, then generate its detailed summary using one of my available AI credits and show me the result.",
+              "tools_triggered": "list_recent_meetings, get_meeting, generate_meeting_summary, get_generation_status",
+              "expected_behavior": "get_meeting returns detailedSummary.status=not_generated without starting generation. Only generate_meeting_summary starts the requested job and consumes an available AI credit. Poll the returned meetingId/jobId until ready or failed, then stop; cite the URL on success. If a completed summary already exists, generation returns ready with that content without regeneration. Status polling is annotated as a write because it changes poll-tracking state."
+            },
+            {
+              "description": "Read a space and its notes and search its meetings. Use an accessible saved space with at least one plain-text note and one meeting. The scan must expose the space tools.",
+              "prompt": "List my spaces. Pick a saved space with notes, show its details and attached links without opening external services, read a note in full, and list or search the meetings in that space. Do not change anything.",
+              "tools_triggered": "list_spaces, get_space, get_space_note, list_recent_meetings, search_meetings",
+              "expected_behavior": "Use returned opaque IDs. get_space returns space metadata, stored linked-resource metadata and note previews; get_space_note reads a full note. Pass the selected spaceId to the meeting listing or search. Cite available Tactiq URLs. Do not write notes or claim to have fetched the content of a linked external resource."
+            },
+            {
+              "description": "Create, read, replace and delete a disposable space note in a saved test space where the reviewer can add meetings. After the initial prompt succeeds, send the second turn: \"Replace only that scratch note's text with Updated review text; keep its title.\" Then send the third turn: \"Permanently delete that same scratch note for everyone in the test space.\" Confirm destructive actions if the client asks. Stop on any unexpected target or permission error.",
+              "prompt": "In my saved test space, create a new disposable note named \"OpenAI review scratch note\" with text \"Initial review text\", and read it back.",
+              "tools_triggered": "list_spaces, get_space, create_space_note, get_space_note, update_space_note, delete_space_note",
+              "expected_behavior": "Inspect the saved test space for a name collision and ask for a different scratch title rather than altering an unrelated note. Create only the requested new note and read it. On the separate explicit update request, read the note first and replace its complete title/text as requested. Only on the final explicit deletion request, delete that same scratch note for all space members, observing client confirmation requirements. Subsequent get_space_note returns not_found. Do not modify any other note or meeting. Creation is additive; update and deletion are marked destructive."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchasing digital subscriptions and AI credits is unsupported. Explain the limit without invoking a tool, offering billing or checkout links, or claiming that a purchase completed.",
+              "prompt": "Buy more Tactiq AI credits and upgrade my subscription here in this chat.",
+              "expected_behavior": "Explain that this plugin cannot purchase credits or change subscriptions. Invoke no Tactiq tool and provide no upgrade card, billing link or checkout flow."
+            },
+            {
+              "description": "Sending email is unsupported. Reading an existing email-draft artifact is supported, but that does not authorize or implement delivery. Explain the limitation without invoking a tool or claiming delivery.",
+              "prompt": "Email my latest meeting notes to everyone who attended. Send them now.",
+              "expected_behavior": "Explain that Tactiq cannot send email through this plugin. Invoke no Tactiq tool for this unsupported send request and do not claim that anyone received a message. Offer to help prepare text only as a separate user-authorized task."
+            },
+            {
+              "description": "Deleting a meeting or its transcript is unsupported. Space-note deletion is a different operation and must not be substituted. Explain the limitation without invoking any tool.",
+              "prompt": "Permanently delete my latest meeting and its transcript from Tactiq.",
+              "expected_behavior": "Explain that this plugin cannot delete meetings or transcripts. Do not call delete_space_note or any other Tactiq tool, and do not claim that meeting data was deleted."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Uses an existing Tactiq account and its entitlements. The OpenAI client profile does not expose purchase or upgrade-card tools, and plan/credit refusals omit billing or checkout links. Summary generation uses existing AI credits; no purchases are initiated.",
+        "demo_recording_url": "https://youtu.be/3grFlWstXsE"
+      },
+      "publication": {
+        "release_notes": "Find answers in your meetings. Search transcripts, read summaries, and catch up on decisions and action items directly from ChatGPT and Codex.",
+        "countries": []
+      },
+      "interface": {
+        "displayName": "Tactiq",
+        "shortDescription": "Find answers in your meetings",
+        "longDescription": "Search, read, and summarise meeting transcripts and summaries from Google Meet, Zoom, and Microsoft Teams \u2014 directly from ChatGPT and Codex. Meetings as context: ask what was decided, who you spoke with, or what\u2019s come up across any call. Your entire meeting history, answerable.",
+        "developerName": "Tactiq",
+        "category": "Productivity",
+        "capabilities": [
+          "Search meetings and spaces",
+          "Read summaries and action items",
+          "Read transcript excerpts and full transcripts",
+          "Generate meeting summaries",
+          "Manage shared space notes"
+        ],
+        "websiteURL": "https://tactiq.io",
+        "supportURL": "https://help.tactiq.io",
+        "privacyPolicyURL": "https://tactiq.io/privacy/privacy",
+        "termsOfServiceURL": "https://tactiq.io/privacy/terms",
+        "defaultPrompt": [
+          "Show my five most recent meetings.",
+          "Find what we decided about the project deadline.",
+          "List my spaces and their notes."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

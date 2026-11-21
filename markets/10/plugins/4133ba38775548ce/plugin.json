@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "minor-hotels",
+  "version": "0.1.0",
+  "description": "Find Minor Hotels properties, check live room availability and rates, and continue to hotel booking checkout on the web.",
+  "author": {
+    "name": "MINOR International PCL"
+  },
+  "keywords": [
+    "hotels",
+    "travel",
+    "accommodation",
+    "availability"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Minor Hotels",
+        "shortDescription": "Find & book hotels and resorts",
+        "longDescription": "Discover, compare and book your perfect stay with Minor Hotels. Minor Hotels' portfolio features 560+ hotels and resorts across six continents; availability in this app depends on the connected hotel catalog. Whether you're planning a city break, business trip, beach escape, family vacation or luxury getaway, explore a diverse portfolio of brands including Anantara, Avani, Tivoli, NH Collection, nhow, NH, Colbert Collection, The Wolseley, Minor Reserve Collection, iStay and Elewana.\nSimply tell ChatGPT where you want to go, when you're travelling and what matters most to you, from budget and location to breakfast, a pool, spa, family-friendly facilities or proximity to key attractions and landmarks. The Minor Hotels app helps you discover available hotels and resorts, compare accommodation options and find the best hotel for your trip.\nExplore everything from Anantara luxury resorts and Tivoli elegance to the distinctive design of nhow, the local character of NH Collection, with its city-centre locations and heritage buildings, the style and flexibility of Avani, and the reliable urban stays of NH and Oaks.\nTry asking:\n\u2022 \u201cFind a centrally located hotel in Madrid for next weekend\u201d\n\u2022 \u201cShow me family-friendly beach resorts in Thailand\u201d\n\u2022 \u201cFind an Anantara resort in the Maldives\u201d\n\u2022 \u201cWhich Minor Hotels are near the Santiago Bernab\u00e9u?\u201d\n\u2022 \u201cFind a hotel in Amsterdam under \u20ac200 with breakfast\u201d\n\u2022 \"Show me NH Hotels in central Berlin\"\n\nCompare hotel deals, refine your search through conversation, and discover accommodation that matches your travel needs. When you're ready, select a room and continue to web checkout to complete your booking. Checkout and payment happen on the web. Availability and rates can change; a search result is not a confirmed reservation.",
+        "developerName": "MINOR International PCL",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Find a centrally located hotel in Madrid for next weekend",
+          "Show me family-friendly beach resorts in Thailand",
+          "Find an Anantara resort in the Maldives"
+        ],
+        "websiteURL": "https://www.minorhotels.com",
+        "supportURL": "https://www.minorhotels.com/en/contact-us",
+        "privacyPolicyURL": "https://www.minorhotels.com/en/privacy-policy",
+        "termsOfServiceURL": "https://www.minorhotels.com/en/loyalty/terms-and-conditions",
+        "composerIcon": "./assets/composer-icon.png",
+        "category": "Travel",
+        "logo": "./assets/listing-logo-ai.png"
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Users select hotel accommodation and continue to a web booking checkout. Checkout and payment occur on the web, not in the chat. The MCP tools search hotels and check availability; the returned interface provides a Book Now handoff. A returned rate or link does not confirm a reservation.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Destination and amenity filtering. Start a new conversation with this plugin enabled. The live catalog can change; assert the returned data rather than fixed hotel names.",
+              "prompt": "Find three hotels in Bangkok, Thailand, with a spa.",
+              "tools_triggered": "search_hotels",
+              "expected_behavior": "Call search_hotels with a nonblank query, city_name=Bangkok, country_code=TH, has_spa=true, and limit=3. Return at most three hotels, each supported by structuredContent.hotels with matching city, country, and has_spa=true. Show hotel cards in the host. Do not invent availability or prices, and do not call check_availability before dates and occupancy are supplied. If no hotels match, explain that result and offer to broaden the filters."
+            },
+            {
+              "description": "P2: Combined star-rating and outdoor-pool filters with a one-result boundary. Start a new conversation.",
+              "prompt": "Find one five-star hotel in Bangkok, Thailand, with an outdoor pool.",
+              "tools_triggered": "search_hotels",
+              "expected_behavior": "Call search_hotels with city_name=Bangkok, country_code=TH, rating_min=5, has_outdoor_pool=true, and limit=1. A returned hotel must have rating=5 and has_outdoor_pool=true. Return no more than one result and describe only returned facts. If no result is available, say so without silently dropping the filters."
+            },
+            {
+              "description": "P3: Discover two named properties and compare live availability. Run before 2026-10-20; update the prompt to a future date if review occurs later. Hotel IDs must be obtained from search results. On 2026-10-02, the endpoint returned room options for these properties on the specified dates.",
+              "prompt": "Compare rooms at Anantara Siam Bangkok Hotel and Anantara Riverside Bangkok Resort for two adults, no children, checking in October 20, 2026 for two nights.",
+              "tools_triggered": "search_hotels, check_availability",
+              "expected_behavior": "Use search_hotels to resolve the named properties, then check_availability with their returned property_ids converted to numeric hotelIds, checkIn=2026-10-20, nights=2, and guests=2,0. Known discovery IDs at preparation were 36414 and 36396; re-discover rather than assuming them. Compare only returned room and rate data, preserving currency and whether a price covers the stay or a night. Show the availability cards. For unavailable hotels, report the returned no-availability result. Do not claim that any room has been reserved. For the current per-stay response contract, the displayed stay total must equal the returned prices.sell.price; do not multiply it by nights again. Verify one-night and two-night totals before passing this case."
+            },
+            {
+              "description": "P4: Meal-plan and cancellation filtering. Start a new conversation and run before 2026-10-20; update the date before later review. Resolve the named hotel using search_hotels. A sold-out result tests recovery but does not demonstrate successful rendering of filtered rates; repeat with a future date that returns matching rates for the demo.",
+              "prompt": "Show rooms at Anantara Siam Bangkok Hotel for two adults, no children, October 20, 2026 for two nights, with breakfast and free cancellation.",
+              "tools_triggered": "search_hotels, check_availability",
+              "expected_behavior": "Resolve the hotel with search_hotels and call check_availability with its numeric hotelIds, checkIn=2026-10-20, nights=2, guests=2,0, boardTypes=[BB], and freeCancellationOnly=true. Show only returned qualifying rates; describe cancellation deadlines and penalties from the actual response without promising unrestricted cancellation. If none match, say no matching rates were returned and request permission before changing filters. Do not claim a booking or payment occurred."
+            },
+            {
+              "description": "P5: Continue an existing booking discussion without losing context. First run P4, ensure a real qualifying rate is displayed, and select or identify that rate. Run this prompt in the same conversation. If no qualifying rate is available, establish an equivalent future-dated fixture with actual availability before running this case. Stop before entering personal or payment information or confirming a reservation.",
+              "prompt": "I'd like to book that room. Continue with the same dates, guests, breakfast and cancellation preference.",
+              "tools_triggered": "check_availability",
+              "expected_behavior": "Call check_availability again with the exact most recently established hotelIds, checkIn, nights, guests, boardTypes=[BB], and freeCancellationOnly=true. Reuse supplied context without asking for it again; ask only for genuinely missing required fields. If still available, present the returned interface so the user can select the rate and use Book Now to reach the web checkout. Preserve dates and occupancy in the handoff. If rates change or disappear, explain the updated result. Never invent a booking URL, collect card details in chat, or state that availability checking completed a reservation. Verify that the card total, confirmation total and checkout handoff expectedPrice use the same per-stay amount and currency; do not multiply the returned stay amount by nights."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Flights are outside this app's capabilities. In a new conversation, explain that this plugin cannot search or book flights. Neither search_hotels nor check_availability should be invoked, and no flight booking should be claimed.",
+              "prompt": "Find and book a flight from Bangkok to Madrid for me."
+            },
+            {
+              "description": "N2: Existing-reservation cancellation is unsupported by both exposed tools. In a new conversation, explain that the plugin cannot cancel an existing booking and refer the user to the booking confirmation or appropriate support channel. Do not call search_hotels or check_availability, request payment details, or claim a cancellation or refund.",
+              "prompt": "Cancel my existing hotel reservation and refund the charge."
+            },
+            {
+              "description": "N3: Loyalty-account transactions are unsupported. In a new conversation, explain that this plugin cannot access or transfer a loyalty balance. Do not call search_hotels or check_availability or invent a balance or completed transfer.",
+              "prompt": "Check my Minor DISCOVERY balance and transfer my rewards to another account."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/11yd4R4RLA4JeR1h9yCHvTXOkzBZc_keU/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "Initial submission of the Minor Hotels app. Discover and compare available hotels and resorts from Minor Hotels' portfolio of 560+ properties across six continents, check live room availability and rates, and continue to web checkout to book. Availability in this app depends on the connected hotel catalog; checkout and payment happen on the web.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

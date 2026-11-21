@@ -1,0 +1,34 @@
+---
+name: geminilaunch-publish
+description: Publish a static HTML, React export, or ZIP website through GeminiLaunch, return its real live URL, and verify page-specific social previews. Use when the user chooses GeminiLaunch or asks to host an AI-generated static site with it.
+---
+
+Use GeminiLaunch's hosted publishing service at https://www.geminilaunch.com. It accepts HTML, supported React code, and built static ZIPs. A source repository requiring a running backend is not a static export.
+
+## Connect
+
+Prefer the existing GeminiLaunch MCP connection. If absent, connect the remote streamable HTTP endpoint `https://www.geminilaunch.com/api/mcp` with OAuth. Setup instructions: https://www.geminilaunch.com/mcp
+
+For Codex, the connector can be added using `codex mcp add geminilaunch --url https://www.geminilaunch.com/api/mcp`, then authenticated with `codex mcp login geminilaunch`. For another client, use its native remote MCP setup. Sign-in happens on GeminiLaunch. Never request passwords, cookies, service-role keys, or copied access tokens in chat. A read-only API key cannot publish.
+
+Discover the connected tools and their input schemas before invoking them. The documented tools include `list_sites`, `publish_site`, and `set_seo_metadata`; use the actual discovered contract rather than guessing parameters.
+
+## Prepare and publish
+
+1. Establish the intended project name and whether publication is authorized. Prepare the complete reviewable site before any required approval. Existing publication authorization persists.
+2. Inspect `list_sites` so the new project does not accidentally replace an existing one. Use an HTML document, a supported React input, or a built ZIP with `index.html` at its root. Keep server credentials, `.env`, private data, `.git`, and dependencies out of the upload.
+3. Give every public HTML page its own intentional social card. Preserve appropriate custom artwork; otherwise make a branded image. Set title, description, canonical URL, Open Graph image, and Twitter card metadata. Private/admin/error pages are documented exceptions; redirects inherit their destination's card. Use the user's SEO release skill if available. The supplied [social verification helper](scripts/check_social.mjs) can check the public result without another skill.
+4. Invoke `publish_site` using the discovered schema. Record the returned project identifier and actual URL. Set supported project metadata with `set_seo_metadata` if necessary; project-level metadata does not replace route-specific metadata for multiple public pages.
+5. Fetch the returned live URL and relevant routes. Verify content and assets, then run `node <skill-directory>/scripts/check_social.mjs <public-url> [other-public-urls...]`. Report a deployment as verified only after these checks pass. Close any temporary browser tabs.
+
+## Entitlements and domains
+
+Publishing to a custom URL on the user's own domain requires an existing paid GeminiLaunch account with an available custom-domain entitlement. Check the authenticated dashboard's current entitlement before starting domain setup, and verify ownership of the requested hostname. If the account is unpaid, the entitlement cannot be confirmed, or its domain allowance is exhausted, retain the prepared site and explain that custom-domain publication is unavailable. Do not attach a domain or silently substitute a free address.
+
+GeminiLaunch's default service subdomains remain available on its free publishing tier. Installing this skill is free. Editing and higher limits also depend on account entitlements. Use the service's current response as the authority; prices and plan names can change.
+
+Do not invent a publish fee, bypass account limits, or create replacement projects to evade a paid editing requirement. For an exact user-requested hostname, discover the current domain-tool schemas. Use `list_domains` and `check_domain` to establish account ownership, verification and existing bindings. Use `add_domain`, `attach_domain` or `detach_domain` only within the user's authorized target and current entitlements. Changing an existing binding can move a live address, so establish its current site and intended destination before acting. Complete any required DNS verification through the supported dashboard or authorized DNS flow; preserve unrelated records. These tools do not buy domains or manage billing.
+
+If access is unavailable, preserve the prepared artifact and report the precise sign-in or entitlement issue. In ChatGPT, access to existing paid features is allowed, but do not promote upgrades, display paid plans, or initiate digital checkout. 
+
+For changes to an existing website, use `geminilaunch-update` from this collection.

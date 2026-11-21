@@ -1,0 +1,27 @@
+# Dabble Me plugin
+
+Connects to the existing Dabble Me Streamable HTTP server at https://dabble.me/mcp using host-managed OAuth (PKCE S256, scope mcp:access). No API keys or server deployment are needed. Requires a Dabble Me PRO account.
+
+Includes four skills: find-memories, reflect-on-your-journal, year-in-review, and write-journal-entry. Uses the existing Dabble Me icon.
+
+Public server-card and OAuth metadata were verified on 2026-10-08. Tool contracts and limitations were inspected in app/lib/mcp and app/services/mcp. Authenticated tools/list and account actions require installation and user OAuth connection; they have not been exercised by this package build. No journal entries were read or created.
+
+After installation, connect Dabble Me through the host, ask for one recent entry, then try a dated memory search and a period review. Test saving only with an explicitly requested entry; confirm the returned success and URL. Do not create test entries merely to validate authentication.
+
+Package from the plugins directory with: `zip -rX /tmp/dabble-me-plugin.zip dabble-me -x '*.DS_Store'`
+
+The Claude directory accepts only Markdown, text, JSON, YAML, and PNG, JPEG, GIF, WebP, or ICO images from unverified organizations, so keep scripts, HTML, and other file types out of this folder.
+
+## Claude directory submission
+
+Use repository `https://github.com/parterburn/dabble.me` and plugin path `plugins/dabble-me`. Track `main` after the compatibility changes merge. Claude reads `.claude-plugin/plugin.json` and `.mcp.json`; portable clients read the root `plugin.json` and `mcp.json`. Both use the same existing OAuth server and skills. Claude uses the transport name `http` for Streamable HTTP.
+
+Validate locally with `claude plugin validate ./plugins/dabble-me`. Keep the identity, version, descriptions, and connection synchronized across formats when releasing updates.
+
+## OpenAI review materials
+
+The portable manifest includes five positive and three negative review cases (the directory requires exactly that many), the demo link (https://urg.ai/dbl-mcp), and release notes. The demo link resolves to a public Loom page; video playback has not been verified. These cases are drafted and have not been run against the reviewer account. Prepare the dated sample entries described in the cases before running them. Run read cases before write cases, and supply reviewer credentials only through the portal's secure fields.
+
+Public ChatGPT directory listing: https://chatgpt.com/plugins/plugin_asdk_app_6ac8451cdf78819190a3a26f21bfe561
+
+The logo asset and manifest references are verified in private plugin v0.1.5 and the public ChatGPT directory listing.

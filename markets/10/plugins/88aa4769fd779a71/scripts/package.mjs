@@ -1,0 +1,18 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { mkdir, mkdtemp, cp, writeFile, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+const root = new URL('../', import.meta.url);
+const workRoot = new URL('../../../work/', import.meta.url);
+const output = new URL('../../peptide-reconstitution-plugin-0.5.0.zip', import.meta.url);
+const files = ['plugin.json', 'mcp.json', 'package.json', 'package-lock.json', 'README.md', '.gitignore', 'src', 'web', 'dist', 'assets', 'skills', 'scripts', 'test', 'docs', 'public', 'server.mjs', 'vercel.json', '.vercelignore'];
+await mkdir(workRoot, { recursive: true });
+const scratch = pathToFileURL(`${await mkdtemp(fileURLToPath(new URL('plugin-package-', workRoot)))}/`);
+for (const file of files) await cp(new URL(file, root), new URL(file, scratch), { recursive: true });
+const temporary = new URL('plugin-release.zip', scratch);
+const zip = spawnSync('/usr/bin/zip', ['-qr', fileURLToPath(temporary), ...files], { cwd: fileURLToPath(scratch), stdio: 'inherit' });
+if (zip.status !== 0) throw new Error('ZIP creation failed');
+await cp(temporary, output);
+const data = await readFile(output);
+await writeFile(new URL('../../peptide-reconstitution-plugin-0.5.0.sha256', import.meta.url), `${createHash('sha256').update(data).digest('hex')}  peptide-reconstitution-plugin-0.5.0.zip\n`);
+console.log(`Created ${fileURLToPath(output)} (${data.length} bytes).`);

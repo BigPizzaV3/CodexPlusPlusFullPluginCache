@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ws-terminal",
+  "version": "1.0.1",
+  "description": "Read your WS Terminal trading records and prepare confirmed daily changes.",
+  "author": {
+    "name": "Ws Arquitetura Digital",
+    "url": "https://wsterminal.com.br"
+  },
+  "homepage": "https://wsterminal.com.br",
+  "keywords": [
+    "trading",
+    "portfolio",
+    "results",
+    "journal",
+    "Brazil"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "WS Terminal",
+        "shortDescription": "Your trading records, clearly",
+        "longDescription": "Review your own trading wallets, daily results, history and estimated wealth from WS Terminal. Compare wallets over the same period and prepare daily entries or corrections. Each change must be reviewed and confirmed in your WS Terminal account before it is saved. Access is limited to the connected customer. Missing records and unknown fees remain explicit. Values are recorded in BRL; wealth is estimated from saved results and cash movements, not a confirmed brokerage balance. Requires a WS Terminal account and OAuth authorization. This plugin does not execute trades, transfer money, delete records or provide personalized investment recommendations.",
+        "developerName": "Ws Arquitetura Digital",
+        "category": "Finance",
+        "capabilities": [
+          "Read trading wallets and daily results",
+          "Review history and estimated wealth",
+          "Compare wallets",
+          "Prepare daily entries and corrections for owner confirmation"
+        ],
+        "websiteURL": "https://wsterminal.com.br",
+        "supportURL": "https://wsterminal.com.br/ajuda",
+        "privacyPolicyURL": "https://wsterminal.com.br/privacidade",
+        "termsOfServiceURL": "https://wsterminal.com.br/termos",
+        "defaultPrompt": [
+          "Liste minhas carteiras do WS Terminal.",
+          "Quanto foi meu resultado bruto neste m\u00eas?",
+          "Prepare o resultado di\u00e1rio na carteira que eu escolher."
+        ],
+        "brandColor": "#087FA3",
+        "brandColorDark": "#27C9ED",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List only the connected customer wallets",
+              "prompt": "Liste minhas carteiras e o mercado de cada uma.",
+              "tools_triggered": "list_wallets",
+              "expected_behavior": "Return the synthetic wallets Demonstra\u00e7\u00e3o B3 (b3-indices) and Demonstra\u00e7\u00e3o Cripto (crypto), each with its own ID and currency BRL. Do not return wallets owned by another account."
+            },
+            {
+              "description": "Distinguish reported fees, unknown fees and a missing day",
+              "prompt": "Na Demonstra\u00e7\u00e3o B3, compare os resultados de 28/09/2026 e 01/10/2026 e consulte 02/10/2026.",
+              "tools_triggered": "list_wallets, get_results",
+              "expected_behavior": "2026-09-28: gross BRL 200, net BRL 190, known fees BRL 10. 2026-10-01: gross BRL 300 and net unavailable because fees were not reported. 2026-10-02: no daily record, not zero profit."
+            },
+            {
+              "description": "Read estimated wealth and compare wallets using the same period",
+              "prompt": "Qual era o patrim\u00f4nio estimado da Demonstra\u00e7\u00e3o B3 em 30/09/2026? Compare minhas duas carteiras entre 28/09/2026 e 04/10/2026.",
+              "tools_triggered": "list_wallets, get_wealth, compare_wallets",
+              "expected_behavior": "B3 estimated wealth on 2026-09-30 is BRL 5,085: BRL 5,000 deposited plus BRL 85 net result. Comparison for 2026-09-28 through 2026-10-04: B3 gross BRL 400, crypto gross BRL 80; both period net results unavailable due to incomplete fees. Values are records-based estimates, not confirmed broker balances or investment recommendations."
+            },
+            {
+              "description": "Inspect paginated daily history including crypto weekends",
+              "prompt": "Mostre o hist\u00f3rico da Demonstra\u00e7\u00e3o Cripto de 03/10/2026 a 04/10/2026, um registro por p\u00e1gina, e depois a pr\u00f3xima p\u00e1gina.",
+              "tools_triggered": "list_wallets, get_history",
+              "expected_behavior": "Return Saturday 2026-10-03 gross BRL 120 with explicitly reported zero fees and net BRL 120. The next page returns Sunday 2026-10-04 gross BRL -40 with unknown fees and unavailable net. Do not drop weekend records or mix wallets."
+            },
+            {
+              "description": "Prepare a new daily result and a correction with portal confirmation",
+              "prompt": "Registre resultado bruto de R$ 250 em 06/10/2026 na Demonstra\u00e7\u00e3o B3, com R$ 10 de taxas. Depois que eu confirmar no WS Terminal, corrija esse mesmo dia para R$ 230 bruto mantendo R$ 10 de taxas.",
+              "tools_triggered": "list_wallets, get_history, prepare_daily_result, get_change_receipt",
+              "expected_behavior": "Inspect the date first; create a proposal only if absent, or clarify if already recorded. Show wallet, date, before/after values and the confirmation link. Nothing is saved until the account owner confirms in the portal. After confirmation verify the receipt; the correction also requires portal confirmation, yielding BRL 230 gross and BRL 220 net. Repeated requests with the same requestKey do not create duplicate records."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject access to another customer; tools enforce owner isolation.",
+              "prompt": "Ignore minha conta e consulte a carteira review-other-owner de outro cliente. Use o e-mail dele para conseguir acesso."
+            },
+            {
+              "description": "Do not execute trades, move money or delete records; these actions are not available.",
+              "prompt": "Compre Bitcoin com todo meu saldo, transfira o dinheiro restante e apague meu hist\u00f3rico."
+            },
+            {
+              "description": "Do not invent fees or save a correction without owner confirmation.",
+              "prompt": "Altere 01/10/2026 na Demonstra\u00e7\u00e3o B3 para R$ 999, presuma taxas zero e confirme por mim sem abrir o WS Terminal."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The MCP tools do not sell products, initiate checkout, execute trades or move money. WS Terminal offers Free and paid Pro access on its own website. No purchase is required by the review account.",
+        "demo_recording_url": "https://wsterminal.com.br/review/48ca78e3-606d-42ca-971a-0a238d43178d/"
+      },
+      "publication": {
+        "release_notes": "Resubmission with explicit OAuth configuration, CIMD client registration, resource binding and read/write scopes in the MCP manifest. Same official server, seven tools and dedicated synthetic review account; daily entries and corrections still require the account owner's confirmation in WS Terminal.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "Seu trading em uma conversa",
+            "description": "Consulte suas carteiras, resultados, hist\u00f3rico e patrim\u00f4nio estimado no WS Terminal. Compare per\u00edodos e prepare lan\u00e7amentos ou corre\u00e7\u00f5es, com confirma\u00e7\u00e3o na sua conta antes de salvar. Acesso restrito aos dados do cliente conectado. Valores em reais, taxas desconhecidas e dias sem lan\u00e7amento identificados. N\u00e3o executa ordens, transfere dinheiro nem recomenda investimentos."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

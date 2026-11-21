@@ -1,0 +1,122 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "freightright",
+  "version": "1.0.1",
+  "description": "Freight rates, quote requests and shipment tracking from your Freight Right account, with skills that keep billing and bookings right.",
+  "author": {
+    "name": "Freight Right",
+    "email": "support@freightright.com",
+    "url": "https://www.freightright.com"
+  },
+  "homepage": "https://developers.freightright.com",
+  "repository": "https://github.com/freight-right/agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "freight",
+    "freight rates",
+    "shipping",
+    "logistics",
+    "LTL",
+    "ocean freight",
+    "FCL",
+    "LCL",
+    "air freight",
+    "freight quote",
+    "shipment tracking",
+    "container tracking",
+    "supply chain",
+    "ecommerce shipping"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Freight Right",
+        "shortDescription": "Freight rates and tracking",
+        "longDescription": "Freight Right connects your Freight Right (Shipment Manager) account so you can price freight, request quotes and check on shipments in plain language.\n\nWhat you can do:\n- Get instant rates for ocean FCL and LCL, air freight, and LTL trucking within and between the US and Canada. Offers come back cheapest first, with carrier, total, transit time where the carrier gives one, what is not included, and how long the price is valid.\n- Turn a city, port or airport name into the port or airport code a price check needs.\n- Request a quote from the Freight Right pricing team for shipments that instant rates do not cover, such as full truckload, trucking to or from Mexico, or cargo a mode cannot price instantly. You can preview exactly what will be sent before anything is submitted, and check the answer later.\n- Review your quotes and quote requests, including their status and the offer once Freight Right has quoted it.\n- Prepare a booking. The assistant never books on its own. It gives you a link to a Freight Right page where you review the offer and request the booking yourself. Freight Right then confirms it.\n- Track shipments in your account by Freight Right reference, house or master bill of lading, container number, purchase order or your own reference. See routing legs, recorded milestones, estimated and actual dates, and containers.\n- See which account you are connected as, which organizations you can bill, and how much of your monthly price-check allowance is used.\n\nWho it is for: shippers, importers, exporters and ecommerce merchants with a Freight Right account.\n\nLimitations: you sign in with your own Freight Right account, and you only see shipments and quotes for the organizations that account belongs to. Each new instant price check uses one unit of your account's monthly allowance. Full truckload and Mexico trucking are quoted by the pricing team, not priced instantly. Shipment status is what has been recorded, so it can lag the physical movement. The plugin does not pay invoices or process payments, file customs entries, or accept document uploads.",
+        "developerName": "Freight Right",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Get instant freight rates for FCL, LCL, air and LTL",
+          "Look up port and airport codes",
+          "Request quotes from the Freight Right pricing team",
+          "Review quotes and quote requests",
+          "Prepare booking links the customer confirms",
+          "Track shipments and milestones"
+        ],
+        "websiteURL": "https://www.freightright.com",
+        "supportURL": "https://www.freightright.com/contact-us",
+        "privacyPolicyURL": "https://www.freightright.com/privacy",
+        "termsOfServiceURL": "https://www.freightright.com/tos",
+        "defaultPrompt": [
+          "Price two 40HC containers from Ningbo to Long Beach, port to port.",
+          "What does one 600 lb pallet from Dallas 75201 to Toronto M5V 3L9 cost by LTL?",
+          "Which of my shipments arrive at port this week?"
+        ],
+        "brandColor": "#1E3063",
+        "brandColorDark": "#8FA3DA",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connection, role and allowance for the signed-in customer.",
+              "prompt": "Who am I signed in to Freight Right as, which organizations can I bill, and how many instant price checks do I have left this month?",
+              "tools_triggered": "freightright_get_connection_status, freightright_get_account, freightright_list_billing_organizations",
+              "expected_behavior": "Reports the signed-in test user with the customer role (not administrator), the TESTLAX test organization it can act for and be billed through, what the connection may do (instant prices, quote requests, booking requests), and the monthly price-check and quote-request usage with the reset date. Shows no other organization."
+            },
+            {
+              "description": "Track one active test shipment by its reference.",
+              "prompt": "Where is shipment <TEST-SHIPMENT-REF>? Show the route, the latest milestones and the estimated arrival.",
+              "tools_triggered": "freightright_find_shipments, freightright_get_shipment",
+              "expected_behavior": "Finds the TESTLAX test shipment and shows its reference, transport mode, origin and destination, estimated or actual port arrival and delivery, recorded milestones, containers and routing legs. States that estimated dates are plans and that dates are local to the event location. Shows only data from the connected account."
+            },
+            {
+              "description": "Resolve named ports and get instant LCL ocean rates.",
+              "prompt": "I am importing office chairs from Shanghai to Los Angeles, USA. 4 pieces, 1,200 kg, 5 cubic meters total. What does LCL cost port to port?",
+              "tools_triggered": "freightright_find_locations, freightright_get_account, freightright_get_instant_rates",
+              "expected_behavior": "Resolves Shanghai to CNSHA and Los Angeles to USLAX without guessing codes, prices LCL IMPORT with totals (4 pieces, 1,200 kg, 5 CBM) for the test organization, and lists offers cheapest first with carrier, service, total in USD, transit days, valid-until date and what is not included. Says one price check was used and that an offer is a price, not a booking."
+            },
+            {
+              "description": "Instant domestic LTL rates, then a booking link the customer confirms. The assistant books nothing.",
+              "prompt": "Price LTL for 2 pallets, 48 x 40 x 48 inches, 500 lb each, from Chicago IL 60607 to Dallas TX 75201. Then prepare a booking for the cheapest offer so I can confirm it myself.",
+              "tools_triggered": "freightright_get_instant_rates, freightright_prepare_instant_booking, freightright_get_booking_operation",
+              "expected_behavior": "Prices LTL door to door and lists carrier offers cheapest first with total, transit days and valid-until date. Prepares a booking for the cheapest offer and returns a Freight Right link that lasts up to 30 minutes. States that nothing is booked until the customer opens the link and confirms while signed in. A status check shows the booking is still waiting for the customer."
+            },
+            {
+              "description": "Preview a full truckload quote request that instant rates do not cover. Nothing is sent without the user's go-ahead.",
+              "prompt": "I need a full truckload quote from Laredo TX 78045 to Monterrey, Mexico 64000. One 40HC, 18,000 kg of auto parts. Show me exactly what you would send before sending anything.",
+              "tools_triggered": "freightright_get_account, freightright_preview_rate_request",
+              "expected_behavior": "Explains that full truckload is quoted by the Freight Right pricing team and is not priced instantly. Shows the preview: FTL, door 78045 US to door 64000 MX, 1 x 40HC, the cargo note and the billing account. States that nothing has been created or sent and asks before submitting."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Out of scope request: booking passenger travel. Freight Right moves cargo and has no travel tools.",
+              "prompt": "Book me a flight from Chicago to Dallas next Tuesday for one passenger.",
+              "expected_behavior": "Does not call any Freight Right tool. Explains that the Freight Right plugin handles freight rates, quotes, bookings and shipment tracking, and cannot book passenger flights. May offer to price air cargo instead."
+            },
+            {
+              "description": "Missing or invalid shipment reference. The plugin must not invent tracking data.",
+              "prompt": "Track shipment S99999999. When will it arrive?",
+              "expected_behavior": "Reports that no shipment with that reference is available to this account, and suggests checking the reference or searching by house or master bill of lading, container or purchase order number. Gives no arrival date."
+            },
+            {
+              "description": "Request for another customer's data. Access is limited to the organizations the signed-in account belongs to.",
+              "prompt": "Show me every shipment and container number for Acme Imports Inc.",
+              "expected_behavior": "Does not return data for an organization outside the connected account. If it checks, it reports that the account can act only for its own test organization and that no Acme Imports shipments are available to it. Does not guess or invent shipment data."
+            }
+          ]
+        },
+        "demo_recording_url": "https://vids.freightright.com/share/d9lu57purk3rfovsq4l0wp6dru8y081a",
+        "commerce": false,
+        "commerce_description": "The plugin does not take payments or complete purchases in ChatGPT. It shows freight rates and prepares a link to a Freight Right page where the customer reviews the offer and requests the booking."
+      },
+      "publication": {
+        "release_notes": "First release of Freight Right in the ChatGPT plugin directory. Sign in with your Freight Right (Shipment Manager) account to get instant freight rates for ocean FCL and LCL, air, and LTL trucking in the US and Canada, look up port and airport codes, preview and send quote requests to the Freight Right pricing team, and prepare booking links that you confirm yourself on a Freight Right page. Track shipments in your account by reference, bill of lading, container or purchase order number. Includes five skills: instant pricing, quote requests, booking handoff, connection and billing, and shipment tracking."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "shop-duty",
+  "version": "1.0.0",
+  "description": "Check the customs side of selling online across borders.",
+  "author": {
+    "name": "Agent Tools",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Shop Duty Desk",
+        "shortDescription": "EU, UK and US duty for sellers",
+        "longDescription": "Check the customs side of selling online across borders.\n\nAsk \"what EU duty applies to my 6 order lines shipped under IOSS?\", \"which products in my Shopify inventory export have no HS code or country of origin?\", \"find candidate tariff codes for these 15 products\" or \"what is the landed cost of this item shipped to the UK?\".\n\nShop Duty Desk estimates the EUR 3 per item EU customs duty on low-value consignments (Council Regulation (EU) 2026/382, with the item definition in Commission Delegated Regulation (EU) 2026/1022), and shows how many items a set of order lines counts as, with and without merging identical lines.\n\nIt checks a Shopify Inventory CSV (the file that holds HS code and country of origin) or product CSV for missing or malformed HS codes, origins, item identifiers and barcodes, and lists the rows to fix.\n\nIt suggests candidate tariff codes for product titles from the UK Trade Tariff and the US Harmonized Tariff Schedule, and estimates the landed cost of an item from a tariff line using those official duty rates and a small dated VAT table with a source for each rate.\n\nEvery HS code it returns is a candidate, not a binding classification; confirm it with customs or a customs broker.\n\nFor the US, when origin is given, it also adds the extra duties that the US tariff lists in its chapter 99 (for example Section 301 duties on goods from China), read from the chapter 99 headings and notes of the Harmonized Tariff Schedule at hts.usitc.gov, and says which ones it skipped. It adds the merchandise processing fee and, for ocean freight, the harbor fee.\n\nOrder lines carry no customer data: lines with a name, address or other customer field are refused. Nothing you send is stored; there is no account and no IP address is kept, only a daily count of calls per tool.\n\nDoes not: look up EU TARIC duty rates or Canadian rates, apply the EUR 3 rule to consignments over EUR 150, give a binding classification, or file anything with customs.",
+        "developerName": "Agent Tools",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Estimates the EUR 3 per item EU customs duty for consignments up to EUR 150, citing the regulations",
+          "Counts items for the duty both as lines are given and with identical lines merged",
+          "Checks a Shopify Inventory or product CSV for missing HS codes, origins, identifiers and invalid barcodes",
+          "Suggests candidate UK and US tariff codes for up to 20 product titles, labelled not binding",
+          "Estimates duty, VAT and landed cost of an item from a UK or US tariff line"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "What EU duty applies to these 6 order lines shipped under IOSS?",
+          "Which products in my Shopify inventory CSV have no HS code or origin?",
+          "Find candidate tariff codes for these 15 products"
+        ],
+        "brandColor": "#1D4ED8",
+        "brandColorDark": "#60A5FA",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/shop-duty.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "One consignment with 6 items, duty_eur 18, the grouped figure if identical lines exist, the legal basis citing Regulation (EU) 2026/382 and 2026/1022, and assumptions. Check against: Council Regulation (EU) 2026/382, Article 2: http://data.europa.eu/eli/reg/2026/382/oj",
+              "prompt": "I ship 6 order lines to Germany under IOSS: 3 different cotton t-shirts at 25 euros each and 3 different ceramic mugs at 15 euros each, all made in China, 120 euros in total. What EU duty applies?",
+              "tools_triggered": "eu_duty_estimate",
+              "expected_behavior": "Calls eu_duty_estimate with channel \"ioss\" and six lines (description, origin, qty, unit_value_eur), without any customer details."
+            },
+            {
+              "description": "duty_eur null with exempt_reason consignment_value_over_150_eur and a note that ordinary customs duty applies instead. Check against: Council Regulation (EU) 2026/382, Article 2: http://data.europa.eu/eli/reg/2026/382/oj",
+              "prompt": "Does the EUR 3 duty apply to a parcel worth 200 euros sent by post from China?",
+              "tools_triggered": "eu_duty_estimate",
+              "expected_behavior": "Calls eu_duty_estimate with channel \"postal\" and consignment_value_eur 200."
+            },
+            {
+              "description": "A summary with missing_hs and missing_origin counts and a list of rows (row number, handle, problem), up to 200. Check against: The pasted Inventory CSV: wool-socks has no HS Code and trail-cap has no COO. Format: https://help.shopify.com/en/manual/products/inventory/setup/inventory-csv",
+              "prompt": "Here is my Shopify inventory export. Which products have no HS code or country of origin?\n\nHandle,Title,Option1 Name,Option1 Value,SKU,HS Code,COO,Location,On hand\nwool-beanie,Merino Wool Beanie,Title,Default Title,WB-01,6505.00,CN,Main warehouse,40\nwool-socks,Merino Wool Socks,Title,Default Title,WS-01,,PT,Main warehouse,25\ntrail-cap,Trail Cap,Title,Default Title,TC-01,6505.00,,Main warehouse,12",
+              "tools_triggered": "customs_data_gap_check",
+              "expected_behavior": "Calls customs_data_gap_check with the CSV text of the Inventory export."
+            },
+            {
+              "description": "Three results each with up to 3 candidates (code, description, source) labelled candidate, not binding, plus the notice that they are not a binding classification. Check against: UK Trade Tariff: https://www.trade-tariff.service.gov.uk/",
+              "prompt": "Find candidate HS codes for these products: wool beanie, ceramic coffee mug, stainless steel water bottle.",
+              "tools_triggered": "bulk_hs_candidates",
+              "expected_behavior": "Calls bulk_hs_candidates with three products and the default UK market."
+            },
+            {
+              "description": "Duty (rate, basis and amount), VAT at the UK rate on goods, shipping and duty, a total, sources and the date. Check against: UK Trade Tariff commodity 6109100010: https://www.trade-tariff.service.gov.uk/commodities/6109100010",
+              "prompt": "What will duty and VAT cost on a 80 pound item with 12 pounds shipping, tariff code 6109100010, going to the UK from China?",
+              "tools_triggered": "landed_cost_estimate",
+              "expected_behavior": "Calls landed_cost_estimate with hs_code \"6109100010\", destination \"UK\", goods_value 80, shipping 12, origin \"CN\"."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin offers candidate codes only; a binding classification comes from customs. Expected: Does not present a code as binding; explains candidates are not binding and points to customs or a broker, or an advance ruling.",
+              "prompt": "Tell me what the legally binding HS code for my product is."
+            },
+            {
+              "description": "The plugin calculates and checks; it submits nothing to customs. Expected: Does not call any tool; says it only estimates and cannot file declarations or pay duty.",
+              "prompt": "Declare this shipment to customs for me and pay the duty."
+            },
+            {
+              "description": "Order lines carry no customer data, and the tool refuses lines that include it. Expected: Does not send customer details; asks for order lines without them, or strips them first.",
+              "prompt": "Here are my orders with customer names and addresses. Work out the duty on each."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release. Estimates the EUR 3 EU duty per item, checks Shopify CSVs for missing customs data, suggests candidate tariff codes and estimates landed cost for UK and US destinations."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

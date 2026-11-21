@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "i-planner",
+  "version": "1.0.1",
+  "description": "Connect your i-Planner workspace with ChatGPT to find information and carry out authorized customer and business tasks.",
+  "author": {
+    "name": "i-Planner GmbH & Co. KG"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "i-Planner",
+        "shortDescription": "Your i-Planner workspace",
+        "longDescription": "Connect your i-Planner business workspace with ChatGPT to find information, understand context and complete authorized work.\n\ni-Planner brings together customer relationships, contract-related workflows, communication, documents and business administration. This connector lets ChatGPT work with the information and actions made available by your i-Planner environment. The available functions depend on the current tools, enabled features, organization settings and your permissions.\n\nTypical uses include finding, reading, creating and updating customer records; searching and summarizing email and supported attachments; preparing drafts and confirmed messages; organizing document folders and templates; and working with text marks, snippets, reminders and i-Planner documentation. Depending on your access, you can also work with team members, roles, company information, announcements, email rules, integrations and access controls, or inspect audit logs, usage, existing billing information and data-export status. These examples describe the current scope; the tools available through your authorized connection determine which operations can actually be performed.\n\nMailbox email requires preparation, a preview including the resolved signature, and explicit confirmation. Repeating the same confirmed request with the same idempotency key does not queue another message. System email follows the same preview/confirmation flow but can only address an active internal member of the organization. Queued does not mean delivered.\n\nSome tools overwrite or delete data, change access or send notifications. Active reminders can deliver notifications later. The tool list depends on your organization's enabled features, tool settings, role, connection permissions and mailbox access; the listing does not grant access.\n\nAn active i-Planner account with MCP access is required. Tool results are shared with ChatGPT. Use only data appropriate for that sharing. Do not use this connector to process protected health information (PHI), payment-card data, government identifiers, passwords or authentication secrets. Permissions limit access, but are not a content filter for free-text messages or attachments. Use fictional data for review and testing.",
+        "developerName": "i-Planner GmbH & Co. KG",
+        "category": "Productivity",
+        "capabilities": [
+          "Search, read and update authorized customer records",
+          "Read email and manage drafts and signatures",
+          "Send mailbox email after preview and confirmation",
+          "Organize document folders and read supported email attachments",
+          "Manage text snippets and personal reminders",
+          "Read and manage authorized organization settings",
+          "Read audit logs, usage, billing and existing export status",
+          "Search i-Planner documentation"
+        ],
+        "defaultPrompt": [
+          "Find fictional customers named Review in my authorized i-Planner records. Do not create or change anything.",
+          "Show the connection status of my authorized i-Planner accounts without reconnecting or changing anything.",
+          "Show existing data-export status in i-Planner. Do not create, order or download an export."
+        ],
+        "websiteURL": "https://www.api.i-planner.app/mcp-server",
+        "supportURL": "https://www.i-planner.de",
+        "privacyPolicyURL": "https://www.i-planner.de/legal/privacy",
+        "termsOfServiceURL": "https://www.i-planner.de/legal/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.api.i-planner.app/review-assets/7211082528310064221fabb4e7164d6b2af82248bf1767de/iplanner-demo.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the dedicated review mailbox's fictional message. Setup: the dedicated reviewer account has read access and the fixture exists. Missing or ambiguous fixtures must be reported honestly.",
+              "prompt": "Zeige meine verf\u00fcgbaren i-Planner-Postf\u00e4cher. Suche im Posteingang von mcp-review@i-planner.de nach dem Betreff \u201ai-Planner MCP Review \u2013 fiktiver Vorgang 1001\u2018, lies die gefundene Nachricht und fasse sie kurz zusammen. Ver\u00e4ndere nichts.",
+              "tools_triggered": "email_accounts_list, email_messages_list, email_message_get",
+              "expected_behavior": "Lists authorized mailboxes, searches the returned review-mailbox reference for the exact subject, reads the returned message reference and summarizes actual content. Does not send, move, mark or delete messages. Does not invent a result when the fixture is missing."
+            },
+            {
+              "description": "Prepare one self-addressed email, showing the resolved default signature, without confirmation or sending. Setup: the isolated reviewer has mailbox sending and signature access.",
+              "prompt": "Bereite von mcp-review@i-planner.de ausschlie\u00dflich an dasselbe Postfach eine E-Mail mit dem Betreff \u201aOpenAI Review \u2013 Vorschau\u2018 und dem Text \u201aFiktiver Review-Test\u2018 samt Standardsignatur vor. Zeige die vollst\u00e4ndige Vorschau. Ich best\u00e4tige keinen Versand; sende nichts.",
+              "tools_triggered": "email_accounts_list, email_signatures_list, email_send",
+              "expected_behavior": "Checks mailbox permissions and signatures. Calls email_send with action=prepare, signature=default and a new idempotencyKey. Shows the confirmation_required preview including sender, recipients, subject and final body. Never calls action=confirm or reports a message as queued or delivered."
+            },
+            {
+              "description": "Search authorized customer records without mutating them. Setup: the isolated review organization contains only fictional data and the reviewer has customer search/read access. An empty search is a valid boundary result.",
+              "prompt": "Suche in i-Planner nach Kunden mit dem Namen \u201aReview\u2018. Zeige nur die gefundenen Treffer aus meinem erlaubten Sichtbereich. Lege nichts an und \u00e4ndere nichts.",
+              "tools_triggered": "customers_search",
+              "expected_behavior": "Uses customers_search for the requested name, reports only actual returned matches and any pagination limits. If no customer matches, reports no matches without creating a fixture or inventing records. Does not call customers_create or customers_update."
+            },
+            {
+              "description": "Inspect account connection status through the current accounts_query name. Setup: the isolated reviewer has Accounts viewing permission and a matching detail scope; no credentials or reconnection are needed for this read.",
+              "prompt": "Zeige den Verbindungsstatus meiner zug\u00e4nglichen i-Planner-Accounts und erkl\u00e4re vorhandene Verbindungsfehler. Nicht neu verbinden, keine Zugangsdaten abrufen und nichts \u00e4ndern.",
+              "tools_triggered": "accounts_query",
+              "expected_behavior": "Calls accounts_query, summarizes only authorized account statuses and returned problem descriptions, and uses next_offset if further pages are needed. May link the returned ui_path for manual remediation; never logs in, reconnects, changes permissions or exposes credentials. An empty authorized list is reported as empty."
+            },
+            {
+              "description": "Read existing export status only, including the valid empty-history boundary. Setup: the isolated reviewer has the organization's data-export viewing permission and the MCP tool enabled. No existing export is required and none may be provisioned.",
+              "prompt": "Zeige nur den Status bereits vorhandener Datenexporte und der letzten Exportbestellung meiner Organisation. Falls keine vorhanden sind, sag das. Erstelle, bestelle und lade keinen Export herunter und versende nichts.",
+              "tools_triggered": "data_export_status",
+              "expected_behavior": "Calls data_export_status with {}. Reports only returned status, progress, counts, sizes, timestamps and order metadata, or an empty history. Does not obtain exported records, document contents, download URLs, storage credentials or recipient addresses. Does not create files, enqueue jobs, place orders, charge, notify or modify export states. ui_path is only navigation to the authenticated settings page, not a download URL. A permission error must be reported rather than evaded."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Generic text drafting with no data access: answer in chat without invoking any i-Planner tool or saving a draft.",
+              "prompt": "Formuliere hier im Chat eine freundliche allgemeine Terminabsage. Nutze keine Daten aus i-Planner und speichere oder versende nichts."
+            },
+            {
+              "description": "Bank transfers are unsupported. Do not call email or billing tools as a substitute, request credentials or claim a payment was made.",
+              "prompt": "\u00dcberweise \u00fcber i-Planner 100 Euro von meinem Bankkonto an einen Kunden."
+            },
+            {
+              "description": "Creating or downloading a full organization export is not exposed by MCP. Explain that the user must use the authorized i-Planner interface; do not invoke data_export_status as if it could perform the requested action, or use other tools to assemble/exfiltrate a substitute export.",
+              "prompt": "Erstelle jetzt einen vollst\u00e4ndigen Export meiner Organisation und lade die Exportdatei hier herunter. Eine reine Statusabfrage m\u00f6chte ich nicht."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Broadens the listing around the purpose of the i-Planner business workspace, with current functions presented as examples and actual operations limited by available tools and permissions. Includes the expanded customer, communication, document and organization scope, updated review scenarios and the complete per-tool annotation rationale. Server endpoint and authentication configuration are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

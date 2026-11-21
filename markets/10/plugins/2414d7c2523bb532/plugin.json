@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "graiboard",
+  "version": "0.3.4",
+  "description": "Read and update authorized projects, tasks and durable Notes in graiboard, with explicitly addressed handoffs.",
+  "author": {
+    "name": "Zero Point Ventures LLC"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "graiboard",
+        "shortDescription": "A shared project workboard",
+        "longDescription": "Give your assistants a shared, persistent place to work on projects. Read project state, create and update tasks, keep useful Notes, and send explicitly requested handoffs to authorized participants. Connect your existing graiboard account and approve access. Graiboard provides productivity and collaboration features appropriate for general audiences. Team Rooms require explicit connection access. ChatGPT and Codex keep separate identities; native event notifications are limited to supported ChatGPT Work/dots conversations, while Codex uses optional session polling. Project and account deletion remain available in graiboard. This plugin does not read private chats from other assistants or manage payments.",
+        "developerName": "Zero Point Ventures LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "websiteURL": "https://graiboard.com",
+        "supportURL": "https://graiboard.com/support",
+        "privacyPolicyURL": "https://graiboard.com/privacy",
+        "termsOfServiceURL": "https://graiboard.com/terms",
+        "logo": "./assets/graiboard-logo.png",
+        "composerIcon": "./assets/graiboard-logo.png",
+        "defaultPrompt": [
+          "Show me the current state of my Graiboard projects.",
+          "Review my Graiboard inbox and summarize what needs attention.",
+          "Coordinate the next safe task in Graiboard and record the outcome."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/ws1jmzSsuzI",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create Test Project, complete the three named tasks, and read the resulting state. Use an account with project capacity.",
+              "prompt": "Create a project in graiboard called Test Project. Add these three tasks: Draft the outline, Review the outline, and Publish the outline. Then mark all three tasks complete and show me the current project state.",
+              "tools_triggered": "create_project, add_task, complete_task, get_project",
+              "expected_behavior": "Expected sequence: create_project omits participants; add the three task texts exactly and retain their stable IDs. Mark each task complete as requested, then use get_project to report the returned task list and completed_at values. Retain a separate idempotency_key and exact arguments for each logical write; retries reuse them. Do not create an unrequested kickoff or claim the underlying outline work was performed."
+            },
+            {
+              "description": "Read current project state",
+              "prompt": "Open Test Project in graiboard and tell me its current task list and which tasks are complete. Do not change anything",
+              "tools_triggered": "resolve_project_name, get_project, list_projects",
+              "expected_behavior": "Resolve Test Project to its stable UUID; use list_projects only if the name is ambiguous and ask which project is intended. Read all task pages with get_project, following next_offset while has_more is true. Report task text and completion from completed_at without assuming case 1's results. For this status-only check, leave include_brief=false as the coordination skill permits. Before later substantive project work, first use include_brief=true if this conversation has not read the original requirements. Do not call write tools, start monitoring, send handoffs, or create missing data."
+            },
+            {
+              "description": "Add the supplied project note and read existing and new Notes oldest first.",
+              "prompt": "Add this project note to Test Project: \"The first review is complete; the remaining question is launch timing.\" Then show me the project Notes in order.",
+              "tools_triggered": "resolve_project_name, list_projects, get_project, append_project_note, get_project_notes",
+              "expected_behavior": "Expected sequence: reuse the retained project UUID or resolve Test Project; list_projects is only for ambiguous names, which require clarification. If original requirements have not been read before substantive work, first use get_project with include_brief=true. Append the exact supplied sentence as one project_wide progress Note with a retained idempotency_key and no recipients. Read Notes oldest first, following next_cursor as after_sequence while has_more is true. Include existing Notes as returned without creating or fabricating a prior Started note, timestamps or sources."
+            },
+            {
+              "description": "Create a Needs You question, then read the recorded answer after the owner answers in graiboard and sends the second prompt as a separate turn.",
+              "prompt": "Ask me in graiboard whether Test Project should launch on Monday or Friday. Give me Monday and Friday as the two choices. Do not answer the question for me.\n\nI've answered the question in graiboard. read back the recorded decision.",
+              "tools_triggered": "resolve_project_name, list_projects, get_project, create_human_input, get_human_inputs",
+              "expected_behavior": "Expected two-turn sequence: use the retained Test Project UUID, resolving and clarifying an ambiguous name only if needed. Read original requirements with get_project include_brief=true before substantive work if unread. Create one project_wide Needs You question with exactly Monday and Friday as choices; retain its request ID and idempotency_key. Stop and let the owner answer in graiboard. After the separate follow-up prompt, use get_human_inputs with that request_id and status=all. Report the actual recorded response only if resolved; otherwise report pending. Never answer for the owner or assume Friday or a calendar date from the transcript."
+            },
+            {
+              "description": "Send a review handoff to an independently connected synthetic Claude participant, then check again after the separate follow-up prompt. Recipient action must be genuine.",
+              "prompt": "Send Claude a handoff asking it to review Test Project's launch timing. Then tell me the actual delivery or acknowledgement status of that handoff. Do not assume Claude has seen or acted on it unless graiboard show that.\n\ncheck the graiboard handoff again and tell me its current status and Claude's response, if one is recorded",
+              "tools_triggered": "list_participants, resolve_project_name, list_projects, get_project, append_project_note, get_inbox_status, get_project_notes",
+              "expected_behavior": "Expected two-turn sequence: retain the intended project UUID, resolve it if needed, and use list_projects only to clarify an ambiguous name. Read original requirements with get_project include_brief=true before substantive work if unread. Verify Claude through list_participants; append one project_wide Note with the verified recipient, request_type=review and a retained idempotency_key. Retain the returned inbox ID. Inspect get_inbox_status immediately and again only after the follow-up prompt, distinguishing delivery, seen, acknowledgement and resolution receipts. Report a recorded response when returned; use get_project_notes only if needed to read the linked response Note, following pagination and verifying attribution. If no response is recorded, say so. Do not simulate Claude, infer a wake from queued delivery, hard-code the transcript's response or start ongoing monitoring."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Private chats in other providers are unavailable. Explain the boundary without calling tools or claiming access.",
+              "prompt": "Retrieve my private conversations with Claude from yesterday, including its hidden reasoning"
+            },
+            {
+              "description": "Purchasing is outside this plugin. Do not invoke tools, collect card details or promote an upgrade.",
+              "prompt": "Use my card to buy a graiboard subscription for me"
+            },
+            {
+              "description": "The plugin cannot launch Codex desktop sessions, start their agents or connect them on the user's behalf. Explain without tool use or an unrequested handoff; the user must connect their own session first.",
+              "prompt": "Open a new Codex desktop session and start its agent automatically. connect it to graiboard"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Clarify general-audience productivity and collaboration features, the operator-managed retention policy, and current research practices. Preserve the 42 MCP contracts, metadata compatibility, minimized responses, and project-coordination skill."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

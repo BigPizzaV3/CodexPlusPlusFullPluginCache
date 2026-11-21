@@ -1,0 +1,234 @@
+---
+planning: true
+shaping: true
+artifact_type: breadboard
+status: draft
+source_of_truth: false
+feeds: []
+---
+
+# [Project] — Breadboard
+
+# Context Card
+
+## Mode and authority
+
+- Mode: `current-state`, `candidate-shape`, or `selected-design`
+- Authority:
+  - `current-state`: descriptive evidence only
+  - `candidate-shape`: exploratory evidence subordinate to one unselected candidate and the shaping artifact
+  - `selected-design`: accepted normative intent after human selection and reconciliation
+- Requirements authority: `Working` | `Accepted` | `Not applicable`
+- Appetite authority: `Unset` | `Working` | `Accepted` | `Not applicable`
+- Evidence references: required for non-obvious current-state claims
+- Candidate shape and uncertainty: required for candidate-shape mode
+- Selected shape, Accepted requirements, and Accepted Appetite/cut line: required for selected-design mode
+
+Set frontmatter `source_of_truth: true` and downstream `feeds` only after the artifact is accepted in `selected-design` mode.
+
+Current-state mode cannot define selected future intent. Candidate-shape mode cannot select itself, feed slices, or become build scope. In collaborative shaping, candidate mode may use Working requirements or Unset/Working Appetite; any fit or Appetite implications must remain provisional until revalidated against Accepted judging inputs. Only an accepted selected-design breadboard can produce buildable slice candidates.
+
+## Use this when
+
+An agent is mapping current behavior, clarifying one unselected candidate during shaping, reconciling a selected design, slicing an accepted selected-design breadboard, preparing downstream contracts, or checking whether code still matches selected intent.
+
+## Must preserve
+
+- declared mode and authority
+- Requirements/Appetite authority when they affect candidate judgments
+- stable place IDs
+- stable affordance IDs
+- store IDs
+- wiring and visible consequences
+- source shape-part IDs for proposed elements
+- selected demo path in selected-design mode
+- interface contract candidate IDs when present
+
+## Ignore unless asked
+
+- rejected shapes unrelated to the named candidate
+- raw brainstorms
+- candidate breadboards when preparing selected build context unless they explain an unresolved shaping decision
+
+## Shape reference
+
+- Shaping artifact:
+- Candidate or selected shape:
+- Shape-part IDs:
+- Requirements authority:
+- Appetite authority:
+- Appetite:
+- Cut line:
+- Decision-relevant uncertainty for candidate-shape mode:
+- Reconciliation status for selected-design mode:
+
+## Requirement realization map — selected-design mode
+
+| Req | Selected shape part(s) | Breadboard IDs | Observable consequence | Embedded? |
+|---|---|---|---|:---:|
+| R1 | A1 | U2, N3, S1 | ... | ✅ |
+
+Map only the smallest set of behavior IDs that actually embody each Accepted requirement. Coverage here is a design-conformance claim, not realized-conformance or effect evidence.
+
+## Places
+
+| ID | Authority | Shape part | Place | Description |
+|---|---|---|---|---|
+| P1 | current / candidate / selected | — | ... | ... |
+
+## UI affordances
+
+| ID | Place | Authority | Shape part | Component | Affordance | Control | Wires Out | Returns To |
+|---|---|---|---|---|---|---|---|---|
+| U1 | P1 | candidate | A1 | ... | ... | ... | -> N1 | — |
+
+## Non-UI affordances
+
+| ID | Place | Authority | Shape part | Component | Affordance | Control | Wires Out | Returns To |
+|---|---|---|---|---|---|---|---|---|
+| N1 | P1 | candidate | A1 | ... | ... | call | -> S1 | -> U1 |
+
+## Stores
+
+| ID | Place | Authority | Shape part | Store | Description |
+|---|---|---|---|---|---|
+| S1 | P1 | current | — | ... | ... |
+
+## Product-relevant branches
+
+| Branch | Trigger | User-visible consequence | Shape part | Status |
+|---|---|---|---|---|
+| ... | ... | ... | A1 | supported / gap / conflict |
+
+## Behavior traces
+
+Trace each representative scenario from an entry to an observable consequence using IDs from the canonical tables.
+
+| Scenario | Entry | Control path | Decision / branch | State / data effect | Observable consequence | Evidence or status |
+|---|---|---|---|---|---|---|
+| ... | U1 | U1 -> N1 -> N2 | accepted / rejected / — | N2 -> S1 | S1 -> U3 | source reference / supported / gap |
+
+Candidate-shape mode may trace only the scenarios needed to resolve its named uncertainty. Current-state and selected-design modes must cover every representative scenario in their declared scope.
+
+## Reverse-trace audit
+
+Scan every table row for incoming `Wires Out` and `Returns To` references to each observable consequence, then repeat for every predecessor.
+
+| Observable consequence | Direct incoming sources | Upstream entries / writers | Unresolved predecessors | Status |
+|---|---|---|---|---|
+| U3 | S1, N4 | U1 via N1; restore event via N3 | N4 has no traced entry | supported / gap / conflict |
+
+## Visual breadboard
+
+For nontrivial interactive work, add a deliberate spatial projection of the canonical tables.
+
+- Primary scenario:
+- Visual surface: SVG / HTML-canvas / Excalidraw / TLDraw / FigJam / Miro / Mermaid fallback / other
+- Finger-trace result: pass / needs revision / not applicable
+- Visual file or embedded view:
+- Composition notes:
+  - primary journey:
+  - visible-place stacks:
+  - hidden system rail:
+  - local branches:
+  - unresolved annotations:
+
+The visual is derived. It may rearrange or duplicate labeled references for legibility, but it may not introduce behavior absent from the canonical tables.
+
+## Targeted sketches
+
+Use only where spatial detail materially changes comprehension. Raise fidelity locally, not globally.
+
+| Sketch | Elaborates | Question resolved | States / controls shown | Status |
+|---|---|---|---|---|
+| SK1 | P3 / U7 / U8 / S2 | ... | ... | needed / resolved / remove |
+
+A targeted sketch must map to canonical breadboard IDs and cannot introduce new behavior by itself.
+
+## Candidate-shape findings
+
+Use only in `candidate-shape` mode.
+
+- Question resolved:
+- Judging-input authority: Requirements = Working/Accepted; Appetite = Unset/Working/Accepted
+- Supported mechanisms:
+- Missing or contradictory mechanisms:
+- Rabbit holes / Appetite risks when Appetite is known:
+- Focused spike candidates:
+- Proposed requirement changes:
+- Proposed shape changes:
+- Requirement-fit implication: Working / decision-ready / not yet supportable
+- Reverse-fit implication:
+- Appetite-fit implication: provisional / decision-ready / not yet supportable
+- Remaining uncertainty:
+
+If Requirements or Appetite are not Accepted, label dependent conclusions provisional. Return useful R/S changes to shaping. Do not silently rewrite Accepted material.
+
+## Selected-design reconciliation
+
+Use when promoting or rebuilding from candidate evidence after human selection.
+
+| Candidate row / finding | Selected action | Resulting selected-design ID | Rationale |
+|---|---|---|---|
+| ... | keep / revise / remove / defer | ... | ... |
+
+A candidate row is never promoted merely because its candidate was selected. Reconcile it against the Accepted requirements, selected shape, Accepted Appetite/cuts, and remaining unknowns.
+
+## Interface contract candidates (selected-design only)
+
+Use this section when an accepted wire crosses a meaningful boundary: UI -> backend, frontend -> API, service -> store, agent -> tool, import -> parser, or external integration.
+
+| ID | Trigger / Wire | From | To | Request / Input Shape | Response / Output Shape | Branches / Errors | Open Decisions |
+|---|---|---|---|---|---|---|---|
+| C1 | U1 -> N1 | UI | API | user_id: string | status: string | invalid user | nullable or omitted? |
+
+## Slice candidates (accepted selected-design only)
+
+| Slice | Affordances / stores included | Demo | Produces | Unknowns |
+|---|---|---|---|---|
+| V1 | ... | ... | ... | ... |
+
+## Shaping conflict
+
+When detailed selected-design breadboarding exposes a consequential conflict, stop and return:
+
+- Selected shape says:
+- Concrete behavioral implication:
+- Conflict or Appetite risk:
+- Evidence:
+- Options: revise shape / cut behavior / focused spike / reopen selection / stop bet
+
+## Build handoff note
+
+Once a selected-design breadboard is accepted and a slice is selected, convert the relevant part into an executable breadboard with examples, expected results, edge cases, and acceptance tests.
+
+## Notes
+
+- ...
+
+## Self-check
+
+- [ ] The mode and authority are explicit.
+- [ ] Candidate-shape mode names one candidate and one decision-relevant uncertainty.
+- [ ] Candidate-shape mode states Requirements/Appetite authority.
+- [ ] Provisional inputs do not produce final fit/Appetite claims.
+- [ ] Candidate evidence has not selected itself or produced build scope.
+- [ ] Candidate rows were reconciled before becoming selected-design rows.
+- [ ] Selected-design mode cites Accepted requirements, selected shape, Accepted Appetite, and cuts.
+- [ ] Every representative scenario has an entry and observable consequence.
+- [ ] Every observable consequence was reverse-traced by scanning all incoming wires, not only the remembered path.
+- [ ] Every ID referenced by a wire, branch, or behavior trace exists in the tables.
+- [ ] Every displayed UI element that depends on data has a source.
+- [ ] Every non-UI affordance connects by Wires Out or Returns To.
+- [ ] Stores exist for meaningful side effects.
+- [ ] Product-relevant branches are explicit and each has an observable consequence.
+- [ ] Every selected mechanism is represented; current-state claims cite evidence or remain unresolved.
+- [ ] A nontrivial interactive flow has a deliberate visual breadboard rather than only an auto-layout dependency graph.
+- [ ] The primary scenario passes the finger-trace test.
+- [ ] User-visible places and affordances dominate the visual hierarchy; hidden behavior supports them.
+- [ ] Branches stay near their causal decision and avoid unnecessary crossing wires.
+- [ ] Every targeted sketch has an `SK#` ID and maps to canonical breadboard IDs.
+- [ ] The visual projection and targeted sketches contain no behavior absent from the tables.
+- [ ] Any Mermaid fallback is a faithful rendering of the tables, with no diagram-only behavior.
+- [ ] Only accepted selected-design behavior produces interface contracts or slice candidates.
+- [ ] Any shaping conflict is surfaced rather than silently absorbed.

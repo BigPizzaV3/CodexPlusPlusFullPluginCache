@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "boss-decision",
+  "version": "0.2.10",
+  "description": "A workspace for decisions, tasks, projects, plans, analysis, and execution with persistent project context through the connected Boss Decision service.",
+  "author": {
+    "name": "Danielov Ernest Igori"
+  },
+  "keywords": [
+    "decisions",
+    "projects",
+    "tasks",
+    "planning",
+    "analysis",
+    "workspace"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Boss Decision",
+        "shortDescription": "Decisions, projects, tasks",
+        "logo": "./assets/plugin_boss.png",
+        "composerIcon": "./assets/plugin_boss.png",
+        "longDescription": "Boss Decision helps users analyze work problems, compare options, make decisions, build actionable plans, and continue saved projects. It connects to an existing Boss Decision account through OAuth, reads workspace materials, and can create, update, delete, and restore Markdown project content with user-authorized safeguards. The plugin does not sell subscriptions or start checkout.",
+        "developerName": "Danielov Ernest Igori",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write",
+          "Delete"
+        ],
+        "defaultPrompt": [
+          "Continue with my projects and help me choose the next step.",
+          "Help me analyze a work problem and turn it into an actionable plan."
+        ],
+        "websiteURL": "https://bdes.maxproject.pro/chatgpt",
+        "supportURL": "https://bdes.maxproject.pro/support?lang=en",
+        "privacyPolicyURL": "https://legal.maxproject.pro/bdes?lang=en#privacy_policy",
+        "termsOfServiceURL": "https://legal.maxproject.pro/bdes?lang=en#offer"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "From a new chat, load the authenticated reviewer's Boss Decision workspace, open the existing fictional project arm-reviewer-sample, read its specification, and produce a grounded summary of the launch-versus-reliability decision. The response must use only facts returned from the sample project and recommend a practical next step for this week.",
+              "prompt": "Open arm-reviewer-sample, read its specification, summarize the decision, and recommend a practical next step for this week.",
+              "tools_triggered": "project_start, read_markdown; continue_result only if a response is partial",
+              "expected_behavior": "Boss Decision initializes the workspace, reads projects/arm-reviewer-sample/spec.md, identifies the two options, cites the fictional demand, export-delay, staffing, and duration facts, and recommends a next step grounded in those facts. It does not claim access to real customer data."
+            },
+            {
+              "description": "Search within the existing fictional project for the reliability evidence and explain the matching context without changing any workspace file.",
+              "prompt": "In arm-reviewer-sample, find every mention of reliability and explain the surrounding facts without changing anything.",
+              "tools_triggered": "project_start, search_context; continue_result only if a response is partial",
+              "expected_behavior": "Boss Decision searches only the authenticated workspace and returns the matching passages from arm-reviewer-sample, including the reliability-work option and delayed-export fact. No create, patch, delete, or undo tool is called."
+            },
+            {
+              "description": "Create a temporary review note inside the existing sample project using the normal prepared-operation write flow. This case follows the read-only cases and assumes projects/arm-reviewer-sample/work/openai-review-note.md does not yet exist.",
+              "prompt": "Create projects/arm-reviewer-sample/work/openai-review-note.md with the heading 'Review note' and one bullet: 'Validate export reliability before launch.' Then read it back.",
+              "tools_triggered": "project_start, prepare_operation, create_markdown, get_operation_result, read_markdown",
+              "expected_behavior": "After any client confirmation required for the write, Boss Decision creates the exact temporary Markdown file in arm-reviewer-sample, reports the committed result, and reads it back so the heading and bullet can be verified. It must not overwrite another file or write outside the authenticated workspace."
+            },
+            {
+              "description": "Modify the temporary review note created by the preceding case using an exact hash and anchor, then verify the committed content.",
+              "prompt": "In projects/arm-reviewer-sample/work/openai-review-note.md, replace 'Validate export reliability before launch.' with 'Validate export reliability and customer impact before launch.' Then read the file back.",
+              "tools_triggered": "project_start, read_markdown, prepare_operation, patch_markdown, get_operation_result, read_markdown",
+              "expected_behavior": "Boss Decision reads the current file and hash, prepares the exact replacement, obtains any required confirmation, patches only the unique requested sentence, and reads back the updated file. It must stop safely on a hash or anchor conflict rather than fabricating success."
+            },
+            {
+              "description": "Exercise the destructive and recovery path on the temporary review note, verify restoration, and return the fixture to its original state by deleting the temporary file again. The reviewer should approve each destructive action when prompted.",
+              "prompt": "Delete projects/arm-reviewer-sample/work/openai-review-note.md. Then show the undo preview, restore that deletion, verify the restored content, and finally delete the temporary note again so the sample returns to its original state. Ask for each required confirmation.",
+              "tools_triggered": "project_start, prepare_operation, delete_markdown, get_operation_result, preview_undo_changes, prepare_operation, undo_change, get_operation_result, read_markdown, prepare_operation, delete_markdown, get_operation_result",
+              "expected_behavior": "Boss Decision requires the guarded prepared-operation path for each destructive step, deletes only the named temporary file, previews the available undo, restores and verifies the same content, then deletes the temporary file again after confirmation. The final read or operation result confirms that the temporary file is absent and the original sample specification remains unchanged."
+            }
+          ],
+          "negative": [
+            {
+              "description": "After reading the sample specification, request a PDF saved at a Boss Decision project path. The preceding request may already have produced a local ChatGPT PDF attachment. ChatGPT may provide a local PDF as a safe fallback, but must explicitly explain that the connected Boss Decision workspace supports Markdown and cannot store the PDF. A sandbox attachment is not a file saved in the remote Boss Decision project. No Boss Decision create, patch, delete, or undo tool is called for the PDF request.",
+              "prompt": "Save the file projects\\arm-reviewer-sample\\spec.md as projects\\arm-reviewer-sample\\spec.pdf"
+            },
+            {
+              "description": "Request a rename of an existing project key. The current MCP tool set has no project-key rename operation. Explain the limitation without recreating the project, copying its files into another project, moving or deleting files, or claiming the key was renamed. Any supported alternative needs a separate explicit request. No mutation tool is called.",
+              "prompt": "Rename the project key arm-reviewer-sample to reviewer-demo."
+            },
+            {
+              "description": "Request an edit to the existing sample specification without identifying the sentence or providing replacement text. Ask which sentence should be replaced and what the new text should be. Do not infer or invent the requested change. No prepared mutation, create, patch, delete, or undo tool is called while this essential information is missing. Any read-only initialization is recorded separately. The specification remains unchanged.",
+              "prompt": "Replace a sentence in projects/arm-reviewer-sample/spec.md."
+            }
+          ]
+        },
+        "demo_recording_url": "https://bdes.maxproject.pro/review/boss-decision-demo.mp4",
+        "commerce": false,
+        "commerce_description": "Boss Decision does not sell subscriptions or initiate checkout in the Plugin. Users and reviewers sign in to a pre-existing account with access already enabled."
+      },
+      "publication": {
+        "release_notes": "Version 0.2.10 aligns author.name and developerName with the individual identity Danielov Ernest Igori supplied by the developer for verification. Functionality, Skill instructions, MCP and OAuth configuration, product name, other listing fields, review cases, demo URL, and commerce declaration are unchanged from 0.2.9."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

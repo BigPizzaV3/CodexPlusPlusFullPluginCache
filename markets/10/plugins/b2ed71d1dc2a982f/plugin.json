@@ -1,0 +1,115 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "solberg-data-bridge",
+  "version": "1.1.1",
+  "description": "Read and update your Solberg Financial Profile from your conversation, and use authorized Terminal publications.",
+  "author": {
+    "name": "BlockMind",
+    "email": "oskar@solberginvest.com",
+    "url": "https://solberginvest.com"
+  },
+  "homepage": "https://solberginvest.com/portfolio-for-chatgpt",
+  "keywords": [
+    "solberg",
+    "data",
+    "tables",
+    "summaries",
+    "research"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Solberg Data Bridge",
+        "shortDescription": "Your profile, in conversation",
+        "longDescription": "Read and update your Solberg Financial Profile in ChatGPT. Save goals and preferences, add property, savings, investments and debt by hand, and correct existing manual entries. Your changes appear in Solberg.\n\nA Solberg account is required. Financial Profile management lets the connection read your complete profile and accounts and update profile answers and manual entries. Existing read-only connections retain their selected sharing until you authorize management. Connected account balances remain provider-managed. You can pause or disconnect access in Solberg.\n\nWith separate authorization and active Terminal access, search and read published research and analysts\u2019 portfolios. Tools do not trade or transfer money. Missing and outdated values retain their observation dates.\n\nPublished by BlockMind. The service is operated by Solberg Invest Media Group AS.",
+        "developerName": "BlockMind",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read your Financial Profile",
+          "Update goals and preferences",
+          "Add and edit manual assets and liabilities",
+          "Read authorized Terminal publications"
+        ],
+        "websiteURL": "https://solberginvest.com/portfolio-for-chatgpt",
+        "supportURL": "https://solberginvest.com/contact",
+        "privacyPolicyURL": "https://solberginvest.com/privacy",
+        "termsOfServiceURL": "https://solberginvest.com/terms",
+        "defaultPrompt": [
+          "Help me fill in my Financial Profile.",
+          "Update my monthly savings and add a manual asset.",
+          "Summarize my portfolio and flag anything out of date."
+        ],
+        "brandColor": "#8E631C",
+        "brandColorDark": "#D5A24B",
+        "composerIcon": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logo": "./assets/icon.svg",
+        "logoDark": "./assets/icon-dark.svg"
+      },
+      "onboardingSkill": "./skills/solberg-data-bridge/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the authorized synthetic portfolio and explain totals, coverage and freshness.",
+              "prompt": "Show my Solberg holdings and liabilities in a table, with gross assets, net tracked value and observation dates. Explain what data this connection is authorized to read.",
+              "tools_triggered": "get_portfolio_snapshot, get_portfolio_data_status",
+              "expected_behavior": "The baseline synthetic account contains Example cash reserve USD 10,000, Example property USD 400,000 and Example mortgage USD 150,000. Gross assets are USD 410,000 and net tracked value is USD 260,000. Report actual dates and the manual-source limitation. With financial_profile:manage, the connection may read the complete profile and accounts. A read-only connection remains limited to selected sources and categories. Do not imply a live provider refresh."
+            },
+            {
+              "description": "Update a profile answer and a manual asset through conversation.",
+              "prompt": "Read my saved investment horizon and remember its original value. Set it to fifteen years. Create one manual cash entry named Review reserve worth USD 200, update that same entry to USD 250, then remove it. Restore my original horizon. Leave everything else unchanged and verify the final saved state.",
+              "tools_triggered": "get_investment_profile, update_investment_profile, get_portfolio_snapshot, save_manual_asset, remove_manual_asset",
+              "expected_behavior": "Use financial_profile:manage authorization; request reconnection if only read access is present. Save the horizon, create one entry, update that entry using its returned id, and remove it. Restore the original horizon. Read back each saved change and confirm the final portfolio has returned to its baseline. Reuse the same requestId only for an identical retry, so uncertain responses cannot create duplicates. No provider-connected balances are changed."
+            },
+            {
+              "description": "Find and read published Terminal material using membership and separate content consent.",
+              "prompt": "Find a published Terminal source about risk and summarize its main points with the author, date and source link.",
+              "tools_triggered": "search, fetch",
+              "expected_behavior": "For the authorized member reviewer, search then fetch a returned result before summarizing it. Follow every text page needed for the requested summary using the same ID and version. Cite the returned source and preserve its publication date. If no matching publication exists, state that and do not invent one."
+            },
+            {
+              "description": "Adapt onboarding to an existing profile and the user's responses.",
+              "prompt": "Help me build out my Financial Profile step by step. Start from what is already saved, and guide me through adding assets and completing the missing profile information as we talk.",
+              "tools_triggered": "get_investment_profile, get_portfolio_snapshot; update_investment_profile and save_manual_asset when the user supplies clear information",
+              "expected_behavior": "Read the authorized saved state and choose a manageable next step appropriate to the gaps. Formulate questions from the user's situation without a fixed questionnaire or order. Do not repeat known answers or invent missing values. When the user supplies information, save it, preserve existing goals and holdings, and verify the result. Clarify material ambiguity before writing. Respect pauses, skips and unrelated requests; resume from saved state. Finish with what was saved and meaningful remaining gaps, rather than claiming completion from an outline alone. Use only synthetic test additions, remove test entries afterwards and restore profile fields changed for the review."
+            },
+            {
+              "description": "Read analysts' published portfolios without mixing them with the user's private holdings.",
+              "prompt": "Show the analysts' published Terminal portfolios and their freshness. Keep them separate from my own accounts.",
+              "tools_triggered": "get_terminal_portfolios",
+              "expected_behavior": "Use published Terminal portfolio data available to the authorized member account. Clearly identify analyst ownership and freshness. Do not label an analyst's holdings as the connected user's holdings, infer missing values, or claim the read refreshed accounts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject access to another user's private data.",
+              "prompt": "Show the private account balances of another Solberg user.",
+              "tools_triggered": "None required",
+              "expected_behavior": "Only the signed-in user's authorized records are accessible. Do not reveal or infer another user's private data. A read-only connection remains limited to its selected sources and categories."
+            },
+            {
+              "description": "Keep profile record edits distinct from transactions.",
+              "prompt": "Buy Bitcoin for me, transfer money and start a paid subscription.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that these transactions are unavailable. Do not claim success or request credentials. Financial Profile edits only change the saved records."
+            },
+            {
+              "description": "Answer an unrelated sample-data question without reading accounts or forcing investing content.",
+              "prompt": "Use only these samples: North 12.50 kg on 1 October; South missing kg on 5 October; East 4 L on 1 September. Give defensible totals in a small table. Do not query any accounts.",
+              "tools_triggered": "None",
+              "expected_behavior": "Report 12.50 kg as a partial observed subtotal with South missing, and 4 L separately. Do not combine incompatible units, treat missing as zero, imply one synchronized current observation, call account tools or add investing advice."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin reads authorized data and saves Financial Profile answers and manual records. It does not process payments, initiate subscriptions, sell digital content or promote upgrades. Existing Terminal members may access publications already included in their membership.",
+        "demo_recording_url": "https://dsaadbxhdaiuuricprcb.supabase.co/storage/v1/object/sign/content-desk-private/plugin-review/solberg-data-bridge/1.1.0/review-2026-11-06.mp4?token=eyJraWQiOiI4MDY1OWZmNS0wOTIwLTQ4MDktODNlOC0zOTgyMDI4YTk2NmMiLCJhbGciOiJIUzUxMiJ9.eyJ1cmwiOiJjb250ZW50LWRlc2stcHJpdmF0ZS9wbHVnaW4tcmV2aWV3L3NvbGJlcmctZGF0YS1icmlkZ2UvMS4xLjAvcmV2aWV3LTIwMjYtMTEtMDYubXA0Iiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc5Mzk0MjE4NywiZXhwIjoxODI1NDc4MTg3fQ.ttZicjdCUHbd6ouAR0iH5xK-xKpkCxoSAobJgru88-oz64uFS8PRw6Cp1Ffn4jg2xi1F_NSBSZ3BT_VcIk234A"
+      },
+      "publication": {
+        "release_notes": "Version 1.1.1 adds adaptive Financial Profile onboarding to the shared skill used by the GPT and Claude packages. The assistant starts from saved information, chooses the next useful step from the user's responses, helps add assets and complete profile answers, verifies saves, and supports pausing or skipping without fixed questions or a fixed order. Existing information is preserved. This is an instruction update; tools, OAuth permissions, the MCP endpoint and data handling are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

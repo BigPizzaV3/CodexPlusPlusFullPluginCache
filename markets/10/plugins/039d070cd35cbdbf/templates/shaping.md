@@ -1,0 +1,162 @@
+---
+planning: true
+shaping: true
+artifact_type: shaping
+status: draft
+source_of_truth: true
+feeds:
+  - breadboard
+  - context-packet
+---
+
+# [Project] — Shaping
+
+# Context Card
+
+## Use this when
+An agent and human need a shared shaping surface for requirements, solution shapes, fit checks, unknowns, Appetite, and selection before implementation.
+
+## Governing rule
+**Exploration is fluid. Commitment is gated.** Start from R, S, evidence, or an uncertainty. Keep working material visibly distinct from accepted material.
+
+## Must preserve
+- stable requirement and shape IDs
+- working versus accepted authority
+- selected shape and rejected alternatives once selection occurs
+- unknown flags
+- non-goals and Appetite
+
+## Ignore unless asked
+- rejected shapes as implementation instructions
+- raw brainstorms as accepted intent
+
+## Working mode
+- Profile: collaborative | gated
+- Current move: R | S | fit | appetite | spike | candidate breadboard | selection
+- Entry point: requirements | solution | evidence/prototype | existing artifact | other
+
+## Frame reference
+- Transformation frame: x → f() → y
+- Frame artifact:
+- Frame authority: Working | Accepted | Intentionally lightweight
+- Outcome:
+- Non-goals:
+- x — trigger/context, current approach, and current result:
+- f() — solution / shape variable: intentionally unspecified at the frame level
+- y — desired outcome:
+- Gap and boundaries:
+
+## Operating model (M, optional)
+- Authority: Working | Accepted | Not needed
+- Relevant operating conditions:
+- Causal assumptions / projected dynamics:
+- Evidence refs:
+- Revisit conditions:
+
+## Requirements
+
+| ID | Requirement | Status | Authority | Origin | Evidence refs | Notes |
+|---|---|---|---|---|---|---|
+| R0 | ... | Core goal | Working | FROM_X | ... | ... |
+| R1 | ... | Must-have | Working | FROM_GAP | ... | ... |
+| R2 | ... | Must-have | Working | FROM_M | ... | ... |
+
+## Appetite
+- Authority: Unset | Working | Accepted
+- Time budget:
+- Team shape:
+- Review point:
+- Cut line:
+- Accepted uncertainty:
+- Must-resolve unknowns:
+- Revisit conditions:
+
+## Shapes
+
+### CURRENT: [Existing baseline]
+
+| Part | Mechanism | Flag |
+|---|---|:---:|
+| CURRENT1 | ... | |
+
+### A: [Short title]
+
+| Part | Mechanism | Flag |
+|---|---|:---:|
+| A1 | ... | |
+
+### B: [Short title]
+
+| Part | Mechanism | Flag |
+|---|---|:---:|
+| B1 | ... | |
+
+## Candidate evidence
+
+| Candidate / part | Evidence | Question resolved | R implication | S implication | Appetite implication | Remaining uncertainty |
+|---|---|---|---|---|---|---|
+| A | spike / candidate breadboard / sketch | ... | ... | ... | ... | ... |
+
+## Fit check
+- Authority: Working | Decision-ready
+- Evaluation altitude: Design conformance
+
+| Req | Requirement | Status | CURRENT | A | B |
+|---|---|---|:---:|:---:|:---:|
+| R0 | ... | Core goal | ✅ | ✅ | ✅ |
+| R1 | ... | Must-have | ❌ | ✅ | ❌ |
+
+## Reverse fit check
+
+| Shape part | Mechanism | Requirement(s) served | Justified? |
+|---|---|---|:---:|
+| B1 | ... | R1 | ✅ |
+
+## Requirement coverage
+
+| Req | Supporting selected part(s) | Coverage | Realized-conformance question |
+|---|---|:---:|---|
+| R1 | B1 | ✅ | ... |
+
+## Appetite fit
+
+| Shape | Evidence quality | Fits Appetite? | Required cuts | Uncertainty / spike |
+|---|---|:---:|---|---|
+| A | provisional | ... | ... | ... |
+| B | decision-ready | ... | ... | ... |
+
+## Generation omission check
+- Materially different mechanism families considered:
+- Plausible family not yet shaped:
+- Omission risk: low | material | unknown
+- Why this candidate set is sufficient for the current decision:
+
+## Decision
+- Status: exploring | decision-ready | selected | stopped
+- Chosen direction:
+- Why:
+- Rejected directions:
+- Cuts / non-goals:
+- Remaining unknowns:
+- Candidate evidence to reconcile:
+
+## Unknowns / spikes
+
+| ID | Question | Triggered by | Why it matters | Acceptance |
+|---|---|---|---|---|
+| SP1 | ... | R / S / fit / breadboard | ... | ... |
+
+## Next useful move
+Choose the move that resolves the current uncertainty; this is not a checklist.
+
+- [ ] Revise requirements (R)
+- [ ] Revisit operating model (M)
+- [ ] Revise or sketch a shape (S)
+- [ ] Run or rerun fit / reverse-fit
+- [ ] Set, revise, or accept Appetite
+- [ ] Run focused spike
+- [ ] Breadboard one candidate question
+- [ ] Reconcile visual evidence
+- [ ] Prepare for human selection
+- [ ] Reopen framing
+- [ ] Stop

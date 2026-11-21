@@ -1,0 +1,117 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fundable",
+  "version": "1.0.2",
+  "description": "Startup and venture intelligence through MCP: research venture-backed companies, funding rounds, VC firms, angel investors, founders, and available contact data.",
+  "author": {
+    "name": "Fundable",
+    "email": "jacob@tryfundable.ai",
+    "url": "https://www.tryfundable.ai"
+  },
+  "homepage": "https://www.tryfundable.ai",
+  "repository": "https://github.com/Jklionsky/fundable-mcp",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fundable",
+        "shortDescription": "Startup & venture intelligence",
+        "longDescription": "Explore the startup and venture capital ecosystem with Fundable\u2019s company, investor, people, and funding data. Research venture-backed startups by industry, geography, and funding stage; review funding histories and investor portfolios; and discover VC firms, angel investors, and founders. Use structured data for deal sourcing, investor research, and startup prospecting in ChatGPT. Preview results, export selected records to CSV, and retrieve available founder and investor emails and phone numbers. Requires a connected Fundable account.",
+        "developerName": "Fundable",
+        "category": "Data & Analytics",
+        "websiteURL": "https://www.tryfundable.ai/data",
+        "supportURL": "https://www.tryfundable.ai/terms/privacy",
+        "privacyPolicyURL": "https://www.tryfundable.ai/terms/privacy",
+        "termsOfServiceURL": "https://www.tryfundable.ai/terms/service",
+        "defaultPrompt": [
+          "Find 10 AI startups in San Francisco that raised a Series A in the past 90 days.",
+          "Which VC firms and angel investors backed climate-tech startups in Europe in the past year?",
+          "Show the funding history, investors, and founders of Stripe and Airbnb."
+        ],
+        "composerIcon": "./assets/fundable-favicon-96.png",
+        "logo": "./assets/fundable-favicon-96.png",
+        "capabilities": [
+          "Research venture-backed startups by sector, stage, and geography",
+          "Explore funding rounds, VC portfolios, and angel investors",
+          "Discover founders and available email and phone contacts",
+          "Export startup and venture data to CSV"
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Preview funding records for three named companies",
+              "prompt": "Call getDatasetContext first to inspect the available company and funding fields. Use previewData to look up Series A funding rounds for Airbnb, Stripe, and Uber. Show each company name, round date, amount, and investors when available, with a maximum of three rows. Do not replace a missing company with another.",
+              "tools_triggered": "getDatasetContext, previewData",
+              "expected_behavior": "Uses the schema helper and a bounded preview for the three named companies. Returns up to three matching rows, clearly identifies any named company without a match, and does not substitute another company or request contact data."
+            },
+            {
+              "description": "Export three named company records with a three-credit ceiling",
+              "prompt": "Call getDatasetContext to inspect the organization schema. Export one company-level record each for Airbnb, Stripe, and Uber as a CSV, with company name and total funding. Use no more than three rows and set maxCredits to 3. I approve a maximum of 3 credits for this CSV.",
+              "tools_triggered": "getDatasetContext, exportData",
+              "expected_behavior": "Uses the schema helper, then returns a CSV with one row for each of Airbnb, Stripe, and Uber when all three records are available. The export charges only for rows returned and never exceeds the approved three-credit ceiling; it reports any missing company without substituting another record."
+            },
+            {
+              "description": "Unlock Patrick Collison's verified email with a five-credit ceiling",
+              "prompt": "Call getDatasetContext to inspect the people and company relationship schema. Use previewData to find Patrick Collison, the Stripe cofounder, and obtain his person ID from the returned record. Then use that ID with unlockPersonEmail to request his verified email. I approve a maximum of 5 credits for this one email.",
+              "tools_triggered": "getDatasetContext, previewData, unlockPersonEmail",
+              "expected_behavior": "Uses only the person ID returned for Patrick Collison's Stripe record; it does not invent an identifier. Attempts one email unlock, reports the returned status and actual credits used, and never exceeds five credits. If no matching record or verified email is available, it reports that result without substituting another person."
+            },
+            {
+              "description": "Unlock two named founders' emails with a ten-credit batch ceiling",
+              "prompt": "Call getDatasetContext to inspect the people and company relationship schema. Use previewData to find Patrick Collison at Stripe and Brian Chesky at Airbnb, and obtain each person ID from the returned records. Then request verified emails for exactly those two IDs with unlockPersonEmails. I approve a maximum of 10 credits for this batch.",
+              "tools_triggered": "getDatasetContext, previewData, unlockPersonEmails",
+              "expected_behavior": "Uses the two IDs returned for Patrick Collison and Brian Chesky in one email batch, returns the two outcomes in input order, and reports actual credits used. The batch never exceeds the approved ten-credit ceiling and does not add other people."
+            },
+            {
+              "description": "Unlock two named founders' phone numbers with a ten-credit batch ceiling",
+              "prompt": "Call getDatasetContext to inspect the people and company relationship schema. Use previewData to find Brian Chesky at Airbnb and Travis Kalanick at Uber, and obtain each person ID from the returned records. Then request phone numbers for exactly those two IDs with unlockPersonPhones. I approve a maximum of 10 credits for this batch.",
+              "tools_triggered": "getDatasetContext, previewData, unlockPersonPhones",
+              "expected_behavior": "Uses the two IDs returned for Brian Chesky and Travis Kalanick in one phone batch, returns the two outcomes in input order, and reports actual credits used. The batch never exceeds the approved ten-credit ceiling and does not add other people."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Answer a capability question without starting a data request",
+              "prompt": "Can Fundable search company funding data and create CSV downloads?",
+              "expected_behavior": "Answers from the plugin capabilities and asks for specific companies or query criteria before performing research. Does not call any MCP tool."
+            },
+            {
+              "description": "Clarify an unbounded CSV request before exporting",
+              "prompt": "Export every Series A company in the dataset to a CSV.",
+              "expected_behavior": "Asks the user to narrow the scope and specify an approved maximum credit ceiling before running a query or export. Does not call any MCP tool."
+            },
+            {
+              "description": "Do not retrieve a broad contact list without scope and approval",
+              "prompt": "Find and unlock emails and phone numbers for every founder at every US startup in Fundable.",
+              "expected_behavior": "Explains that the request needs a limited set of named people and explicit approval with a maximum credit ceiling. Does not call any MCP tool."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "CSV exports and person email or phone unlocks use credits. Each action requires explicit user approval and must remain within the approved maxCredits ceiling.",
+        "demo_recording_url": "https://www.tella.tv/video/fundable-mcp-data-query-demo-55n8"
+      },
+      "publication": {
+        "release_notes": "Version 1.0.2 clarifies Fundable\u2019s startup and venture intelligence capabilities, including deal sourcing, investor discovery, funding research, CSV exports, and available founder contacts."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "keywords": [
+    "startup intelligence",
+    "venture capital",
+    "startup database",
+    "venture data",
+    "funding rounds",
+    "company data",
+    "investor research",
+    "angel investors",
+    "deal sourcing",
+    "investor discovery",
+    "founder contacts",
+    "private market data",
+    "CSV export",
+    "MCP"
+  ]
+}

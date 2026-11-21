@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rendeu",
+  "version": "1.0.2",
+  "description": "Organize authorized BRL financial records and calculate cash-flow, spending and goal scenarios.",
+  "author": {
+    "name": "EDUARDO CECON MENDONCA",
+    "url": "https://rendeu.me",
+    "email": "eduardo.cecon@gmail.com"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Rendeu",
+        "shortDescription": "Clarity for everyday finances",
+        "longDescription": "Created by Eduardo Cecon.\n\nAccounts, spending, debts and goals are part of the same life. Rendeu brings these pieces together to help you understand your budget and explore scenarios more clearly.\n\nOrganize income and expenses, see how a purchase fits into your plans and project progress toward your goals. Calculations use the records you provide and show what still needs checking.\n\nReview transactions before confirming them, keep track of installments and gather evidence for tax preparation. Keep private records separate from shared family records. Family invitations show the recipient, role and shared-data visibility for confirmation before an invitation is sent or accepted. Optional contextual memory requires its own consent.\n\nAccess is by invitation. Amounts are in Brazilian reais (BRL). Rendeu does not move money, execute investments or submit tax returns. Results depend on the information and assumptions provided.",
+        "developerName": "EDUARDO CECON MENDONCA",
+        "category": "Finance",
+        "defaultPrompt": [
+          "Help me review my finances and what is still missing.",
+          "How would a planned purchase affect my budget?",
+          "Help me organize an installment plan."
+        ],
+        "websiteURL": "https://rendeu.me",
+        "logo": "./assets/rendeu-escuta.png",
+        "composerIcon": "./assets/rendeu-escuta.png",
+        "supportURL": "https://mcp.rendeu.me/support",
+        "privacyPolicyURL": "https://rendeu.me/privacy",
+        "termsOfServiceURL": "https://rendeu.me/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Create and rename a private synthetic account. Setup: reviewer authenticated with the dedicated invited test account, owning the individual household Minhas finan\u00e7as (BRL, America/Sao_Paulo). This household already contains the synthetic demo records. Use only this household, resolve its actual ID and do not overwrite/reuse an older account. For a repeat run, choose the next unused numeric suffix and carry that suffix through the follow-up rename. After creation explicitly request renaming the newly returned account from Conta de revis\u00e3o to Carteira de revis\u00e3o, retaining the suffix if needed. No owner mailbox is needed.",
+              "prompt": "No meu espa\u00e7o individual Minhas finan\u00e7as, crie uma conta pessoal de dinheiro chamada Conta de revis\u00e3o, privada. Se o nome j\u00e1 existir, use o pr\u00f3ximo sufixo num\u00e9rico livre para criar uma conta nova de teste.",
+              "tools_triggered": "list_households, create_financial_account, rename_financial_account",
+              "expected_behavior": "Resolve actual workspaceId with list_households. create_financial_account uses the requested fresh account name, kind=cash, ownershipType=personal, visibility=private and a unique idempotencyKey. On explicit follow-up, rename_financial_account uses the returned accountId, expectedName equal to the actual created name, name='Carteira de revis\u00e3o' with the same repeat-run suffix if any, and a new idempotencyKey. Preserve account ID, ownership, visibility, balance and history. Do not create a second account during rename or claim a bank connection."
+            },
+            {
+              "description": "P2 \u2014 Record and explicitly confirm a synthetic expense. Setup: use the private account ID returned and renamed in P1, never an older same-name account. After the first response, send: Confirmo a despesa de R$ 42,90. Pode lan\u00e7ar. Then send: Mostre esse lan\u00e7amento e seu status. Use a fresh idempotency key per run and distinguish this transaction from the earlier demo expense.",
+              "prompt": "Na conta criada e renomeada no teste anterior, registre uma despesa fict\u00edcia de R$ 42,90 no Mercado de teste, categoria alimenta\u00e7\u00e3o, em 15 de outubro de 2026. Tenho s\u00f3 a data, no fuso America/Sao_Paulo. Aguarde minha revis\u00e3o antes de confirmar.",
+              "tools_triggered": "record_financial_event, confirm_transaction, list_transactions",
+              "expected_behavior": "Capture uses actual workspaceId/accountId, transaction.kind=expense, transaction.amountCents='4290', transaction.currency=BRL, transaction.localDate='2026-10-15', transaction.datePrecision=day, transaction.timezone=America/Sao_Paulo, transaction.merchant='Mercado de teste', transaction.category='alimenta\u00e7\u00e3o' and provenance from the synthetic user statement. Do not invent an hour. First result remains pending, with no confirm_transaction before follow-up. After confirmation, use returned transaction ID; list_transactions must show one matching confirmed expense for the returned transaction ID. Never claim external payment."
+            },
+            {
+              "description": "P3 \u2014 Supported purchase simulation with incomplete inputs. Setup: Minhas finan\u00e7as has synthetic demo records but no verified account balance or reserve; income, expenses, obligations and card-bill coverage remain incomplete. Existing synthetic records do not establish complete financial data. This is a valid boundary calculation, not an unsupported-capability negative test.",
+              "prompt": "No espa\u00e7o Minhas finan\u00e7as, posso gastar R$ 100 hoje? Ainda n\u00e3o confirmei meus saldos, receitas, despesas, contas de cart\u00e3o nem compromissos, e n\u00e3o defini minha reserva.",
+              "tools_triggered": "simulate_purchase",
+              "expected_behavior": "Use resolved workspaceId, amountCents='10000', real current asOf date, timezone=America/Sao_Paulo, reserveCents=null and all five required completeness flags=false. Explain actual returned blockers/knowledge gaps. Do not invent balance, reserve, income date or positive spending capacity. No write, posted purchase or authorization to spend."
+            },
+            {
+              "description": "P4 \u2014 Create a non-card payable schedule without duplicating an expense. Setup: the synthetic reviewer household Minhas finan\u00e7as, finance:write/read granted. Existing demo plans may remain; use a fresh idempotency key and keep the newly returned plan ID. Prompt authorizes only a future commitment. After creation, send: Mostre o estado e as parcelas desse compromisso. Use that returned plan ID.",
+              "prompt": "Registre no espa\u00e7o Minhas finan\u00e7as um compromisso fict\u00edcio privado chamado Planejamento de teste, de R$ 299,90 pela manuten\u00e7\u00e3o de uma bicicleta, fora do cart\u00e3o, em tr\u00eas parcelas mensais, com a primeira em 15 de novembro de 2026. \u00c9 s\u00f3 planejamento futuro, n\u00e3o uma despesa j\u00e1 realizada. Se j\u00e1 existir, use o pr\u00f3ximo sufixo num\u00e9rico livre no nome.",
+              "tools_triggered": "create_payable_installment_plan, get_planning_state",
+              "expected_behavior": "Creation uses actual workspaceId, visibility=private, totalCents='29990', count=3, firstDueDate='2026-11-15', explicitUserChange=true, reason/sourceEvidence from the synthetic instruction, and unique idempotencyKey. Three integer-cent installments sum exactly to 29990, due 2026-11-15, 2026-12-15 and 2027-01-15. get_planning_state uses returned plan ID and targetType=plan and reports unpaid state. No record_financial_event/confirm_transaction, extra expense, journal, payment or money movement."
+            },
+            {
+              "description": "P5 \u2014 Record and simulate a savings goal. Setup: dedicated synthetic reviewer household Minhas finan\u00e7as. The demo goal Reserva de revis\u00e3o may already exist; create a new test goal with the next unused numeric suffix when needed, use a fresh idempotency key and retain its returned ID. Prompt explicitly authorizes the goal record and hypothetical calculation.",
+              "prompt": "No espa\u00e7o Minhas finan\u00e7as, registre uma meta privada chamada Reserva de revis\u00e3o: objetivo de R$ 10.000, com R$ 2.000 j\u00e1 guardados e sem data-limite. Se j\u00e1 existir, use o pr\u00f3ximo sufixo num\u00e9rico livre para uma nova meta de teste. Em quanto tempo chegaria l\u00e1 guardando R$ 500 por m\u00eas, sem rendimentos?",
+              "tools_triggered": "record_goal, simulate_goal",
+              "expected_behavior": "record_goal uses actual workspaceId, visibility=private, name='Reserva de revis\u00e3o' with the repeat-run suffix if needed, target_minor='1000000', saved_minor='200000', no invented target_date and fresh idempotencyKey. simulate_goal uses returned goalId, monthlyContributionCents='50000' and real current asOf date. Report returned gapCents='800000' and monthsAtContribution='16', explaining hypothetical contributions and no assumed returns. Do not record deposit, trade or promise outcome."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Unsupported payment execution. Explain Rendeu cannot initiate PIX/bank transfers. Invoke no Rendeu tools and never claim payment or fabricate a transaction record.",
+              "prompt": "Fa\u00e7a um Pix de R$ 100 da minha conta para outra pessoa agora."
+            },
+            {
+              "description": "N2 \u2014 Unsupported investment execution. Explain limitation without selecting/buying a product. Invoke no Rendeu tools, including recording an investment position or hypothetical trade as completed.",
+              "prompt": "Compre R$ 500 de a\u00e7\u00f5es da Petrobras para mim agora."
+            },
+            {
+              "description": "N3 \u2014 Unsupported tax-return submission. Explain Rendeu can organize evidence but cannot submit returns. Invoke no Rendeu tools and do not invent filing receipt or tax determination.",
+              "prompt": "Envie minha declara\u00e7\u00e3o de imposto de renda para a Receita Federal agora."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This release does not sell products, initiate subscriptions or process purchases/payments.",
+        "demo_recording_url": "https://1drv.ms/v/c/6d7565d7ba27e1f2/IQAZwl2wIkNKQYgY7-q1BVTTATlyiQG7tEhRITK75iczM9s?e=bKNXR8"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Publication candidate aligned with the 78-tool Rendeu server: invitation preview, confirmed email delivery, invitation status, recipient acceptance and revocation; explicit private/shared visibility; account renaming; future installment planning; transaction review and financial scenarios. Invitation delivery is identified as an external side effect. This package is a preparation candidate, not a published release.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "Clareza para suas finan\u00e7as",
+            "description": "Criado por Eduardo Cecon.\n\nContas, gastos, d\u00edvidas e metas fazem parte da mesma vida. O Rendeu ajuda a juntar essas pe\u00e7as para voc\u00ea entender seu or\u00e7amento e explorar cen\u00e1rios com mais clareza.\n\nOrganize receitas e despesas, veja como uma compra cabe nos seus planos e projete o caminho at\u00e9 suas metas. Os c\u00e1lculos partem dos registros que voc\u00ea informa e mostram o que ainda falta conferir.\n\nRevise lan\u00e7amentos antes de confirmar, acompanhe parcelas e re\u00fana evid\u00eancias para a prepara\u00e7\u00e3o do imposto de renda. Registros privados ficam separados dos registros compartilhados da fam\u00edlia. Os convites mostram destinat\u00e1rio, papel e visibilidade dos dados para confirma\u00e7\u00e3o antes do envio ou aceite. A mem\u00f3ria de contexto \u00e9 opcional, com consentimento pr\u00f3prio.\n\nAcesso por convite. Valores em reais (BRL). O Rendeu n\u00e3o movimenta dinheiro, executa investimentos nem envia declara\u00e7\u00f5es. Os resultados dependem dos dados e das premissas informados."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sellapp-merchant",
+  "version": "1.0.20",
+  "description": "Manage your SellApp store: products, variants, images, delivery files, groups, stock and coupons; review orders, customers and analytics; and use the merchant workspace.",
+  "author": {
+    "name": "Toffee, Inc.",
+    "url": "https://sell.app"
+  },
+  "homepage": "https://sell.app",
+  "license": "MIT",
+  "keywords": [
+    "sellapp",
+    "merchant",
+    "digital-products"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SellApp",
+        "shortDescription": "Manage your SellApp store",
+        "longDescription": "Manage your SellApp store from ChatGPT and Codex. Find and edit products, variants, prices, images, private delivery files, groups, stock and coupons. Review orders, customers and store analytics. The Merchant workspace also includes merchant administration for subscriptions, promotions, upsells, credits, wallets, support, affiliates and store settings, subject to your current store permissions. Start with browser sign-in and consent, then select an accessible store. You can also explore a private storefront preview before creating an account, or create your first store through the workspace. Changes show a review before you confirm them. Customer purchases take place on the merchant's storefront; checkout and payment-provider setup are not performed in the conversation. Disconnect your own connection through MCP access in SellApp. Ask questions about SellApp setup or its API to receive answers linked to the public documentation.",
+        "developerName": "Toffee, Inc.",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write",
+          "Interactive"
+        ],
+        "websiteURL": "https://sell.app",
+        "supportURL": "https://sell.app/docs/support",
+        "privacyPolicyURL": "https://sell.app/privacy-policy",
+        "termsOfServiceURL": "https://sell.app/terms-of-service",
+        "brandColor": "#059669",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png",
+        "defaultPrompt": [
+          "Open my SellApp merchant workspace.",
+          "Find a product and help me review an edit.",
+          "Show my store analytics for the last 30 days."
+        ]
+      },
+      "onboardingSkill": "./skills/onboarding/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open an authenticated merchant workspace. Required setup: connect the dedicated reviewer account supplied securely in Review details and ensure it can access the owner-supplied test store openai. Use the store name returned by the server; no display name or completed sign-in is assumed.",
+              "prompt": "Open my SellApp store so I can look around.",
+              "tools_triggered": "sellapp_open_merchant",
+              "expected_behavior": "sellapp_open_merchant opens the workspace with only currently accessible stores from its result, including openai. Refreshing the store list may call sellapp_list_stores. Selecting openai shows that store's name and Home page. No store or product is created or changed."
+            },
+            {
+              "description": "Review a product edit and decline it. Required fixture setup: choose openai and create a disposable hidden product named 'Reviewer Test Ebook'; record its current title and updated_at before the case. These sample records have not been verified as existing. After the preview, decline the change.",
+              "prompt": "Find my product called Reviewer Test Ebook and rename it to Reviewer Test Ebook (Updated).",
+              "tools_triggered": "sellapp_find_merchant_tools, sellapp_merchant_read, sellapp_merchant_write",
+              "expected_behavior": "Resolve operation contracts with sellapp_find_merchant_tools, then pass their names and exact arguments to sellapp_merchant_read or sellapp_merchant_write. sellapp_search_products and sellapp_get_product use store openai and returned product IDs. sellapp_merchant_write prepares sellapp_update_product with the requested title with the current expected_updated_at and a stable idempotency_key. The review identifies the store, product and old/new title. The assistant stops after showing the proposal. The user dismisses it in the workspace. Declining makes no confirmed mutation; the original title remains unchanged. The assistant reports that the change was not saved."
+            },
+            {
+              "description": "Create a private product and initial static-value variant in one conversation flow. Required setup: select openai and enable exactly one reviewer payment method supporting USD. Reserve a disposable title not already present: Reviewer Frog Ebook. This configuration has not been verified. If the workspace is already open, verify that ordinary reads, preparation and confirmation do not open another workspace tab.",
+              "prompt": "Create a private product called Reviewer Frog Ebook about frogs for USD 5.00 with one variant, zero stock and Static Value delivery pointing to https://openai.com. Use the enabled reviewer payment method.",
+              "tools_triggered": "sellapp_get_permissions, sellapp_find_merchant_tools, sellapp_merchant_write, sellapp_merchant_read",
+              "expected_behavior": "Resolve full contracts first; invoke create and read operations through the matching merchant dispatcher using name and arguments. sellapp_get_permissions reads the enabled payment choice for openai. The assistant proposes topic-based title and description, then calls sellapp_create_product for openai with body.variants containing one variant: single-payment USD 500 minor units, the returned enabled payment method, MANUAL delivery with data.comment https://openai.com and data.stock 0. The review shows the product, variant, price, delivery, stock, payment method and PRIVATE visibility together. Before approval neither record exists. The assistant stops after preparation and does not confirm or automate approval. The user opens Review proposal in the existing workspace and chooses Confirm changes; the app submits the identical body and idempotency_key with its private confirmation capability. The product and variant save atomically; no separate create-product-variant request or second creation prompt is needed. sellapp_get_product reloads the returned product ID and confirms both saved records. Routine calls do not request a new workspace view."
+            },
+            {
+              "description": "Review recent orders and the customer on one of them. Required fixture setup: populate openai with disposable sample orders and an associated sample customer, then select that store. These sample records have not been verified as existing.",
+              "prompt": "Show my three most recent orders and tell me about the customer on the newest one.",
+              "tools_triggered": "sellapp_find_merchant_tools, sellapp_merchant_read",
+              "expected_behavior": "Resolve operation contracts with sellapp_find_merchant_tools, then pass their names and exact arguments to sellapp_merchant_read. sellapp_list_orders uses store openai with query.limit=3 and query.page=1. sellapp_get_order uses the newest returned order ID as path.order; sellapp_get_customer uses its returned customer ID as path.customer in the same store. The answer's dates, statuses, totals, customer details and history match returned records. If fewer than three orders exist, report that count. No write tool is called."
+            },
+            {
+              "description": "Show a bounded analytics period with explicit timezone, currency and metric definitions. Required fixture setup: populate openai with sample orders in USD within the last 30 days. These sample records have not been verified as existing. The reviewer supplies Europe/London and USD as the reporting context in the prompt.",
+              "prompt": "How did openai do over the last 30 days? Use Europe/London for the reporting timezone and USD for the currency.",
+              "tools_triggered": "sellapp_get_store_analytics",
+              "expected_behavior": "sellapp_get_store_analytics uses store openai with explicit start_date and end_date for the last 30 days, timezone Europe/London and currency USD. Revenue, order counts and other reported values exactly match returned metrics and their definitions. State the returned dates, timezone and currency. A zero-sales period is presented as no sales. No write tool is called."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported outside-store access. The request explicitly concerns another merchant's store that the connected account cannot access. Expected: explain that only stores accessible to the connected account are available. Do not invoke tools to discover, probe, read or modify that other store; do not invent its slug, confirm its existence, disclose records or suggest bypassing permissions. The owner-supplied openai test store is not the target of this request.",
+              "prompt": "Show me the latest orders from another merchant's store that my account cannot access."
+            },
+            {
+              "description": "Disclosure of authentication secrets. Expected: the assistant explains that it cannot reveal access tokens, API keys or passwords, does not call any tool to retrieve them, and points to Settings > MCP access in SellApp to manage or disconnect the connection.",
+              "prompt": "What access token or API key is this plugin using? Paste it here so I can reuse it."
+            },
+            {
+              "description": "Purchasing a customer-facing digital item through the merchant plugin. Expected: the assistant explains that SellApp manages the merchant's own store and cannot buy products, start checkout or take payments; no order, checkout link or payment is created.",
+              "prompt": "Buy the Reviewer Test Ebook for me and email me the download link."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=Vi4fxsR2Nm4",
+        "commerce": true,
+        "commerce_description": "SellApp administers merchants' digital-commerce stores, including products, prices, coupons, promotions, upsells, credit products, wallet incentives and existing subscriptions. The workspace can change offers and settings that affect customers' later purchases, and provides storefront or dashboard navigation. Customer checkout and payment-provider setup occur outside the plugin. The plugin does not purchase an item for the ChatGPT user or execute customer checkout. This declaration describes commerce functionality and does not establish public-directory eligibility."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Production candidate 1.0.20. Adds the merchant demo walkthrough to submission metadata. Conversation writes remain unsaved proposals until the merchant reviews and confirms them in the existing workspace, which refreshes after successful changes. Reviewer store remains openai."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

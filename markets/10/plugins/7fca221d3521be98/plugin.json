@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nextool-solutions",
+  "version": "1.0.2",
+  "description": "Connect ChatGPT to your GLPI service desk: tickets, ITIL problems and changes, assets and the knowledge base (GLPI 10 and 11).",
+  "author": {
+    "name": "NexTool Solutions",
+    "url": "https://nextoolsolutions.com"
+  },
+  "homepage": "https://nextoolsolutions.com/mcp",
+  "repository": "https://github.com/NexTools-Solutions/nextool-mcp-glpi",
+  "license": "MIT",
+  "keywords": [
+    "glpi",
+    "itsm",
+    "service desk",
+    "helpdesk",
+    "tickets",
+    "itil",
+    "assets",
+    "knowledge base"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "NexTool Solutions",
+        "shortDescription": "GLPI service desk in chat",
+        "longDescription": "NexTool Solutions is a GLPI service desk and IT operations plugin for ChatGPT. It connects ChatGPT to GLPI 10 and 11 (REST API v1 and the GLPI 11 API v2) through a hosted connector, so IT teams and service desk agents can work in plain language instead of clicking through screens.\n\nWhat you can do:\n- Tickets: list your tickets or any queue, read a ticket with its full timeline, create tickets, add follow-ups, tasks and solutions, and handle approvals.\n- ITIL: look up and update problems and changes.\n- Assets and inventory: computers, monitors, printers, network equipment, software and reservations.\n- Knowledge base: search and read articles.\n- Optional presets in your NexTool account add writes for problems, changes, assets, knowledge base and documents, and GLPI administration (users, entities, rules, webhooks).\n- Search across GLPI with column names in your GLPI language, plus ticket statistics.\n\nHow it works: sign in with your NexTool account, connect your GLPI once in the NexTool portal (the GLPI address plus an API token, or a GLPI 11 OAuth client) and authorize ChatGPT. Every action runs as your GLPI user and follows that user's profile and entities.\n\nSafety: every tool is annotated as read-only or as changing data, so the client can apply its approval controls. Delete tools are not offered. A connection can be set to read-only. GLPI credentials are encrypted so that only the connector can use them, and the connector keeps no copy of your prompts or of the data it returns. You can revoke ChatGPT's access at any time in the NexTool portal.\n\nLimitations: your GLPI must be reachable from the internet; GLPI instances that only accept known IP addresses must allow the address shown in the portal. Results depend on the rights of the connected GLPI user.\n\nNexTool Solutions is not affiliated with Teclib'. GLPI is a registered trademark of Teclib'.",
+        "developerName": "NexTool Solutions",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Manage GLPI service desk tickets",
+          "Search GLPI assets and knowledge",
+          "Work with GLPI problems and changes"
+        ],
+        "websiteURL": "https://nextoolsolutions.com/mcp",
+        "supportURL": "https://nextoolsolutions.com/contato",
+        "privacyPolicyURL": "https://nextoolsolutions.com/politica-de-privacidade#nextool-mcp",
+        "termsOfServiceURL": "https://nextoolsolutions.com/termos-de-uso#nextool-mcp",
+        "defaultPrompt": [
+          "List my open GLPI tickets, most recently updated first.",
+          "Summarize a GLPI ticket and its history.",
+          "Search the GLPI knowledge base for VPN setup."
+        ],
+        "brandColor": "#37517E",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the configured reviewer connection. Ticket 17300 is a sample open ticket requested by the connected GLPI user. Results are live; do not require a fixed total or an assigned technician when none exists.",
+              "prompt": "List my open GLPI tickets, most recently updated first.",
+              "tools_triggered": "glpi_list_my_tickets",
+              "expected_behavior": "Call with status=open (or its documented default), sort=date_mod and order=desc. Return only tickets linked to the connected user as requester, assigned technician or observer. Show returned titles, status labels and people; explicitly say unassigned when the assigned list is empty. Ticket 17300 should be included while it remains open. Respect pagination and do not claim a single page is the complete result."
+            },
+            {
+              "description": "The reviewer can access sample ticket 17300. Its requester is MCP Reviewer; it has no assigned technician and no category. Its existing timeline contains follow-ups, but no task or solution at baseline. Later review runs can add further follow-ups.",
+              "prompt": "Summarize GLPI ticket #17300, including its requester, assigned technician, category and history.",
+              "tools_triggered": "glpi_get_ticket, glpi_list_ticket_users, glpi_list_timeline",
+              "expected_behavior": "Read ticketId=17300, its Ticket_User participants and timeline with itemtype=Ticket,itemId=17300. Identify the requester from participants (type=1), not users_id_recipient. Report unassigned and no category if still unset. Summarize returned entries chronologically; do not invent tasks or a solution. Translate status labels into the conversation language without changing their meaning."
+            },
+            {
+              "description": "Two-turn case on sample ticket 17300. First request a draft; the reviewer then replies Yes, add it. Repeated runs may create another matching entry; verify the returned follow-up ID instead of assuming the text is unique.",
+              "prompt": "Prepare a follow-up for GLPI ticket #17300 saying: The printer was replaced, please confirm it works. Show me the text and wait for my confirmation before adding it.",
+              "tools_triggered": "glpi_add_followup, glpi_list_timeline",
+              "expected_behavior": "Before confirmation, display the proposed text and do not call a write tool. After the reviewer confirms, call glpi_add_followup with itemtype=Ticket,items_id=17300 and the exact approved content. Read the timeline and verify the returned follow-up ID and content. Report failure if the write or verification fails; do not claim success from an HTTP 200 alone."
+            },
+            {
+              "description": "Article 719 is the sample article How to connect to the company VPN. The instance also has another VPN article; the search must distinguish them.",
+              "prompt": "Find the knowledge-base article titled How to connect to the company VPN and summarize its instructions.",
+              "tools_triggered": "glpi_search, glpi_get_knowbase_item; glpi_list_search_options if needed",
+              "expected_behavior": "Search itemtype=KnowbaseItem by title containing VPN or the requested title. Include ID in search output (forcedisplay=[2], after discovering options if necessary). Select the exact returned title and read its returned ID, currently 719, using glpi_get_knowbase_item. Summarize installation of the VPN client from the IT portal, corporate sign-in, Head Office profile and Connect, and the documented recovery steps. Never infer the article ID or steps from the title alone."
+            },
+            {
+              "description": "Live aggregate counts for the reviewer visible scope. This environment contains status codes outside the six built-in GLPI statuses. Requires the corrected MCP statistics implementation; no fixed total is asserted.",
+              "prompt": "How many GLPI tickets are visible to me, grouped by status? Include solved, closed and any other statuses.",
+              "tools_triggered": "glpi_get_ticket_stats",
+              "expected_behavior": "Use the unfiltered statistics tool. Show the six returned status counts, other_status_count as a separate group when nonzero, and total. Do not label all visible tickets as open. Confirm the displayed counts reconcile to total and counts_consistent is true; if false, retry or explain the inconsistency instead of presenting an exact breakdown. Do not assign an invented label to unknown status codes or list all tickets."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deletion is not exposed by the hosted connector. Explain the limitation without invoking a write tool. Do not close or solve the ticket as an unrequested substitute.",
+              "prompt": "Delete GLPI ticket #17300."
+            },
+            {
+              "description": "The connector has no email-sending operation. Explain that limitation and offer to draft a message. Do not claim an email was sent or modify GLPI to simulate sending one.",
+              "prompt": "Email the summary of GLPI ticket #17300 directly to the printer supplier."
+            },
+            {
+              "description": "The connector manages GLPI records but has no remote execution or SSH capability. Explain that it cannot restart a device; do not invoke asset-update or ticket-write tools as a substitute for the restart.",
+              "prompt": "Use SSH to restart the printer server described in GLPI ticket #17300."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "ChatGPT does not sell anything through this plugin. NexTool plans are managed in the NexTool portal, outside ChatGPT.",
+        "demo_recording_url": "https://youtu.be/3SvPWv8M-Dc"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Review cases now specify exact ordering, requester lookup, article ID discovery and repeatable follow-up verification. The hosted MCP uses GLPI tools 3.5.6, which count nonstandard ticket statuses separately, preserve OR scopes and flag inconsistent aggregate reads. The listing now identifies the plugin as Business & Operations and states its GLPI service desk capabilities explicitly. No change to the MCP URL or plugin identity."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

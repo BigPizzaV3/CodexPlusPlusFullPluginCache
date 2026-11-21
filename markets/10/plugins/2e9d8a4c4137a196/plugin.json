@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a55eb950eac81919983b2eb656cf6fd",
+  "version": "1.0.7",
+  "description": "Manage and analyze a Gorgias support helpdesk from ChatGPT.",
+  "homepage": "https://gorgias.com/",
+  "keywords": [
+    "gorgias",
+    "customer support",
+    "helpdesk",
+    "tickets",
+    "analytics"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Gorgias",
+        "shortDescription": "Manage your support helpdesk",
+        "longDescription": "Work inside your Gorgias helpdesk from ChatGPT: search and read tickets, reply to customers, tag and update tickets, and apply macros; author and publish Help Center articles and AI Agent knowledge (guidances, skills, rules, and support actions) through a draft-then-publish flow; and run read-only analytics over your support data. Every action is scoped to the single Gorgias account you connect with OAuth.",
+        "developerName": "Gorgias Inc.",
+        "category": "Business & Operations",
+        "websiteURL": "https://updates.gorgias.com/publications/gorgias-mcp-is-now-in-open-beta",
+        "supportURL": "https://docs.gorgias.com/en-US/connect-your-ai-assistant-to-the-gorgias-mcp-6310546",
+        "privacyPolicyURL": "https://www.gorgias.com/legal/privacy",
+        "termsOfServiceURL": "https://www.gorgias.com/legal/terms-of-service",
+        "defaultPrompt": [
+          "Find recent tickets about refunds.",
+          "Summarize the biggest customer pain points this month.",
+          "Review my AI Agent guidance and draft an improvement."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search the reviewer helpdesk for open shipping tickets. No ticket ID is assumed; an empty search result is valid if the account has no match.",
+              "prompt": "Find open tickets that mention shipping and summarize what customers need.",
+              "tools_triggered": "search_tickets(query=\"shipping\", filters=\"eq(ticket.status, 'open')\", limit=10)",
+              "expected_behavior": "Return only tickets actually returned by the connected account search, with IDs and matching details grounded in the tool response. If there are no matches, report that clearly without inventing a ticket or conversation."
+            },
+            {
+              "description": "Retrieve a full conversation using a ticket returned by a live search; do not use a hard-coded fixture ID. If the account has no open shipping ticket, use another open synthetic reviewer ticket and state that choice.",
+              "prompt": "Show the full conversation for the most recently updated open ticket mentioning shipping.",
+              "tools_triggered": "search_tickets(query=\"shipping\", filters=\"eq(ticket.status, 'open')\", order_by=\"updated_datetime:desc\", limit=10), then get_ticket(ticket_id=<numeric ID from the search result>, include_messages=true, messages_limit=50)",
+              "expected_behavior": "Select a ticket ID present in the search result and pass that exact ID to get_ticket. Summarize the returned messages in order, noting any truncation metadata; do not claim a fixture, message, or detail absent from the response."
+            },
+            {
+              "description": "Inspect configured ticket tags without changing account settings.",
+              "prompt": "List the ticket tags configured in this helpdesk.",
+              "tools_triggered": "list_tags(limit=50)",
+              "expected_behavior": "Return tag names and any pagination cursor from the connected account response. An empty list is valid; do not invent tags."
+            },
+            {
+              "description": "Search the configured macros for refund-related entries without applying or editing one.",
+              "prompt": "Show me the refund-related macros in this helpdesk.",
+              "tools_triggered": "list_macros(search=\"refund\", limit=50, archived=false)",
+              "expected_behavior": "Return the matching macro summaries and any next cursor from the account response. Do not apply, create, or edit a macro. If no macros match, say so without inventing results."
+            },
+            {
+              "description": "Report support ticket volume by channel for the last 7 days using live metric metadata.\n\nNotes for the reviewer: the created-tickets metric card publishes under the \"tickets\" search term with scope tickets-created, measure ticketCount, and the schema\u2019s valid channel dimension. The window is a rolling 7 days rather than a fixed calendar week, so it returns whatever activity the connected account actually has \u2014 a freshly connected review account with little history will legitimately produce sparse results.",
+              "prompt": "How many tickets came in during the last 7 days, broken down by channel?",
+              "tools_triggered": "list_metric_cards(search=\"tickets\"), get_reporting_stats_schema(scope=<scope returned by the selected metric card>), get_reporting_stats(scope=<selected card scope>, start_date=<date 7 days ago>, end_date=<today>, timezone=\"America/New_York\", measures=<card measures>, dimensions=[<channel dimension from the scope schema>], filters=<card required filters>, metric_card_category=<card category>, metric_card_slug=<card slug>)",
+              "expected_behavior": "Choose a published metric card relevant to ticket volume (\"Created Tickets\"), use its scope/measures/required filters and the schema\u2019s valid channel dimension, and query the last 7 days in America/New_York. Explain the returned counts per channel, or \u2014 explicitly \u2014 interpret an empty data: [] response as zero tickets in the window rather than a tool failure or \"no data available\". Do not make up figures and do not report an error when the API simply has no tickets in the range."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The request asks for payment processing. The plugin should not trigger, attempt a charge, or mutate a ticket.",
+              "prompt": "Charge $49 to this customer\u2019s card for a replacement order.",
+              "expected_behavior": "Explain the limitation and direct the user to the appropriate service without calling Gorgias tools."
+            },
+            {
+              "description": "The request asks for promotional outreach rather than individual support. The plugin should not trigger, send messages, or claim a campaign was sent.",
+              "prompt": "Send a promotional newsletter with a 20% discount to every customer in our helpdesk.",
+              "expected_behavior": "Explain the limitation and direct the user to the appropriate service without calling Gorgias tools."
+            },
+            {
+              "description": "The request asks to change the merchant\u2019s Gorgias subscription and refund its subscription invoice. The plugin should not trigger or claim to have changed billing.",
+              "prompt": "Cancel our Gorgias subscription and refund our most recent monthly invoice.",
+              "expected_behavior": "Explain the limitation and direct the user to the appropriate service without calling Gorgias tools."
+            }
+          ]
+        },
+        "demo_recording_url": "https://cap.so/s/bx80c4eayja3wr1",
+        "commerce": false,
+        "commerce_description": "Gorgias MCP does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Version 1.0.7 includes a non-secret reviewer-access.md guide with the demo login URL, tenant, reviewer mailbox, and sign-in steps. Private reviewer fields must still be saved in the portal. It retains the version 1.0.6 negative scenarios and all five positive cases, including the last-7-days ticket-volume scenario. The production MCP endpoint, listing, logo, and walkthrough are unchanged. No passwords, tokens, or email codes are included."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { unzipSync } from 'fflate';
+import { parseLayout, validateDocument } from '../src/document.mjs';
+import { nativeRenderer } from '../src/renderer.mjs';
+
+const [input, output] = process.argv.slice(2);
+if (!input || !output) throw new Error('Usage: CAROUSEL_RENDERER_CONFIG=/path/renderer.json node scripts/render-carousel.mjs project.carousel output-directory');
+const renderer = nativeRenderer();
+if (!renderer) throw new Error('Set CAROUSEL_RENDERER_CONFIG after running setup-native-renderer.mjs');
+const bytes = await readFile(resolve(input));
+const members = unzipSync(bytes);
+const document = validateDocument(parseLayout(Buffer.from(members['carousel.yaml']).toString('utf8')));
+const result = await renderer.render(bytes, { slideCount: document.slides });
+await mkdir(resolve(output), { recursive: true });
+for (const slide of result.slides) await writeFile(join(resolve(output), slide.file), slide.bytes);
+await writeFile(join(resolve(output), 'preview.png'), result.sheet);
+const report = { engine: result.engine, slides: result.slides.map(({ bytes, ...metadata }) => metadata), warnings: result.warnings, preview: join(resolve(output), 'preview.png'), visual_review: 'not performed' };
+await writeFile(join(resolve(output), 'render.json'), JSON.stringify(report, null, 2) + '\n');
+console.log(JSON.stringify(report, null, 2));

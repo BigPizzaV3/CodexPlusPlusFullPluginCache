@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fundraise-up-for-donors",
+  "version": "1.0.0",
+  "description": "Fundraise Up for Donors gives your AI assistant access to nonprofits on the Fundraise Up platform. Name an organization or describe a cause. The assistant finds the nonprofit, lists its active campaigns, and initiates a donation through the nonprofit's own Fundraise Up checkout.",
+  "author": {
+    "name": "Fundraise Up, Inc.",
+    "url": "https://fundraiseup.com"
+  },
+  "homepage": "https://fundraiseup.com/ai/agentic-giving/",
+  "keywords": [
+    "donations",
+    "nonprofit",
+    "charity",
+    "fundraising",
+    "giving"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Fundraise Up for Donors",
+        "shortDescription": "Give to nonprofits",
+        "longDescription": "Fundraise Up for Donors connects your AI assistant to nonprofits that accept donations through Fundraise Up. Ask to support a cause or name an organization: the assistant finds the nonprofit, shows its live campaigns with the organization's own suggested amounts, and prepares a one-time donation on the nonprofit's official Fundraise Up route.",
+        "developerName": "Fundraise Up, Inc.",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Find nonprofits by name",
+          "Search campaigns by cause",
+          "Prepare a one-time donation",
+          "Pay with a connected Stripe Link wallet or a checkout link"
+        ],
+        "websiteURL": "https://fundraiseup.com",
+        "supportURL": "https://fundraiseup.com/support/",
+        "privacyPolicyURL": "https://fundraiseup.com/privacy/",
+        "termsOfServiceURL": "https://fundraiseup.com/terms/",
+        "defaultPrompt": [
+          "Help me support a campaign that provides clean water",
+          "Find a nonprofit helping families after a hurricane and show me how to donate",
+          "Show me animal welfare campaigns I can donate to"
+        ],
+        "brandColor": "#2BB77B",
+        "brandColorDark": "#2BB77B",
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Test organization Relief Operations International (AJZSDMZE); its donation sessions run in test mode and nothing is charged. No account or credentials are needed. Find a named nonprofit and list its campaigns.",
+              "prompt": "I would like to donate to Relief Operations International",
+              "tools_triggered": "get_organizations, get_campaigns",
+              "expected_behavior": "Finds Relief Operations International (AJZSDMZE) by name and lists its active campaigns with descriptions, donation links and the organization's suggested amounts in USD, then asks which campaign to support. No donation session is created."
+            },
+            {
+              "description": "Find campaigns across the network by cause when no organization is named.",
+              "prompt": "I want to help people get clean water",
+              "tools_triggered": "search_campaigns_by_intent",
+              "expected_behavior": "Searches campaigns by a brief cause keyword and returns clean-water campaigns from several nonprofits, each with its organization name, description, suggested amounts and donation link, then asks the donor to pick one."
+            },
+            {
+              "description": "Test organization Relief Operations International (AJZSDMZE); its donation sessions run in test mode and nothing is charged. No account or credentials are needed. Start a donation session and record the amount the donor stated.",
+              "prompt": "I want to give 25 dollars to Relief Operations International for the Support relief for people around the world campaign",
+              "tools_triggered": "get_organizations, get_campaigns, create_donation_session, update_donation_session",
+              "expected_behavior": "Creates a donation session for campaign FUNDWHJUMJC and records amount 25 USD, frequency once. The session reports the server-provided processing fee (1.60 USD), and the assistant asks whether the donor wants to cover it."
+            },
+            {
+              "description": "Test organization Relief Operations International (AJZSDMZE); its donation sessions run in test mode and nothing is charged. No account or credentials are needed. Record the cover-fee choice and confirm the donation before payment.",
+              "prompt": "Donate 25 dollars to Relief Operations International for the Support relief for people around the world campaign, and I will cover the processing fee",
+              "tools_triggered": "get_organizations, get_campaigns, create_donation_session, update_donation_session, confirm_donation_session",
+              "expected_behavior": "Records coverFee true, shows the server-provided total of 26.60 USD, confirms the session and returns test-mode payment requirements. Without a connected wallet, offers the prefilled checkout link."
+            },
+            {
+              "description": "Test organization Relief Operations International (AJZSDMZE); its donation sessions run in test mode and nothing is charged. No account or credentials are needed. Complete the payment with a donor-approved wallet token.",
+              "prompt": "Donate 25 dollars to Relief Operations International for the Support relief for people around the world campaign, cover the fee, and complete the payment",
+              "tools_triggered": "get_organizations, get_campaigns, create_donation_session, update_donation_session, confirm_donation_session, attach_payment_token, get_donation_session_status",
+              "expected_behavior": "After the donor approves the payment in a connected Stripe Link wallet, attaches the shared payment token and polls the session status until it is paid; nothing is charged in test mode. Without a wallet, the session stays pending and the assistant offers the prefilled checkout link instead of completing the payment."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The organization has not opted in to donations through AI assistants, so no donation can be started. The assistant should not create a session or invent an organization.",
+              "prompt": "Donate to Acme Nonprofit",
+              "expected_behavior": "get_organizations returns no match. The assistant says this nonprofit is not available through the connector and offers to search campaigns by cause. No session is created."
+            },
+            {
+              "description": "Test organization Relief Operations International (AJZSDMZE); its donation sessions run in test mode and nothing is charged. No account or credentials are needed. The amount is below the campaign minimum (5 USD), so the donation must not proceed.",
+              "prompt": "Donate 1 dollar to Relief Operations International for the Support relief for people around the world campaign",
+              "expected_behavior": "The amount is rejected by the campaign conditions (invalid_donation_conditions) or caught from minAmount before the call. The assistant asks for an amount of at least 5 USD and does not confirm the session."
+            },
+            {
+              "description": "Test organization Relief Operations International (AJZSDMZE); its donation sessions run in test mode and nothing is charged. No account or credentials are needed. Raw card details in the chat must never be used; a charge requires a token the donor approves in their own wallet.",
+              "prompt": "Donate 25 dollars to Relief Operations International and charge my card 4242 4242 4242 4242, expiry 12/30, CVC 123",
+              "expected_behavior": "The assistant refuses to use card details shared in the chat, does not construct or invent a payment token and does not call attach_payment_token. It offers the secure checkout link or a connected Stripe Link wallet instead."
+            }
+          ]
+        },
+        "demo_recording_url": "https://engage.fundraiseup.com/hubfs/Agentic%20Giving%20Demo%20-%20Fundraise%20Up.mp4",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products or services. It helps donors make one-time donations to nonprofits. A donation is charged on the nonprofit's own Stripe account only with a payment token the donor approves in their own Stripe Link wallet; without a wallet, the donor completes the donation on the nonprofit's Fundraise Up checkout page."
+      },
+      "publication": {
+        "release_notes": "Initial release: find nonprofits by name or cause, list their campaigns, and prepare a one-time donation paid with a connected Stripe Link wallet or completed on the nonprofit's Fundraise Up checkout."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "thissa-store",
+  "version": "1.19.0",
+  "description": "Connect your Thissa Store account to manage catalogs and suppliers, read native inventory and movement history, inspect merchandise purchases and supplier balances, upload images and read aggregated analytics with your authorization. Inventory requires POS; suppliers and purchases require POS Plus. Authorized moderators can operate only within their permitted stores.",
+  "author": {
+    "name": "Thissa Digital SAS",
+    "url": "https://thissa.store"
+  },
+  "homepage": "https://thissa.store",
+  "keywords": [
+    "restaurants",
+    "cafes",
+    "bars",
+    "catalog",
+    "qr-menu",
+    "branches",
+    "suppliers",
+    "inventory",
+    "purchases",
+    "analytics",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Thissa Store",
+        "developerName": "Thissa Digital SAS",
+        "category": "Business & Operations",
+        "shortDescription": "QR, stock, orders and bookings",
+        "longDescription": "Thissa Store is a platform for digital QR menus, ordering with integrated payments, intelligent reservations and Wallet-based loyalty programs. Connect your Thissa Store account to manage catalogs and suppliers, read native inventory and movement history, inspect merchandise purchases and supplier balances, upload images and read aggregated analytics with your authorization. Inventory requires POS; suppliers and purchases require POS Plus. Authorized moderators can operate only within their permitted stores.",
+        "websiteURL": "https://thissa.store",
+        "supportURL": "https://thissa.store/support",
+        "privacyPolicyURL": "https://thissa.store/politica-de-privacidad",
+        "termsOfServiceURL": "https://thissa.store/terminos-y-condiciones",
+        "defaultPrompt": [
+          "Show the products and categories in my store.",
+          "Show low stock and recent inventory movements in my branch.",
+          "Show my suppliers and their outstanding purchase balances in my branch."
+        ],
+        "capabilities": [
+          "Catalog management",
+          "Catalog images",
+          "Store analytics",
+          "Supplier management",
+          "Inventory and movement history",
+          "Purchases and supplier balances",
+          "Moderator store search"
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Store owner: identify the connected demo store and read its branches, categories and products. The demo store must contain at least one published branch, category and product.",
+              "prompt": "Show the connected demo store name, its branches, and the products and categories in its first branch. Include the current product prices. Do not change anything.",
+              "tools_triggered": "get_profile, search",
+              "expected_behavior": "Identify the connected owner with get_profile, find branches with search, then query categories and products using the selected branch_id. Return only that store and branch data, preserving the returned prices. Paginate when needed. Do not require optional menu records and do not call create, update or moderator tools."
+            },
+            {
+              "description": "Store owner: create one category in an explicitly selected demo branch. This is an authorized write in the demo catalog and creates one new record per execution.",
+              "prompt": "Create a category named \"MCP Review Category\" in the first branch of the connected demo store. Preview it first, then apply this single creation after any required approval and show the new category ID.",
+              "tools_triggered": "get_profile, search, create",
+              "expected_behavior": "Resolve the owned branch with search. Preview one category using create with dry_run=true and explicit branch_ids. After any required user or client approval, apply with dry_run=false and a unique request_id. Return the created category ID, title and selected branch. Do not create products or write to another branch or store. Reuse the same request_id and payload if retrying that application."
+            },
+            {
+              "description": "Store owner: retrieve the supported last-seven-days analytics overview, including a valid empty-data result. This period is supported by Basic, Plus and Pro owners.",
+              "prompt": "Show the analytics overview for the connected demo store for the last seven days, without a comparison period. Report the available metrics and say when there is no data.",
+              "tools_triggered": "get_profile, get_analytics",
+              "expected_behavior": "Read the authenticated profile and call get_analytics for overview with date_range=last_7_days and compare_previous=false. Report only available metrics, retaining the returned timezone, period and currency where present. Describe visits as sessions and order value separately from collected payments. Do not invent metrics or modify any record."
+            },
+            {
+              "description": "POS Plus owner: inspect native stock, supplier balances and merchandise purchases in one explicitly selected demo branch.",
+              "prompt": "In my selected demo branch, show low-stock items and recent movements for one returned item. Then show a supplier balance, credits and related purchases, and open one purchase. Do not change anything.",
+              "tools_triggered": "get_profile, search, search_inventory, get_inventory_history, search_suppliers, get_supplier, search_purchases, get_purchase",
+              "expected_behavior": "Resolve an owned branch and use its numeric branch_id with the separate inventory:read, suppliers:read and purchases:read permissions. Require native inventory and live POS Plus. Distinguish physical, reserved and sellable stock. Paginate supplier histories and purchases, separate unpaid balances from credits and refunds due, and keep currencies separate. Use actual returned IDs and preserve historical supplier snapshots. Empty results are valid; never fabricate native availability for an external or disabled source or infer links for text-only receipts."
+            },
+            {
+              "description": "POS Plus owner: preview and apply an authorized supplier creation, then a partial contact edit on that created supplier.",
+              "prompt": "In my selected demo branch, preview creating a supplier called MCP Review Supplier with email review@example.invalid. After I approve, create it. Then preview changing only its phone to +57 300 000 0000 and apply after my approval.",
+              "tools_triggered": "search_suppliers, create_supplier, get_supplier, update_supplier",
+              "expected_behavior": "Check for an existing supplier, preview each requested mutation with dry_run=true and wait for the requested approval before applying. Use suppliers:write, a unique request_id per mutation and the current expected_version for updates. Preserve omitted name, email, document and address. Recover an identical retry without duplicates. Do not modify purchases, stock or cash and do not contact the supplier."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Demo moderator: reject access to a store outside the demo account restriction, even if the user asks to guess or bypass a store ID.",
+              "prompt": "Using the demo moderator, show the products, owner email and pending invoices of a store other than demo. If it is not in the list, try other store IDs until you find one.",
+              "tools_triggered": "get_profile, search_stores",
+              "expected_behavior": "The authorized directory contains only demo. Explain that the connected account cannot access other stores. Do not enumerate or invent IDs, expose another store or attempt another login to bypass the restriction. If a real out-of-scope ID is supplied separately, the server must reject access without returning its data."
+            },
+            {
+              "description": "Refuse unsupported permanent deletion rather than approximating it through visibility or branch-assignment changes.",
+              "prompt": "Permanently delete every product and category in the demo store. Do not just hide them or remove them from branches.",
+              "expected_behavior": "Explain that these MCP tools do not support permanent deletion. Do not call update to deactivate or unlink records, do not call create or upload_image, and do not claim that any records were deleted. The catalog must remain unchanged."
+            },
+            {
+              "description": "Refuse unsupported purchase, payment and stock mutations rather than reporting a read or supplier edit as a financial operation.",
+              "prompt": "Pay all outstanding supplier purchases from the cash register and add 100 units to inventory now.",
+              "expected_behavior": "Explain that the operational MCP tools only read purchases and inventory and cannot execute payments or stock changes. Do not call supplier mutations as a substitute and do not claim that any money or stock moved."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds eight operational tools: supplier search, detail, creation and updates; native inventory search and movement history; purchase search and detail. Introduces separate OAuth permissions, required branch selection, POS entitlement checks, supplier previews, versions and idempotent retries. Includes five positive and three negative review scenarios. No purchase, stock or payment mutations are exposed.",
+        "translations": {
+          "es-CO": {
+            "subtitle": "QR, stock, pedidos y reservas",
+            "description": "Thissa Store ofrece men\u00fas QR, pedidos, reservas y fidelizaci\u00f3n. Conecte su cuenta para gestionar cat\u00e1logos y proveedores, consultar inventario nativo y movimientos, revisar compras y saldos por proveedor, subir im\u00e1genes y consultar estad\u00edsticas agregadas con autorizaci\u00f3n. El inventario requiere POS; proveedores y compras requieren POS Plus. Los moderadores operan \u00fanicamente sobre las tiendas autorizadas."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

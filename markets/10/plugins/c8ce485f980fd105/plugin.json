@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "eatwithme-analytics",
+  "version": "0.1.26",
+  "description": "Analyze sales and manage products, stock and restaurant operations in EatWithMe.",
+  "author": {
+    "name": "Sz\u00e1sz Csaba"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "EatWithMe",
+        "shortDescription": "Restaurant sales & operations",
+        "longDescription": "EatWithMe tools for restaurant managers: analyze sales and stock movement; inspect menus, inventories and incoming deliveries; search guides; create, update or remove menu items, categories and quantity types; change portions, recipes, prices and availability; apply a requested change across a category's products with one combined preview and approval; record inventory counts, deliveries and stock write-offs; manage settings, images, styling and advertisements. Access follows your EatWithMe account permissions. Before supported changes, ChatGPT previews the proposed changes and asks you to confirm.",
+        "developerName": "Sz\u00e1sz Csaba",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Chat"
+        ],
+        "defaultPrompt": "Analyze sales or manage products, menus, inventory and restaurant operations.",
+        "websiteURL": "https://eatwithme.hu/eatwithme-for-chatgpt/",
+        "supportURL": "https://eatwithme.hu/eatwithme-for-chatgpt/",
+        "privacyPolicyURL": "https://eatwithme.hu/privacy-policy/",
+        "termsOfServiceURL": "https://eatwithme.hu/eatwithme-chatgpt-terms/",
+        "logo": "./assets/eatwithme-icon.png",
+        "composerIcon": "./assets/eatwithme-icon.png"
+      },
+      "publication": {
+        "release_notes": "Adds guidance for bulk menu item and category creation, updates and deletion through the existing MCP tools. Each entries call supports up to 200 operations and commits all entries in that call or none; larger changes use non-overlapping batches, with one combined preview and one confirmation before applying them. Clarifies that the sales tools expose transaction/item rows only and cannot support customer-level rankings, even anonymously.",
+        "countries": []
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Summarize a complete monthly sales period using payment date and every returned row occurrence.",
+              "prompt": "Summarize Santa Clara Beach's sales from 2026-09-01 through 2026-09-30. Show the total and main trends.",
+              "tools_triggered": "getAuthorizedRestaurants, getSales",
+              "expected_behavior": "Resolve Santa Clara Beach exactly with getAuthorizedRestaurants, then call getSales for the returned restaurantId and the requested dates. Omit the optional limit unless the user asks for a row limit; never inflate it arbitrarily. Use Fizet\u00e9si id\u0151pont as the authoritative sales date. Sum every returned row occurrence exactly once, even if item IDs repeat; never deduplicate or multiply line totals by quantity. Base the response on returned values and report any actual pagination or truncation limit."
+            },
+            {
+              "description": "Prepare a category-wide menu price update with one combined preview and approval.",
+              "prompt": "At Santa Clara Beach, increase every product in the Pizz\u00e1k category by 10%, rounding each price to the nearest 10 HUF. Show me all affected products and their old and new prices before saving.",
+              "tools_triggered": "getAuthorizedRestaurants, searchMenuItems, getMenuStructure, updateMenuItem",
+              "expected_behavior": "Resolve Santa Clara Beach exactly with getAuthorizedRestaurants. Resolve the Pizz\u00e1k category and all its products, including subcategories only if the request says so; inspect every affected item's current available-quantity prices through getMenuStructure. Calculate the requested new price for each affected portion and call updateMenuItem with dryRun=true and an entries array of at most 200 operations per call. If the target set exceeds 200, split it into complete, non-overlapping batches so every product appears exactly once. Each dry-run batch must preview all entries; a failed entry rejects the whole batch. Combine all batch previews into one complete list, clearly state affected product and portion counts, and ask for one confirmation before saving. If confirmed, apply only the reviewed batches once. Each batch is atomic, while separate batches are separate transactions; verify results and report any partial completion accurately. Do not save before confirmation or silently omit products."
+            },
+            {
+              "description": "List incoming delivery selection options without creating or changing a delivery.",
+              "prompt": "For Santa Clara Beach, which suppliers, stores and VAT options can I select for an incoming delivery?",
+              "tools_triggered": "getAuthorizedRestaurants, getIncomingStockDeliveries",
+              "expected_behavior": "Resolve Santa Clara Beach with getAuthorizedRestaurants, then call getIncomingStockDeliveries for its restaurant ID to retrieve the available supplier, store and VAT options. Report only options returned by the tool. Do not create or modify a delivery."
+            },
+            {
+              "description": "Review the latest inventory and summarize its returned entries without changing it.",
+              "prompt": "For Santa Clara Beach, show me the most recent inventory and summarize its entries. Do not change anything.",
+              "tools_triggered": "getAuthorizedRestaurants, getInventories",
+              "expected_behavior": "Resolve Santa Clara Beach using getAuthorizedRestaurants, then retrieve its inventories with getInventories. Identify the most recent inventory from returned dates/IDs and summarize only returned entries and draft/final status. Do not create, finalize, or modify an inventory."
+            },
+            {
+              "description": "Find EatWithMe help for counting inventory.",
+              "prompt": "How do I count inventory in EatWithMe?",
+              "tools_triggered": "searchKnowledgeBase",
+              "expected_behavior": "Search the EatWithMe knowledge base and explain the steps only from matching returned article content. If no matching article is returned, say no matching guide was found; do not invent instructions."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Decline to send a marketing email because no messaging tool is available.",
+              "prompt": "Email all my newsletter subscribers a 20% discount offer today.",
+              "tools_triggered": "No MCP tools",
+              "expected_behavior": "Explain that this connector cannot send email or campaigns. Do not retrieve or count subscribers, ask for campaign details, or call any MCP tool."
+            },
+            {
+              "description": "Decline a request to delete guest/customer records because no such operation is available.",
+              "prompt": "Delete every customer record tagged inactive.",
+              "tools_triggered": "No MCP tools",
+              "expected_behavior": "Explain that deleting customer records is not supported through this connector. Do not search or retrieve records, call any MCP tool, or claim any records were deleted."
+            },
+            {
+              "description": "Do not infer a guest identity from a sales order or transaction record.",
+              "prompt": "What is the email address of the guest who placed order 10493?",
+              "tools_triggered": "No MCP tools",
+              "expected_behavior": "Explain that sales records do not provide guest contact details and that a guest identity cannot be inferred from an order or transaction. Do not call any MCP tool to guess the person\u2019s identity."
+            },
+            {
+              "description": "Decline customer-level rankings because sales rows do not identify customers or map orders to guests.",
+              "prompt": "Show me the top 10 customers at Santa Clara Beach by September spend, but anonymize their names.",
+              "tools_triggered": "No MCP tools",
+              "expected_behavior": "Explain that the connected tools expose sales rows but no customer identifiers or order-to-customer mapping, so customer-level spend, purchase counts, and rankings cannot be calculated, even anonymously. Do not call sales tools or offer a ranking."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

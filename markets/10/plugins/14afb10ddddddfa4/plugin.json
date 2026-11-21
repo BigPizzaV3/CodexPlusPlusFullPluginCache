@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "invoiso",
+  "version": "0.1.4",
+  "description": "Connect an assistant to an invoiso workspace to create and send invoices, record expenses and supplier bills, follow payments, and report on the books.",
+  "author": {
+    "name": "invoiso",
+    "email": "support@invoiso.com",
+    "url": "https://www.invoiso.com"
+  },
+  "homepage": "https://www.invoiso.com/docs/mcp",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "invoiso",
+        "shortDescription": "Invoicing and bookkeeping",
+        "longDescription": "invoiso is invoicing and bookkeeping software for small businesses. This plugin connects ChatGPT to your invoiso workspace so you can create, issue and email invoices and credit notes, record expenses and supplier bills, see what customers owe and what you owe suppliers, match payments and bank statement lines, manage contacts, products and stock, and ask for reports such as revenue, overdue invoices or VAT. Sign in with your invoiso account; the workspace you choose there is the one ChatGPT works in. Tools that send email, post to an accounting package, move money or delete something are marked as such, so ChatGPT asks before using them.",
+        "developerName": "invoiso",
+        "category": "Finance",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "websiteURL": "https://www.invoiso.com",
+        "supportURL": "https://www.invoiso.com/docs/mcp#support",
+        "privacyPolicyURL": "https://www.invoiso.com/privacy",
+        "termsOfServiceURL": "https://www.invoiso.com/terms",
+        "defaultPrompt": [
+          "Which of my invoiso invoices are overdue, and by how much?",
+          "Create an invoiso invoice for Acme Ltd: 10 hours of consulting at 90 per hour.",
+          "Summarise my invoiso expenses for last month by category."
+        ],
+        "logo": "./assets/invoiso-app-icon-green-512.png",
+        "composerIcon": "./assets/invoiso-app-icon-green-512.png",
+        "brandColor": "#059669"
+      },
+      "onboardingSkill": "./skills/invoiso/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find the largest unpaid invoices. Read-only: nothing in the workspace changes.",
+              "prompt": "Which of my invoiso invoices are still unpaid? Show me the three largest.",
+              "tools_triggered": "list_invoices",
+              "expected_behavior": "Lists up to three issued, unpaid invoices from the demo workspace, largest first, each with its number, customer, total, currency and due date. Drafts and paid invoices are not included."
+            },
+            {
+              "description": "Create a draft invoice from a plain-language request. The invoice is saved as a draft and is not sent to anyone.",
+              "prompt": "In invoiso, create a draft invoice for Northwind Traders: 10 hours of consulting at 120 EUR per hour.",
+              "tools_triggered": "create_invoice",
+              "expected_behavior": "Creates one new draft invoice for the existing contact Northwind Traders (the assistant may call list_contacts first to find it) with a single line, 10 \u00d7 120.00 EUR, the workspace's default tax rate, the next invoice number and a due date 14 days after today. The reply gives the invoice number and total and says it is a draft that has not been sent. ChatGPT may ask the user to confirm before the call: create_invoice is marked destructive, because an invoice it issues (not a draft) is posted to the connected accounting package when automatic export is on."
+            },
+            {
+              "description": "Answer a totals question with one report call instead of listing documents.",
+              "prompt": "How much did we spend in invoiso this year, by expense category?",
+              "tools_triggered": "run_report",
+              "expected_behavior": "Returns this year's expense totals grouped by category in the workspace's reporting currency, matching Reports \u2192 Expenses by category in the invoiso app."
+            },
+            {
+              "description": "Show who owes money and how overdue it is.",
+              "prompt": "Who owes us money in invoiso, and how overdue is it?",
+              "tools_triggered": "run_report",
+              "expected_behavior": "Returns what customers still owe, grouped by customer and by how overdue it is \u2014 Current, 1\u201330 days, 31\u201360 days, 61\u201390 days and 90+ days \u2014 in the workspace's reporting currency. Nothing changes."
+            },
+            {
+              "description": "List expenses that still need someone to check them.",
+              "prompt": "Which expenses in invoiso still need review?",
+              "tools_triggered": "list_expenses",
+              "expected_behavior": "Lists the demo workspace's expenses whose status is needs review, each with supplier, date, amount, currency and category. Nothing is confirmed or changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payroll is out of scope. invoiso does not run payroll or pay salaries, so the plugin should not call a tool that moves money and should say payroll is not something invoiso does.",
+              "prompt": "Run payroll in invoiso for my three employees this month and pay their salaries."
+            },
+            {
+              "description": "Moving money between bank accounts is out of scope. No invoiso tool transfers money between accounts, so the plugin should decline rather than attempt a payment.",
+              "prompt": "Transfer 5,000 EUR from my business bank account to my personal account."
+            },
+            {
+              "description": "Filing a tax return with a tax authority is out of scope. invoiso can report VAT figures but does not submit returns, so the plugin should not claim to file one; at most it offers to show the VAT figures.",
+              "prompt": "File my VAT return with the tax authority for last quarter."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/8pVAji3OO-o",
+        "commerce": false,
+        "commerce_description": "No commerce. invoiso is invoicing and bookkeeping software, and the plugin sells nothing to the ChatGPT user: it shows no plans or prices, links to no checkout, upgrade or billing page, and offers no subscription, credits or add-on. The tools about invoiso's own plan and prepaid usage balance are not offered to outside apps at all. When something is outside the workspace's plan, the tool says which plan includes it and changes nothing. The one money-related action is the user's own bookkeeping: it can put a payment link or QR code on an invoice the user has already issued to their own customer, who pays the user outside ChatGPT. Nothing is bought or sold in ChatGPT."
+      },
+      "publication": {
+        "release_notes": "0.1.4 \u2014 Commerce: the three tools about invoiso's own subscription and prepaid usage balance (get_billing_status, get_usage_balance, set_usage_cap) are no longer offered to outside apps, so the plugin cannot show a plan, link to the Stripe billing portal or talk about topping up; refusals for a feature outside the workspace's plan name the plan and no longer link to the upgrade page or ask the user to renew or update a card; e-invoicing answers no longer quote a per-transaction price, a balance or a top-up. Annotations: every tool now sets idempotentHint explicitly as well as readOnlyHint, openWorldHint and destructiveHint. Writes that email somebody, and the 32 writes that issue, change, settle or reopen an invoice, credit note or bill \u2014 which, with automatic export on, are posted to the connected accounting package \u2014 are now open-world and destructive, and each such write's description ends with an 'Outside invoiso' paragraph saying what goes out. add_employee_payout_account, export_payment_file and create_landed_cost are destructive; run_recurring_invoice_now and the mailbox and Drive updates are not idempotent; update_contact is open-world (its reminder setting decides who is emailed). 0.1.3 \u2014 Adds the demo recording. Tools: those that issue, confirm or save an invoice, credit note or bill are marked open-world, since with automatic export on what they write reaches the connected accounting package; set_recurring_invoice_status and resolve_support_ticket are marked open-world too; every tool's title is also in its annotations; reply_on_support_ticket and preview_recurring_email take the text as `message` rather than `body`. 0.1.2 \u2014The listing description no longer mentions plans. Tools: pull_from_accounting and import_marketplace_export are marked destructive, since both can replace values already stored in invoiso; create_contact and update_contact now say plainly that saving a contact sends nothing to anyone. Also in this release: reviving a cancelled recurring schedule no longer bills the periods it missed; workspace-administration tools refuse members who are not administrators, as the app does; and tools that change accounting, mailbox and Drive settings change only what they are given. 0.1.1 \u2014 Listing URLs, full description and lowercase name; annotations corrected; record_advance renamed record_employee_advance and request_archive renamed request_data_export (old names still work); every tool description checked against what the tool does."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

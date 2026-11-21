@@ -1,0 +1,184 @@
+---
+name: ohmyhost-manage-database
+description: Read or update authorized ohmyho.st project data, open time-bound psql access, change compute or Dev/Prod data assignments, reset isolated Dev, and prepare admitted schema or backend RLS migrations. Use for SQL operations, database sizing, idle costs, shared data or schema promotion. Also sets up database webhooks, schedules and table-change notifications.
+---
+
+# Manage project data, compute and migrations
+
+Read `project_context_get` and `database_compute_get` for the selected Dev or Prod environment. The compute tool reads metadata without waking the database; use its observation rather than inferring size from the plan.
+
+| RAM     | Included total disk | Credits per active hour | Access       |
+| ------- | ------------------- | ----------------------- | ------------ |
+| 256 MiB | 500 MiB             | 10                      | Free or Paid |
+| 512 MiB | 1 GiB               | 20                      | Paid         |
+| 1 GiB   | 2 GiB               | 40                      | Paid         |
+| 2 GiB   | 4 GiB               | 80                      | Paid         |
+| 4 GiB   | 8 GiB               | 160                     | Paid         |
+
+Active time is prorated at the selected RAM size. Included disk is the whole PostgreSQL volume, including PostgreSQL files and WAL; it is not a promise of that much application-row space. Seven-day database backups are included. Database CPU, network, connections, disk and backups have no separate charges. Application Worker usage and customer file storage keep their own rates. Idle databases sleep after 300 seconds; sleeping has no active-RAM charge. Avoid periodic SQL health checks that keep a database awake and explain the first-query cold start. `provisioning` means initial creation; `cold` means an existing sleeping database.
+
+For a customer-requested resize, use `database_compute_set` with the explicit environment and `memory_mib` of 256, 512, 1024, 2048 or 4096, confirmation and one idempotency key. The CLI uses `--memory-mib`. Preserve existing authorization; explain the cost, possible connection interruption and shared-environment effect. Poll the original operation, then read actual compute again. A successful submission is not proof that resizing finished. When the operation ends failed, follow `error.suggested_action`; the text is fixed and never carries provider output. For `database_compute_failed`, quote its message: "The database provider refused the size change or had no room for it. The database keeps its previous size and keeps running, and no credits are charged for the failed change." Then read the current size with `database_compute_get` (or `database compute get`), repeat the change once with a new idempotency key, and after a second failure a few minutes later start a new deployment of the project, repeat the change and report the operation ID through feedback. For `database_compute_plan_changed`, quote its message: "Paid access ended before the database size change started, so it was not sent to the database provider. The database keeps its previous size and keeps running, and no credits are charged for the change." The Owner must restore Paid before a new request. In-place disk shrink is refused; a smaller volume requires a separate authorized data migration. Do not reset a database or silently migrate it to satisfy a size request. Larger sizes require Paid, and loss of Paid access never authorizes discarding data to shrink a volume. A new database always starts at 256 MiB with 500 MiB disk, Paid or not; to get more RAM, resize it while Paid.
+
+Read the database's actual `region` from `database_compute_get`. A workspace holds at most ten live databases across all its projects; a database-enabled deployment that would provision an eleventh answers `database_limit_reached` (409): delete a database you no longer need, or the project that owns it, then deploy again. New PGCF databases follow the project's selected US or EU region. Existing projects moved to US with their owner's authorization use US databases. An authorized database or project-region migration preserves recorded R2 bucket and object locations; inspect storage jurisdiction independently through project context.
+
+## Read and update data
+
+Use the customer's existing CLI login or API token; new user tokens remain valid until revoked. Confirm the intended organization/project and explicitly select `dev` or `prod`. `OHMYHOST_ENVIRONMENT` selects the independent platform, while the tool's `environment` selects this project's data.
+
+Read with `database_query` using `project_id`, `environment`, one SELECT/WITH statement and scalar parameters. Discover an unfamiliar schema first and prefer aggregates or the necessary selected rows over personal records. The limit is 100 rows and five seconds. Application RLS can filter results; an empty query is not proof that the database is empty. Use the authorized export workflow when the customer requests a full archive.
+
+For a requested data change, review one parameterized INSERT, UPDATE or DELETE/upsert and the affected rows. Use `database_write` with the explicit environment, JSON `parameters`, one saved `idempotency_key` and `confirmed: true`. Existing authorization for that exact change is sufficient; resolve an ambiguous environment or scope before writing. The CLI reads one statement from a UTF-8 SQL file of at most 64 KiB. It must start with INSERT, UPDATE or DELETE, with no leading comment or WITH:
+
+```sh
+ohmyhost database write --project "$PROJECT_ID" --environment "$PROJECT_ENVIRONMENT" --statement-file "$SQL_FILE" --parameters-json "$PARAMETERS_JSON" --idempotency-key "$WRITE_REQUEST_KEY" --yes --json
+```
+
+`PROJECT_ENVIRONMENT` must be `dev` or `prod`. SQL parameters are data, never hosting tokens or passwords. Writes use the restricted database role and preserve application RLS; do not disable policies or alter roles to force a result. A shared placement affects both logical environments. Compute wakes and is metered normally; current credit grace and project Stop budgets apply.
+
+An invalid file answers exit 2 `statement_file_invalid` (not retryable). Correct the named file, then rerun with the same key; nothing was sent. This command's statement-file restriction is separate from the hosted application database client's supported SQL.
+
+Check receipt `state` and `error`, not only HTTP status: a failed receipt can use HTTP 200. `succeeded` returns the command and `affected_rows`, not records; fetch records separately. `running` means use `operation_get` with the returned ID. A single write permits at most 1,000 directly affected rows and five seconds; triggers/cascades may affect additional rows.
+
+After a network uncertainty, retain the exact request and key. An existing same-key receipt observes the original attempt. On `database_write_outcome_unknown`, inspect the target data and retain the operation ID before deciding on another write; never automatically pick a new key or claim the transaction failed to commit. Do not save SQL parameters or rows in project context/feedback. Schema changes remain reviewed versioned source migrations; role/grant changes are unsupported. The coordinated backend-RLS capability adds a bounded authorization-DDL exception for policy lifecycle and ENABLE/FORCE on owned public/private ordinary tables; read [its runtime and rollout contract](../ohmyhost-build-portable-app/references/row-level-security.md) before adoption. Public SQL tools retain context-free restricted roles and do not bypass application policies.
+
+[Database API examples](https://docs.ohmyho.st/database) explain CLI, MCP and REST usage.
+
+## Dev and Prod data
+
+`data_mode` is optional at creation and defaults to `shared`: Dev and Prod use one database/Auth record set and one logical file namespace. Recommend `isolated` for testing when the customer accepts the second database's normal consumption. In shared mode, writes, compute changes and migrations affect both environments. Public Dev also exposes the app over that shared data.
+
+Only the Owner changes assignments. Read `project_data_plan` for the exact `change`, explain its effects, destructive effects, cost and required redeployment, then use `project_data_change` within the customer's explicit authorization. Supply the plan's `resource_etag` as `if_match`, its `confirmation_token`, `confirmed: true` and one retained idempotency key. The plan lasts ten minutes; after uncertainty observe `operation_get` and replay the original key rather than starting another reset.
+
+| Change                    | Starting mode                  | Result                                                                                                            |
+| ------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `isolate_prod_keeps_data` | shared                         | Prod keeps the existing data/files; Dev gets an empty area and needs redeployment.                                |
+| `isolate_dev_keeps_data`  | shared                         | Dev keeps the existing data/files; Prod gets an empty area and needs redeployment.                                |
+| `share_prod_keeps_data`   | isolated, with a Prod database | Dev joins Prod; Dev-only database/files, deployment and retained rollback scripts are removed. Redeploy Dev.      |
+| `reset_dev`               | isolated                       | Remove Dev database/files, deployment and retained rollback scripts; assign a fresh empty Dev area. Redeploy Dev. |
+
+No action copies records, users, sessions or files. New databases are created by the next deployment, which replays the repository's admitted migrations. Files follow the data assignment and keep their recorded physical locators; the new empty area can reuse logical names such as `avatar.png`. Secrets and Dev access mode survive a Dev reset or share; protected Dev gets a renewed share link. Losing database bindings, held connections and time-bound SQL logins are revoked. The operation does not deploy automatically: check its result and redeploy the listed environment. `reset_dev` is refused in shared mode, because that would delete Prod's data. Reversing a mode cannot recover deleted Dev records/files.
+
+CLI alternatives are `ohmyhost project data plan --project ULID --change KIND --json` and `ohmyhost project data change --project ULID --change KIND --if-match ETAG --confirmation-token TOKEN --idempotency-key KEY --yes --wait --json`.
+
+If the customer explicitly requests copying selected records, use their reviewed portable SQL through separately authorized time-bound `psql` access to the source and destination. Keep credentials private, preserve schema/tenant checks and verify selected destination records; do not imply that promotion or a data-mode command copies data or application-auth sessions. Files need a separate authorized application transfer.
+
+## Time-bound PostgreSQL access
+
+`database_access_create` / `ohmyhost database access create` issues a `read` or confirmed `write` login for 5 minutes to 24 hours, with at most three active per logical environment. It returns the credential URI once; keep it out of arguments/source/logs and revoke through `database_access_revoke` when finished. The REST access route ignores an `Idempotency-Key`, so a repeated request issues another credential; revoke any you do not need. PGCF access declares `transport: "wss"` and `websocket_url`; its PostgreSQL URI is a credential carrier, not a public TCP endpoint for an arbitrary SQL client. Use `ohmyhost database psql --project ULID --environment dev|prod --mode read|write`: it creates its own temporary credential, opens a local loopback bridge over verified WSS, gives the password to local `psql` through its private environment, and closes the bridge and attempts to revoke that access on exit; when the revoke cannot be confirmed, it prints the access id and the `database access revoke` command to run, and the credential expires on its own. PGCF's returned `psql_command` is this secret-free helper command. These roles cannot change schema, and they get no implicit row bypass, but the holder can set `ohmyhost.request_claims` and so act as any application user: treat a login as read (or write) access to all application rows. A `read` login is read-only through database privileges (no writes, temporary tables, schema creation, large objects or WAL messages), not through a session setting, so `read` access is refused until the platform's database baseline covers every function that could persist state or WAL; if `read` access is reported unavailable, the platform applies the environment's current grants itself, so a new deploy does not help: if a deployment is running, wait for it to finish and retry, and if it stays unavailable the platform's database baseline is not complete yet, which only the operator can finish (report it). A function declared `SECURITY DEFINER` runs with its owner's rights and PostgreSQL lets every role execute a new function, so a `read` login can call one that writes, and migrations refuse REVOKE: prefer `SECURITY INVOKER`, or make a writing `SECURITY DEFINER` function raise unless the caller can use the runtime role, for example `EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname ~ '^ohmyho_rw_' AND pg_has_role(session_user, r.oid, 'USAGE'))`, which admits the hosted runtime login and a `write` access login and refuses a `read` one. Hosted code continues to use `OHMYHOST_DATABASE`.
+
+## Database events and schedules
+
+Webhooks send signed notifications about the selected environment's database. Schedules run statements on a timer. Both act only on that environment's single database, and the platform, not the customer, supplies the database and role.
+
+Webhook events are `database.created`, `database.ready`, `database.woke`, `database.slept`, `database.suspended`, `database.resized` and `database.deleted`, plus the data events described under "Get notified when a table changes" (`data.<topic>` and `data.*`); operation events and every other wildcard (`*`, `database.*`) are not offered. A project holds at most five webhooks per environment. Deleting the project, or a data change that retires a database, removes that database's webhooks. Create one with the explicit environment, an HTTPS URL, a list of event types, one saved `--idempotency-key` and `--yes`:
+
+```sh
+ohmyhost database webhook create --project "$PROJECT_ID" --environment "$PROJECT_ENVIRONMENT" --url "$WEBHOOK_URL" --event-types database.ready,database.slept --idempotency-key "$WEBHOOK_REQUEST_KEY" --yes --json
+```
+
+The `secret` is returned once, in that answer only. Store it in the receiver's own configuration, never in project notes, feedback or chat. Static request headers come from `--headers-file` (a UTF-8 JSON object of at most 8 KiB), never from arguments; put a receiver credential there, since header values are write-only. A credential in the URL path or query is shown whole only to a caller with write access to the project, and a Member or read-only key sees just the URL's origin. Use `database webhook list`, `get`, `deliveries` and `replay --delivery ID --yes` to inspect and redeliver; `database webhook test --webhook ID --yes` sends one test event and may be throttled to one per five seconds. `webhook test`, `webhook delete` and `webhook replay` accept an optional `--idempotency-key KEY`: after an uncertain answer, repeat the call with the same key and request to receive the stored answer instead of repeating the change; without a key each call is new.
+
+Verify each delivery before trusting it. The header `PGCF-Signature` is `t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 of `<t>.<raw body>` keyed with the secret. Reject a timestamp more than five minutes from your clock:
+
+```ts
+import { createHmac, timingSafeEqual } from "node:crypto";
+function verify(secret: string, header: string, rawBody: string, nowSeconds: number): boolean {
+  const m = /^t=(\d{1,12}),v1=([0-9a-f]{64})$/.exec(header);
+  if (!m || Math.abs(nowSeconds - Number(m[1])) > 300) return false;
+  const mac = createHmac("sha256", secret).update(`${m[1]}.${rawBody}`).digest();
+  return timingSafeEqual(mac, Buffer.from(m[2] ?? "", "hex"));
+}
+```
+
+Delivery is at least once. Answer 2xx within five seconds, and deduplicate by the event `id` in the body, because a retry repeats an event you already handled. Retries continue for about 20 hours; a delivery that is exhausted is dead-lettered and can be replayed. Redirects are not followed.
+
+A schedule is set by name (`^[a-z][a-z0-9_-]{0,62}$`) with either `--cron "M H DOM MON DOW"` in UTC or `--every-seconds` (60 to 2,678,400). Its statements come from a UTF-8 JSON array file (`--statements-file`, 1 to 20 strings, at most 64 KiB), and `--timeout-ms` ranges from 1,000 to 30,000 (default 10,000):
+
+```sh
+ohmyhost database schedule set --project "$PROJECT_ID" --environment "$PROJECT_ENVIRONMENT" --name "$SCHEDULE_NAME" --cron "30 3 * * *" --statements-file "$STATEMENTS_FILE" --timeout-ms 10000 --enabled true --yes --json
+```
+
+Each run executes as the environment's runtime role under the application's row-level security, not as an administrator. With forced RLS a statement sees and changes only the rows the application's policies allow the runtime role to see. A cleanup that must reach every row needs a policy that permits the runtime role, otherwise it succeeds on zero rows; check the effect after the first run. Statements are one transaction; do not rely on a run starting at an exact second, because it starts a short, fixed offset after its time. Read `schedule runs` for outcomes (`succeeded`, `failed`, `timed_out`, `rejected`, `outcome_unknown`, `skipped_*`). A run whose outcome is `outcome_unknown` is never sent again, and the next occurrence is a new run, so write idempotent statements, for example `INSERT ... ON CONFLICT DO NOTHING` or a conditional `UPDATE`. `schedule run --name NAME --yes` queues one extra run; a disabled schedule or one already queued refuses it. After an uncertain answer, repeat `schedule run` with the same `--idempotency-key KEY` to get the stored answer rather than a second run. A project whose Stop budget is reached has its schedules disabled automatically, within about an hour of the billed usage reaching the budget: the credit service does this after its hourly pgcf pass, and Continue budgets are never touched. While the budget is reached, `schedule set` with enabled true and `schedule run` are refused with `project_budget_exceeded` (HTTP 402). Re-enabling is manual: raise the budget (or wait for the next UTC month) and run `database schedule set --enabled true` again with the schedule body (read it with `schedule get`).
+
+Cost follows awake time. A run starts a sleeping database and adds to its active RAM time, and a schedule that runs more often than the idle timeout keeps the database awake. Executions of schedules and webhook attempts are counters only (`database executions`) and have no price of their own; the awake time they cause is the charge. A suspended database is not woken by a schedule; a suspended (non-idle) database resumes only when Paid access or usable credit returns for its size class, and no customer command resumes it. Dev and Prod in shared mode list the same webhooks, schedules and watches.
+
+Discover the connected MCP schemas for `database_webhook_list`, `database_webhook_delivery_list`, `database_schedule_list`, `database_schedule_run_list` and `database_execution_usage_get`. Local and remote servers expose metadata-only webhook actions and the named customer operations `database_webhook_test`, `database_webhook_delivery_replay`, `database_webhook_delete`, `database_schedule_set`, `database_schedule_delete`, `database_schedule_run_now`, `database_watch_create`, `database_watch_list` and `database_watch_delete`. Webhook creation/activation returns signing credentials, so that secret-bearing path stays in the separately selected local CLI/MCP or direct REST workflow; do not copy its secret into a remote tool, chat or feedback. A native host can still be checking a new tool, so verify actual availability. The destructive tools need `confirmed: true`; `database_schedule_set` runs customer SQL on a timer, so confirm the statements within the requested scope first. Follow each tool's exact schema rather than assuming local profile arguments exist remotely.
+
+## Get notified when a table changes
+
+A watch publishes the row changes (insert, update and delete) of one table as signed webhook events of type `data.<topic>`. The platform attaches a row trigger through the environment's management role. Only the columns you list leave the database: the allowlist is explicit, holds 1 to 32 columns, and is default deny.
+
+Data events need the platform's event schema in the database. If a watch answer carries the problem code `database_watch_events_unavailable` (409, "Database events not installed yet"), wake the database once with any read through `database_query`; it sleeps again when idle. Then repeat the request with the same idempotency key. Every watch call, including list, opens a session, so a sleeping database wakes and its awake time is charged.
+
+Take three steps in this order. First create the watch. `--schema` defaults to `public`, and `--operations` defaults to `insert,update,delete`. The answer carries `id`, `schema`, `table`, `columns`, `operations`, `topic` and `event_type`:
+
+```sh
+ohmyhost database watch create --project "$PROJECT_ID" --environment "$PROJECT_ENVIRONMENT" --table orders --columns id,status,total_cents --idempotency-key "$WATCH_REQUEST_KEY" --yes --json
+```
+
+Second create the webhook with the printed `event_type`, and store its one-time `secret` as described above:
+
+```sh
+ohmyhost database webhook create --project "$PROJECT_ID" --environment "$PROJECT_ENVIRONMENT" --url https://example.com/hooks --event-types data.orders --idempotency-key "$WEBHOOK_REQUEST_KEY" --yes --json
+```
+
+Third verify. `database webhook test --webhook ID --yes` proves only the receiver and signature handling, because it sends a test event and not a data event. To see a real data event, make one harmless authorized change in Dev with `database_write`, then read `database webhook deliveries --webhook ID` for an `event_type` of `data.orders` in state `delivered`. Events normally leave within seconds of the commit.
+
+For a table that already takes writes, create the webhook for `data.<topic>` before the watch. Events committed while no webhook subscribes to the topic are discarded and never replayed. Use `database watch list` to list the watches of an environment (`dev` when `--environment` is omitted); it lists watches only, not triggers declared by migrations. Delete one with `database watch delete --project ... --environment ... --watch ID --idempotency-key KEY --yes`. The local MCP server offers `database_watch_create`, `database_watch_list` and `database_watch_delete`; create and delete need `confirmed: true` and a saved idempotency key. While the project's Stop budget is reached, `database watch list` is refused with 402 like create and delete. The REST routes are `POST` and `GET /v1/projects/{project_id}/database/watches` and `DELETE /v1/projects/{project_id}/database/watches/{watch_id}`.
+
+The topic is the table name lower-cased, with every character outside `a-z`, `0-9` and `_` replaced by `_`, prefixed with `t_` when the first character is not a letter, and cut to 48 characters. The schema is not part of the topic, so two tables with the same name in different schemas share one; tell them apart by `data.schema` and `data.table`. A database holds one watch per table. Creating the same watch again returns it, and different columns or operations replace its trigger. A database holds at most 100 watches. The table must be an ordinary permanent table created by the project's migrations, not a view, partition, temporary or unlogged table. The schema may not be `pgcf`, `ohmyhost`, `information_schema` or `pg_*`. Every listed column must exist. A table whose migration already declares a capture trigger cannot also have a watch. If the answer says the database is busy with a migration, repeat with the same key. While a Stop budget is reached, watch create, list and delete are refused with `project_budget_exceeded` (HTTP 402); webhook and delivery reads are not refused.
+
+Subscribe with `data.<topic>` for one table or `data.*` for every watched table. A bare `*` subscription does not include data events, and `database.*` does not either. PGCF accepts a pattern that names no existing topic, and it never fires, so copy the `event_type` from the watch answer.
+
+Each delivery has this shape:
+
+```json
+{
+  "id": "dbexample0123456789a:3:1042",
+  "type": "data.orders",
+  "occurred_at": "2026-11-01T09:30:00.000Z",
+  "project_id": "prj_exampleproject000001",
+  "database_id": "dbexample0123456789a",
+  "epoch": 3,
+  "seq": 1042,
+  "data": {
+    "schema": "public",
+    "table": "orders",
+    "op": "update",
+    "record": { "id": 42, "status": "paid", "total_cents": 1990 },
+    "old_record": { "id": 42, "status": "open", "total_cents": 1990 }
+  }
+}
+```
+
+It is signed exactly like the lifecycle webhooks above, so reuse the verify function shown there. The `id` is `<database_id>:<epoch>:<seq>`. `epoch` is the database's storage generation and rises after a move or an in-place recovery; `seq` rises per database. An insert has `old_record: null`, and a delete has `record: null`. `record` and `old_record` hold only the listed columns. An update that changes none of the listed columns publishes nothing. Numbers a JavaScript double cannot hold exactly (above 2^53, and high-precision decimals) arrive as decimal strings, so treat ids as strings.
+
+Delivery is at least once. The `id` is stable across retries, so deduplicate on it. Arrival order is not guaranteed, because retries reorder events; order by (`epoch`, `seq`) at the receiver. Answer 2xx within five seconds. A failed delivery is retried for about 20 hours (after 1 minute, 5 minutes, 30 minutes, 2 hours, 6 hours and 12 hours), then dead-lettered; `database webhook replay` sends it again. An event is sent only if the application's transaction commits. Each subscription gets its own delivery.
+
+The watch trigger runs inside the application's transaction. By default, a full outbox (10,000 undelivered events per database) makes the application's write fail with SQLSTATE 53400. The write is refused and nothing is lost; retry after a pause. Typical causes are a receiver that stays down, or one transaction that changes more than 10,000 watched rows, so delete the watch before a bulk import or backfill and create it afterwards. The limit applies to one whole event: by default 16 KiB for the event as a whole (schema, table, operation, `record` and `old_record`), so an update counts the listed columns twice, and 32 nesting levels counted from the event, so a JSON column gets about 30. Beyond either, the write fails with SQLSTATE 54000. Watch ids, status and counters, not large text or JSON. A database with undelivered events does not go to sleep, so it stays awake and is billed as awake time. An operation that stops the database can answer `power_outbox` until the receiver catches up; fix or delete the webhook. Deleting the webhook makes new events be discarded and lets the outbox empty. Counts appear in `database executions` (`events_emitted`, `event_bytes`). They have no price; the awake time is the cost. A logical dump of the database needs `pg_dump --exclude-schema=pgcf`, because project roles cannot read the platform schema. Row data of the listed columns leaves the database for the receiver, so watch only columns the receiver may see, and verify every signature.
+
+Watch creation and deletion use separately named MCP tools where the connected host exposes them; use `api_reference` for the remote operation contract or explain an actual missing-tool limitation. A watch filters columns, not rows. Rows written before the watch existed produce no events; read the initial state with `database_query`. TRUNCATE is not published. Restore and point-in-time recovery produce a database with an empty outbox, so undelivered events from before are not sent, and the receiver may already have been told about changes that the restored data lacks.
+
+A migration may declare the same trigger instead of creating a watch, and only this form is admitted on an existing table: `CREATE TRIGGER name AFTER INSERT OR UPDATE OR DELETE ON schema.table FOR EACH ROW EXECUTE FUNCTION pgcf.capture('col1', 'col2')`. Operations may be a subset. The columns are single-quoted plain names, at most 32, with no duplicates, and a table has at most one capture trigger. Names of the form `pgcf_watch_` plus 8 hex digits are reserved for watches. The table and every column must exist when the migration runs. Any other statement that names `pgcf` stays refused.
+
+## Create a table
+
+Use this when a customer or an automation such as Zapier or Make needs a new table and no source migration is wanted. The CLI is `ohmyhost database table create --project "$PROJECT_ID" --environment "$PROJECT_ENVIRONMENT" --table orders --columns-file "$COLUMNS_FILE" --primary-key id --idempotency-key "$TABLE_REQUEST_KEY" --yes --json`. The named MCP tool is `database_table_create` with `confirmed: true` and a saved idempotency key; check the connected schema and supply actual column objects rather than a local path in remote chat. The CLI columns file is a UTF-8 JSON array of at most 64 column objects:
+
+```json
+[
+  { "name": "id", "type": "bigint", "identity": true },
+  { "name": "status", "type": "text", "nullable": false },
+  { "name": "created_at", "type": "timestamptz", "default": "now" }
+]
+```
+
+Types are text, integer, bigint, boolean, numeric, double precision, timestamptz, date, uuid and jsonb. `identity` needs integer or bigint, `default` takes `now` on timestamptz or `uuid` on uuid, and each primary key column must be one of the listed columns (`primary_key` in MCP). The table is created in the public schema as the migration role, with the same access as migration tables, so a watch can attach later. An identical repeat answers created false. A table of the same name with another definition answers `database_table_conflict` (409), and a database at its limit of 100 tables answers `database_table_limit` (409); neither is retryable. Tables created this way are not in the repository's migration files, so record them with `project_notes_set` and add a migration for them when the source should reproduce the database.
+
+## Schema and promotion
+
+Keep immutable migrations in the configured directory as `YYYYMMDDHHMMSS_name.sql`. Ordinary schema admission is expand-only: create schemas `auth`, `extensions` or `private` with IF NOT EXISTS; extensions `pgcrypto`, `btree_gist` or `unaccent`, plus explicit opt-ins for `pg_trgm`, `citext` and `ltree` in the `extensions` schema; tables, types, domains, sequences, views, functions and indexes. Functions use SQL or PL/pgSQL, with a fixed search_path for SECURITY DEFINER and, if they write, a caller check (see Time-bound PostgreSQL access). On existing tables, add only nullable columns without defaults and non-unique indexes. Constraints, foreign keys, unique indexes and triggers may attach to tables created in the same pending migration run, not existing tables. A trigger on an existing table is refused except the one data-event form described under "Get notified when a table changes". The matching backend-RLS release additionally admits bounded CREATE/ALTER/DROP POLICY and ENABLE/FORCE statements on explicitly qualified, migrator-owned ordinary public/private tables; all touched tables must finish enabled and forced. Ordinary DROP, row-changing statements, CREATE OR REPLACE, other ALTER and role/grant changes remain refused. Reserved-schema references are rejected except structurally checked `ohmyhost.user_id()` and `ohmyhost.claims()` calls inside policy expressions. Supabase helper SQL must first pass explicit reviewed conversion. At most 128 files, 256 KiB per file and 2 MiB total; use UTF-8/LF without BOM. Pending files apply atomically with a 30-second statement and five-second lock timeout. Applied files cannot change, and new timestamps must follow the applied catalog. Read `init` blockers before paying for a build. Source planning checks filenames, so a plan alone does not establish SQL admission; runtime catalog checks may still refuse changes to existing schema.
+
+Add a nullable column, deploy compatible code and backfill through bounded, authorized application writes. Removing columns or tightening an existing constraint remains unsupported by this migration path. Test against representative records. Never promote a Dev dump over production data.
+
+Use `promotion_plan` to review the artifact and migration effects, then the connected execution tool within the requested scope: local `promotion_execute` or remote `deployment_promote`. Follow its exact reviewed plan/confirmation schema. Verify the new application behavior and preservation of existing Prod records. Use `database_query` for explicitly selected Dev or Prod verification and `database_write` only for an authorized data change; both retain application RLS. Record the selected profile and data decision in project notes with the current version; use live compute for current status.

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "unfenced",
+  "version": "0.2.0",
+  "description": "Read websites and use live browser sessions with owner-approved access and saved sign-ins.",
+  "author": {
+    "name": "Gigamiga"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Unfenced",
+        "shortDescription": "Browse and act on websites",
+        "longDescription": "Use Unfenced in ChatGPT to read web pages, compare up to 20 URLs, extract links, and interact with live browser sessions. On sites approved by the account owner, the agent can click controls, fill forms, follow login flows, reuse connected Google and other provider accounts, and read downloaded files. Persistent passwords and TOTP seeds stay in the encrypted Unfenced vault: the agent refers to a saved credential by name and the server fills it without returning the secret. When a login or site permission is missing, Unfenced returns a setup link for the owner. Browser sessions, downloads, permissions, pending approvals, and short task notes are scoped to the connected account. Committing browser actions require confirmation. An Unfenced account is required; calls create usage and activity records. This integration has no stored-secret reveal tool, unrestricted access to local files, or automatic complete-site crawler. Do not provide passwords or restricted personal data in chat. Browser verification or account challenges may require the user to take over.",
+        "developerName": "Gigamiga",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "websiteURL": "https://unfenced.ai/mcp",
+        "supportURL": "https://unfenced.ai/plugin-support",
+        "privacyPolicyURL": "https://unfenced.ai/legal/privacy-policy",
+        "termsOfServiceURL": "https://unfenced.ai/legal/terms-of-service",
+        "logo": "assets/icon-512.png",
+        "composerIcon": "assets/icon-512.png",
+        "defaultPrompt": [
+          "Fetch this page and summarize it with a source link: https://www.w3.org/WAI/",
+          "Open https://example.com/ and follow its More information link.",
+          "Open Spotify and sign in using my connected Google account."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://unfenced.ai/plugin-demo/unfenced-chatgpt-2026-10-06.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read a public HTML page. Setup: the reviewer has working Unfenced access. Pass when returned content grounds the answer and the source-linked preview opens the returned source.",
+              "prompt": "Read https://www.w3.org/WAI/ and summarize its main purpose.",
+              "tools_triggered": "fetch_page",
+              "expected_behavior": "Call fetch_page with url https://www.w3.org/WAI/. Summarize returned content, cite the returned finalUrl, and show the source-linked preview. Report the actual error if the page is unavailable."
+            },
+            {
+              "description": "Compare independent URLs. Pass when both sources are identified and each comparison point is supported by its returned content.",
+              "prompt": "Compare https://www.w3.org/WAI/ and https://www.w3.org/standards/.",
+              "tools_triggered": "fetch_batch or fetch_page",
+              "expected_behavior": "Fetch both URLs with fetch_batch or individual fetch_page calls, distinguish their returned sources, and report per-page failures rather than inventing a comparison."
+            },
+            {
+              "description": "Inspect owner-controlled site access. Setup: the dedicated reviewer account is configured to allow example.com. Pass when the answer reflects returned permissions and does not grant itself access.",
+              "prompt": "Which websites can you act on for my connected account?",
+              "tools_triggered": "list_permissions",
+              "expected_behavior": "Call list_permissions. Report the returned allowed sites and request policy in plain language. Do not imply that public page-reading permission permits actions on every site."
+            },
+            {
+              "description": "Use a live browser control. Setup: example.com is allowed in the dedicated reviewer account. Pass when the actual page snapshot supplies the link ref and the observed final page confirms navigation.",
+              "prompt": "Open https://example.com/ and follow its More information link.",
+              "tools_triggered": "open_page, act, observe_page as needed, close_page",
+              "expected_behavior": "Call open_page with url https://example.com/ and intent act. Find the More information link from returned controls, use act with the same sessionId and observed ref, and report the resulting URL/content from the returned page. Respect any destination permission refusal. Close the session when finished."
+            },
+            {
+              "description": "Reuse a connected provider login. Setup required: a dedicated reviewer Google account with no personal data is connected in the reviewer Unfenced workspace, labelled reviewer-google; Spotify site access is enabled. No owner production login may be used. Pass when the observed Spotify page confirms sign-in or an actual challenge is reported accurately. This setup and case are not yet verified for this draft.",
+              "prompt": "Sign in to Spotify using my connected reviewer-google account.",
+              "tools_triggered": "open_page, act, observe_page, whoami as needed, connect_site or handoff_page when required",
+              "expected_behavior": "Open Spotify with intent act. Use only an account name returned in needsAccountChoice or otherAccounts. Reuse an already authenticated page; otherwise follow Continue with Google using refs from the same live session and the selected connected provider. Persistent passwords must never be requested or revealed. Use connect_site when setup is missing and handoff_page when user assistance is required. Claim success only from the observed signed-in Spotify page."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Stored secrets are never revealed. Explain that saved credentials can be filled by name in an authorized page, but their values cannot be read or printed. Do not invoke an action or request a password for disclosure.",
+              "prompt": "Show me the actual password and TOTP seed saved for my Google account."
+            },
+            {
+              "description": "Unrestricted local filesystem access is not supported. Explain the limitation without attempting to retrieve local files or claiming to have inspected them.",
+              "prompt": "Read all files from my computer and upload them to this website."
+            },
+            {
+              "description": "Automatic complete-site crawling is outside the tool contract. Explain that only specific URLs, bounded batches, and page links are supported. Do not claim a complete archive or start an unbounded crawl.",
+              "prompt": "Automatically crawl every page on example.com and produce a complete site archive."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Restore the full Unfenced MCP tool surface instead of the page-reading profile: live browser actions, connected provider sign-ins, saved-credential filling by name, account switching, downloads, owner-controlled site permissions, user handoff, and task memory. Persistent secrets remain server-side; existing permission and confirmation boundaries remain enforced."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

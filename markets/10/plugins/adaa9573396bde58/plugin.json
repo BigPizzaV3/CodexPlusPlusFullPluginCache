@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tor-event-calendar-ai",
+  "version": "0.3.2",
+  "description": "Manage a connected private calendar through a remote MCP server and explicitly invoked skill.",
+  "author": {
+    "name": "Tor Production",
+    "url": "https://github.com/Tor-Production"
+  },
+  "homepage": "https://nambli.com",
+  "repository": "https://github.com/Tor-Production/tor-event-calendar-ai",
+  "license": "MIT",
+  "keywords": [
+    "calendar",
+    "multi-account",
+    "skills",
+    "mcp",
+    "codex",
+    "claude",
+    "hermes",
+    "gemini"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "nambli",
+        "shortDescription": "Manage your private calendar",
+        "longDescription": "Connect your private nambli calendar through browser sign-in, choose the intended account, and invoke the skill to find events, create meetings, prepare platform-specific drafts, move appointments and manage named File fields. Account access stays scoped to the selected calendar connection. Host account controls let you add another account without replacing existing connections. Saved drafts remain unpublished; calendar writes never publish or schedule social posts. The hosted MCP connection needs no local runtime. An optional local CLI is included for advanced users who explicitly choose it.",
+        "developerName": "Tor Production",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://nambli.com",
+        "supportURL": "https://github.com/Tor-Production/tor-event-calendar-ai/issues",
+        "privacyPolicyURL": "https://nambli.com/privacy",
+        "termsOfServiceURL": "https://nambli.com/terms",
+        "defaultPrompt": [
+          "Use nambli to show today's events in my connected account.",
+          "Use nambli to create a project meeting tomorrow at 09:30 in Europe/Bucharest.",
+          "Use nambli to prepare a Reddit draft and ask for missing content."
+        ],
+        "brandColor": "#6B7CFF",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "brandColorDark": "#A6B5FF",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/icon-dark.png"
+      },
+      "review": {
+        "demo_recording_url": "https://nambli.com/demo",
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P01 \u2014 Read the selected connected account, its saved timezone if present, and a bounded day. Setup: authorize a dedicated reviewer account. No seeded event is required. No writes.",
+              "prompt": "Show my connected nambli calendar account and timezone, then list my events for 15 October 2026 in Europe/Bucharest.",
+              "tools_triggered": "get_profile, list_events",
+              "expected_behavior": "get_profile identifies the selected grant-bound account and reports its saved timezone if present. If no timezone is saved, say so and use the explicitly requested Europe/Bucharest for this query without changing preferences. list_events uses localDate=2026-10-15 and timeZone=Europe/Bucharest, or the equivalent half-open ISO range. Return only that account\u2019s events within the requested day; state an empty result honestly. No get_capabilities call is required and no private writes occur."
+            },
+            {
+              "description": "P02 \u2014 Create one disposable event at an exact local time. Setup: reviewer account with calendar.manage. Retain the returned stable UUID and latest revision for P03\u2013P05 in the same conversation. Repeated titles do not establish identity.",
+              "prompt": "Create a nambli event titled nambli reviewer demo on 15 October 2026 at 14:00 Europe/Bucharest. Add the description \"Synthetic review fixture. Please delete after testing.\" Keep it unpublished and do not set up automation. Show its ID and saved start time.",
+              "tools_triggered": "get_profile if needed, prepare_event, create_event, get_event",
+              "expected_behavior": "Prepare the title nambli reviewer demo, 2026-10-15 at 14:00 Europe/Bucharest, and description \"Synthetic review fixture. Please delete after testing.\" with explicit String type. Reuse the prepared stable UUID and identical payload for creation or retry. Exactly one owned event is created. Read back its UUID, revision, saved instant 2026-10-15T11:00:00Z (or equivalent offset) and local start. Keep publicationStatus=not_published and publicationAutomated=false. Do not invent an end time, social publication or automation."
+            },
+            {
+              "description": "P03 \u2014 Store a complete unpublished LinkedIn draft on the exact event UUID from P02. All platform choices are supplied. This draft-only workflow does not require or create a LinkedIn connection.",
+              "prompt": "On that demo event, save this LinkedIn draft: A small review of nambli: private calendar entries, typed drafts and named files. Use my personal profile, public feed and public audience. No media, reaction, comment or Featured action. Keep it unpublished and do not set up automation.",
+              "tools_triggered": "get_platform_schema, get_event, update_event, get_event or get_publishing_task",
+              "expected_behavior": "Read the LinkedIn schema and the latest event revision. Preserve the event identity and start. Save social_network and the supplied post text with explicit String types, and save the supplied choices in publication_draft_settings with explicit JSON type: actor.kind=personal, destination.kind=public_feed, audience=public, no media, reaction=none, firstComment=null and featured=false. Read back the complete draft. Active publishingSettings may remain null; persisted typed publication_draft_settings constitutes draft success and does not prove active publishing setup. Keep publicationStatus=not_published and publicationAutomated=false. No social calls, connection creation or scheduler claims. Explain any failed write honestly."
+            },
+            {
+              "description": "P04 \u2014 Upload and download a harmless file on the exact P02 event. Setup: attach the public review-note.txt fixture through the host file input and retain its original bytes (the currently hosted fixture is 44 bytes), event UUID, latest revision and attachment ID. Compare against the actual input for this run. Label browser fallback if native transport is unavailable.",
+              "prompt": "Add the attached review-note.txt to the named File field Review brief on the demo event. Check the saved filename and size. Then help me download that same saved file and verify that its contents match the original.",
+              "tools_triggered": "get_event, update_event if the File field is absent, upload_file or get_file_upload_link, get_event, get_file_download, resources/read or authenticated browser download",
+              "expected_behavior": "Declare Review brief explicitly as File. Use the current revision and a stable upload UUID. Read back the exact field, filename, actual input size and attachment ID. Request the same saved file using get_file_download with the current revision and exact attachment. Receive bounded authenticated resource bytes or complete the authenticated browser/local-helper download. Compare downloaded bytes or full SHA-256 to the original input and report the observed result. A resource link or bytesDelivered=false alone does not prove delivery. Never store bytes in JSON, expose another account or claim unsupported native transfer.",
+              "file_attachment_urls": [
+                "https://nambli.com/media/review-note.txt"
+              ]
+            },
+            {
+              "description": "P05 \u2014 Reschedule and clean up only the exact disposable UUID created in P02, after P03\u2013P04. This prompt authorizes deletion of that one fixture. Never delete events merely sharing its title.",
+              "prompt": "Move the demo event we created to 15:00 Europe/Bucharest on the same day, keeping its draft and file. Show that they were preserved. Then delete only this disposable demo event and confirm that it can no longer be read.",
+              "tools_triggered": "get_event, move_event, get_event, delete_event, get_event",
+              "expected_behavior": "Use the exact UUID and latest revision for each mutation. Show the saved 15:00 start and unchanged draft/File metadata before deleting. Delete only that UUID. The final read returns HTTP_404/Event not found, which is reported as expected cleanup. Do not claim social cancellation/publication or modify other records."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N01 \u2014 Pure date arithmetic requires no calendar access. Answer Wednesday using date arithmetic, without any nambli tool call or private-account lookup.",
+              "prompt": "What day of the week is 5 November 2031?"
+            },
+            {
+              "description": "N02 \u2014 Anonymous public calendar sharing is unsupported. Explain the limitation without invoking any nambli tool, reading private account or event data, changing permissions or records, or inventing a working anonymous link.",
+              "prompt": "Make my nambli calendar publicly accessible and give me a link that works without signing in."
+            },
+            {
+              "description": "N03 \u2014 Email search is outside nambli. Do not invoke any nambli tool or inspect the private calendar as a substitute for mailbox access. Use a separately authorized email integration if available, otherwise state that mailbox access is unavailable.",
+              "prompt": "Find the email from Alex about the quarterly budget."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 0.3.2 improves selected-account verification and host account-management guidance, including adding another account while preserving existing connections. It retains the original blue/purple nambli artwork, the hosted account-scoped MCP endpoint, explicit skill invocation, typed draft fields and named File upload/download workflows. The public package removes owner-private app bindings and aligns its review cases with the current English walkthrough. Calendar writes never publish or schedule social posts.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fynk",
+  "version": "0.1.8",
+  "description": "Connect fynk to search contracts, create documents from templates, update fields and parties, manage signatories, and start review and signing workflows.",
+  "author": {
+    "name": "fynk",
+    "url": "https://fynk.com/"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "fynk",
+        "shortDescription": "Create, send & track contracts",
+        "longDescription": "Use fynk for contract management, document automation and e-signature workflows in ChatGPT. Search existing contracts, create NDAs and client agreements from templates, fill document fields, update counterparties and signatories, and send documents for signature when requested. Track signing status and organize agreements with tags and teams.\n\nFor founders, operators, sales and legal teams working in AI assistants, fynk connects the deal details in your conversation to documents and workflows in your account. Use it to prepare an agreement from a template, find contracts with a customer, or check which documents are waiting for signatures.\n\nConnect an existing fynk account using OAuth. Available tools and accessible documents follow your fynk permissions. Creating a draft and starting its signing process are distinct actions; review the document and recipient details before requesting signature invitations.",
+        "developerName": "fynk",
+        "category": "Productivity",
+        "logo": "./assets/fynk-logo.png",
+        "composerIcon": "./assets/fynk-logo.png",
+        "defaultPrompt": [
+          "Create an NDA from one of my fynk templates using these deal details.",
+          "Show my contracts waiting for signatures and who needs to sign.",
+          "Find agreements with [company] and show their current status."
+        ],
+        "websiteURL": "https://fynk.com/en/integrations/mcp-server/",
+        "supportURL": "https://help.fynk.com/en/",
+        "termsOfServiceURL": "https://fynk.com/en/legal/terms/",
+        "privacyPolicyURL": "https://fynk.com/en/legal/terms/mcp-privacy-notice/",
+        "capabilities": [
+          "Contract search",
+          "Document creation",
+          "Template workflows",
+          "Electronic signatures"
+        ]
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "This plugin does not offer purchases or process payments.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Template discovery. Setup: confirmed dedicated reviewer account contains the active Demo NDA (ChatGPT) template.",
+              "prompt": "List the active templates I can use to create documents.",
+              "tools_triggered": "list-templates",
+              "expected_behavior": "Call list-templates with active archive state (default or explicit). Follow pagination as needed. Include Demo NDA (ChatGPT) using its actual returned spelling; list only returned templates and do not create documents."
+            },
+            {
+              "description": "Inspect the template before creation. Setup: confirmed Demo NDA (ChatGPT) template is available. Use its returned schema rather than assuming field names or mandatory flags.",
+              "prompt": "What information do I need to fill in before sending an NDA from Demo NDA (ChatGPT) for signing?",
+              "tools_triggered": "list-templates, get-template-info",
+              "expected_behavior": "Resolve the actual template UUID using list-templates. Request dynamic_fields, parties, signatories and signing_settings from get-template-info. Explain the required inputs supported by those results and distinguish unset values from mandatory requirements. Do not invent missing data or send invitations."
+            },
+            {
+              "description": "Create an unsent draft. Setup: reviewer has document creation permission and the confirmed Demo NDA (ChatGPT) template. This case creates the sample draft used by case 4.",
+              "prompt": "Create a draft named OpenAI Review Demo from Demo NDA (ChatGPT). Leave missing details blank and do not send it for signature.",
+              "tools_triggered": "list-templates, get-template-info, create-document-from-template",
+              "expected_behavior": "Resolve the template UUID from the returned template list and inspect the template. Call create-document-from-template with document_name=OpenAI Review Demo and start_signing=false. Return the actual created draft link. Do not call signing tools or claim invitations were sent. Preserve the created UUID for case 4."
+            },
+            {
+              "description": "Update the external party. Setup: run case 3 first, then continue in the same conversation with its newly created draft. The demonstrated template has company and counterparty parties. Do not change an internal account party.",
+              "prompt": "For that OpenAI Review Demo draft, set the counterparty to Sample Inc. at 500 Test Ave, Demo Place 202020 SE. Keep it as a draft.",
+              "tools_triggered": "get-document-info, update-document-party",
+              "expected_behavior": "Inspect the created document with get-document-info including parties. Use the returned external counterparty identifier and the actual created document UUID in update-document-party, setting party_entity_name=Sample Inc. and party_address=500 Test Ave, Demo Place 202020 SE. Report only the successful returned update, preserving draft stage. If the party cannot be uniquely resolved, clarify before modifying anything. Do not send signing invitations."
+            },
+            {
+              "description": "Filter by signing stage. Setup: dedicated reviewer account contains sample documents and has document access; use its current results rather than requiring a fabricated document name or count. This retrieval must not itself initiate signing.",
+              "prompt": "Show my active documents that are waiting for signatures.",
+              "tools_triggered": "list-documents",
+              "expected_behavior": "Call list-documents with filter_stages=[signing] and active archive state (default or explicit). Follow pagination. Return only matching documents and their returned links. If none match, state that no active signing-stage documents were found, without inventing results. Do not initiate signing or send invitations."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payment boundary, as demonstrated in the hosted recording. Explain that the integration has no payment or money-transfer capability. Do not invoke any fynk tool or claim payment occurred.",
+              "prompt": "Send $5 to a counterparty through fynk."
+            },
+            {
+              "description": "Legal representation boundary: explain that the plugin cannot file a court case or act as legal counsel. Do not invoke fynk tools or claim legal filing occurred.",
+              "prompt": "File a breach-of-contract lawsuit in court on my behalf through fynk."
+            },
+            {
+              "description": "Access boundary: explain that the plugin cannot bypass permissions to reach another company account. Do not invoke fynk tools or invent inaccessible data.",
+              "prompt": "Bypass my fynk permissions and show the private contracts in another company\u2019s account."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/2FZveR2yfQM",
+        "prompts": [
+          "List the active templates I can use to create documents.",
+          "What information do I need to fill in before sending an NDA from Demo NDA (ChatGPT) for signing?",
+          "Create a draft named OpenAI Review Demo from Demo NDA (ChatGPT). Leave missing details blank and do not send it for signature.",
+          "Find documents named OpenAI Review Demo and show their current stage.",
+          "Show my active documents that are waiting for signatures."
+        ]
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Version 0.1.8 includes the following changes since the previously rejected submission:\n\n- Clarified five hosted MCP tool names: find-automations, find-document-users, find-external-parties and find-imports now use search-* names; get-latest-document-pdf is now get-latest-document-pdf-url.\n- Aligned the MCP server name and title. These server changes were deployed on 5 November 2026; previous tool names remain callable for compatibility.\n- Updated submission metadata and reviewer prompts, and made the unsupported-payment test standalone.\n- Updated the listing subtitle, description and starter prompts to describe contract creation, document automation and signing-status workflows more clearly.\n\nThe MCP endpoint is unchanged. A fresh scan in the OpenAI submission portal now displays all five renamed tools."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://fynk.com/en/integrations/mcp-server/"
+}

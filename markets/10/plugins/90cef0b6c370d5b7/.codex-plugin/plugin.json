@@ -1,0 +1,117 @@
+{
+  "name": "nantes-ia-infotan",
+  "version": "1.0.0",
+  "description": "Find Naolib stops by name or proximity, their routes, upcoming departures, scheduled journeys by date or arrival time, and reported service disruptions in Nantes.",
+  "author": {
+    "name": "Lo\u00efc Boursin",
+    "email": "contact@infotan.fr",
+    "url": "https://infotan.fr"
+  },
+  "homepage": "https://infotan.fr/nantes-ia",
+  "keywords": [
+    "Nantes",
+    "Naolib",
+    "public transport",
+    "Infotan"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Nantes IA par Infotan",
+    "shortDescription": "Your Nantes assistant",
+    "longDescription": "Find information about the Naolib network in Nantes directly in ChatGPT: stops, routes, upcoming departures and reported service disruptions.\nSearch for a stop by name or find stops near a location you specify, with their serving routes and approximate straight-line distances. Then ask for upcoming departures in your chosen direction. You can also plan a journey on a single route for a specific date: check published scheduled times to leave within a time window or reach a stop before your preferred arrival time. Check reported disruptions affecting a route or the whole network, including current and upcoming alerts or alerts for a specific date.\nResponses use Infotan data and include links to timetables and disruption details.",
+    "developerName": "Lo\u00efc Boursin",
+    "category": "Travel",
+    "capabilities": [
+      "Search stops and routes",
+      "Find nearby stops and routes from a specified location",
+      "Check upcoming departures",
+      "Plan a scheduled journey by date or arrival time",
+      "Check service disruptions by date"
+    ],
+    "websiteURL": "https://infotan.fr/nantes-ia",
+    "supportURL": "https://infotan.fr/contact",
+    "privacyPolicyURL": "https://infotan.fr/privacy-policy",
+    "termsOfServiceURL": "https://infotan.fr/cguv",
+    "defaultPrompt": [
+      "Which routes serve the Commerce stop in Nantes?",
+      "When is the next tram 2 at Commerce towards Orvault Grand Val?",
+      "Are there any service disruptions on tram 2 in Nantes today?"
+    ],
+    "composerIcon": "./assets/nantes-ia-elephant-transparent-10ko.png",
+    "logo": "./assets/nantes-ia-elephant-transparent-10ko.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find the routes at Commerce and nearby stops",
+              "prompt": "Quelles lignes desservent l\u2019arr\u00eat Commerce \u00e0 Nantes ? Quels arr\u00eats se trouvent dans un rayon de 500 m autour de cet arr\u00eat ?",
+              "tools_triggered": "search_stops; get_stop_details if needed; find_nearby_stops",
+              "expected_behavior": "Resolve Commerce from the Naolib catalog and list its serving routes with their supplied Infotan links. If several matches exist, clarify first. Use the latitude and longitude returned for this exact stop as the explicit origin for find_nearby_stops, radiusMeters 500; do not guess coordinates or substitute the user\u2019s current position. Return up to five nearby stops by default, ordered by approximate straight-line distance, with the serving lines already supplied. Distances refer to the stop point, not a walking route or duration. If hasMore is true, explain that the list is partial. Preserve each stop and line identity and each supplied Infotan link, including repeated line names. Do not search for these stops again on an external map by name; if a map is requested, use the returned station coordinates and identity. A serving route is not evidence that it is running now. Explain an empty result within this radius without claiming that no transport exists elsewhere."
+            },
+            {
+              "description": "Find upcoming departures for a complete selection",
+              "prompt": "Quand passe le prochain tram 2 \u00e0 Commerce vers Orvault Grand Val ?",
+              "tools_triggered": "resolve_transport_selection, get_next_departures",
+              "expected_behavior": "Resolve tram 2, Commerce and Orvault Grand Val. Reuse lineId, directionType and quayId from the same returned candidate. Show up to three available departures, distinguish real-time from scheduled times, use Europe/Paris and summarize relevant returned disruptions. Link the route, stop and alerts using supplied URLs. Offer the supplied application-creation link as a future user action; never claim the app is already created or installed. If no departures are returned, say so without inventing times."
+            },
+            {
+              "description": "Read today\u2019s tram 2 disruptions",
+              "prompt": "Y a-t-il des perturbations sur le tram 2 \u00e0 Nantes aujourd\u2019hui ?",
+              "tools_triggered": "get_traffic_alerts",
+              "expected_behavior": "Query line 2 with date set to today\u2019s YYYY-MM-DD in Europe/Paris; date replaces the former today/tomorrow day parameter. Respect returned affected stops, dates and any narrower time windows in the bulletin text. Link each alert using its full supplied detail URL, including infotraficId and lineId when present. An empty list means no recorded alert for this scope, not guaranteed normal service. Explain partial results naturally without technical field names."
+            },
+            {
+              "description": "List stops in a specific direction",
+              "prompt": "Quels arr\u00eats sont desservis par le tram 2 vers Orvault Grand Val ?",
+              "tools_triggered": "get_line_stops",
+              "expected_behavior": "Return the selected direction\u2019s representative route in its given order. Keep additionalStops from other route variants separate. Do not imply that this catalog establishes immediate service or offer departures from an arrival-only terminus. Use supplied Infotan links."
+            },
+            {
+              "description": "Plan a scheduled journey for a desired arrival time",
+              "prompt": "Demain, quels d\u00e9parts du tram 2 \u00e0 Commerce me permettent d\u2019arriver \u00e0 l\u2019arr\u00eat Orvault Grand Val avant 9 h, avec 10 minutes de marge ?",
+              "tools_triggered": "resolve_transport_selection; search_stops or get_line_stops for the destination; get_stop_details if needed; get_scheduled_departures",
+              "expected_behavior": "Resolve the departure selection and destination stop without inventing or mixing identifiers. Convert tomorrow to YYYY-MM-DD in Europe/Paris. Call get_scheduled_departures with the destination stop ID, arriveBy 09:00 and arrivalMarginMinutes 10. Present several available options, up to five, explicitly as scheduled times on the same service journey, arriving by 08:50 at the destination stop. Use the actual returned options, never fixed departure times. Read the line-wide alerts for that date before recommending an option; a stop closed by a bulletin is not usable even if scheduled. If needed, verify and query a documented temporary terminus and explain the remaining journey without inventing walking times or transfers. Explain outside_validity, no_published_schedule or no matching departures using the returned information. Preserve full supplied links. A reusable application link saves the route, direction and boarding stop, not this search date; creation and installation remain user actions."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Ticket purchase is outside this plugin",
+              "prompt": "Ach\u00e8te-moi un ticket pour le tram \u00e0 Nantes.",
+              "tools_triggered": "None",
+              "expected_behavior": "Do not call transport lookup tools to purchase a ticket or claim a transaction succeeded. Explain that this plugin does not sell tickets."
+            },
+            {
+              "description": "Weather is outside the transport tools",
+              "prompt": "Quel temps fera-t-il demain \u00e0 Nantes ?",
+              "tools_triggered": "None",
+              "expected_behavior": "Do not call the Infotan transport tools for weather or attribute a weather forecast to Infotan. Another appropriate ChatGPT capability may be used."
+            },
+            {
+              "description": "The future events feature is not part of this release",
+              "prompt": "Quelles sorties sont pr\u00e9vues \u00e0 Nantes ce week-end ?",
+              "tools_triggered": "None",
+              "expected_behavior": "Do not call Infotan transport tools to retrieve events or invent events from Infotan. Another appropriate ChatGPT capability may be used."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The MCP tools provide transport information. They do not sell tickets or process payments.",
+        "demo_recording_url": "https://images.infotan.fr/review/nantes-ia/demo-prod-2026-10-05.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: Naolib stops by name or proximity with approximate straight-line distances and serving routes, upcoming departures, scheduled journeys on a single route by date, departure window or desired arrival time, and reported service disruptions in Nantes, with links to Infotan.",
+        "translations": {
+          "fr-FR": {
+            "subtitle": "Votre assistant nantais",
+            "description": "Retrouvez les informations du r\u00e9seau Naolib \u00e0 Nantes directement dans ChatGPT : arr\u00eats, lignes, prochains passages et perturbations signal\u00e9es.\nRecherchez un arr\u00eat par son nom ou trouvez les arr\u00eats autour d\u2019une position indiqu\u00e9e, avec les lignes desservies et les distances \u00e0 vol d\u2019oiseau. Demandez ensuite les prochains d\u00e9parts dans la direction de votre choix. Pr\u00e9parez aussi un trajet sur une m\u00eame ligne \u00e0 une date donn\u00e9e : consultez les horaires th\u00e9oriques publi\u00e9s pour partir dans une plage horaire ou arriver \u00e0 un arr\u00eat avant l\u2019heure souhait\u00e9e. Consultez les perturbations signal\u00e9es sur une ligne ou l\u2019ensemble du r\u00e9seau, en cours, \u00e0 venir ou \u00e0 une date pr\u00e9cise.\nLes r\u00e9ponses s\u2019appuient sur les donn\u00e9es d\u2019Infotan et proposent des liens pour consulter les horaires et le d\u00e9tail des perturbations."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

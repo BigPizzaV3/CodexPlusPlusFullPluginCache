@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dashform",
+  "version": "1.0.2",
+  "description": "Build, publish, and operate Dashform AI forms from Codex through the Dashform MCP server.",
+  "author": {
+    "name": "Makloai",
+    "url": "https://getaiform.com"
+  },
+  "homepage": "https://getaiform.com",
+  "keywords": [
+    "dashform",
+    "forms",
+    "ai-forms",
+    "lead-generation",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dashform",
+        "shortDescription": "Build and run AI forms",
+        "longDescription": "Dashform is an AI-powered form builder. Describe a form in plain language and Codex creates it, refines its questions, and publishes it with a shareable link. Read and triage the replies your forms collect, review earlier revisions of a form, and browse the Dashform marketplace of services. Dashform only reaches the organizations and forms your signed-in Dashform account can access; sign in through your browser when Codex first connects.",
+        "developerName": "Makloai",
+        "category": "Productivity",
+        "capabilities": [
+          "Create and edit forms",
+          "Publish forms",
+          "Read and manage replies"
+        ],
+        "websiteURL": "https://getaiform.com",
+        "supportURL": "https://getaiform.com/help",
+        "privacyPolicyURL": "https://getaiform.com/legal/privacy",
+        "termsOfServiceURL": "https://getaiform.com/legal/terms",
+        "defaultPrompt": [
+          "Create a lead qualification form for my agency",
+          "Summarize the latest replies to my newest form",
+          "Publish my draft contact form"
+        ],
+        "composerIcon": "./assets/logo.svg",
+        "composerIconDark": "./assets/logo-dark.svg",
+        "logo": "./assets/logo.svg",
+        "logoDark": "./assets/logo-dark.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1ABnP9j-KNSKdhnMk16udeMNaD6BJ-Nz7/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the signed-in reviewer account\u2019s Organizations and list its forms. Setup: connect the dedicated sample account with membership in at least one Organization. If multiple Organizations are returned, select the review workspace in a follow-up; never assume a private Organization ID.",
+              "prompt": "Show my Dashform workspaces, then list the five most recently updated forms in the workspace I choose.",
+              "tools_triggered": "list_my_organizations, list_forms",
+              "expected_behavior": "Call list_my_organizations and present only returned Organizations. After workspace selection (or when only one exists), call list_forms with parent equal to that Organization path, pageSize=5, and orderBy=\"updateTime desc,publicId\". Show the returned form names and draft/published state without inventing forms. Explain an empty result truthfully. Do not use organizations/- or mutate data."
+            },
+            {
+              "description": "Create and refine a private structured form. Setup: the dedicated account is an Owner or Admin of the selected sample Organization and has quota to create a form. Use sample content only. The follow-up prompt is part of this case.",
+              "prompt": "In my review workspace, create a draft form named Plugin review contact that asks for a name, email, and project description. Keep it unpublished. Then rename it to Plugin review enquiry without changing its questions.",
+              "tools_triggered": "list_my_organizations, create_form, update_form, get_form",
+              "expected_behavior": "Resolve the selected Organization using list_my_organizations if needed. Call create_form with that parent and form.name=\"Plugin review contact\", type=\"structured\", and steps for the three requested questions. Call update_form on the returned canonical path with only form.name=\"Plugin review enquiry\". Read it back with get_form. Confirm the name and unchanged questions from returned data. Do not call publish_form or create_reply."
+            },
+            {
+              "description": "Publish a sample draft and inspect its live revision and history. Setup: run the draft-creation case first in the same conversation, or select the resulting Plugin review enquiry form by its returned path. The dedicated account must have publish permission. This case intentionally makes only that sample form public.",
+              "prompt": "Publish the Plugin review enquiry draft we just created. Show the questions respondents will see and its revision history.",
+              "tools_triggered": "get_form, publish_form, get_form_revision, list_form_revisions",
+              "expected_behavior": "Read the selected sample Form with get_form, then call publish_form using its exact path. Call get_form_revision with path=<returned form path>/revisions/live and list_form_revisions with parent=<returned form path>. Report the published state and questions from the live revision, and revision numbers from the history. The live response must have a canonical revision path. If publication fails, report the failure and do not claim the form is live."
+            },
+            {
+              "description": "Read replies across revisions and mark one sample reply as seen. Setup: the dedicated review workspace contains a sample Form with at least two published revisions and a synthetic Reply under each; no real personal data or external integrations. Supply that Form path through the conversation and grant the reviewer reply-update permission.",
+              "prompt": "For the sample form I selected, summarize the five newest replies across all its versions. Mark the newest reply as seen, without changing its answers or lead score.",
+              "tools_triggered": "list_replies, update_reply, get_reply",
+              "expected_behavior": "Call list_replies with parent=<selected form path>/revisions/-, pageSize=5, and orderBy=\"createTime desc,path desc\". Summarize only returned answers. Call update_reply for the newest returned canonical Reply path with only reply.seenTime set to the current RFC 3339 timestamp; read it back with get_reply. Verify seenTime is set while answers and leadScoring are unchanged. Never delete a Reply. If no replies exist, explain the missing fixture and perform no mutation."
+            },
+            {
+              "description": "Browse marketplace categories and merchants, then inspect a merchant\u2019s services. Setup: OAuth connection; the marketplace contains at least one published sample Profile. Select a category and Profile from returned results, so no private IDs or guessed fixtures are required.",
+              "prompt": "Show the Dashform marketplace categories. Find up to five businesses in the first category that has listings, then show the first business\u2019s services and booking link if it has one. Do not contact it or submit my details.",
+              "tools_triggered": "list_marketplace_categories, list_marketplace_profiles, get_marketplace_profile",
+              "expected_behavior": "Call list_marketplace_categories, then list_marketplace_profiles with pageSize=5 and filter category = \"<returned category key>\". Try subsequent returned categories only if the current one is empty. Read the first returned Profile with get_marketplace_profile using its exact path. Summarize its actual services, location, and bookingUrl when present. Explain empty results or a missing booking link rather than inventing them. Do not call create_reply, book an appointment, or claim any payment occurred."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported form import from another product. Explain that this plugin cannot access Google Forms or import its response history. Offer to help recreate questions if the user supplies them, but do not invoke any Dashform tool or claim an import succeeded.",
+              "prompt": "Import my Google Forms survey and all its existing responses directly into Dashform using my Google account."
+            },
+            {
+              "description": "Unsupported outbound email campaign. Explain that Dashform\u2019s exposed tools cannot send email campaigns or schedule follow-up emails. Do not fetch replies, invoke any Dashform tool, or claim messages were sent.",
+              "prompt": "Email a promotional campaign to everyone who answered my Dashform survey and schedule a reminder for next Friday."
+            },
+            {
+              "description": "Unsupported appointment booking and payment. The conversation already includes a merchant\u2019s booking link from a previous lookup. Explain that the plugin can return that link but cannot reserve a time or charge a card. Do not invoke any Dashform tool, submit a Reply as a substitute for booking, or claim a reservation or payment.",
+              "prompt": "Use the business\u2019s booking link you already showed me to reserve an appointment tomorrow at 10 a.m. and pay with my saved card."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds five positive and three negative review scenarios covering workspace discovery, draft forms, publishing, reply triage, marketplace browsing, and unsupported requests. Uses the portable plugin package format with one manifest and one MCP configuration, removing duplicate legacy files."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,510 @@
+# Every command and tool
+
+The CLI, local stdio MCP and remote OAuth MCP have distinct surfaces, listed separately below.
+Discover the installed contract with `ohmyhost --help --json` or the connected server's
+`tools/list`, and follow its actual schema rather than guessing arguments. A name in this
+reference describes server support; a host may still be checking a new or changed tool.
+
+## CLI commands
+
+- `ohmyhost init` — ohmyhost init [--directory PATH] [--root PATH] [--project SLUG] [--region us|eu] [--dry-run] --json (preserve existing storage jurisdiction; for new storage pass the project's region, us when omitted)
+- `ohmyhost login` — ohmyhost login [--organization ULID] [--user USER_ID] [--profile-name NAME] --json (adds one saved login; nothing is saved unless the browser signed in as that user and organization)
+- `ohmyhost logout` — ohmyhost logout [--profile-name NAME] [--revoke] --json (removes only the selected saved login)
+- `ohmyhost whoami` — ohmyhost whoami [--profile-name NAME] --json (the effective user, organization and saved login)
+- `ohmyhost profile list` — ohmyhost profile list --json (saved logins on this computer: name, user and organization, never a token; pass --profile-name NAME or set OHMYHOST_PROFILE to choose one)
+- `ohmyhost connection begin` — ohmyhost connection begin --organization ULID [--project ULID --environment ULID] --idempotency-key KEY --json
+- `ohmyhost connection list` — ohmyhost connection list --organization ULID --json
+- `ohmyhost connection status` — ohmyhost connection status --organization ULID --request HASH --json
+- `ohmyhost connection discover` — ohmyhost connection discover --organization ULID [--project ULID --environment ULID] --grant ULID [--provider-organization ID] [--team ID] --json
+- `ohmyhost connection import` — ohmyhost connection import --organization ULID --grant ULID --project ULID --environment ULID --provider-organization ID --team ID --connection ID --idempotency-key KEY --json
+- `ohmyhost connection disconnect` — ohmyhost connection disconnect --organization ULID --grant ULID --idempotency-key KEY --yes --json
+- `ohmyhost github connect` — ohmyhost github connect --organization ULID --idempotency-key KEY --json (connect once, then link covered repositories without another browser consent)
+- `ohmyhost github status` — ohmyhost github status --organization ULID --json
+- `ohmyhost github disconnect` — ohmyhost github disconnect --organization ULID --yes --json (Owner only; revokes the workspace GitHub connection and every repository grant under it, so auto-deploy and linked sources stop at once; the GitHub App stays installed for other workspaces, and github connect starts a new connection)
+- `ohmyhost export create` — ohmyhost export create --project ULID --idempotency-key KEY --stdin --json (password on stdin only; one accepted SQL ZIP per project per 24 hours)
+- `ohmyhost export get` — ohmyhost export get EXPORT_ULID --project ULID --json (poll the original job: progress and error only, never a download URL; once it succeeds, run 'ohmyhost export download-link' for the signed 24-hour ZIP link)
+- `ohmyhost export download-link` — ohmyhost export download-link EXPORT_ULID --project ULID --json (signs one audited 24-hour link of a succeeded SQL ZIP; the URL is a secret, keep it out of files and notes; each call signs another link)
+- `ohmyhost credits account` — ohmyhost credits account --organization ULID --json
+- `ohmyhost referral link` — ohmyhost referral link --organization ULID --json (the workspace's link to share; a new user whose first workspace comes from it starts with 30 days of Paid and 1,000 credits, and its first payment gives this workspace 1,000 credits plus 30 days of Paid unless a subscription or an unbounded grant already covers it)
+- `ohmyhost credits balance` — ohmyhost credits balance --organization ULID --json
+- `ohmyhost billing recharge get` — ohmyhost billing recharge get --organization ULID --json
+- `ohmyhost billing recharge set` — ohmyhost billing recharge set --organization ULID --enabled true|false --monthly-limit-minor CENTS --revision N --idempotency-key KEY [--consent off_session_v1] --json (explicit Owner consent required before enabling)
+- `ohmyhost billing checkout` — ohmyhost billing checkout --organization ULID --offer topup|paid [--packs 1] --idempotency-key KEY --json (returns a human payment URL; never auto-pays)
+- `ohmyhost billing status` — ohmyhost billing status --organization ULID --checkout ULID --json
+- `ohmyhost billing portal` — ohmyhost billing portal --organization ULID --json (short-lived human URL; request fresh after expiry)
+- `ohmyhost credits usage` — ohmyhost credits usage --organization ULID --json (billed usage of the last up to 14 UTC days by day, project and meter, and each project's use this UTC month)
+- `ohmyhost budget get` — ohmyhost budget get --project ULID --json
+- `ohmyhost budget set` — ohmyhost budget set --project ULID --credits NUMBER|none [--mode continue|stop] --idempotency-key KEY --json
+- `ohmyhost organization create` — ohmyhost organization create --name NAME --idempotency-key KEY [--source SOURCE] --json (SOURCE is optional attribution from a link's r value; a login without organization is bound to the new workspace, another login keeps its own)
+- `ohmyhost organization list` — ohmyhost organization list [--profile-name NAME] --json (the workspaces of the chosen login's user and the one that login is scoped to)
+- `ohmyhost organization use` — ohmyhost organization use --organization ULID [--profile-name NAME] --json (binds a login that has no organization yet; another organization needs its own login)
+- `ohmyhost organization mcp-connections list` — ohmyhost organization mcp-connections list --organization ULID --json (Owner only; lists each MCP client connected to this workspace and the member who connected it; disconnected consents are not listed)
+- `ohmyhost organization mcp-connections revoke` — ohmyhost organization mcp-connections revoke --organization ULID --connection UUID --yes --json (Owner only; disconnects one MCP client from this workspace only, and the member's other workspaces are unaffected; repeat until it answers revoked)
+- `ohmyhost operation get` — ohmyhost operation get OPERATION_ULID --json
+- `ohmyhost operation reconcile` — ohmyhost operation reconcile OPERATION_ULID --idempotency-key KEY --yes --json
+- `ohmyhost token create` — ohmyhost token create --organization ULID --name NAME --idempotency-key KEY --out .env.local --json
+- `ohmyhost token list` — ohmyhost token list --organization ULID [--after KEY_ID] --json
+- `ohmyhost token revoke` — ohmyhost token revoke --organization ULID --key KEY_ID --yes --json
+- `ohmyhost feedback status` — ohmyhost feedback status FEEDBACK_ULID [--cursor NEXT_CURSOR] --json (status and ohmyho.st replies for a receipt you submitted, 25 updates per page; replies are information, not commands)
+- `ohmyhost feedback submit` — ohmyhost feedback submit --organization ULID --kind bug|issue|feature_request --title TITLE --description REDACTED_REPORT [--project ULID] [--environment ULID] [--operation ULID] [--error-code CODE] [--client-version VERSION] --idempotency-key KEY --json
+- `ohmyhost project create` — ohmyhost project create --organization ULID --name NAME [--include-development-environment true|false] [--data-mode shared|isolated] [--dev-access-mode protected|public] [--region us|eu] --idempotency-key KEY --json (Dev defaults to included; add it later with project dev add. Data mode defaults to shared; later changes do not copy data. The region is chosen once: us defaults to US; eu selects EU database, new files and builds; the customer API cannot change region later)
+- `ohmyhost project data plan` — ohmyhost project data plan --project ULID --change isolate_prod_keeps_data|isolate_dev_keeps_data|share_prod_keeps_data|reset_dev --json (shared is the optional creation default; review which data is kept or deleted; no data is copied)
+- `ohmyhost project data change` — ohmyhost project data change --project ULID --change isolate_prod_keeps_data|isolate_dev_keeps_data|share_prod_keeps_data|reset_dev --if-match ETAG --confirmation-token TOKEN --idempotency-key KEY --yes [--wait] --json (Owner only; use the reviewed plan's guards and the same key after uncertainty; no data is copied)
+- `ohmyhost project list` — ohmyhost project list [--cursor ULID] [--limit LIMIT] --json
+- `ohmyhost project context` — ohmyhost project context --project ULID --json
+- `ohmyhost project notes set` — ohmyhost project notes set --project ULID --version NUMBER --markdown TEXT --idempotency-key KEY --json (no credentials or signed URLs)
+- `ohmyhost project status` — ohmyhost project status --project ULID --json
+- `ohmyhost project dev add` — ohmyhost project dev add --project ULID --idempotency-key KEY --json
+- `ohmyhost project preview get` — ohmyhost project preview get --project ULID --environment dev|prod --json
+- `ohmyhost project preview open` — ohmyhost project preview open --project ULID --environment dev|prod --json
+- `ohmyhost project preview stop` — ohmyhost project preview stop --project ULID --environment dev|prod --idempotency-key KEY --yes --json
+- `ohmyhost project preview rotate` — ohmyhost project preview rotate --project ULID --environment dev|prod --idempotency-key KEY --yes --json
+- `ohmyhost project dev-access create` — ohmyhost project dev-access create --project ULID --json
+- `ohmyhost project dev-share link` — ohmyhost project dev-share link --project ULID --json
+- `ohmyhost project dev-share rotate` — ohmyhost project dev-share rotate --project ULID --idempotency-key KEY --yes --json
+- `ohmyhost project dev-share revoke` — ohmyhost project dev-share revoke --project ULID --idempotency-key KEY --yes --json
+- `ohmyhost project dev-access mode` — ohmyhost project dev-access mode --project ULID --mode protected|public --idempotency-key KEY --yes --json
+- `ohmyhost project flag status` — ohmyhost project flag status --project ULID --json
+- `ohmyhost project flag set` — ohmyhost project flag set --project ULID --enabled true|false --idempotency-key KEY --json (shows the small Powered by ohmyho.st flag on the production site; while it shows, this project's custom domain uses no domain credits and also works on Free, and each Paid period bought through Stripe adds 250 credits to the workspace, however many projects show the flag)
+- `ohmyhost project handle check` — ohmyhost project handle check --handle HANDLE --json (is this address free? answers with a reason and free alternatives; the address becomes HANDLE.check.omh.st)
+- `ohmyhost project handle set` — ohmyhost project handle set --project ULID --handle HANDLE --if-match ETAG --idempotency-key KEY --json (moves the project to a free address; the old one stops working and anyone may claim it)
+- `ohmyhost database compute set` — ohmyhost database compute set --project ULID --environment dev|prod --memory-mib 256|512|1024|2048|4096 --idempotency-key KEY --yes [--wait] --json
+
+- `ohmyhost database compute get` — ohmyhost database compute get --project ULID [--environment dev|prod] --json
+- `ohmyhost database write` — ohmyhost database write --project ULID --environment dev|prod --statement-file PATH --idempotency-key KEY [--parameters-json JSON] --yes --json
+- `ohmyhost database query` — ohmyhost database query --project ULID --environment dev|prod --statement SQL [--parameters-json JSON] --json
+- `ohmyhost database access create` — ohmyhost database access create --project ULID --environment dev|prod [--mode read|write] [--ttl 5m|1h|24h|SECONDS] [--label TEXT] --yes --json
+
+- `ohmyhost database access list` — ohmyhost database access list --project ULID [--environment dev|prod] --json
+- `ohmyhost database access revoke` — ohmyhost database access revoke --project ULID --access ULID --yes --json
+- `ohmyhost database watch create` — ohmyhost database watch create --project ULID --environment dev|prod --table NAME [--schema public] --columns COL[,COL] [--operations insert,update,delete] --idempotency-key KEY --yes --json (publishes only the listed columns, at most 32, of each row change as the event type data.<topic> printed in this answer; the table must exist as an ordinary table of the application; a sleeping database wakes; next, subscribe with 'ohmyhost database webhook create ... --event-types data.<topic>')
+- `ohmyhost database watch list` — ohmyhost database watch list --project ULID [--environment dev|prod] --json (dev when omitted; a sleeping database wakes)
+- `ohmyhost database watch delete` — ohmyhost database watch delete --project ULID --environment dev|prod --watch ID --idempotency-key KEY --yes --json
+- `ohmyhost database table create` — ohmyhost database table create --project ULID --environment dev|prod --table NAME --columns-file PATH [--primary-key COL[,COL]] --idempotency-key KEY --yes --json (the table is created in the public schema as the migration role, with the same access as migration tables, so a database watch can attach later; the columns file is a UTF-8 JSON array of 1 to 64 column objects, at most 64 KiB, each with name, type and optional nullable, identity and default; types: text, integer, bigint, boolean, numeric, double precision, timestamptz, date, uuid, jsonb; identity needs integer or bigint; default now needs timestamptz and default uuid needs uuid; identical repeats answer created false; at most 100 tables, 64 columns per table)
+- `ohmyhost database webhook create` — ohmyhost database webhook create --project ULID --environment dev|prod --url HTTPS_URL --event-types TYPE[,TYPE] [--headers-file PATH] --idempotency-key KEY --yes --json (the signing secret is shown once in this answer; types: database.created, database.ready, database.woke, database.slept, database.suspended, database.resized, database.deleted, data.<topic> for the rows of one watched table printed by database watch create, or data.\* for every watched table; a bare \* is not accepted and does not include data events; the headers file is a UTF-8 JSON object of at most 8 KiB)
+- `ohmyhost database webhook subscription activate` — ohmyhost database webhook subscription activate --project ULID --environment dev|prod --subscription ULID --generation N --url HTTPS_URL --event-types TYPE[,TYPE] [--headers-file PATH] --out NEW_PRIVATE_FILE --idempotency-key KEY --yes --json (the secret is written privately; repeat the same key and body after uncertainty using a new output file)
+- `ohmyhost database webhook subscription deactivate` — ohmyhost database webhook subscription deactivate --project ULID --environment dev|prod --subscription ULID --generation N --idempotency-key KEY --yes --json
+- `ohmyhost database webhook subscription status` — ohmyhost database webhook subscription status --project ULID [--environment dev|prod] --subscription ULID --json
+- `ohmyhost database webhook list` — ohmyhost database webhook list --project ULID [--environment dev|prod] --json (dev when omitted; the secret is never listed)
+- `ohmyhost database webhook get` — ohmyhost database webhook get --project ULID [--environment dev|prod] --webhook ID --json
+- `ohmyhost database webhook delete` — ohmyhost database webhook delete --project ULID --environment dev|prod --webhook ID [--idempotency-key KEY] --yes --json (a retry with the same key and request returns the stored answer; without a key each call is new)
+- `ohmyhost database webhook test` — ohmyhost database webhook test --project ULID --environment dev|prod --webhook ID [--idempotency-key KEY] --yes --json (sends one signed test request to the receiver; nothing is stored; a retry with the same key and request returns the stored outcome without sending again)
+- `ohmyhost database webhook deliveries` — ohmyhost database webhook deliveries --project ULID [--environment dev|prod] [--webhook ID] [--limit 1..100] [--cursor CURSOR] --json
+- `ohmyhost database webhook replay` — ohmyhost database webhook replay --project ULID --environment dev|prod --delivery ID [--idempotency-key KEY] --yes --json (a retry with the same key and request returns the stored answer without queuing another attempt)
+- `ohmyhost database schedule set` — ohmyhost database schedule set --project ULID --environment dev|prod --name NAME (--cron EXPR | --every-seconds N) --statements-file PATH [--timeout-ms N] [--enabled true|false] --yes --json (runs the statements in the file, a UTF-8 JSON array of 1 to 20 SQL strings, as the runtime role of the application; cron has five fields in UTC; every-seconds is 60 to 2678400; timeout-ms is 1000 to 30000, default 10000). A project whose Stop budget is reached has its schedules disabled automatically, within about an hour of the billed usage reaching the budget: the credit service does this after its hourly pgcf pass, and Continue budgets are never touched. While the budget is reached, schedule set with enabled true and schedule run are refused with project_budget_exceeded (HTTP 402). Re-enabling is manual: raise the budget (or wait for the next UTC month) and run database schedule set --enabled true again with the schedule body (read it with schedule get).
+- `ohmyhost database schedule list` — ohmyhost database schedule list --project ULID [--environment dev|prod] --json (dev when omitted)
+- `ohmyhost database schedule get` — ohmyhost database schedule get --project ULID [--environment dev|prod] --name NAME --json
+- `ohmyhost database schedule delete` — ohmyhost database schedule delete --project ULID --environment dev|prod --name NAME --yes --json
+- `ohmyhost database schedule runs` — ohmyhost database schedule runs --project ULID [--environment dev|prod] --name NAME [--limit 1..50] --json
+- `ohmyhost database schedule run` — ohmyhost database schedule run --project ULID --environment dev|prod --name NAME [--idempotency-key KEY] --yes --json (queues one run now, in addition to the timer; a retry with the same key and request returns the stored answer without a second run; refused with project_budget_exceeded (HTTP 402) while the project's Stop budget is reached)
+- `ohmyhost database executions` — ohmyhost database executions --project ULID [--environment dev|prod] --from ISO --to ISO --granularity hour|day [--limit 1..100] [--cursor CURSOR] --json (UTC timestamps like 2026-10-30T00:00:00.000Z aligned to the granularity, at most 31 days; counts schedule runs, webhook attempts and events per hour or day; these are counters only, executions have no price of their own and the awake compute time of the database is what is billed)
+- `ohmyhost database psql` — ohmyhost database psql --project ULID --environment dev|prod [--mode read|write] [--ttl 5m|1h|24h|SECONDS] [--json] (starts local psql with a temporary credential and revokes it on exit)
+- `ohmyhost link` — ohmyhost link --project ULID --repository-owner OWNER --repository-name REPOSITORY --idempotency-key KEY --json (uses the workspace GitHub connection and waits for the source-link operation)
+- `ohmyhost source auto-deploy set` — ohmyhost source auto-deploy set --project ULID --branch BRANCH --enabled true|false --idempotency-key KEY --json
+- `ohmyhost source auto-deploy status` — ohmyhost source auto-deploy status --project ULID --json
+- `ohmyhost source inspect` — ohmyhost source inspect [--directory PATH] --json (read local source and sanitized GitHub context without sign-in)
+- `ohmyhost source status` — ohmyhost source status --project ULID --json
+- `ohmyhost source files` — ohmyhost source files --project ULID [--commit SHA] --json
+- `ohmyhost source file` — ohmyhost source file --project ULID --path PATH [--commit SHA] --json
+- `ohmyhost source versions` — ohmyhost source versions --project ULID [--limit 1..100] [--before SHA] --json
+- `ohmyhost source diff` — ohmyhost source diff --project ULID --from SHA --to SHA --json
+- `ohmyhost source upload` — ohmyhost source upload --project ULID --operation ULID --json (observe the same upload after uncertainty)
+- `ohmyhost source publish` — ohmyhost source publish --project ULID --mode initialize|commit|switch [--directory PATH] --expected-source-generation N [--expected-source-connection ULID] [--expected-commit SHA] --message TEXT --idempotency-key KEY [--wait] --json (current files, no history import; one managed commit)
+- `ohmyhost source publish complete` — ohmyhost source publish complete --project ULID [--directory PATH] [--operation ULID] --json (confirm the recorded publication and save this directory's own committed base)
+- `ohmyhost source initialize` — ohmyhost source initialize --project ULID --template empty|vite-react --expected-source-generation N --idempotency-key KEY [--wait] --json
+- `ohmyhost source restore` — ohmyhost source restore --project ULID --expected-source-generation N --expected-commit SHA --restore-commit SHA --message TEXT --idempotency-key KEY [--wait] --json (restore as a new version; publication is separate)
+- `ohmyhost domain cloudflare authorize` — ohmyhost domain cloudflare authorize --project ULID --zone ZONE --idempotency-key KEY --json
+- `ohmyhost domain cloudflare status` — ohmyhost domain cloudflare status --project ULID --json
+- `ohmyhost domain cloudflare apply` — ohmyhost domain cloudflare apply --project ULID --idempotency-key KEY --yes --wait --json
+- `ohmyhost domain paid plan` — ohmyhost domain paid plan --project ULID --hostname HOST --json
+- `ohmyhost domain paid apply` — ohmyhost domain paid apply --project ULID --hostname HOST --idempotency-key KEY --yes --json
+- `ohmyhost domain paid status` — ohmyhost domain paid status --project ULID --json
+- `ohmyhost domain paid delete` — ohmyhost domain paid delete --project ULID --hostname HOST --idempotency-key KEY --yes --json
+- `ohmyhost plan` — ohmyhost plan --project ULID --commit SHA [--environment dev|prod] --json
+- `ohmyhost deploy` — ohmyhost deploy --project ULID (--plan-id ULID | --commit SHA [--environment dev|prod]) --idempotency-key KEY --yes [--wait] --json
+- `ohmyhost logs` — ohmyhost logs OPERATION_ULID --follow --json
+- `ohmyhost deployment list` — ohmyhost deployment list --project ULID [--cursor CURSOR] [--limit 1-100] --json (newest first; a returned deployment ULID is a rollback target)
+- `ohmyhost deployment get` — ohmyhost deployment get --project ULID --deployment ULID --json
+- `ohmyhost deployment logs` — ohmyhost deployment logs --project ULID --deployment ULID [--cursor CURSOR] --json (one page of diagnostics, newest first; a next_cursor in the answer reads the older page)
+- `ohmyhost rollback plan` — ohmyhost rollback plan --project ULID --deployment DEPLOYMENT_ULID --json
+- `ohmyhost rollback` — ohmyhost rollback --project ULID --deployment DEPLOYMENT_ULID --if-match ETAG --confirmation-token TOKEN --idempotency-key KEY --yes --json
+- `ohmyhost deployment promote plan` — ohmyhost deployment promote plan --project ULID --deployment DEV_DEPLOYMENT_ULID --json
+- `ohmyhost deployment promote` — ohmyhost deployment promote --project ULID --deployment DEV_DEPLOYMENT_ULID --if-match ETAG --confirmation-token TOKEN --idempotency-key KEY --yes [--wait] --json
+- `ohmyhost delete plan` — ohmyhost delete plan --project ULID --json
+- `ohmyhost delete` — ohmyhost delete --project ULID --if-match ETAG --confirmation-token TOKEN --idempotency-key KEY --yes --json
+- `ohmyhost secret list` — ohmyhost secret list --project ULID --environment ENVIRONMENT_ULID --json
+- `ohmyhost function runs` — ohmyhost function runs --project ULID --environment ENVIRONMENT_ULID [--limit 1-100] --json
+- `ohmyhost secret set` — printf '%s' "$SECRET_VALUE" | ohmyhost secret set NAME --project ULID --environment ENVIRONMENT_ULID --idempotency-key KEY [--profile-user USER_ID --profile-organization ULID | --token-user USER_ID --token-organization ULID] --stdin [--wait] --json (with --profile-user and --profile-organization the saved login that runs it must belong to that user and organization; with --token-user and --token-organization it runs only with an OHMYHOST_TOKEN of that user and organization, never with a saved login)
+- `ohmyhost auth` — ohmyhost auth config get|set --project ULID --environment ULID [--revision N --enabled true|false --signup-policy open|invite-only --application-name NAME --idempotency-key KEY] [--canonical-origin URL|primary] [--allowed-redirect-paths JSON_ARRAY --reset-password-path PATH --invitation-path PATH]; auth provider get|set --project ULID --environment ULID --provider google|github [--revision N --enabled true|false --client-id ID --idempotency-key KEY --stdin]; auth users list --project ULID --environment ULID [--limit N --cursor CURSOR --search TEXT]; auth user create|get|delete|invite|suspend|reactivate|revoke-sessions --project ULID --environment ULID [--email EMAIL | --user UUID] [--idempotency-key KEY]. Provider secrets are read only from stdin; use --json.
+- `ohmyhost secret delete` — ohmyhost secret delete NAME --project ULID --environment ENVIRONMENT_ULID --idempotency-key KEY [--wait] --json
+- `ohmyhost mail workspace list` — ohmyhost mail workspace list --organization ULID --json
+- `ohmyhost mail workspace create` — ohmyhost mail workspace create --organization ULID --domain DOMAIN --sending true --idempotency-key KEY --json
+- `ohmyhost mail workspace status` — ohmyhost mail workspace status --organization ULID --mail-domain ULID --json
+- `ohmyhost mail workspace retire` — ohmyhost mail workspace retire --organization ULID --mail-domain ULID --expected-revision N --idempotency-key KEY --yes --json
+- `ohmyhost mail workspace dns-authorize` — ohmyhost mail workspace dns-authorize --organization ULID --mail-domain ULID --expected-revision N --zone DOMAIN --idempotency-key KEY --json
+- `ohmyhost mail workspace dns-revoke` — ohmyhost mail workspace dns-revoke --organization ULID --mail-domain ULID --expected-revision N --idempotency-key KEY --yes --json
+- `ohmyhost mail workspace dns-status` — ohmyhost mail workspace dns-status --organization ULID --mail-domain ULID --json
+- `ohmyhost mail binding get` — ohmyhost mail binding get --project ULID --environment PROD_ULID --json
+- `ohmyhost mail binding set` — ohmyhost mail binding set --project ULID --environment PROD_ULID --mail-domain ULID --sending true --sender-addresses contact@mail.example.com,contracts@mail.example.com --default-from contracts@mail.example.com [--reply-to owner@example.com] --expected-revision N --idempotency-key KEY --json
+- `ohmyhost mail binding detach` — ohmyhost mail binding detach --project ULID --environment PROD_ULID --expected-revision N --idempotency-key KEY --yes --json
+- `ohmyhost mail identity get` — ohmyhost mail identity get --project ULID --json
+- `ohmyhost mail identity declare` — ohmyhost mail identity declare --project ULID --hostname sign.example.com --idempotency-key KEY --json
+- `ohmyhost mail identity verify` — ohmyhost mail identity verify --project ULID --expected-revision N --idempotency-key KEY --json
+- `ohmyhost mail identity revoke` — ohmyhost mail identity revoke --project ULID --expected-revision N --idempotency-key KEY --yes --json
+- `ohmyhost mail identity authorize` — ohmyhost mail identity authorize --project ULID --expected-revision N --zone example.com --idempotency-key KEY --json
+- `ohmyhost mail identity authorization-revoke` — ohmyhost mail identity authorization-revoke --project ULID --expected-revision N --idempotency-key KEY --yes --json
+- `ohmyhost mail identity authorization-status` — ohmyhost mail identity authorization-status --project ULID --json
+- `ohmyhost mail setup` — ohmyhost mail setup --project ULID --environment ULID --domain DOMAIN --sending true --receiving false --idempotency-key KEY --json
+- `ohmyhost mail status` — ohmyhost mail status --project ULID --environment ULID --json
+- `ohmyhost mail webhook set` — ohmyhost mail webhook set --project ULID --environment ULID --url HTTPS_URL --idempotency-key KEY --json
+- `ohmyhost mail webhook verify` — ohmyhost mail webhook verify --project ULID --environment ULID --idempotency-key KEY --json
+- `ohmyhost mail webhook disable` — ohmyhost mail webhook disable --project ULID --environment ULID --idempotency-key KEY --json
+- `ohmyhost mail webhook rotate` — ohmyhost mail webhook rotate --project ULID --environment ULID --idempotency-key KEY --yes --json (Owner only; issues a new signing secret for the same endpoint, stops the earlier secrets at once and ends receiving until the endpoint verifies the new one; the secret is returned once, so install it in Prod application secrets and never write it into files or notes)
+- `ohmyhost mail messages list` — ohmyhost mail messages list --project ULID --environment ULID [--after ULID] --json
+- `ohmyhost mail messages get` — ohmyhost mail messages get --project ULID --environment ULID --message ULID --json
+- `ohmyhost mail messages retry` — ohmyhost mail messages retry --project ULID --environment ULID --message ULID --idempotency-key KEY --json
+- `ohmyhost mail domain set` — ohmyhost mail domain set --project ULID --environment ULID --domain DOMAIN --sending true --receiving false --idempotency-key KEY --json
+- `ohmyhost mail domain status` — ohmyhost mail domain status --project ULID --environment ULID --json
+- `ohmyhost mail domain delete` — ohmyhost mail domain delete --project ULID --environment ULID --idempotency-key KEY --yes --json
+
+## Local MCP tools
+
+- `source_inspect` — Read local working-directory, Git/worktree, monorepo and sanitized remote context without sign-in.
+- `source_initialize` — Create managed version history for an unbound project.
+- `source_files` — List the exact managed source tree at a version; omit commit_sha to read current main.
+- `source_file` — Read one managed source file with its exact hash and mode.
+- `source_versions` — Read managed version history for this project; next_commit_sha continues the same history page.
+- `source_diff` — Compare two managed versions without changing files or deployments.
+- `source_changes` — Save an atomic file batch against the generation and parent commit you read.
+- `source_restore` — Restore an earlier managed file tree as a new version against current generation and parent.
+- `source_publish` — Local MCP only: capture current filtered files, including uncommitted/new files, and save one managed version without importing Git history.
+- `source_publish_complete` — Complete a local pending source publication after polling its operation.
+- `source_upload` — Observe the exact managed snapshot upload after an uncertain response.
+- `database_compute_get` — Read current managed database memory, total storage, region and observed state without running SQL or waking the database.
+- `database_compute_set` — Choose fixed database RAM: 256, 512, 1024, 2048 or 4096 MiB.
+- `project_context_get` — Read fresh project status, DNS/mail next actions, authorized usage and bounded shared notes.
+- `project_notes_set` — Save shared project to-dos, at most 250 lines / 16384 UTF-8 bytes.
+- `domain_cloudflare_authorize` — Check domain_cloudflare_status first and reuse a valid matching grant.
+- `domain_cloudflare_status` — Read the project's customer DNS authorization state, zone, scopes and expiry without credentials.
+- `domain_paid_plan` — Plan a customer-owned production hostname before or after the first Prod deployment.
+- `domain_paid_apply` — Declare or activate the explicitly requested customer hostname.
+- `domain_paid_status` — Read DNS/TLS and effective Paid-domain access.
+- `domain_paid_delete` — Delete only the explicitly named project's stored customer hostname/route and owned DNS records.
+- `billing_checkout_create` — Owner-only: create or resume a hosted Checkout.
+- `billing_checkout_get` — Owner-only: observe the original checkout and reconcile confirmed credits/refunds, without another purchase.
+- `billing_recharge_get` — Owner-only: read auto-recharge consent, spending limit and payment handoff.
+- `billing_recharge_configure` — Owner-only: enable or disable automatic off-session payments.
+- `billing_portal_create` — Owner-only: return a short-lived Stripe portal URL to the human for invoices, payment methods or cancellation at period end.
+- `project_export_create` — Owner-only: request an asynchronous password-encrypted SQL ZIP, including at zero credits.
+- `project_export_get` — Owner-only: read the original SQL ZIP export's progress and error only.
+- `project_export_download_link_create` — Owner-only: sign one 24-hour download link of a succeeded SQL ZIP export read by project_export_get, and audit it under the caller.
+- `organization_usage_get` — Read the billed usage of the last up to 14 UTC days (today included) grouped by day, project and meter, and what each project has used so far this UTC month.
+- `organization_account_get` — Owner-only: read the effective Free/Paid plan, its Stripe or granted source, the monthly credits that expire at next_expiry, the top-up and bonus credits that never expire, the reservations that hold part of them, and available_micros (monthly plus one-time minus reservations).
+- `referral_link_get` — Read the workspace's referral link to share.
+- `organization_credits_get` — Read the owner's shared organization credit balance (available_micros is monthly plus one-time credit minus reservations) and the seven-day grace_started_at/grace_expires_at that begins when the credit is used up.
+- `project_budget_get` — Read the owner's project UTC-month budget, this month's use and open reservations.
+- `project_budget_set` — Set an owner's optional monthly project budget in microcredits (1000000 = one credit).
+- `organization_create` — Create an organization owned by the signed-in user.
+- `organization_list` — List the workspaces the chosen login's user belongs to and which one that login is scoped to.
+- `organization_use` — Bind a saved login that has no organization yet to one workspace, so later calls act inside it.
+- `profile_list` — List the saved ohmyho.st logins on this computer: each has a name, a user and an organization, never a token.
+- `database_query` — Read one owner-authorized Dev or Prod database query (at most 100 rows, five-second timeout).
+- `database_write` — Execute one explicitly authorized INSERT, UPDATE or DELETE/upsert in the chosen Dev or Prod database.
+- `database_access_create` — Issue a time-bound PostgreSQL credential for this project's own Dev or Prod database.
+- `database_access_list` — List this project's issued database credentials with their state (active, expired or revoked).
+- `database_access_revoke` — Revoke one issued database credential immediately: open sessions end and its PostgreSQL role is removed.
+- `database_watch_list` — List this project's database watches of one Dev or Prod environment (dev when omitted).
+- `database_watch_create` — Publish row changes of one table of a Dev or Prod database as data events: only the listed columns (at most 32) of each insert, update or delete are published, with the event type data.<topic> returned by this call.
+- `database_watch_delete` — Remove the capture trigger of one database watch: its table publishes no more data events.
+- `database_table_create` — Create one ordinary table in the public schema of a Dev or Prod database, as the migration role with the same access as migration tables, so a database_watch_create can attach later.
+- `database_webhook_list` — List this project's database webhooks of one Dev or Prod environment (dev when omitted), without signing secrets.
+- `database_webhook_create` — Subscribe one HTTPS receiver to database lifecycle events (database.created, ready, woke, slept, suspended, resized, deleted) of one Dev or Prod database, or to data events: data.<topic> for the rows of one watched table (the event type database_watch_create returns) or data.\* for every watched table; a bare \* never matches data events.
+- `database_webhook_subscription_status` — Read a webhook subscription generation and state, without its signing secret.
+- `database_webhook_subscription_activate` — Activate a stable subscription ULID and generation.
+- `database_webhook_subscription_deactivate` — Deactivate one generation.
+- `database_webhook_test` — Send one signed test request to a database webhook and report the outcome synchronously.
+- `database_webhook_delete` — Stop all deliveries to one database webhook.
+- `database_webhook_delivery_list` — List recent database webhook deliveries, newest first, optionally for one webhook.
+- `database_webhook_delivery_replay` — Queue one more attempt for a database webhook delivery that is no longer being retried.
+- `database_schedule_list` — List this project's database schedules of one Dev or Prod environment (dev when omitted), with their cadence, statements, timeout and next run.
+- `database_schedule_set` — Create or replace a named database schedule that runs SQL statements repeatedly on a timer, as the application's own runtime role, so row-level security applies.
+- `database_schedule_delete` — Remove one database schedule so it never runs again.
+- `database_schedule_run_list` — List the newest runs of one database schedule, newest first, with each run's outcome (succeeded, failed, timed_out, outcome_unknown, rejected or a skipped reason) and SQLSTATE when one applies.
+- `database_schedule_run_now` — Queue one immediate run of a database schedule.
+- `database_execution_usage_get` — Read metered database execution usage: schedule runs and webhook attempts per UTC hour or day window.
+- `promotion_plan` — Plan promotion of the current Dev artifact to Prod without a rebuild.
+- `promotion_execute` — Execute an explicitly confirmed Dev-to-Prod promotion using the unchanged plan guards.
+- `token_create` — Create your own non-expiring API token after interactive login and save it to the selected private env file.
+- `tokens_list` — List your token metadata after interactive login.
+- `token_revoke` — Revoke one of your own API tokens after explicit confirmation and interactive login.
+- `identity_get` — Get the ohmyho.st customer/agent identity this call acts as: user and account email, scoped organization IDs and names and, in context, the saved login or OHMYHOST_TOKEN that supplied it.
+- `project_handle_check` — Check whether a project address is free before offering it to the customer.
+- `project_handle_set` — Move a project to an address the customer chose, after project_handle_check said it is free.
+- `project_data_plan` — Owner only: plan a Dev/Prod data assignment change and review the data, files, deployments and database logins it keeps or removes.
+- `project_data_change` — Owner only: execute the exact reviewed project_data_plan after explicit customer confirmation.
+- `projects_list` — List projects visible to the current identity
+- `feedback_submit` — Report a bug, suspected issue or feature request to ohmyho.st.
+- `feedback_status` — Read the status of a feedback receipt you submitted and ohmyho.st's customer-visible replies: received, in_review, planned, in_progress, resolved (the fix is live in the named release) or closed (with an explanation).
+- `project_create` — Create an ohmyho.st project.
+- `project_get` — Get one project
+- `project_status` — Get source, existing environment IDs, deployment URLs, custom production domains, Dev access mode, latest operation and cleanup status.
+- `project_development_add` — Add Dev to an existing project.
+- `preview_get` — Read the private stable preview URL and source state for this project environment.
+- `preview_open` — Open or create a private stable preview URL.
+- `preview_stop` — Stop the preview and remove backups while preserving its URL.
+- `preview_rotate` — Rotate the preview URL and close old connections.
+- `project_dev_share_link_get` — Owner only: get or create the persistent protected Dev link.
+- `project_dev_access_mode_set` — Owner only: choose public Dev (no platform token) or protected Dev (share link required).
+- `powered_by_flag_get` — Read whether the production site shows the opt-in "Powered by ohmyho.st" flag.
+- `powered_by_flag_set` — Owner only, ask the human first: show or hide a small "Powered by ohmyho.st" flag on the right edge of the production site.
+- `project_dev_share_link_rotate` — Owner only: replace the persistent Dev link and immediately revoke old links and sessions.
+- `project_dev_share_link_revoke` — Owner only: revoke the persistent Dev link and active sessions immediately without changing the Dev access mode.
+- `project_dev_access_create` — Create an owner-only one-hour single-use access link for the protected Dev app.
+- `integration_connection_begin` — Create a protected Make consent link for the selected workspace and signed-in user.
+- `integration_connection_list` — List the caller's workspace connection grants.
+- `integration_connection_status` — Read a consent request status.
+- `integration_connection_discover` — Read accessible Make organizations, teams and connection metadata.
+- `integration_connection_import` — Import a selected Make connection into an explicit project and environment.
+- `integration_connection_disconnect` — Disconnect a connection grant and revoke its provider credential.
+- `github_connect` — Owner or Admin: connect GitHub once for this workspace.
+- `github_status` — Read this workspace's GitHub connection.
+- `github_disconnect` — Owner only: disconnect this workspace's GitHub connection.
+- `organization_mcp_connections_list` — Owner only: list the MCP clients connected to this workspace and the member who connected each, one entry per member, client and consent.
+- `organization_mcp_connection_revoke` — Owner only: disconnect one MCP client from this workspace only; the member's other workspaces are unaffected.
+- `source_link` — Link a repository covered by the workspace GitHub connection.
+- `source_get` — Get linked source status.
+- `deployment_plan` — Plan an immutable deployment.
+- `deployment_create` — Start a reviewed deployment plan
+- `deployments_list` — List project deployments
+- `deployment_get` — Get one deployment
+- `deployment_logs` — List the newest normalized diagnostics of one deployment (build, control, runtime and function failures with catalog codes).
+- `operation_get` — Get durable operation status and current deployment progress/reconciliation guidance.
+- `operation_logs` — Read available operation events for at most ten seconds, stopping earlier at max_events or a terminal event.
+- `function_runs_list` — List the newest scheduled function runs (functions.crons) of an environment: one run per due UTC minute with state, attempt, the status the scheduled handler returned and timing.
+- `operation_reconcile` — Start an explicitly confirmed provider reconciliation attempt
+- `workspace_mail_domain_dns_revoke` — Revoke the selected workspace sender DNS grant at its current revision with explicit confirmation.
+- `application_domain_identity_authorization_revoke` — Revoke the current application identity DNS grant with explicit confirmation.
+- `workspace_mail_domains_list` — List only workspace sender domains this account and connected client may read.
+- `workspace_mail_domain_create` — Create one workspace-owned transactional sender domain.
+- `workspace_mail_domain_get` — Read sender verification, lifecycle, revision and DNS records for one authorized workspace resource.
+- `workspace_mail_domain_retire` — Retire an explicitly selected workspace sender only after every send and inbound reference is detached and provider effects settle.
+- `workspace_mail_domain_dns_authorize` — Request human Cloudflare consent for this selected workspace sender, zone and revision.
+- `workspace_mail_domain_dns_status` — Read exact workspace sender DNS authorization status.
+- `mail_binding_get` — Read the Prod sender binding and per-project From addresses, default From and default Reply-To.
+- `mail_binding_set` — Attach a verified workspace sender or update its project settings.
+- `mail_binding_detach` — Detach only this project send binding with current revision and explicit confirmation.
+- `application_domain_identity_get` — Read the project intended application hostname, current revision and ownership proof.
+- `application_domain_identity_declare` — Declare the intended customer application hostname before deployment.
+- `application_domain_identity_verify` — Verify the exact current project and hostname TXT challenge independently of deployment.
+- `application_domain_identity_revoke` — Revoke only the selected current application-domain proof with explicit confirmation.
+- `application_domain_identity_authorize` — Request exact-purpose Cloudflare consent to write this project hostname ownership challenge at the current revision.
+- `application_domain_identity_authorization_status` — Read the selected project application-domain identity DNS authorization status.
+- `mail_setup` — Configure the customer's one production mail domain using the project Prod environment ID, only when the customer wants mail or the app declares mail.enabled; hosting needs no mail domain and none is registered automatically.
+- `mail_status` — Read sending and receiving readiness and exact DNS records for the project’s one production mail domain.
+- `mail_webhook_set` — Set the required HTTPS endpoint on the project's Prod application using its Prod environment ID.
+- `mail_webhook_verify` — Send a signed test to the Prod application endpoint and enable receiving after it accepts the event.
+- `mail_webhook_disable` — Disable receiving on the project's Prod mail domain and remove its webhook; existing message content becomes inaccessible.
+- `mail_webhook_rotate` — Owner only: issue a new server-only signing secret for the project's Prod mail webhook endpoint.
+- `mail_messages_list` — List the Prod environment's owned handoff metadata younger than 72 hours.
+- `mail_message_get` — Read only this project's Prod-received message before the hard 72-hour expiry.
+- `mail_message_retry` — Retry the Prod customer webhook within its shared budget: initial attempt plus at most three retries, all before 72 hours from receipt.
+- `mail_domain_set` — Configure the project's one production mail domain using its Prod environment ID.
+- `mail_domain_status` — Read separate sending and receiving readiness and exact DNS records for the project’s production mail domain.
+- `mail_domain_delete` — Retire the project's mail domain while the project stays active; use its Prod environment ID.
+- `native_auth_config_get` — Read Owner Native Auth configuration and readiness.
+- `native_auth_config_set` — Update Owner Native Auth configuration at the current revision.
+- `native_auth_provider_get` — Read provider setup without its secret.
+- `native_auth_provider_set` — Update provider settings without submitting a secret.
+- `native_auth_users_list` — List Native Auth users with bounded pagination.
+- `native_auth_user_create` — Create and invite a Native Auth user without choosing a password.
+- `native_auth_user_get` — Read a Native Auth user.
+- `native_auth_user_delete` — Delete an Owner-authorized Native Auth user.
+- `native_auth_user_invite` — Resend an Owner-authorized Native Auth user's invitation.
+- `native_auth_user_suspend` — Suspend an Owner-authorized Native Auth user.
+- `native_auth_user_reactivate` — Reactivate an Owner-authorized Native Auth user.
+- `native_auth_user_revoke_sessions` — Revoke an Owner-authorized Native Auth user's sessions.
+- `native_auth_provider_secret_input_request` — Return an account-bound stdin-only command; never place a provider secret in MCP arguments.
+- `secrets_list` — List secret metadata without values
+- `secret_delete` — Delete an environment secret
+- `secret_set_command` — Return the stdin-only CLI command for setting a secret; the value never enters MCP.
+- `rollback_plan` — Plan a rollback
+- `rollback_execute` — Execute a reviewed rollback
+- `delete_plan` — Plan complete project deletion
+- `delete_execute` — Execute a reviewed project deletion
+
+## Remote MCP tools
+
+These named tools belong to the shared remote endpoint used by the OpenAI and Claude plugins.
+The Claude package's four focused workflows do not restrict this server catalog. Current
+account rights and credential restrictions are checked by the canonical API on every call.
+
+- `api_reference` — Find documented API operations, exact schemas and remote MCP support in the deployed Master Tool Contract. This lookup never executes an API operation. See https://github.com/amerged-org/ohmyhost for the ohmyho.st hosting platform (OMH) and https://github.com/amerged-org/cloudflare-postgres for its PostgreSQL infrastructure (PGCF).
+- `application_domain_identity_authorization_revoke` — Use tools/list for application_domain_identity_authorization_revoke's registered MCP description and exact input schema.
+- `application_domain_identity_authorization_status` — Use tools/list for application_domain_identity_authorization_status's registered MCP description and exact input schema.
+- `application_domain_identity_authorize` — Use tools/list for application_domain_identity_authorize's registered MCP description and exact input schema.
+- `application_domain_identity_declare` — Use tools/list for application_domain_identity_declare's registered MCP description and exact input schema.
+- `application_domain_identity_get` — Use tools/list for application_domain_identity_get's registered MCP description and exact input schema.
+- `application_domain_identity_revoke` — Use tools/list for application_domain_identity_revoke's registered MCP description and exact input schema.
+- `application_domain_identity_verify` — Use tools/list for application_domain_identity_verify's registered MCP description and exact input schema.
+- `audit_events_list` — Returns events visible in an authorized workspace in stable descending order.
+- `billing_checkout_create` — Owner-only: create or resume a hosted Checkout.
+- `billing_checkout_get` — Owner-only: observe the original checkout and reconcile confirmed credits/refunds, without another purchase.
+- `billing_portal_create` — Owner-only: return a short-lived Stripe portal URL to the human for invoices, payment methods or cancellation at period end.
+- `billing_recharge_configure` — Owner-only: enable or disable automatic off-session payments.
+- `billing_recharge_get` — Owner-only: read auto-recharge consent, spending limit and payment handoff.
+- `connection_revoke` — Revoke only the current remote connection through its existing consent workflow.
+- `connection_status` — Read protected secret/GitHub handoff state without credentials.
+- `database_access_list` — List this project's issued database credentials with their state (active, expired or revoked).
+- `database_access_revoke` — Revoke one issued database credential immediately: open sessions end and its PostgreSQL role is removed.
+- `database_compute_get` — Read current managed database memory, total storage, region and observed state without running SQL or waking the database.
+- `database_compute_set` — Choose fixed database RAM: 256, 512, 1024, 2048 or 4096 MiB.
+- `database_execution_usage_get` — Use tools/list for database_execution_usage_get's registered MCP description and exact input schema.
+- `database_query` — Read one owner-authorized Dev or Prod database query (at most 100 rows, five-second timeout).
+- `database_schedule_delete` — Remove one database schedule so it never runs again.
+- `database_schedule_get` — Read one database schedule
+- `database_schedule_list` — Use tools/list for database_schedule_list's registered MCP description and exact input schema.
+- `database_schedule_run_list` — Use tools/list for database_schedule_run_list's registered MCP description and exact input schema.
+- `database_schedule_run_now` — Queue one immediate run of a database schedule.
+- `database_schedule_set` — Create or replace a named database schedule in the explicitly selected Dev or Prod environment.
+- `database_table_create` — Create one ordinary table in the public schema of a Dev or Prod database, as the migration role with the same access as migration tables, so a database_watch_create can attach later.
+- `database_watch_create` — Create or replace the row-change capture watch for one ordinary application table in the selected Dev or Prod database.
+- `database_watch_delete` — Remove the capture trigger of one database watch: its table publishes no more data events.
+- `database_watch_list` — List this project's database watches of one Dev or Prod environment (dev when omitted).
+- `database_webhook_delete` — Stop all deliveries to the selected database webhook in the chosen environment.
+- `database_webhook_delivery_list` — Use tools/list for database_webhook_delivery_list's registered MCP description and exact input schema.
+- `database_webhook_delivery_replay` — Queue one further attempt for an existing database webhook delivery that is no longer being retried.
+- `database_webhook_get` — Returns one webhook without its signing secret.
+- `database_webhook_list` — Use tools/list for database_webhook_list's registered MCP description and exact input schema.
+- `database_webhook_subscription_deactivate` — Deactivate one generation.
+- `database_webhook_subscription_status` — Use tools/list for database_webhook_subscription_status's registered MCP description and exact input schema.
+- `database_webhook_test` — Send one signed test request to the selected existing database webhook and report the outcome synchronously.
+- `database_write` — Execute one explicitly authorized INSERT, UPDATE or DELETE/upsert in the chosen Dev or Prod database.
+- `delete_execute` — Execute the exact whole-project deletion covered by the user's authorization and a fresh delete_plan.
+- `delete_plan` — Prepare a ten-minute persisted deletion plan for exactly the selected project_id.
+- `deployment_create` — Use tools/list for deployment_create's registered MCP description and exact input schema.
+- `deployment_get` — Use tools/list for deployment_get's registered MCP description and exact input schema.
+- `deployment_list` — Use tools/list for deployment_list's registered MCP description and exact input schema.
+- `deployment_logs` — Use tools/list for deployment_logs's registered MCP description and exact input schema.
+- `deployment_plan` — Use tools/list for deployment_plan's registered MCP description and exact input schema.
+- `deployment_promote` — Use tools/list for deployment_promote's registered MCP description and exact input schema.
+- `deployment_rollback` — Use tools/list for deployment_rollback's registered MCP description and exact input schema.
+- `domain_cloudflare_authorize` — Check domain_cloudflare_status first and reuse a valid matching grant.
+- `domain_cloudflare_status` — Read the project's customer DNS authorization state, zone, scopes and expiry without credentials.
+- `domain_paid_apply` — Declare or activate the explicitly requested customer hostname.
+- `domain_paid_delete` — Delete only the explicitly named project's stored customer hostname/route and owned DNS records.
+- `domain_paid_plan` — Plan a customer-owned production hostname before or after the first Prod deployment.
+- `domain_paid_status` — Read DNS/TLS and effective Paid-domain access.
+- `feedback_status` — Read the status of a feedback receipt you submitted and ohmyho.st's customer-visible replies: received, in_review, planned, in_progress, resolved (the fix is live in the named release) or closed (with an explanation).
+- `feedback_submit` — Report a bug, suspected issue or feature request to ohmyho.st.
+- `function_runs_list` — List the newest scheduled function runs (functions.crons) of an environment: one run per due UTC minute with state, attempt, the status the scheduled handler returned and timing.
+- `github_connect` — Use tools/list for github_connect's registered MCP description and exact input schema.
+- `github_disconnect` — Owner only: disconnect this workspace's GitHub connection.
+- `github_status` — Use tools/list for github_status's registered MCP description and exact input schema.
+- `identity_get` — Use tools/list for identity_get's registered MCP description and exact input schema.
+- `integration_connection_begin` — The workspace owner gives provider consent through a protected browser link. Follow tools/list for this workflow's exact MCP arguments; never submit secret values in chat or tool arguments.
+- `integration_connection_disconnect` — Use tools/list for integration_connection_disconnect's registered MCP description and exact input schema.
+- `integration_connection_discover` — Use tools/list for integration_connection_discover's registered MCP description and exact input schema.
+- `integration_connection_import` — Use tools/list for integration_connection_import's registered MCP description and exact input schema.
+- `integration_connection_list` — Use tools/list for integration_connection_list's registered MCP description and exact input schema.
+- `integration_connection_providers` — Check which SaaS connection providers are available to this workspace and whether discovery is ready.
+- `integration_connection_status` — Use tools/list for integration_connection_status's registered MCP description and exact input schema.
+- `mail_binding_detach` — Use tools/list for mail_binding_detach's registered MCP description and exact input schema.
+- `mail_binding_get` — Use tools/list for mail_binding_get's registered MCP description and exact input schema.
+- `mail_binding_set` — Use tools/list for mail_binding_set's registered MCP description and exact input schema.
+- `mail_domain_delete` — Retire the project's mail domain while the project stays active; use its Prod environment ID.
+- `mail_domain_set` — Configure the requested sending/receiving settings for the project's one production mail domain using its Prod environment_id.
+- `mail_domain_status` — Read separate sending and receiving readiness and exact DNS records for the project’s production mail domain.
+- `mail_message_get` — Read only this project's Prod-received message before the hard 72-hour expiry.
+- `mail_message_retry` — Retry the Prod customer webhook within its shared budget: initial attempt plus at most three retries, all before 72 hours from receipt.
+- `mail_messages_list` — List the Prod environment's owned handoff metadata younger than 72 hours.
+- `mail_webhook_disable` — Disable receiving on the project's Prod mail domain and remove its webhook; existing message content becomes inaccessible.
+- `mail_webhook_verify` — Send a signed test to the Prod application endpoint and enable receiving after it accepts the event.
+- `native_auth_config_get` — Use tools/list for native_auth_config_get's registered MCP description and exact input schema.
+- `native_auth_config_set` — Use tools/list for native_auth_config_set's registered MCP description and exact input schema.
+- `native_auth_provider_get` — Use tools/list for native_auth_provider_get's registered MCP description and exact input schema.
+- `native_auth_provider_secret_input_request` — Provider metadata uses native_auth_provider_set; clientSecret is accepted only through native_auth_provider_secret_input_request, never MCP arguments. Follow tools/list for this workflow's exact MCP arguments; never submit secret values in chat or tool arguments.
+- `native_auth_provider_set` — Provider metadata uses native_auth_provider_set; clientSecret is accepted only through native_auth_provider_secret_input_request, never MCP arguments. Follow tools/list for this workflow's exact MCP arguments; never submit secret values in chat or tool arguments.
+- `native_auth_user_create` — Use tools/list for native_auth_user_create's registered MCP description and exact input schema.
+- `native_auth_user_delete` — Use tools/list for native_auth_user_delete's registered MCP description and exact input schema.
+- `native_auth_user_get` — Use tools/list for native_auth_user_get's registered MCP description and exact input schema.
+- `native_auth_user_invite` — Use tools/list for native_auth_user_invite's registered MCP description and exact input schema.
+- `native_auth_user_reactivate` — Use tools/list for native_auth_user_reactivate's registered MCP description and exact input schema.
+- `native_auth_user_revoke_sessions` — Use tools/list for native_auth_user_revoke_sessions's registered MCP description and exact input schema.
+- `native_auth_user_suspend` — Use tools/list for native_auth_user_suspend's registered MCP description and exact input schema.
+- `native_auth_users_list` — Use tools/list for native_auth_users_list's registered MCP description and exact input schema.
+- `operation_get` — Use tools/list for operation_get's registered MCP description and exact input schema.
+- `operation_reconcile` — Use tools/list for operation_reconcile's registered MCP description and exact input schema.
+- `organization_account_get` — Owner-only: read the effective Free/Paid plan, its Stripe or granted source, the monthly credits that expire at next_expiry, the top-up and bonus credits that never expire, the reservations that hold part of them, and available_micros (monthly plus one-time minus reservations).
+- `organization_credits_get` — Read the owner's shared organization credit balance (available_micros is monthly plus one-time credit minus reservations) and the seven-day grace_started_at/grace_expires_at that begins when the credit is used up.
+- `organization_usage_get` — Read the billed usage of the last up to 14 UTC days (today included) grouped by day, project and meter, and what each project has used so far this UTC month.
+- `powered_by_flag_get` — Read whether the production site shows the opt-in "Powered by ohmyho.st" flag.
+- `powered_by_flag_set` — Owner only, ask the human first: show or hide a small "Powered by ohmyho.st" flag on the right edge of the production site.
+- `preview_get` — Use tools/list for preview_get's registered MCP description and exact input schema.
+- `preview_open` — Use tools/list for preview_open's registered MCP description and exact input schema.
+- `preview_rotate` — Use tools/list for preview_rotate's registered MCP description and exact input schema.
+- `preview_stop` — Use tools/list for preview_stop's registered MCP description and exact input schema.
+- `project_budget_get` — Read the owner's project UTC-month budget, this month's use and open reservations.
+- `project_budget_set` — Set an owner's optional monthly project budget in microcredits (1000000 = one credit).
+- `project_context_get` — Use tools/list for project_context_get's registered MCP description and exact input schema.
+- `project_create` — Use tools/list for project_create's registered MCP description and exact input schema.
+- `project_data_change` — Owner only: execute the exact reviewed project_data_plan after explicit customer confirmation.
+- `project_data_plan` — Owner only: plan a Dev/Prod data assignment change and review the data, files, deployments and database logins it keeps or removes.
+- `project_dev_access_create` — Use tools/list for project_dev_access_create's registered MCP description and exact input schema.
+- `project_dev_access_mode_set` — Owner only: anyone with the URL can reach public Dev without platform authentication.
+- `project_dev_share_link_get` — Use tools/list for project_dev_share_link_get's registered MCP description and exact input schema.
+- `project_dev_share_link_revoke` — Owner only: revoke the persistent Dev link and active sessions immediately without changing the Dev access mode.
+- `project_dev_share_link_rotate` — Owner only: replace the persistent Dev link and immediately revoke old links and sessions.
+- `project_development_add` — Use tools/list for project_development_add's registered MCP description and exact input schema.
+- `project_domains_apply` — Starts an idempotent durable operation for the exact project-derived development, production, and mail hostnames.
+- `project_export_get` — Owner-only: read the original encrypted SQL ZIP export's progress and error, never its password or a download URL.
+- `project_get` — Use tools/list for project_get's registered MCP description and exact input schema.
+- `project_handle_check` — Check whether a project address is free before offering it to the customer.
+- `project_handle_set` — Move a project to an address the customer chose, after project_handle_check said it is free.
+- `project_list` — Use tools/list for project_list's registered MCP description and exact input schema.
+- `project_notes_set` — Save shared project to-dos, at most 250 lines / 16384 UTF-8 bytes.
+- `project_status` — Use tools/list for project_status's registered MCP description and exact input schema.
+- `promotion_plan` — Use tools/list for promotion_plan's registered MCP description and exact input schema.
+- `referral_link_get` — Read the workspace's referral link to share.
+- `rollback_plan` — Use tools/list for rollback_plan's registered MCP description and exact input schema.
+- `secret_delete` — Delete only the named secret in the explicitly selected project_id and environment_id when the user's authorization covers that exact removal.
+- `secret_input_request` — Use the existing secret_input_request portal form; plaintext secrets never enter MCP arguments. Follow tools/list for this workflow's exact MCP arguments; never submit secret values in chat or tool arguments.
+- `secrets_list` — Use tools/list for secrets_list's registered MCP description and exact input schema.
+- `source_auto_deploy_get` — Get automatic GitHub push deployment status
+- `source_auto_deploy_set` — Configures exactly one Git branch whose signed pushes deploy immutable commits to dev.
+- `source_blob_put` — Use tools/list for source_blob_put's registered MCP description and exact input schema.
+- `source_changes` — Use tools/list for source_changes's registered MCP description and exact input schema.
+- `source_diff` — Use tools/list for source_diff's registered MCP description and exact input schema.
+- `source_files` — Use tools/list for source_files's registered MCP description and exact input schema.
+- `source_get` — Use tools/list for source_get's registered MCP description and exact input schema.
+- `source_initialize` — Use tools/list for source_initialize's registered MCP description and exact input schema.
+- `source_link` — Use tools/list for source_link's registered MCP description and exact input schema.
+- `source_restore` — Use tools/list for source_restore's registered MCP description and exact input schema.
+- `source_switch` — Use tools/list for source_switch's registered MCP description and exact input schema.
+- `source_upload` — Use tools/list for source_upload's registered MCP description and exact input schema.
+- `source_upload_commit` — Use tools/list for source_upload_commit's registered MCP description and exact input schema.
+- `source_upload_prepare` — Use tools/list for source_upload_prepare's registered MCP description and exact input schema.
+- `source_versions` — Use tools/list for source_versions's registered MCP description and exact input schema.
+- `workspace_connection_revoke` — Owner only.
+- `workspace_connections_list` — Owner only.
+- `workspace_mail_domain_create` — Use tools/list for workspace_mail_domain_create's registered MCP description and exact input schema.
+- `workspace_mail_domain_dns_authorize` — Use tools/list for workspace_mail_domain_dns_authorize's registered MCP description and exact input schema.
+- `workspace_mail_domain_dns_revoke` — Use tools/list for workspace_mail_domain_dns_revoke's registered MCP description and exact input schema.
+- `workspace_mail_domain_dns_status` — Use tools/list for workspace_mail_domain_dns_status's registered MCP description and exact input schema.
+- `workspace_mail_domain_get` — Use tools/list for workspace_mail_domain_get's registered MCP description and exact input schema.
+- `workspace_mail_domain_retire` — Use tools/list for workspace_mail_domain_retire's registered MCP description and exact input schema.
+- `workspace_mail_domains_list` — Use tools/list for workspace_mail_domains_list's registered MCP description and exact input schema.
+- `workspace_setup` — Workspace creation/selection uses the existing portal setup workflow. Follow tools/list for this workflow's exact MCP arguments; never submit secret values in chat or tool arguments.
+
+## Master Tool Contract and API reference
+
+Master Tool Contract SHA-256: `490aa3b1c4d68906162af3f8d000fa37e93d0a52ef29fe52f57a83cbc5209294`.
+
+The complete public OpenAPI contract is at <https://ohmyho.st/api> and mirrored per release.
+Its MCP metadata accounts for every API operation: a named tool, a protected handoff, an
+equivalent workflow or an explicit exception. The remote `api_reference` documentation tool
+returns bounded operation summaries/schemas, the contract hash, support status and links.
+It never executes an API call. Use only executable tools actually exposed by this host.
+
+Local filesystem helpers, password-file exports and raw credential delivery do not become
+remote capabilities because they appear in the full API. Use the documented supported path
+or explain the concrete limitation; never pass a password or token through a documentation tool.

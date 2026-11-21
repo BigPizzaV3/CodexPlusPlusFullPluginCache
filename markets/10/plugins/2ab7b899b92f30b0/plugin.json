@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "swinch",
+  "version": "1.0.0",
+  "description": "Live local deals, restaurants, shops and attractions across Switzerland.",
+  "author": {
+    "name": "Swinch AG",
+    "email": "support@swinch.com",
+    "url": "https://swinch.com"
+  },
+  "homepage": "https://swinch.com/mcp",
+  "keywords": [
+    "switzerland",
+    "local",
+    "deals",
+    "restaurants",
+    "attractions",
+    "travel"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Swinch",
+        "shortDescription": "Local deals in Switzerland",
+        "longDescription": "Swinch is a local discovery app for Switzerland. This plugin puts its live catalog into your conversation: restaurants, cafes, shops and attractions, plus the discounts, coupons and giveaways merchants are running on them right now.\n\nAsk in plain language instead of browsing \u2014 what is on offer in a city, what is open now, what sits near a landmark, or what is worth stopping for between two points.\n\nEvery tool is read-only and works without an account or sign-in. Nothing here can create, change or delete anything, and the plugin cannot reach a Swinch account, its coupons or its order history; it returns only data already public on Swinch.\n\nCoverage is Switzerland only. A question about anywhere else returns nothing rather than an invented answer.",
+        "developerName": "Swinch AG",
+        "category": "Travel",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://swinch.com",
+        "supportURL": "https://swinch.com/mcp",
+        "privacyPolicyURL": "https://swinch.com/privacy-policy",
+        "termsOfServiceURL": "https://swinch.com/terms-and-conditions",
+        "brandColor": "#50C4D2",
+        "logo": "assets/logo.png",
+        "composerIcon": "assets/composer-icon.png"
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Finds live offers in a named Swiss city. Calls search_offers with city 'Lucerne' and returns current deals with prices in CHF.",
+              "prompt": "What's on offer in Lucerne right now?",
+              "expected_output": "A list of live Lucerne offers, each with name, type (coupon, discount or giveaway), the business it belongs to, the CHF price where one applies, and distance from the city centre. Verified live: 53 offers, including \"Freshly Blended Smoothies - 10% off\" (coupon, CHF 6.90) at Bistro Meile and \"Free Casiboy Keyring\" (giveaway) at Casagrande Souvenirs & Watches.",
+              "tools_triggered": "search_offers"
+            },
+            {
+              "description": "Finds a venue open at the time of the query. Calls search_businesses with city 'Zurich' and openNow, returning only places currently open.",
+              "prompt": "Find a restaurant in Zurich that's open now",
+              "expected_output": "Zurich venues open at the moment of the query, each with category, distance and openNow set to true. Verified live: Babu's Bakery & Coffeehouse (Eating, 0.53 km) and k kiosk (Shopping, 0.43 km). openNow is computed from each venue's published opening hours, so the specific venues returned vary with the time of day the test runs.",
+              "tools_triggered": "search_businesses"
+            },
+            {
+              "description": "Lists attractions in a city. Calls search_attractions with city 'Lucerne' and returns landmarks such as the Spreuer Bridge and the Jesuit Church.",
+              "prompt": "What are the main attractions in Lucerne?",
+              "expected_output": "Lucerne attractions with a one-line description, city, distance from centre and entry price where known. Verified live: 18 attractions, including Spreuer Bridge, Jesuit Church Lucerne, Kornmarkt, Museum Rosengart Collection and Chapel Bridge (Kapellbruecke).",
+              "tools_triggered": "search_attractions"
+            },
+            {
+              "description": "Finds places around a specific landmark. Calls search_attractions to resolve the landmark, then nearby_to_entity with that attraction id.",
+              "prompt": "What's near the Spreuer Bridge in Lucerne?",
+              "expected_output": "Two calls: search_attractions resolves \"Spreuer Bridge\" to its id, then nearby_to_entity returns places within 1.5 km of it, with the anchor point echoed in the response. Verified live: Bistro Meile (Eating, 0.34 km, 13 offers), Sock Atomica (Shopping, 0.41 km) and Marea Shop (0.59 km).",
+              "tools_triggered": "search_attractions, nearby_to_entity"
+            },
+            {
+              "description": "Finds stops along a route. Calls search_attractions to resolve the destination, then on_the_way, returning stops ordered by smallest detour.",
+              "prompt": "I'm heading to the Chapel Bridge in Lucerne - anything good on the way?",
+              "expected_output": "Two calls: search_attractions resolves \"Chapel Bridge (Kapellbruecke)\", then on_the_way returns stops along the route ordered by smallest detour first, with route distance and walking time. Verified live: a 0.73 km route, about 10 minutes on foot, with Asphalt Store and Wirtshaus Taube Luzern at zero detour and Restaurant Toscana at 0.01 km.",
+              "tools_triggered": "search_attractions, on_the_way"
+            }
+          ],
+          "negative": [
+            {
+              "description": "A city outside coverage. Swinch covers Switzerland only, so the plugin returns no results and says so, rather than presenting unscoped results as if they came from Paris.",
+              "prompt": "What deals are there in Paris?",
+              "expected_output": "The tool returns count 0 with an explicit note: \"No Swinch city matches 'Paris'. Swinch covers Swiss cities only.\" The assistant should state that Paris is outside coverage and return no deals, rather than presenting Swiss or unscoped results as if they came from Paris.",
+              "tools_triggered": "search_offers"
+            },
+            {
+              "description": "Unrelated to local discovery. No Swinch tool should be invoked - nothing in the plugin relates to writing code.",
+              "prompt": "Write me a Python function to sort a list",
+              "expected_output": "No Swinch tool is invoked. Nothing in this plugin relates to writing code, so the assistant should answer from its own knowledge without calling the connector.",
+              "tools_triggered": "none"
+            },
+            {
+              "description": "Out-of-range parameter. The limit is capped at 10, so an out-of-range value returns a clear validation error rather than failing opaquely.",
+              "prompt": "Show me 999 restaurants in Lucerne",
+              "expected_output": "The call is rejected by input validation with \"Invalid arguments: limit Number must be less than or equal to 10\". The assistant should either retry within the cap or tell the user the limit is 10, rather than failing opaquely or inventing 999 results.",
+              "tools_triggered": "search_businesses"
+            }
+          ]
+        },
+        "demo_recording_url": "https://cdn.swinch.com/plugin-review/swinch-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Swinch 1.0.0 - first release.\n\nRead-only access to the Swinch catalog for Switzerland: restaurants, cafes, shops and attractions, plus the discounts, coupons and giveaways merchants are running on them right now.\n\nSix tools: find_city, search_businesses, search_offers, search_attractions, nearby_to_entity and on_the_way. Each search tool takes an optional city name, which resolves to a Swiss city and its centre point so results are scoped to the place the user named.\n\nNo authentication and no account required. Every tool is read-only - nothing can create, change or delete data, and the connector cannot reach a Swinch account, its coupons or its order history. It returns only data already public on swinch.com.\n\nCoverage is Switzerland only. A query about anywhere else returns no results and says so, rather than presenting unscoped data as if it came from that place."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

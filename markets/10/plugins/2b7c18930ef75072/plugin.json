@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6aa2b9b8a5788191a052492ba334ac54",
+  "version": "1.0.1",
+  "description": "Dext lets accounting practices inspect authorised client, workflow, financial, and time-tracking data in ChatGPT. Users can review practice data, assess client finances, and send product feedback to Dext.",
+  "author": {
+    "name": "Dext"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dext",
+        "developerName": "Dext",
+        "category": "Business & Operations",
+        "websiteURL": "https://dext.com/",
+        "supportURL": "https://dext.com",
+        "privacyPolicyURL": "https://dext.com/en/privacy-policy",
+        "termsOfServiceURL": "https://dext.com/en/terms-and-conditions",
+        "logo": "assets/logo.png",
+        "composerIcon": "assets/logo.png",
+        "shortDescription": "Accounting practice insights",
+        "longDescription": "Dext helps accounting practices review client accounts and monitor practice operations in ChatGPT. Compare client health scores, inspect invoices and financial summaries, review staff access, and analyse tracked time using authorised Dext data.",
+        "defaultPrompt": [
+          "Which 5 clients took up the most hours last month?",
+          "Which practice users haven't logged in for over 90 days?",
+          "Which 10 clients have the lowest healthscores?"
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://dext.zoom.us/clips/share/aoMdEeEzSLSVXFlk-g8Smw",
+        "commerce": false,
+        "commerce_description": "This plugin does not enable payments or purchases.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover authorised practices. Setup: sign in with the dedicated reviewer account and authorise the Dext Accountants sample practice through OAuth. This connection returned one practice during preparation. Compare the result with the review account's actual consent selection; do not assume every reviewer account has the same grants.",
+              "prompt": "Show me the Dext practices I can access.",
+              "tools_triggered": "organisations",
+              "expected_behavior": "Call organisations. Present practice names and CRNs from its response. Only return practices accessible to the signed-in user and permitted by the OAuth grant. Do not invent practices or identifiers."
+            },
+            {
+              "description": "Filter and paginate clients in Dext Accountants. Setup: the dedicated reviewer account has access to this sample practice and its active clients. During preparation there were 130 active clients, returned in three pages of 50, 50 and 30. Treat those counts as a dated observation; compare the result with the live total_count and traverse all cursors.",
+              "prompt": "List all active clients in Dext Accountants, sorted by name, and tell me how many there are.",
+              "tools_triggered": "organisations, client_list",
+              "expected_behavior": "Obtain the Dext Accountants practice_crn from organisations. Call client_list with status ACTIVE, sort_by NAME and sort_direction asc. Follow each non-null end_cursor using after, retaining the filters and sorting on every page, until the cursor is absent or null. Present every returned client once, preserving the server's ordering, and report total_count. Every listed client must have status ACTIVE; the distinct client CRN count must equal total_count for an unchanged dataset. Never guess a cursor or treat the first page count as the total."
+            },
+            {
+              "description": "Retrieve team time for an explicit period in Dext Accountants. Setup: a practice manager reviewer account with the time_spent feature enabled. September 2026 data was available during preparation: 31 colleagues across pages of 20 and 11. Compare displayed values with live responses rather than hard-coding the dated totals.",
+              "prompt": "Show the Dext Accountants team's tracked time from September 1 through September 30, 2026. Include each colleague's total in minutes.",
+              "tools_triggered": "organisations, team_time_spent",
+              "expected_behavior": "Discover the Dext Accountants practice_crn with organisations. Call team_time_spent with period_start 2026-09-01 and period_end 2026-09-30. Follow end_cursor using after until it is absent or null, retaining the practice and period on every page. Present all colleagues once with their returned names and time_spent in minutes; the distinct colleague CRN count must equal total_count for an unchanged dataset. Preserve the returned period boundaries and never label minutes as hours without converting."
+            },
+            {
+              "description": "Read paid accounting invoices for Amina's Avocado Shop in Dext Accountants. Setup: the dedicated reviewer account can access this sample client and its DATA_HEALTH module. Name search plus the DATA_HEALTH filter resolved one client during preparation; its paid-invoice query returned four invoices. Other accessible Data Health clients returned no paid invoices, so use the named fixture and keep valid empty-result handling explicit.",
+              "prompt": "Show up to 10 paid invoices for Amina's Avocado Shop in Dext Accountants, newest first. Include the invoice number, amount, currency and date.",
+              "tools_triggered": "organisations, client_list, list_invoices",
+              "expected_behavior": "Discover the practice_crn from organisations. Resolve client_crn with client_list using search_term Amina's Avocado Shop and modules containing DATA_HEALTH; clarify if the result is ambiguous. Call list_invoices with that practice and client, status PAID, limit 10, sort_by date and sort_direction desc. Present at most 10 returned invoices, all PAID, in descending date order, using invoiceNumber, total, currencyCode and date. Do not confuse count with a cursor or assume the response has total_count or end_cursor. If invoices is empty, explain that no paid invoices were returned without inventing records. Do not claim to have created or changed invoices."
+            },
+            {
+              "description": "Audit practice-user login dates. Setup: a practice manager reviewer account with access to Dext Accountants. During preparation practice_users returned 76 staff across pages of 50 and 26: 26 had last_login before 2026-07-08 and six had no last_login value. The explicit cutoff makes the test reproducible; compare counts with the live responses if sample data changes.",
+              "prompt": "In Dext Accountants, list practice users whose last login was before July 8, 2026. Separately list users with no recorded last-login date.",
+              "tools_triggered": "organisations, practice_users",
+              "expected_behavior": "Discover the Dext Accountants practice_crn using organisations. Call practice_users and follow each end_cursor using after until it is absent or null. Filter the complete user list locally because practice_users has no last-login filter. Include only non-null last_login dates strictly earlier than 2026-07-08 in the first group. Put null or absent last_login values in a separate unknown-date group; do not call them inactive or claim they never logged in. Display returned names and known dates, avoid duplicates, and report each group count. Do not use client_users or change any permissions."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Invoice creation is unsupported. Explain the limit without invoking any MCP tool or claiming an invoice was created. The supplied data does not require a lookup.",
+              "prompt": "Create a new invoice in Dext for Acme Ltd for GBP 500 of bookkeeping services. I already have all the details; just create it."
+            },
+            {
+              "description": "Submitting a tax return is unsupported. Explain that VAT summaries can be retrieved but returns cannot be filed through this integration. Do not invoke MCP tools, imply filing, or offer to send feedback without agreement.",
+              "prompt": "I have already checked my VAT figures. Submit my VAT return to HMRC through Dext now."
+            },
+            {
+              "description": "Changing access permissions is unsupported. Explain that client access can be inspected but cannot be modified through this integration. Do not invoke MCP tools or claim to have granted access.",
+              "prompt": "Grant alex@example.org access to every client in my Dext practice. Do not look anything up; just change the permissions."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial submission of the Dext MCP integration, covering authorised practice and client information, tracked time, Data Health queries, and user-approved feedback. Package version matches MCP server version 1.0.1."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

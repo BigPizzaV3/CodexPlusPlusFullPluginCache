@@ -1,0 +1,1 @@
+FormBlends 2.2.0: eight actual dedicated reviewer cases passed in ChatGPT, including literal distinct-account isolation. The edited actual-screen walkthrough is encoded and decoded; canonical video hosting is verified. Company publishing access is unavailable. This package is not submitted, approved or published.

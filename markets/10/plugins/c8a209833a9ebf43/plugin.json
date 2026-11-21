@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "thailand-dive-map",
+  "version": "0.1.1",
+  "author": {
+    "name": "Sid Lin"
+  },
+  "description": "Search public Thailand dive-shop and liveaboard information, inspect selected profiles, and preserve sources and unknowns.",
+  "homepage": "https://thailanddivemap.com/about/plugin",
+  "keywords": [
+    "thailand",
+    "diving",
+    "dive-shops",
+    "liveaboards",
+    "travel"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Thailand Dive Map",
+        "developerName": "Sid Lin",
+        "shortDescription": "Thai dive shops & liveaboards",
+        "longDescription": "Find and compare Thailand dive shops and liveaboards using public Thailand Dive Map catalogue information. Search by location, language, published course requirements, routes, trip length, reference budget and other supported filters. Open selected profiles for courses, cabins, itineraries, inclusions, prerequisites and source links where available.\n\nResults preserve missing information and source dates. Operating months describe seasonal catalogue data, not live departures or availability. Prices are published reference values, not current total quotes.\n\nThe plugin reads public information. It does not access private owner or customer records, contact operators, send enquiries, certify safety, decide diver eligibility, place bookings or take payments. Confirm operational details, availability and final prices directly with the operator.",
+        "websiteURL": "https://thailanddivemap.com/about/plugin",
+        "supportURL": "https://thailanddivemap.com/about/plugin/support",
+        "defaultPrompt": [
+          "Find English-speaking dive shops in Koh Tao.",
+          "Compare Similan liveaboards for 4\u20136 days under 35,000 THB in published reference prices.",
+          "Show published courses, reference prices and unknowns for a shop from my shortlist."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "category": "Travel",
+        "privacyPolicyURL": "https://thailanddivemap.com/about/plugin/privacy",
+        "termsOfServiceURL": "https://thailanddivemap.com/about/plugin/terms"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "In a fresh conversation, shortlist public Koh Tao shops with English language evidence. Beginner experience is a ranking preference, not a qualification or safety claim.",
+              "prompt": "Find three English-speaking dive shops in Koh Tao for a beginner. Show the sources and any important unknowns.",
+              "tools_triggered": "search_dive_shops",
+              "expected_behavior": "Call search_dive_shops with region=\"Koh Tao\", languages=[\"English\"], experience=\"beginner\", limit=3. Do not invent a required course. Return at most three results supported by the response, cite each returned shop.canonical_url, preserve unknowns and explain that ranking does not certify safety. An empty result must be explained without silently relaxing requirements."
+            },
+            {
+              "description": "First run the English-speaking Koh Tao shortlist case. If it returns no shops, the follow-up setup is blocked; do not invent a candidate. Use the first actual result as conversation context.",
+              "prompt": "For the first shop in that shortlist, show its published courses, reference prices, equipment inclusion and prerequisites. Tell me which details are unknown.",
+              "tools_triggered": "search_dive_shops (setup), get_dive_shop",
+              "expected_behavior": "Call get_dive_shop with the exact slug of the first prior shop. On status=found, ground courses, reference prices, currency, gear evidence and prerequisites in the returned fields. Preserve provenance, source dates, unknowns and collection truncation. If additional records are needed, paginate with the returned next_offset and the same slug. Cite shop.canonical_url. Do not claim eligibility, current total quotes, availability or contact. If not_found, explain and offer to search again."
+            },
+            {
+              "description": "In a fresh conversation, combine route, trip days, THB reference budget and Nitrox evidence. All hard requirements must be satisfied by the same matching program.",
+              "prompt": "Find up to five Similan liveaboards for 4\u20136 days, with a published per-person reference price of at most 35,000 THB and Nitrox available.",
+              "tools_triggered": "search_liveaboards",
+              "expected_behavior": "Call search_liveaboards with route=\"similan\", duration_min=4, duration_max=6, max_price=35000, nitrox=\"available\", limit=5. Return only supported matching results and canonical URLs. Explain that Nitrox may cost extra, prices are reference values rather than current total quotes, and availability has not been checked. Explain empty results without dropping hard requirements."
+            },
+            {
+              "description": "First run the Similan liveaboard case. If no vessel is returned, the follow-up setup is blocked. Use the first real vessel from that conversation.",
+              "prompt": "For the first boat in that shortlist, compare its published cabin options and show the itinerary, fees, qualification evidence and source links.",
+              "tools_triggered": "search_liveaboards (setup), get_liveaboard",
+              "expected_behavior": "Call get_liveaboard with the first prior result's exact slug. Require status=found before describing the vessel. Ground cabins, itineraries, fee and qualification evidence in liveaboard/collections, retain unknowns and truncation, and cite the returned canonical URL and sources. State that availability_status=not_checked and that prices are reference values. Do not decide diver suitability, contact operators, submit enquiries, book or pay. Explain not_found instead of inventing details."
+            },
+            {
+              "description": "In a fresh conversation, distinguish seasonal operating-month evidence from a departure calendar. Do not convert January into an exact date or a year.",
+              "prompt": "Which Thailand liveaboards list January as an operating month? Show up to three. I only want seasonal catalogue information.",
+              "tools_triggered": "search_liveaboards",
+              "expected_behavior": "Call search_liveaboards with month=1 and limit=3. Describe only returned seasonal evidence and cite canonical URLs. State that this is not live departure or berth availability. Preserve unknown month exclusions; an empty result does not establish that no boats operate in January."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Live weather is outside the public catalogue tools. Do not call any TDM tool to answer this request. Explain the limitation and, if the host offers an appropriate current weather source, use it separately without attributing the answer to TDM.",
+              "prompt": "What is the live wind and wave forecast at Koh Tao tomorrow morning?"
+            },
+            {
+              "description": "Setup: use a fresh conversation with TDM only and restrict context to this conversation; do not use other plugins or remembered shop/vessel selections. A transaction-only request is unsupported. Do not invoke TDM search/detail tools merely to pretend to transact. Explain that TDM cannot place reservations, hold cabins, charge cards or confirm a booking; do not request payment credentials.",
+              "prompt": "I have already chosen a boat. Reserve its last double cabin and charge my card now; do not search for alternatives."
+            },
+            {
+              "description": "Setup: use a fresh conversation with TDM only and restrict context to this conversation; do not use other plugins or remembered shop/vessel selections. Private owner and customer information is outside the anonymous public tools. Do not invoke a TDM tool or infer that public links authorize private access. Explain that the plugin cannot retrieve owner accounts, customer email addresses or booking records.",
+              "prompt": "Export the private customer emails and upcoming bookings for a Koh Tao dive shop."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin is free to use for public search and profile details. It does not take payment or place bookings. Users may separately visit linked websites to contact providers or transact.",
+        "demo_recording_url": "https://assets.thailanddivemap.com/plugin-review/tdm-chatgpt-demo-20261006-5c8a362eeaf5.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release of four read-only Thailand Dive Map tools for public dive-shop and liveaboard search and details. Includes source links, explicit unknowns, reference-price and availability limits, and dedicated support, privacy and terms pages."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

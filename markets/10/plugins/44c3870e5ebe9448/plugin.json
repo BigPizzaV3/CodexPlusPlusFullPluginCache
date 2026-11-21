@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "golfcore",
+  "version": "1.0.0",
+  "description": "Find golf courses, read tee-specific scorecards, open course maps, and use GolfCore's authenticated distance and AI caddie tools.",
+  "author": {
+    "name": "Golfcore LLC"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GolfCore",
+        "shortDescription": "Your on-course golf assistant",
+        "longDescription": "Find golf courses by name or location, check which ones GolfCore has mapped, read tee-specific scorecards with course rating and slope, and open course maps in the GolfCore app. Course search needs no GolfCore account. Golfers whose GolfCore account includes on-course features can sign in for distance to the flag and AI caddie advice from their position in the GolfCore app; for other accounts those features are unavailable. Club bookings, personal score updates, events, member rosters and messaging stay in the GolfCore app.",
+        "developerName": "Golfcore LLC",
+        "category": "Entertainment",
+        "logo": "./assets/golfcore.png",
+        "composerIcon": "./assets/golfcore.png",
+        "brandColor": "#123c27",
+        "defaultPrompt": [
+          "Find golf courses near my destination with green contour maps and give me links to open them in GolfCore.",
+          "Help me read the scorecard for my course and selected tees, including the correct layout and rating gender.",
+          "Ask GolfCore's AI caddie for advice on the shot in front of me."
+        ],
+        "websiteURL": "https://www.golfcore.org/developers/",
+        "supportURL": "https://www.golfcore.org/contact/",
+        "privacyPolicyURL": "https://www.golfcore.org/privacy/",
+        "termsOfServiceURL": "https://www.golfcore.org/terms/"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Nearby course discovery. Use the coordinates supplied in the prompt; no device location or account is needed. Check returned distance ordering, coverage flags, source links and app links.",
+              "prompt": "Find up to five courses within 25 miles of 36.5686, -121.9497 with green contour maps, and link their GolfCore maps.",
+              "tools_triggered": "search",
+              "expected_behavior": "Call search with near={lat:36.5686,lng:-121.9497}, radius_miles=25, coverage=\"contours\", scope=[\"courses\"], limit=5, and query empty or omitted. Show only returned courses and distances, preserving nearest-first ordering. Cite each course url and provide app_url. If no matches are returned, report that without inventing courses."
+            },
+            {
+              "description": "Exact course scorecard and tee selection. The course slug is explicitly supplied. Distinguish layout, tee name and rating gender; preserve missing data.",
+              "prompt": "Show the tee options and hole-by-hole scorecard for GolfCore course pebble-beach. Ask me to choose if there is more than one layout or tee rating.",
+              "tools_triggered": "search",
+              "expected_behavior": "Call search with query=\"pebble-beach\" and scope=[\"slug\",\"scorecards\"]. Use returned layouts and tees for numerical claims. Clarify layout, tee name and rating gender before presenting a selected tee card. Use tees[].holes, preserve empty and null fields, and do not fill gaps from reference holes or another tee. Cite the returned course url."
+            },
+            {
+              "description": "Place-based course discovery for a named town. Report the returned place page and courses with their coverage, and cite returned GolfCore URLs without inventing a place page or courses.",
+              "prompt": "Find golf courses in St Andrews, Scotland and tell me which ones GolfCore has green contours for.",
+              "tools_triggered": "search",
+              "expected_behavior": "Call search for St Andrews with scope including city and courses. Report the returned St Andrews place page and its course count, list only returned courses, distinguish contour coverage from other coverage using the returned flags, and cite returned URLs."
+            },
+            {
+              "description": "Authenticated on-course distance. Setup: sign in with the reviewer entry in the secure review field and open the GolfCore GPS map with the documented Pruneridge test-position URL. Keep that tab open and run this case within five minutes; the position is a test fixture, not physical GPS.",
+              "prompt": "Using the test position I just shared from the GolfCore GPS map at Pruneridge, how far am I from the flag and green center?",
+              "tools_triggered": "distance_to_flag",
+              "expected_behavior": "Complete GolfCore sign-in through ChatGPT if requested. Call distance_to_flag with no arguments; GolfCore reads the position shared by its app. Report the returned course, hole, pin distance and green-center distance as a test fixture; include position_source and position_age_s when present. If no_live_position is returned, refresh the GPS map and retry rather than inventing a distance."
+            },
+            {
+              "description": "AI caddie shot advice using the same GPS test position. The fresh reviewer account has on-course features but no handicap or saved club distances, so the response must not imply a known personal bag.",
+              "prompt": "Using the Pruneridge test position I just shared from GolfCore, what should I consider for this shot? I have not given you my handicap or club distances.",
+              "tools_triggered": "ask_caddie",
+              "expected_behavior": "Complete GolfCore sign-in through ChatGPT if requested. Call ask_caddie with the user's question and no position; GolfCore reads the app position. Present the returned advice in its course and hole context as a test fixture; do not invent a handicap, club distances or a definitive club choice. Report a missing position, service error or unavailable feature truthfully."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Booking is outside the exposed tools. Explain that the plugin cannot book tee times and direct the user to GolfCore or the club. Do not call search, distance_to_flag or ask_caddie as a substitute; do not claim a reservation.",
+              "prompt": "Book me a tee time at The Institute tomorrow at 8 AM."
+            },
+            {
+              "description": "Writing personal scores is unsupported. Explain the limitation and suggest entering the score in the GolfCore app. No MCP tool should run and no saved score should be claimed.",
+              "prompt": "Record a birdie on hole 7 in my current round."
+            },
+            {
+              "description": "The public ChatGPT plugin cannot start a GolfCore Premium subscription or return a checkout link. Explain that checkout is unavailable in this plugin, without presenting plans, prices, or a transactional URL.",
+              "prompt": "Subscribe me to GolfCore Premium monthly and give me the checkout link."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://cdn.golfcore.org/public/static/golfcore-chatgpt-review-2026-09-30.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial public release: course search, tee-specific scorecards and map links, plus signed-in distance to the flag and AI caddie advice for golfers whose GolfCore account includes on-course features.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

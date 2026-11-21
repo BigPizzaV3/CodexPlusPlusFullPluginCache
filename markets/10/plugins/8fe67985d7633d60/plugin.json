@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mailcheck",
+  "version": "1.5.0",
+  "description": "Check how a domain is set up for email, whether Gmail and Outlook are likely to accept its mail, and who it is registered with, from public DNS, free blocklists and registry data.",
+  "author": {
+    "name": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Domain Mail Check",
+        "shortDescription": "Mail delivery and DNS check",
+        "longDescription": "Check how a domain is set up for email, whether Gmail and Outlook are likely to accept its mail, and who it is registered with, from public DNS, free blocklists and registry data.\n\nAsk \"will Gmail accept mail from example.com sent from 203.0.113.7?\", \"is DMARC set up correctly for github.com?\", \"check SPF and DKIM for example.com\", \"which mail provider does acme.io use?\" or \"when does openai.com expire?\".\n\nThe email check reads the domain's SPF record (following include and redirect, counting DNS lookups against the limit of 10), its DMARC policy, the MX records and, when you give a DKIM selector, whether the DKIM key is published. It returns a grade from A to F for protection against spoofing, the problems it found and a short list of fixes. The DNS records tool reads A, AAAA, MX, TXT, CAA and NS records with their TTLs, which also shows which mail provider a domain uses and which certificate authorities may issue for it. The registration tool reads the domain's registry record over RDAP: registrar, creation and expiry dates, status flags and name servers.\n\nThe delivery check gives one verdict for Gmail and Outlook, the top 3 causes and one fix for each. It tests the published sender rules (SPF listing the sending IP, DKIM, DMARC, reverse DNS of the IP, key length) and reads 6 free blocklists (SpamCop, PSBL, UCEPROTECT level 1, Mailspike and NordSpam for the IP and the domain). Each rule and each list names its official source.\n\nThe cold-email launch score gives a score from 0 to 100 for a new sending domain, with a verdict of ready, almost or not_ready and the 5 fixes to make first. It tests SPF, DKIM, DMARC, reply mail, a domain blocklist, the domain's age from the registry record and the shape of its name. Each rule names its source and is labelled standard (a published requirement) or opinion (common advice nobody requires, which never decides not_ready).\n\nThe DNS hygiene check finds 4 faults beyond SPF, DKIM and DMARC: no CAA record (any certificate authority may issue for the domain), DNSSEC that is off or broken, mail servers that do not offer STARTTLS (mail arrives unencrypted), and dangling CNAMEs on 20 common subdomains such as www, shop and help, which point at a name that no longer exists, some of which anyone can register or create. For STARTTLS it reads only the greeting and EHLO answer of up to 2 mail servers and never sends mail; a server it cannot reach is reported as not read, not as a fault.\n\nDNS answers come from Cloudflare's DNS over HTTPS service with Google Public DNS as a fallback, and registration data from the registry of the domain's ending, found through IANA's RDAP directory. Every answer names its source and the date it was read.\n\nIt does not send a test message or read mailboxes, so a good verdict means no published rule is broken, not a promise of the inbox; it does not read sender reputation, discover subdomains beyond a fixed list of common names, or return who owns a domain: registrant and contact details are never read or returned. It checks the exact domain you give, so a parent domain's SPF or DMARC record is not inherited. The domains you ask about are not stored; the only lasting record is a daily count of calls per tool.",
+        "developerName": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+        "category": "Security",
+        "capabilities": [
+          "Reads a domain's SPF record, counts its DNS lookups and flags weak or broken policies",
+          "Reads the DMARC policy, percentage and report address",
+          "Checks whether DKIM keys are published for up to 5 selectors you name",
+          "Grades email spoofing protection from A to F with a short list of fixes",
+          "Reads A, AAAA, MX, TXT, CAA and NS records with TTLs and names the mail provider from the MX records",
+          "Shows registrar, creation and expiry dates, status flags and name servers from the registry over RDAP",
+          "Never returns registrant or contact details; names its sources and dates",
+          "Gives one verdict on whether Gmail and Outlook will likely accept the domain's mail, the top 3 causes and one fix each",
+          "Checks SPF for the sending IP, reverse DNS, DKIM key length and DMARC against the Gmail, Yahoo and Outlook rules",
+          "Reads 6 free blocklists for the domain and the sending IP, with each list's terms link",
+          "Scores a cold-email sending domain 0 to 100 from SPF, DKIM, DMARC, domain age and name, with fixes",
+          "Labels each rule standard or opinion and links its source, so advice is not shown as a requirement",
+          "Finds a missing CAA record, off or broken DNSSEC, mail servers without STARTTLS and dangling CNAMEs"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "supportURL": "https://tools.openkrill.app/support",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "defaultPrompt": [
+          "Is DMARC set up correctly for github.com?",
+          "Will Gmail and Outlook accept mail from example.com sent from 203.0.113.7?",
+          "Is acme-mail.com ready for cold email outreach?"
+        ],
+        "brandColor": "#0F766E",
+        "brandColorDark": "#0D9488",
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "status ok, a score from 0 to 100, a verdict, a fix_first list, rules each with a kind of standard or opinion and a source link, the registration date and age in days, a not_tested list, and source and as_of. Check against: https://cloudflare-dns.com/dns-query?name=_dmarc.acme-mail.com&type=TXT",
+              "prompt": "Is acme-mail.com ready for cold email outreach?",
+              "tools_triggered": "launch_score",
+              "expected_behavior": "Calls launch_score with domain \"acme-mail.com\"."
+            },
+            {
+              "description": "status ok, a verdict, a verdict per provider, up to 3 top_causes each with a fix, the rules with source links, the blocklists with terms links, a not_checked list, and source and as_of. Check against: https://cloudflare-dns.com/dns-query?name=_dmarc.example.com&type=TXT",
+              "prompt": "Will Gmail and Outlook accept mail from example.com sent from 203.0.113.7?",
+              "tools_triggered": "delivery_check",
+              "expected_behavior": "Calls delivery_check with domain \"example.com\" and sending_ip \"203.0.113.7\"."
+            },
+            {
+              "description": "status ok, caa, dnssec, starttls and dangling_cnames each with a status, a detail and a fix when failed, a faults list, and source and as_of. Check against: https://cloudflare-dns.com/dns-query?name=example.com&type=SOA",
+              "prompt": "Does example.com have DNSSEC and a CAA record, and do its mail servers use STARTTLS?",
+              "tools_triggered": "check_dns_hygiene",
+              "expected_behavior": "Calls check_dns_hygiene with domain \"example.com\"."
+            },
+            {
+              "description": "status ok, a DMARC block with found true, a policy of quarantine or reject, a pct and a rua address, an SPF block with its policy and lookup count, the MX hosts, a grade and a fixes list, with source and as_of. Check against: https://cloudflare-dns.com/dns-query?name=_dmarc.github.com&type=TXT",
+              "prompt": "Is DMARC set up correctly for github.com?",
+              "tools_triggered": "check_email_auth",
+              "expected_behavior": "Calls check_email_auth with domain \"github.com\"."
+            },
+            {
+              "description": "status ok, registered true, the registrar name, created_at, expires_at and expires_in_days, registry_status flags, name servers and the RDAP server as source. Check against: https://rdap.verisign.com/com/v1/domain/openai.com",
+              "prompt": "When does openai.com expire and who is the registrar?",
+              "tools_triggered": "lookup_domain_registration",
+              "expected_behavior": "Calls lookup_domain_registration with domain \"openai.com\"."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Checking whether a startup name is available is out of scope; this plugin inspects a domain that already exists. Expected: Does not call a tool. Says it inspects a domain that already exists and does not check whether business names are free.",
+              "prompt": "Is the name zephyrlabs available as a .com?"
+            },
+            {
+              "description": "delivery_check never sends mail or reads mailboxes, so it cannot show inbox placement. Expected: Does not call a tool. Says it checks published rules and blocklists and cannot send or read a test message.",
+              "prompt": "Send a test email to my Gmail and tell me if it lands in spam."
+            },
+            {
+              "description": "The plugin never reads or returns registrant or contact data. Expected: Does not return personal details. May offer the registrar and the registry dates from lookup_domain_registration.",
+              "prompt": "Who owns this domain? Give me their phone number."
+            }
+          ]
+        },
+        "demo_recording_url": "https://tools.openkrill.app/demos/mailcheck.mp4"
+      },
+      "publication": {
+        "release_notes": "1.5.0 adds check_dns_hygiene: a missing CAA record, DNSSEC that is off or broken, mail servers that do not offer STARTTLS (read from the EHLO answer on port 25, no mail sent), and dangling CNAMEs on 20 common subdomains, each with its fix. The other tools are unchanged. 1.4.0 fixes delivery_check for senders on Resend, Amazon SES, Postmark and similar providers: SPF for the sending IP is now tested on the return-path domain, as receivers test it, not only on the From domain. It takes an optional mail_from (the Return-Path domain of a sent message); without it the usual return-path names under the From domain (send, bounce, bounces, mail, mg, pm-bounces) are tried, and spf_for_ip names the domain tested. 1.3.0 adds the complete fix to check_email_auth and delivery_check: records_to_paste holds the exact SPF and DMARC values to publish, built from the current records (merged when there are two, with -all or ~all, with a report address), and fix_steps holds the DKIM steps for the detected mail provider. 1.2.1 adds a page link to check_email_auth answers: a web page that runs the same check, for the user to open or send to the domain's owner. 1.2.0 adds launch_score: a 0 to 100 score for a cold-email sending domain from SPF, DKIM, DMARC, reply mail, a domain blocklist, domain age from the registry record and the name pattern, with the first fixes to make. Every rule links its source and is labelled standard or opinion. The other tools are unchanged. 1.1.0 adds delivery_check: one verdict on whether Gmail and Outlook will likely accept a domain's mail, the top 3 causes with one fix each, SPF for the sending IP, reverse DNS, DKIM key length and 6 free blocklists, each with its source link. The other tools are unchanged. 1.0.0, first release. Email authentication check with a grade (SPF, DMARC, DKIM, MX), DNS record lookup and registry registration lookup over RDAP. DNS over HTTPS from Cloudflare with a Google fallback; read-only, no sign-in."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

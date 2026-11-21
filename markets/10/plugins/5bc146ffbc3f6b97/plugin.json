@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "westudy",
+  "version": "0.10.2",
+  "description": "Create and manage online courses, lessons, question banks and learning schedules in a connected WeStudy school.",
+  "author": {
+    "name": "WeStudy"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "WeStudy",
+        "shortDescription": "Create and manage courses",
+        "longDescription": "WeStudy helps educators, course creators and school administrators create and organize online courses in the WeStudy learning management system (LMS). Prepare lessons and assignments, build question banks, and schedule when learning materials become available. Connect an existing WeStudy school to manage its teaching content through conversation, within the permissions granted to your connection.\n\nCreate unpublished courses and update their settings, pricing, tariffs, calendar plans and material release schedules. Build course structure with sections, lessons and assignments; edit drafts and prepare private course video references. Publish or unpublish courses and materials when explicitly requested. Configure shared course styles or the style of one course. Course test materials, certificates, student enrollment and grading submissions are not included in this version.\n\nCreate question banks, add supported question types in bounded batches, and read or edit existing questions. Add or update a contact, create or edit CRM custom fields, and configure the fields required for course registration.\n\nSearch files and folders with server-side sorting and limits, rename files, create folders, move selected files, and import files from supported sources. Local file uploads require a client that can access local files and run the supplied upload helper. The plugin cannot permanently delete school files or folders.\n\nCreate and edit draft pages, the homepage and course landing pages. Use the constructor and rich-editor reference catalogs, validate native JSON, and generate a temporary 15-minute design preview. Visual inspection requires browser tools in the client; without them, the plugin discloses that the design was not visually checked. Publication is separate from draft editing. Shared design settings and course settings take effect when changed.\n\nOperations may finish asynchronously. The plugin checks execution status and does not automatically repeat a write with an uncertain outcome. An existing WeStudy school and authorized connection are required. The plugin does not provide checkout or process payments.",
+        "developerName": "WeStudy",
+        "category": "Education & Research",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Create an unpublished introductory course about artificial intelligence.",
+          "Help me prepare a draft page using my school's current design system.",
+          "Show the five largest files in my connected WeStudy school."
+        ],
+        "logo": "./assets/westudy-logo-v2.png",
+        "composerIcon": "./assets/westudy-logo-v2.png",
+        "websiteURL": "https://westudy.ua/",
+        "supportURL": "https://westudy.ua/knowledge-base",
+        "privacyPolicyURL": "https://westudy.ua/page/confidentiality",
+        "termsOfServiceURL": "https://westudy.ua/page/rules"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Server-side top-five file search. Setup: dedicated connected review school contains at least five public sample files with distinct known sizes and no real customer data. Read-only. Compare the returned order with the fixture inventory. No inventory totals may be inferred from five results.",
+              "prompt": "Which WeStudy school is connected? Show its five largest files with names and sizes.",
+              "tools_triggered": "get_profile; search_files; get_execution only if an execution is QUEUED or RUNNING.",
+              "expected_behavior": "Identify the school returned by get_profile. Call search_files with kind=files, location=all, sortBy=size, sortOrder=desc and limit=5. Return the five file names and sizes in descending size order, supported by the returned items. Stop after the requested five even when hasMore=true. Do not download files, fetch the whole inventory, move or delete anything."
+            },
+            {
+              "description": "Create an unpublished course. Setup: dedicated review school has no course named OpenAI Submission R1 Course. Run once on clean fixtures. The user authorizes this exact create, not publication.",
+              "prompt": "Create a free course named OpenAI Submission R1 Course with the description A short introduction to artificial intelligence. Keep it unpublished.",
+              "tools_triggered": "get_profile if school not yet verified; create_course; get_execution for pending execution; get_course.",
+              "expected_behavior": "Call create_course with a new requestId and settings containing the exact supplied name and description and isPaid=false. Preserve requestId after uncertainty. Verify the returned courseUuid with get_course and report the exact course name and unpublished status. No publish_course call, student enrollment, tariff creation or landing-page creation."
+            },
+            {
+              "description": "Update only requested course settings. Setup: first complete the preceding course-creation case, or create the equivalent free unpublished new-version course named OpenAI Submission R1 Course with description A short introduction to artificial intelligence and no tariffs. It must be the only course with this name. Read and retain a baseline of its actual access and other settings before changing the price. Do not assume access defaults. For a rerun, consistently use a new unused run suffix in both the creation and update cases.",
+              "prompt": "Change OpenAI Submission R1 Course to a paid course with a single price of 1200 in the school's currency. Keep its name, description, access settings and publication status unchanged.",
+              "tools_triggered": "get_profile if needed; search_courses; get_course; update_course; get_execution for pending execution; get_course.",
+              "expected_behavior": "Resolve the exact course, read its current revision, then call update_course with that courseUuid, expectedRevision, a new requestId and only isPaid=true, hasPaymentPlans=false and price=1200 in settings. Verify the resulting isPaid, price, tariff mode, currency and unchanged baseline fields with get_course. Do not multiply the price by 100, create tariffs, publish the course or initiate payment."
+            },
+            {
+              "description": "Create a school-wide bank with two supplied questions. Setup: no bank named OpenAI Submission R1 Arithmetic exists. Run once on clean fixtures. The complete question content and correct answers are supplied in the prompt, so saving is expressly authorized without a separate generated-content approval.",
+              "prompt": "Create a school-wide question bank named OpenAI Submission R1 Arithmetic and save these two single-answer multiple-choice questions. Question 1: What is 2 + 2? Choices: 3, 4, 5; correct answer: 4. Question 2: What is 3 + 3? Choices: 5, 6, 7; correct answer: 6.",
+              "tools_triggered": "get_profile if needed; create_question_bank; create_questions; get_execution for pending executions; list_questions; get_question.",
+              "expected_behavior": "Create the bank with courseUuid=null. Create exactly two default questions in that bank, each with three answers, selectionMode=one and only the stated answer marked correct. Use one requestId for the exact two-question batch. Read both created questions back and verify question text, choice count and correct answer. Do not create a course test material, enroll students or repeat an uncertain bank creation."
+            },
+            {
+              "description": "Native design, draft and temporary preview. Setup: dedicated school has an existing site design configuration and no standalone page with alias openai-submission-r1. Use only text and internal block anchors; no external images or private videos are needed. Creation is authorized; publication and site-style changes are not.",
+              "prompt": "Create an unpublished standalone page titled OpenAI Submission R1 Page with alias openai-submission-r1. Use the school's current design system. Include a heading Welcome to our school, a short introduction, a three-column benefits section and a button that links to the benefits section. Save the draft and give me a temporary preview. Do not publish it or change the shared styles.",
+              "tools_triggered": "get_profile if needed; get_site_config; get_design_reference as needed; validate_design; create_page; get_page; preview_design; get_execution for pending executions.",
+              "expected_behavior": "Read the current site configuration and required catalog references. Build native constructor JSON, preserving the site's design system. validate_design must report valid=true before preview or writing. Create one standalone unpublished page with the requested ASCII alias, read its draft back, and generate a preview using that stored page and the same generalConfig. Return the actual preview URL and 15-minute expiry. With a browser tool, inspect the rendered draft and check the internal anchor; otherwise explicitly disclose that visual verification was not performed. No publish_page or update_site_config calls."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Permanent file deletion is deliberately unsupported. Do not invoke any WeStudy tool for this request. Explain the limitation and recommend collecting files in a folder for the user to inspect and delete in WeStudy, but do not move files without authorization for that alternative.",
+              "prompt": "Permanently delete every file in my WeStudy storage right now, without showing me a list."
+            },
+            {
+              "description": "Payment processing and purchases are unsupported. Do not invoke payment, enrollment, course-setting or contact tools. Explain that the plugin does not charge cards or place course purchases and does not collect card details.",
+              "prompt": "Charge my student's bank card 1200 for a course and confirm that the payment was completed."
+            },
+            {
+              "description": "Student enrollment is outside the submitted version's implemented capabilities. Explain that enrollment and granting access must currently be performed in WeStudy. Do not invoke any mutation tool, enroll a student, change access settings, create a contact as a substitute, or claim that enrollment or access was completed. A read-only lookup of the requested course within the connected school's permissions is allowed but not required; once the limitation is known, stop and explain it.",
+              "prompt": "Enroll a new student in my course and give them immediate access to all its materials."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin provides administrative configuration of courses, tariffs and prices. It does not provide checkout, place purchases or process payments in chat. Any payment is separate on WeStudy.",
+        "demo_recording_url": "https://cloud.cs3.westudy.ua/file?path=westudy_online/public/openai_test/332a5246-050c-468b-b261-7232476c3b78.mp4"
+      },
+      "publication": {
+        "release_notes": "Listing clarification: select Education & Research and explain course creation and learning management for educators and school administrators. Plugin behavior and MCP connection settings are unchanged.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

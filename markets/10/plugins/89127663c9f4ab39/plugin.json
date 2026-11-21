@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postpone",
+  "version": "1.0.0",
+  "description": "Schedule social media posts, manage your queue, search your media library, and review performance with Postpone.",
+  "author": {
+    "name": "Postpone",
+    "url": "https://www.postpone.app"
+  },
+  "homepage": "https://www.postpone.app",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Postpone",
+        "shortDescription": "Schedule social media posts",
+        "longDescription": "Plan, schedule, and track your social media with Postpone in ChatGPT.\n\nConnect your Postpone account to turn ideas into posts, organize your publishing schedule, and review your results. Schedule a new post, move upcoming posts to another day, or compare performance over a date range.\n\nPostpone supports Reddit, X, Threads, Instagram, Facebook, TikTok, LinkedIn, YouTube, Pinterest, Bluesky, Tumblr, and Mastodon. Available plugin actions and metrics vary by platform.\n\nWhat you can do:\n\n- Create and schedule posts for connected social accounts\n- View your queue and edit, reschedule, or delete scheduled posts\n- Review performance for individual posts and social accounts\n- Find images and videos in your Postpone media library\n- Discover recommended posting times for supported accounts and Reddit subreddits\n\nA Postpone account is required.",
+        "developerName": "Postpone",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Show my upcoming scheduled posts.",
+          "Compare my social accounts' performance last month.",
+          "Find unused images in my Postpone media library."
+        ],
+        "websiteURL": "https://www.postpone.app",
+        "supportURL": "https://www.postpone.app/contact",
+        "privacyPolicyURL": "https://www.postpone.app/legal/privacy",
+        "termsOfServiceURL": "https://www.postpone.app/legal/terms",
+        "logo": "./assets/logo.svg",
+        "composerIcon": "./assets/logo.svg",
+        "brandColor": "#0067FF"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connected Reddit account discovery. The reviewer account has one connected Reddit test account. Pass when the response accurately identifies that account and its connection state without inventing other accounts.",
+              "prompt": "Which social accounts do I have connected to Postpone?",
+              "tools_triggered": "postpone_list_social_accounts",
+              "expected_behavior": "List the accounts returned by postpone_list_social_accounts with their platforms and connection states. Do not invent accounts or treat a disconnected account as connected."
+            },
+            {
+              "description": "Create a Reddit text-post draft using the connected Reddit test account and r/postpone. No published posts or media are required. Pass when the tool succeeds and the assistant reports the draft ID and Postpone link without claiming that it is scheduled or published.",
+              "prompt": "Create a Reddit draft for r/postpone using my connected Reddit account. Title: Postpone plugin draft test. Body: This is a draft created during the Postpone plugin review. Save it as a draft without scheduling or publishing it.",
+              "tools_triggered": "postpone_list_social_accounts, postpone_create_social_post",
+              "expected_behavior": "Discover the connected Reddit account and use its returned ID as social_account_id. Call postpone_create_social_post with platform=reddit, publishing=DRAFT, subreddit=postpone, title=Postpone plugin draft test., and text=This is a draft created during the Postpone plugin review. Omit scheduled_for and do not use SCHEDULE or QUEUE_NEXT. Report the returned id and post_url on success. A returned placeholder scheduled_for does not mean the draft will publish; do not present it as a publishing commitment. If clarification or confirmation is requested, create the draft only after the reviewer responds. Accurately report any tool error without claiming success."
+            },
+            {
+              "description": "Filtered content-library search. This case works with an empty library and does not require published posts. Pass when the tool receives the requested filters and the assistant accurately presents the returned results or reports that no matching images exist.",
+              "prompt": "Find images in my Postpone library that I have never scheduled or published.",
+              "tools_triggered": "postpone_search_media",
+              "expected_behavior": "Call postpone_search_media with media_type=image and usage_filter.filter_type=UNUSED. Show returned media names and available previews or links; preserve media IDs for follow-up use. If no results are returned, clearly say there are no matching unused images. Do not invent media, create a post, or require the reviewer to upload files."
+            },
+            {
+              "description": "Schedule a Reddit text post to r/postpone using the connected Reddit test account. Resolve next Monday at 10:00 AM in the Postpone account timezone to a future date. Before creation, obtain confirmation of the title, body, account, subreddit, and exact publishing time. Pass when the tool succeeds and the assistant reports the returned ID, Postpone link, and scheduled time. The scheduled post can then be checked with the queue-inspection case.",
+              "prompt": "Schedule a Reddit text post to r/postpone next Monday at 10 AM using my connected Reddit account. Title: Postpone plugin scheduling test. Body: This is a scheduled post created during the Postpone plugin review.",
+              "tools_triggered": "postpone_get_account_metadata, postpone_list_social_accounts, postpone_create_social_post (only after explicit confirmation)",
+              "expected_behavior": "Read the account timezone and discover the connected Reddit account. Resolve a future datetime for next Monday at 10:00 AM. Display the title, body, Reddit account, r/postpone, and exact date/time with timezone, then request explicit confirmation. Do not create the post before confirmation. After confirmation, call postpone_create_social_post with platform=reddit, publishing=SCHEDULE, the returned social_account_id, subreddit=postpone, title=Postpone plugin scheduling test., text=This is a scheduled post created during the Postpone plugin review., and the approved scheduled_for in ISO 8601 format. Prefer a datetime without an offset so the server applies the configured account timezone. Report the returned id, post_url, and scheduled_for on success; describe any tool error accurately. Do not claim the post is already live."
+            },
+            {
+              "description": "Queue inspection and timezone. No published posts are required. Run after the scheduling case to check the created post, or before it to verify an empty queue is reported accurately. Pass when content, account, and scheduled time match the returned data.",
+              "prompt": "Show my upcoming scheduled posts and tell me what timezone the times are in.",
+              "tools_triggered": "postpone_get_account_metadata, postpone_list_scheduled_posts",
+              "expected_behavior": "Read the configured timezone from postpone_get_account_metadata. List upcoming posts from postpone_list_scheduled_posts with account, content, scheduled time, and returned Postpone links. Use next_offset when pagination is needed. Explain the next-30-days listing window. If no posts are returned, report an empty upcoming queue without inventing posts or analytics."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Direct messaging is outside the exposed MCP tools. Explain the limit and do not invoke post creation, editing, rescheduling, or deletion as a substitute.",
+              "prompt": "Send a private Instagram message to @examplecreator saying thanks for the collaboration."
+            },
+            {
+              "description": "Published-post deletion is unsupported by postpone_delete_social_posts. Explain that the user must manage the published post on its platform; do not call the deletion tool or claim success.",
+              "prompt": "Delete a Reddit post that is already live on Reddit."
+            },
+            {
+              "description": "Password changes are not exposed by these MCP tools. Explain the limitation and direct the user to account settings or the supported recovery flow. Do not ask for credentials or call social-post tools.",
+              "prompt": "Change my Postpone account password for me."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1173It3TgCV6Nxs5ByWhV8bCbapqfmGVa/view?usp=drive_link"
+      },
+      "publication": {
+        "release_notes": "Initial release of the Postpone plugin for social post scheduling, queue management, media search, analytics, and recommended posting times."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

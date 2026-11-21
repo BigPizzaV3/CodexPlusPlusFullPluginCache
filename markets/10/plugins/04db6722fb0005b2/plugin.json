@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dukonix",
+  "version": "1.0.0",
+  "description": "Read your Dukonix shop catalog and review supported product changes in ChatGPT.",
+  "author": {
+    "name": "ORIF ISAKDJANOV",
+    "url": "https://dukonix.com"
+  },
+  "homepage": "https://dukonix.com",
+  "keywords": [
+    "catalog",
+    "products",
+    "merchants"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dukonix",
+        "shortDescription": "Manage your shop catalog",
+        "longDescription": "Connect one Dukonix shop you own to ChatGPT. Find products by name, SKU, brand or barcode, read current product details, and check catalog visibility and product limits. When catalog changes are available on your connection, prepare a new product, update product details, or change product visibility for review. You can attach one photo when creating a product. Nothing is saved until you approve the review card. Available actions depend on the connected shop and its permissions. An existing Dukonix account with the Owner role is required. Dukonix is an online catalog for merchants who arrange purchases directly with customers. This plugin does not take payments, confirm orders, calculate delivery, or report completed sales. You can disconnect ChatGPT in Dukonix under Settings, Connected apps.",
+        "developerName": "ORIF ISAKDJANOV",
+        "category": "Productivity",
+        "capabilities": [
+          "Read shop catalog",
+          "Review product changes"
+        ],
+        "defaultPrompt": [
+          "Which Dukonix shop is connected, and what can this connection do?",
+          "Show the products in my Dukonix catalog, including their availability.",
+          "Help me prepare a product update for review."
+        ],
+        "websiteURL": "https://dukonix.com",
+        "supportURL": "https://dukonix.com/contact",
+        "privacyPolicyURL": "https://dukonix.com/privacy",
+        "termsOfServiceURL": "https://dukonix.com/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://dukonix-assets.arifento85.workers.dev/plugin-review/dukonix-mcp-demo-1.0.0-20261006.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect the dedicated reviewer account to its sample shop as Owner. Confirm the selected shop, currency, catalog readiness, product limit and connection capabilities; do not assume catalog changes are enabled.",
+              "prompt": "Which Dukonix shop is connected, and what can this connection currently do?",
+              "tools_triggered": "get_merchant_context",
+              "expected_behavior": "Call get_merchant_context without arguments. Report the returned shop name, currency, catalog status and actual capabilities. Only describe a catalog URL as publicly readable when the returned readiness permits it. Do not claim unavailable changes are enabled."
+            },
+            {
+              "description": "The sample shop must contain at least three sample products, including a hidden product. Exercise bounded pagination without omitting hidden products or inventing availability.",
+              "prompt": "Show my catalog products two at a time, including hidden products, then show the next page.",
+              "tools_triggered": "search_products",
+              "expected_behavior": "Call search_products with page 1 and pageSize 2, then page 2 and pageSize 2 when requested. Show only returned products, current prices, currency, availability and visibility. Match the returned page and total values; include hidden products when present in the returned page."
+            },
+            {
+              "description": "After the preceding search, choose one returned sample product. Its id must come from that tool response. Read its details and draft factual copy without publishing anything.",
+              "prompt": "Open the first product you showed me. Show its current price, currency, availability and visibility, then draft a short description using only its current details.",
+              "tools_triggered": "get_product",
+              "expected_behavior": "Call get_product with the exact productId returned by search_products. Summarize the returned name, price, currency, availability and visibility. Draft text supported by its description and attributes; do not invent promotions, stock, sales, delivery promises or publish the draft."
+            },
+            {
+              "description": "Use only the dedicated sample shop, with catalog changes enabled and capacity for a new product. Attach a sample product photo in the host. The reviewer presses the review card approval; before approval, the product must not be created. The host must deliver a real file reference.",
+              "prompt": "Create a product called Review sample product, priced at 10000 in my shop currency and in stock, with this attached photo. Let me review it before saving.",
+              "tools_triggered": "get_merchant_context, stage_product_photo, prepare_product_creation, apply_catalog_change, get_product",
+              "expected_behavior": "Check that changes and photos are available. Stage the attached host file, pass its returned photoId to prepare_product_creation with the explicit name, price 10000 and availability IN_STOCK, and show the review card. Do not claim a save before approval. Only the review card may call apply_catalog_change. After successful approval, read the returned productId with get_product and verify the saved fields and photo in the catalog. An unavailable capability or staging failure must be explained without a fabricated creation."
+            },
+            {
+              "description": "Continue with Review sample product from the preceding case in the dedicated sample shop. First review and approve the price update, then separately review and approve hiding the product. Each change needs its own review card.",
+              "prompt": "Change Review sample product's price to 12000. After I approve that update, help me hide it from the public catalog, with another review before saving.",
+              "tools_triggered": "search_products, get_product, prepare_product_update, apply_catalog_change, prepare_product_visibility",
+              "expected_behavior": "Resolve the exact sample product within the connected shop and read its current revision. Prepare a price update to 12000, with no saved-change claim before card approval. After the successful result, read the current product again and prepare isVisible false using its current revision. Save each change only through its review card and report only the actual applied results. A stale or expired review must be refused with a request for a new review."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payments and order confirmation are unsupported. Explain that Dukonix is a catalog and purchases are arranged directly with the shop. Do not invoke catalog mutation or invent a payment, receipt, order or completed sale.",
+              "prompt": "Charge my customer for a product and confirm their order."
+            },
+            {
+              "description": "Delivery calculation and booking are unsupported. Explain the limitation and direct the merchant to arrange delivery separately. Do not invoke catalog mutations or claim a delivery was calculated or booked.",
+              "prompt": "Calculate the shipping fee and book delivery for my customer's purchase."
+            },
+            {
+              "description": "The connection is restricted to the selected shop. Do not attempt to access another merchant's private catalog, accept an arbitrary shop id as authorization, or change the connection silently. Explain the boundary and the authorized reconnect path where relevant.",
+              "prompt": "Show me the private products from another merchant's Dukonix shop using this connection."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin manages the connected merchant's catalog. It does not sell products, process payments, confirm orders or book delivery. Customers arrange purchases directly with the merchant."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial Dukonix plugin release with shop context, product search and details, and product creation, update and visibility review when the connected shop permits catalog changes. Photo attachment is supported for new products."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

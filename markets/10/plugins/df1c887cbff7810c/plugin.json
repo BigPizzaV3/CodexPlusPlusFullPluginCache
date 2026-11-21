@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "orgpulse",
+  "version": "1.0.0",
+  "description": "Read-only Salesforce admin watchdog: expiring items, org limits, storage and licence usage, and access explanations.",
+  "author": {
+    "name": "CloudCounsel Limited",
+    "email": "hello@cloudcounsel.co.nz",
+    "url": "https://cloudcounsel.co.nz"
+  },
+  "homepage": "https://orgpulse.cloudcounsel.co.nz",
+  "keywords": [
+    "salesforce",
+    "admin",
+    "monitoring",
+    "permissions"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OrgPulse",
+        "shortDescription": "Salesforce admin watchdog",
+        "longDescription": "OrgPulse monitors a Salesforce org for the things that expire or run out and break logins and integrations, and answers questions about them in ChatGPT. It saves Salesforce admins the routine work of checking an org by hand: daily checks, alerts before something breaks, and plain answers about who can see what. Its tools only read from Salesforce. They never create, change or delete anything in your org.\n\nWhat it does\n\nExpiring items. Lists what is about to expire and could break a login or an integration: certificates (including SAML and credential certificates), user passwords, time-limited permission set assignments, licences, trial expiry, scheduled jobs, refresh tokens (estimated from the connected app's policy) and retiring API versions your org still uses. If OrgPulse cannot read one of these because the integration user lacks a permission, it says so and names the permission, instead of reporting an empty list.\n\nLimits and storage. Reports API limits, data and file storage, licence counts and async queue depth, so you can see how close you are to a limit.\n\nAccess explanations. Pick a user and a field, an object or a record (by its Salesforce ID), and OrgPulse shows the full access path, including which profile, permission set, group or sharing rule grants each piece. When access is denied it names the one change that would grant it. You can also compare two users on the same field.\n\nAlerts. A daily check of each org can send email or Slack alerts when an item nears a threshold you set and again when it clears, without repeats. Watches are configured in OrgPulse, never in Salesforce.\n\nHistory. OrgPulse keeps the latest check, a daily summary and every change (new, moved, resolved or expired items and limit changes), so it can say what is new since the last check.\n\nCoverage depends on the integration user's licence. Anything OrgPulse cannot read is listed under \"Not checked\".\n\nHow it connects\n\nAn org admin signs in to OrgPulse and proves they own the org through Salesforce's standard OAuth login. They then choose who the checks run as: a dedicated read-only integration user with a limited permission set that OrgPulse provides (recommended), or, for a quick trial, the admin themselves. ChatGPT never receives Salesforce credentials; it holds only an OrgPulse access token.\n\nWhat it does not detect\n\nTokens held by External Credentials, Auth Provider upstream secrets, security tokens, Salesforce-managed domain certificates, user licence contract dates, sandbox lifecycle, and the TLS certificates of remote endpoints. Refresh token expiry is an estimate.\n\nAccess and data\n\nNo tool writes to Salesforce. Outside ChatGPT, during setup and only if the admin asks, OrgPulse makes three changes scoped to its own access (listed on the connect page) using the admin's sign-in for that one request. Configuring a watch writes only OrgPulse's own settings, and replaces that watch's earlier settings. OrgPulse stores org identifiers, the integration username, check results and change history, and alert settings. It does not store customer record data. See the privacy policy for what is collected, why, who receives it, how long it is kept and how to delete it.",
+        "developerName": "CloudCounsel Limited",
+        "category": "Productivity",
+        "capabilities": [
+          "List expiring items",
+          "Read org limits",
+          "Read storage usage",
+          "Explain user access",
+          "Compare user access",
+          "Manage alert watches"
+        ],
+        "websiteURL": "https://orgpulse.cloudcounsel.co.nz",
+        "supportURL": "https://cloudcounsel.co.nz",
+        "privacyPolicyURL": "https://orgpulse.cloudcounsel.co.nz/privacy",
+        "termsOfServiceURL": "https://orgpulse.cloudcounsel.co.nz/terms",
+        "defaultPrompt": [
+          "Which permission sets expire in 10, 25 and 45 days for Alice, Bob and Carol Synthetic?",
+          "How close am I to my Salesforce org limits?",
+          "Why can Alice Synthetic see the Acme Synthetic account?"
+        ],
+        "brandColor": "#003082",
+        "brandColorDark": "#FFC917",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo-512.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Expiring assignments in a 30 day window",
+              "prompt": "What expires in the next 30 days in my Salesforce org?",
+              "tools_triggered": "list_expiring_items",
+              "expected_behavior": "Short list headed with the number of items in Acme Synthetic expiring within 30 days, showing the 10 day and 25 day permission set assignments soonest first. The 45 day assignment is absent. A sentence notes certificates could not be checked and names the missing access."
+            },
+            {
+              "description": "Wider window with blind spots",
+              "prompt": "Show me everything expiring in the next 60 days, and what OrgPulse cannot detect.",
+              "tools_triggered": "list_expiring_items",
+              "expected_behavior": "All three seeded permission set assignments (about 10, 25 and 45 days) in date order, followed by an 'OrgPulse cannot detect:' list of known blind spots."
+            },
+            {
+              "description": "Org limits",
+              "prompt": "How close am I to my API limit?",
+              "tools_triggered": "get_org_limits",
+              "expected_behavior": "Org limits for Acme Synthetic, highest usage first, up to 10 lines of name, percent used, used and max, including daily API requests and a flex queue line."
+            },
+            {
+              "description": "Explain access to a field",
+              "prompt": "Why can Alice Synthetic see Account.Rating?",
+              "tools_triggered": "explain_access",
+              "expected_behavior": "Read and edit verdicts for Alice Synthetic, then the ordered checks (profile, permission sets, groups, sharing) naming each grant that applies, and an explanation sentence. No change is suggested because access is granted."
+            },
+            {
+              "description": "Compare two users on a field",
+              "prompt": "Why can Alice Synthetic see Account.Rating but Bob Synthetic cannot?",
+              "tools_triggered": "compare_users_access",
+              "expected_behavior": "Both verdicts, the grants only Alice holds listed under her, and for Bob the single change that would grant access. Read-only; nothing is stored or changed in the org."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Write request is refused",
+              "prompt": "Deactivate Bob Synthetic and delete the permission set assignment that expires in 10 days."
+            },
+            {
+              "description": "Org that is not connected",
+              "prompt": "What expires in my org Globex Synthetic?"
+            },
+            {
+              "description": "Out of scope request",
+              "prompt": "Write me a poem about autumn."
+            }
+          ]
+        },
+        "demo_recording_url": "https://orgpulse.cloudcounsel.co.nz/demo.mp4",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "First release."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

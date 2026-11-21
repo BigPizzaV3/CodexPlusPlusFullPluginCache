@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gameslike",
+  "version": "1.0.7",
+  "description": "Find similar games with visual cards, browse releases, or connect GamesLike for wishlist updates, a personal gaming brief and backlog picks.",
+  "author": {
+    "name": "GamesLike",
+    "url": "https://gameslike.co"
+  },
+  "homepage": "https://gameslike.co",
+  "keywords": [
+    "games",
+    "similar-games",
+    "steam",
+    "recommendations"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GamesLike",
+        "shortDescription": "Find games like your favorites",
+        "longDescription": "Find similar Steam games and browse release windows with visual cards and GamesLike links. Optionally connect GamesLike for wishlist updates, relevant discoveries and a lightly played backlog pick in an on-demand gaming brief. Save GamesLike wishlist entries or taste choices with explicit write access. Find party games from shared favorites, or read picks for an existing group with separate group access. Unknown release, ownership and compatibility data stay visible. Accounts require age 18; public discovery needs no login. Steam sign-in cannot unlock private game details.",
+        "category": "Entertainment",
+        "capabilities": [
+          "Find games by title",
+          "Find similar games with preferences",
+          "Optional Steam library recommendations",
+          "Visual game cards and public release windows",
+          "Connected wishlist and on-demand gaming brief",
+          "Explicit GamesLike wishlist and taste actions",
+          "Party discovery and authorized group picks"
+        ],
+        "websiteURL": "https://gameslike.co/chatgpt",
+        "supportURL": "https://gameslike.co/imprint",
+        "privacyPolicyURL": "https://gameslike.co/privacy-policy",
+        "termsOfServiceURL": "https://gameslike.co/terms-and-conditions",
+        "defaultPrompt": [
+          "Find games like Stardew Valley.",
+          "What should I play after Hades?",
+          "Recommend games based on my Steam library that I do not already own."
+        ],
+        "brandColor": "#ff4a3c",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "developerName": "GamesLike"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "One-step similar-game discovery from an exact title",
+              "prompt": "Find games like Stardew Valley.",
+              "tools_triggered": "search_games",
+              "expected_behavior": "Call search_games with include_similar for Stardew Valley without sign-in. Present the returned similar games as visual cards in rank order with their GamesLike links and shared traits, without a separate find_similar_games call. Do not invent games or links."
+            },
+            {
+              "description": "Anonymous visual discovery with strict preferences and a changed-preference follow-up",
+              "prompt": "Find games like Factorio for Windows with online co-op. Prefer Automation and exclude Horror. Then replace those preferences with Mac support and required Automation, and pick one game. Next, find games like Civilization. Finally, find games like Factorio with absolutely no combat or violence and a true 3D view, not just a 3D tag.",
+              "tools_triggered": "search_games, find_similar_games",
+              "expected_behavior": "Resolve Factorio (appid 427520) without sign-in. Request the stated preferences, then call find_similar_games again with only the replacement preferences before choosing a final pick. Show safe visual cards with the returned evidence and canonical GamesLike links. Link every repeated or final recommendation. For Civilization, show linked editions and wait for the user's selection. For the hard mechanic request, explain that tag absence and a 3D tag cannot verify those requirements; ask whether catalog-based limits are acceptable and wait before offering candidates. Do not relax requirements or invent matches. The More like this card action must use that card's exact appid."
+            },
+            {
+              "description": "Public release windows preserve date precision",
+              "prompt": "Show games with release windows from 2026-11-01 up to but excluding 2026-12-01, for Windows. Which releases are confirmed for a specific day?",
+              "tools_triggered": "browse_releases",
+              "expected_behavior": "Browse the exact half-open date range with Windows preferences without requiring an account. Preserve day, month, quarter, year and unknown precision. Do not turn a broad window into a confirmed day, or replace an unavailable result with cached or invented releases. Show returned artwork and GamesLike links only for eligible classified games."
+            },
+            {
+              "description": "Connected wishlist, personal brief and useful backlog picks",
+              "prompt": "Show my GamesLike wishlist and gaming brief for the next seven days in Europe/Berlin. Then pick an underplayed game from my Steam backlog. I will connect my account if needed.",
+              "tools_triggered": "list_wishlist, get_personal_brief, recommend_from_library",
+              "expected_behavior": "Request library:read for the verified connected user. Report independent wishlist and ownership freshness and the returned wishlist, release radar, discoveries and backlog states. Use backlog mode for the final request. Keep unknown playtime, missing taste, unavailable data and no matches visible. Do not treat ownership or playtime as proof of enjoyment. Reading must not refresh Steam, subscribe, send, or mark games seen."
+            },
+            {
+              "description": "Explicit wishlist and taste writes require a separate grant",
+              "prompt": "Find Hades, save it to my GamesLike wishlist, and mark it Loved. Then remove it from that wishlist and clear my taste choice.",
+              "tools_triggered": "search_games, set_wishlist_entry, set_game_preference",
+              "expected_behavior": "Resolve Hades (appid 1145360), obtain explicit library:write authorization, and apply each requested desired state to that exact game. A previous library:read grant does not permit writes. Confirm only a successful returned mutation. Preserve owned entries. Before removing an imported wishlist entry, explain that a later requested Steam sync can restore it. Never write Steam, subscribe, refresh, send or delete the account."
+            },
+            {
+              "description": "Manual party discovery and membership-scoped group reads",
+              "prompt": "Find games for two people: Alex likes Stardew Valley, Terraria and Starbound; Sam likes Factorio, Hades and Portal 2. Require verified capacity for two. Then show picks for my GamesLike group ID review-group and session ID review-session.",
+              "tools_triggered": "search_games, find_party_games, get_group_games",
+              "expected_behavior": "Resolve three distinct safe exact favorites per person and call anonymous find_party_games with strict capacity. Treat manual ownership as unknown. For the existing group request, obtain groups:read and require actual server-verified membership. If those IDs are unavailable to the account, report the error without inventing picks or switching to a different group. Do not expose member libraries or preferences, create rooms, invite or vote."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported purchase. No purchase or checkout tool is available. Explain that purchases must be completed with a store; do not claim a purchase.",
+              "prompt": "Buy Hades for me."
+            },
+            {
+              "description": "Inaccessible private Steam data. OpenID verifies identity but does not unlock private game details. Explain that restriction without claiming access, requesting credentials or inventing a library. Do not silently replace a private-library request with a public catalog search.",
+              "prompt": "Read my private Steam library."
+            },
+            {
+              "description": "Unsupported account deletion. Wishlist and taste actions do not delete accounts. Explain that account deletion is a website action; do not invoke unrelated write tools or claim deletion.",
+              "prompt": "Delete my GamesLike account."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin returns game recommendations and GamesLike catalog links. It does not take payments or complete purchases. Linked GamesLike pages may contain marked store affiliate offers; purchases are completed with external stores.",
+        "demo_recording_url": "https://gameslike.co/chatgpt/review/gameslike-1.0.5.mp4"
+      },
+      "publication": {
+        "release_notes": "Title search can now return ranked similar games in the same call: search_games accepts an optional include_similar flag, and when exactly one returned title matches the query it adds that game's similar games with the same evidence and GamesLike links as find_similar_games, shown as visual cards. Ambiguous titles still list the editions and wait for the user's choice. Without the flag, search results are unchanged. Catalog tags written with other spacing or hyphens (for example Open-world) now match the catalog name, unknown tags list the closest catalog tags, and errors say when retrying cannot help. Access, scopes, data use and all other tools are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

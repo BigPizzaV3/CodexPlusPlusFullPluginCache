@@ -1,0 +1,156 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "komashi",
+  "version": "1.0.0",
+  "description": "Manage Komashi business operations, customers, subscriptions, invoices and usage without checkout or plan changes.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Komashi",
+        "shortDescription": "Manage business operations",
+        "longDescription": "Manage Komashi business operations from ChatGPT: select an account-linked provider, review services and catalogue settings, find customers and contacts, inspect existing subscriptions and invoices, check or confirm usage updates, and administer supported subscription lifecycle settings. OAuth sign-in is required and access is limited to providers linked to your account. This OpenAI integration does not create subscriptions, return checkout or payment links, or initiate subscription plan upgrades or downgrades.",
+        "defaultPrompt": [
+          "Show my services and active subscriptions in Komashi.",
+          "Check usage for my Komashi subscription.",
+          "Help me prepare a new service in Komashi."
+        ],
+        "websiteURL": "https://komashi.com/",
+        "supportURL": "https://komashi.com/support",
+        "privacyPolicyURL": "https://komashi.com/docs/legal/privacy/",
+        "termsOfServiceURL": "https://komashi.com/docs/legal/terms/",
+        "developerName": "BMSHI TECHNOLOGY SERVICES - FZCO",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "category": "Business & Operations"
+      },
+      "review": {
+        "demo_recording_url": "https://static.komashi.com/komashi-public/video/KomashiMCP-Review.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover account-linked businesses and select the dedicated synthetic Review Business workspace (subdomain openai-review). No production customer data or external payment provider is needed.",
+              "prompt": "Show my Komashi businesses. Then use Review Business for this session.",
+              "tools_triggered": "list-providers-tool, select-provider-tool",
+              "expected_behavior": "List only account-linked providers; resolve Review Business from returned IDs and select it. Ask for clarification if the name is ambiguous; never select an unrelated provider."
+            },
+            {
+              "description": "Read the service catalogue of the selected Review Business workspace. Fixtures: Review Service, Review Plan and its monthly billing period. Resolve all IDs from tool results.",
+              "prompt": "Show the existing services of Review Business and the plans and billing periods of Review Service.",
+              "tools_triggered": "list-services-tool, list-plans-tool, list-periods-tool",
+              "expected_behavior": "List Review Service, resolve its service_id and list Review Plan. Resolve that plan_id and use both service_id and plan_id to list its monthly period (period_length 1). Summarize returned values only; do not invent prices or change records."
+            },
+            {
+              "description": "Inspect the existing ACTIVE demo subscription in the selected Review Business workspace. Fixture external_reference: Review Subscription. If it is not ACTIVE, report the unexpected fixture state and do not claim this positive test passed.",
+              "prompt": "Show up to 10 active subscriptions of Review Service and the details of the subscription with external reference Review Subscription.",
+              "tools_triggered": "list-services-tool, list-subscriptions-tool, get-subscription-tool",
+              "expected_behavior": "Resolve service_id; query list-subscriptions-tool with status ACTIVE and per_page 10. Find the returned record whose external_reference is Review Subscription, then get its details. Show status ACTIVE, Review Plan, monthly period, quantity 1, and quota 10 credits. Only selected-provider records may be returned."
+            },
+            {
+              "description": "Confirm an absolute usage update on the ACTIVE synthetic Review Subscription in Review Business. Quota is 10 credits, initial usage 0. Rerun the demo seeder before recording a fresh baseline; repeat execution with usage 5 must remain 5, not become 10.",
+              "prompt": "Set the total usage of the subscription with external reference Review Subscription to exactly 5; I confirm this update. Then tell me how much usage remains.",
+              "tools_triggered": "list-services-tool, list-subscriptions-tool, sync-usage-tool, check-usage-tool",
+              "expected_behavior": "Resolve the selected provider's subscription_id from returned records. Call sync-usage-tool with absolute usage 5, then check-usage-tool. Report usage 5, limit 10 and remaining 5 credits. Repeating the same confirmed sync keeps usage 5. If the API refuses the update, report the failure accurately; do not claim success."
+            },
+            {
+              "description": "Existing invoice lookup. Dedicated review account with Review Business selected, one Review Customer and a synthetic invoice. Resolve the actual customer ID from returned records.",
+              "prompt": "Show up to 10 existing invoices for Review Customer.",
+              "tools_triggered": "list-customers-tool, list-invoices-tool",
+              "expected_behavior": "Resolve Review Customer's customer_id, then list-invoices-tool with that ID and per_page 10. Show the synthetic invoice DEMO-REVIEW-001, total 10 EUR. Do not claim that the sample invoice proves a real card transaction, invent a download link, or generate a checkout/payment link."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refunds are unsupported by this MCP. State that the refund cannot be performed; do not claim a refund, initiate cancellation instead, or create a transactional link. No mutation tool call should be made.",
+              "prompt": "Refund the last payment of Review Customer to their card."
+            },
+            {
+              "description": "This MCP can read existing discount templates but cannot create coupon codes. Explain that SUMMER20 cannot be created here. Do not create a customer, service or subscription as a substitute; no mutation tool call should be made.",
+              "prompt": "Create a new 20 percent coupon code SUMMER20."
+            },
+            {
+              "description": "The OpenAI endpoint cannot initiate upgrades/downgrades or generate checkout/payment links. Explain this immediately, without promising an upgrade flow. Do not call a mutation tool, generate a customer magic-login URL, or use setup/portal links as a workaround. The refusal must follow endpoint capabilities, not missing demo permissions or the absence of another plan.",
+              "prompt": "Upgrade Review Subscription and send me a checkout link to pay the difference."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This OpenAI endpoint does not create subscriptions, generate payment/checkout links or initiate plan changes. Komashi outside this integration connects providers to external payment providers; Komashi does not hold customer funds. Existing customer and subscription administration, catalogue data and setup continuation links remain available and require policy review."
+      },
+      "publication": {
+        "release_notes": "OpenAI-specific endpoint with 44 tools. Clear names and titles for saving business/service setup details; existing subscription, usage and invoice review cases clarified. Subscription creation, payment-link creation and plan changes remain excluded.",
+        "countries": [
+          "AE",
+          "AR",
+          "AT",
+          "AU",
+          "BE",
+          "BG",
+          "BH",
+          "BR",
+          "CA",
+          "CH",
+          "CL",
+          "CO",
+          "CY",
+          "CZ",
+          "DE",
+          "DK",
+          "EE",
+          "EG",
+          "ES",
+          "FI",
+          "FR",
+          "GB",
+          "GE",
+          "GR",
+          "HR",
+          "HU",
+          "ID",
+          "IE",
+          "IL",
+          "IN",
+          "IS",
+          "IT",
+          "JP",
+          "KR",
+          "KW",
+          "LT",
+          "LU",
+          "LV",
+          "MA",
+          "MD",
+          "MT",
+          "MX",
+          "MY",
+          "NG",
+          "NL",
+          "NO",
+          "NZ",
+          "OM",
+          "PH",
+          "PL",
+          "PT",
+          "QA",
+          "RO",
+          "RS",
+          "SA",
+          "SE",
+          "SG",
+          "SI",
+          "SK",
+          "TH",
+          "TR",
+          "TW",
+          "UA",
+          "US",
+          "VN",
+          "ZA"
+        ]
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "BMSHI TECHNOLOGY SERVICES - FZCO"
+  }
+}

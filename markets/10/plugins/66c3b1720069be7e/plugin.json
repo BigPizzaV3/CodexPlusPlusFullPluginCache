@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tidycal",
+  "version": "1.2.0",
+  "description": "Work with your TidyCal schedule from ChatGPT or Codex: your booking types, upcoming and past bookings, open slots, the calendar events blocking you, your date polls and your Store orders. With your permission it can also book a meeting, cancel a booking, create a free or paid booking type, create or change a date poll, or add a contact.",
+  "author": {
+    "name": "AppSumo",
+    "email": "support@tidycal.com",
+    "url": "https://tidycal.com"
+  },
+  "homepage": "https://tidycal.com/mcp-docs",
+  "license": "UNLICENSED",
+  "keywords": [
+    "tidycal",
+    "scheduling",
+    "calendar",
+    "bookings",
+    "availability",
+    "appointments",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "TidyCal",
+        "shortDescription": "Your bookings and availability",
+        "longDescription": "TidyCal is a scheduling tool: you share a booking page, people pick a time, and the meeting lands on your calendar. This plugin connects ChatGPT to your TidyCal account so you can check and manage your schedule in plain language instead of opening the dashboard.\n\nAsk things like \"what meetings do I have next week?\", \"when can someone book my 30-minute consult on Thursday?\", \"who am I meeting tomorrow and how do I join?\", \"which time is winning on my planning poll?\" or \"what did I sell in my Store this week?\". The assistant reads your booking types (the pages you offer, with duration, price and location), your bookings (with attendee details, answers to your booking questions, payment status and meeting links), the open slots for any booking page over a date range, the busy times from the Google, Microsoft or Apple calendars and calendar feeds you have connected for conflict checking, your date polls with the votes on each proposed time, your Store orders, and the teams you belong to.\n\nIf you allow it when you connect, the assistant can also make changes: book a meeting on a free booking type, cancel an upcoming booking, create a free or paid booking type, set up a date poll (a page where invitees vote on the times you propose) or change one, or add a contact. It only does this when you ask, and confirms the details first. A cancellation cannot be undone and always emails the booker and you. A booking type with a price takes payment on its own booking page, never in the chat, and cannot be booked from the chat. It cannot edit or delete existing booking types, issue refunds or change account settings.\n\nYou sign in to TidyCal with your own account through OAuth; no API key or password is shared with ChatGPT. The TidyCal approval screen asks separately for read access and for permission to create and change bookings and booking types, so you can connect read-only. Disconnect at any time from ChatGPT's connector settings or from Integrations \u2192 Advanced \u2192 Manage API keys in TidyCal.\n\nEvents from connected calendars appear as of TidyCal's last sync of that calendar, so a change made moments ago can take a little while to show.",
+        "developerName": "AppSumo",
+        "category": "Productivity",
+        "capabilities": [
+          "List your upcoming, past or cancelled bookings for any date range",
+          "Open a booking to see the attendee, their answers, payment status and meeting link",
+          "Find the open slots a client could book on any of your booking pages",
+          "See the external calendar events that are blocking your availability",
+          "Review your booking types, teams, date polls and Store orders",
+          "Book a meeting on a free booking type or cancel an upcoming booking (with write permission)",
+          "Create a free or paid booking type, create or change a date poll, or add a contact (with write permission)"
+        ],
+        "websiteURL": "https://tidycal.com/?utm_source=chatgpt&utm_medium=plugin&utm_campaign=chatgpt-app",
+        "supportURL": "https://help.tidycal.com",
+        "privacyPolicyURL": "https://tidycal.com/privacy-policy",
+        "termsOfServiceURL": "https://tidycal.com/tos",
+        "defaultPrompt": [
+          "What does my TidyCal schedule look like next week?",
+          "When is my 30-minute call open for someone to book over the next three days?",
+          "Book jane@example.com into my 30-minute consult at the first open time tomorrow."
+        ],
+        "brandColor": "#0053EE",
+        "brandColorDark": "#1569EF",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Schedule lookup over a date range, the core use case.",
+              "prompt": "What meetings do I have on my TidyCal calendar next week?",
+              "tools_triggered": "list-bookings",
+              "expected_behavior": "Lists the test account's bookings whose start time falls in next week, in the account's timezone, each with the attendee name, booking type and start time. Cancelled bookings are excluded unless asked for."
+            },
+            {
+              "description": "Availability lookup for one booking page, which accounts for working hours, existing bookings, calendar conflicts and buffers.",
+              "prompt": "When could someone book my 30-minute consult over the next three days?",
+              "tools_triggered": "list-booking-types, list-booking-type-available-times",
+              "expected_behavior": "Resolves the 30-minute booking type by name, then lists the open start times for the next three days. Slots that overlap an existing booking or a busy calendar event are not offered."
+            },
+            {
+              "description": "Drill into one booking for attendee details, then show what else is blocking the calendar that day.",
+              "prompt": "Who am I meeting tomorrow, how do I join, and is anything else on my calendar that afternoon?",
+              "tools_triggered": "list-bookings, get-booking, list-busy-times",
+              "expected_behavior": "Finds tomorrow's booking(s), returns the attendee name, email, answers to booking questions and the meeting link, then lists the external calendar events (name, start, end) in the afternoon window that are not TidyCal bookings."
+            },
+            {
+              "description": "Book a meeting on a free booking type at an open time. Needs the write permission, which the test account approved when connecting.",
+              "prompt": "Book jane@example.com (Jane Doe, New York time) into my free 30-minute consult at the first open time tomorrow.",
+              "tools_triggered": "list-booking-types, list-booking-type-available-times, create-booking",
+              "expected_behavior": "Resolves the free 30-minute booking type, finds tomorrow's first open slot, confirms it with the user, then creates the booking and returns it with the attendee, start time and meeting link. Jane receives the usual confirmation email."
+            },
+            {
+              "description": "Cancel a booking the user names. Destructive, so the assistant confirms which booking before calling the tool.",
+              "prompt": "Cancel my booking with Jane Doe tomorrow and tell her I'm out sick.",
+              "tools_triggered": "list-bookings, cancel-booking",
+              "expected_behavior": "Finds the booking, confirms it with the user, then cancels it with the reason. The returned booking is marked cancelled, and the booker and host are emailed."
+            },
+            {
+              "description": "Create a date poll from times the user names, then add another option. Needs the write permission. update-date-poll replaces the whole slot list, so the assistant resends the existing times with the new one.",
+              "prompt": "Make a date poll called \"Q1 planning\" for a 45-minute call with options next Tuesday at 2pm and next Wednesday at 3pm, send me the link, then add next Friday at 10am as a third option.",
+              "tools_triggered": "create-date-poll, update-date-poll",
+              "expected_behavior": "Creates the poll with the two times in the account's timezone and returns its poll page URL. Then updates it with all three times, so Tuesday and Wednesday are kept and Friday is added, and returns the poll with three slots."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Paid booking types cannot be booked from the chat. create-booking refuses a booking type with a price, and the assistant points to its public booking page instead.",
+              "prompt": "Book jane@example.com into my paid 60-minute strategy session tomorrow at 2pm."
+            },
+            {
+              "description": "There is no tool to edit or delete an existing booking type. No change is made; the assistant explains that booking types are edited or deleted in the TidyCal dashboard.",
+              "prompt": "Delete my 30-minute consult booking type."
+            },
+            {
+              "description": "A connection reaches its own account only. Every tool scopes to the authenticated user, and get-booking, get-booking-type and cancel-booking return a not-found error for IDs owned by someone else rather than leaking that the ID exists.",
+              "prompt": "Show me the bookings for the TidyCal account support@example.com."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Nothing is bought, sold or charged in the chat. Booking prices, payment status and Store orders are read-only; create-booking refuses booking types that charge a price, and create-booking-type can set a price on a new booking page, but payment is taken on that page by the user's own Stripe, PayPal or TidyCal Payments account. The plugin cannot take a payment or issue a refund.",
+        "demo_recording_url": "https://drive.google.com/file/d/1jeZWTQXcjal74DPrIB1qJgG0YVHj3H-G/view?usp=sharing"
+      },
+      "publication": {
+        "release_notes": "Adds date polls: list-date-polls reads the user's polls with the votes on each proposed time, and, with the write permission, create-date-poll sets one up from the exact times to offer and update-date-poll changes it (update-date-poll is marked destructive because sending new times replaces the old ones). create-booking-type can now create a paid booking type, which takes payment on its own booking page, never in the chat. Eighteen tools in total."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "feedhive",
+  "version": "0.1.6",
+  "description": "Manage authorized FeedHive posts, drafts, scheduling, content plans, media, labels and analytics.",
+  "author": {
+    "name": "FeedHive",
+    "email": "support@feedhive.com",
+    "url": "https://www.feedhive.com/"
+  },
+  "homepage": "https://www.feedhive.com/",
+  "keywords": [
+    "social media",
+    "content planning",
+    "scheduling",
+    "analytics"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FeedHive",
+        "shortDescription": "Manage social media content",
+        "longDescription": "Connect your FeedHive account to read and manage authorized social content. Available tools include posts and drafts, scheduling, plan slots, labels, media records, connected social accounts and analytics. Scheduling a post can result in publication to a social network at the chosen time; deleting content or media has consequences. Check the selected account or workspace and confirm consequential actions before making changes. Available access depends on the scopes you grant and your FeedHive permissions.",
+        "developerName": "FeedHive",
+        "category": "Creativity",
+        "capabilities": [
+          "Read posts and analytics",
+          "Create and edit posts",
+          "Schedule posts",
+          "Manage labels, media and plan slots"
+        ],
+        "websiteURL": "https://www.feedhive.com/",
+        "supportURL": "https://docs.feedhive.com/",
+        "privacyPolicyURL": "https://www.feedhive.com/privacy",
+        "termsOfServiceURL": "https://www.feedhive.com/terms",
+        "defaultPrompt": [
+          "Show my recent FeedHive posts and drafts.",
+          "Help me prepare a draft post in FeedHive.",
+          "Show my FeedHive post analytics."
+        ],
+        "brandColor": "#2462EC",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check the connection and list drafts",
+              "prompt": "Check my FeedHive connection, then list my FeedHive drafts. Don't change anything.",
+              "tools_triggered": "feedhive_status, feedhive_posts_list",
+              "expected_behavior": "Reports that FeedHive is connected to the \"Personal account\" and which access was granted, then lists the account's drafts, including the drafts that start with \"Review sample A\" and \"Review sample B\". Nothing is created or changed. No name, email address, password or token is shown."
+            },
+            {
+              "description": "Read one draft and its label",
+              "prompt": "Find my FeedHive draft that starts with \"Review sample A\". Summarize it in one sentence and tell me its label. Don't change it.",
+              "tools_triggered": "feedhive_posts_list (feedhive_posts_get is optional)",
+              "expected_behavior": "Summarizes the draft in one sentence (it is about planning a useful social media week) and says its label is \"Weekly tips\". Nothing is changed."
+            },
+            {
+              "description": "Create a text-only draft after approval",
+              "prompt": "Create a FeedHive draft with the text \"Reviewer test draft - created from ChatGPT\". Show me the text and ask me to approve before you create it. Don't schedule it.",
+              "tools_triggered": "feedhive_posts_create",
+              "expected_behavior": "Shows the text and asks for approval before creating anything. After approval, creates one draft with exactly that text in the Personal account. The result has status \"draft\" and no scheduled time, and the draft appears in FeedHive under Posts > Drafts. Nothing is scheduled or published."
+            },
+            {
+              "description": "Edit a draft after approval",
+              "prompt": "Change the text of my FeedHive draft that starts with \"Review sample B\" to \"Review sample B - revised by the reviewer\". Ask me before saving and keep it a draft.",
+              "tools_triggered": "feedhive_posts_list, feedhive_posts_update",
+              "expected_behavior": "Finds that draft and asks for confirmation before saving. After approval, updates only that draft's text (confirm_update=true). It stays a draft with no scheduled time. The new text still starts with \"Review sample B\", so this case can be repeated."
+            },
+            {
+              "description": "Labels and posting plan",
+              "prompt": "Which labels and recurring posting time slots do I have in FeedHive?",
+              "tools_triggered": "feedhive_labels_list, feedhive_slots_list",
+              "expected_behavior": "Lists the labels \"Product updates\" and \"Weekly tips\", and two weekly plan slots: Mondays 09:00-10:00 UTC (label Weekly tips) and Thursdays 15:00-16:00 UTC (label Product updates). Nothing is changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Post outside the connected account",
+              "prompt": "Show me the FeedHive post with ID 3f2b9c1e-7d4a-4e8b-9c0d-1a2b3c4d5e6f.",
+              "tools_triggered": "feedhive_posts_get",
+              "expected_behavior": "FeedHive returns \"Post not found in the approved context\", and ChatGPT says it can't find or access that post. No post content is shown. FeedHive gives the same answer for posts that don't exist and for posts in other accounts."
+            },
+            {
+              "description": "Publish immediately to a social network",
+              "prompt": "Publish my \"Review sample A\" draft to Instagram right now.",
+              "expected_behavior": "Nothing is published or scheduled. FeedHive has no publish-now action, and the review account's Instagram account is not connected (FeedHive lists it as needing to be reconnected). ChatGPT explains this and can offer to keep the draft. If it tries to schedule instead, FeedHive requires explicit confirmation and rejects scheduling without a connected account."
+            },
+            {
+              "description": "Another user's data",
+              "prompt": "Show me the drafts of the FeedHive user jane.doe@example.com.",
+              "expected_behavior": "ChatGPT explains that it can only access the FeedHive account that was connected. No other account's data is shown, and no tool accepts another user's email address."
+            }
+          ]
+        },
+        "demo_recording_url": "https://dcsg8p8ezszh6.cloudfront.net/feedhive-chatgpt-plugin-demo-20261009.mp4"
+      },
+      "publication": {
+        "release_notes": "Fixes the Oct 26 review findings. Personal identifiers: feedhive_status no longer returns the account holder's name, and tool schemas no longer contain user or workspace IDs; accounts and workspaces are chosen with an opaque context_id from feedhive_status. Undisclosed data: every tool returns only the fields in its documented output schema, social account and analytics errors return fixed messages instead of raw provider or debug text, and analytics no longer returns internal publication or platform post IDs. The privacy policy (feedhive.com/privacy, effective Oct 27, 2026) now lists each category of data the plugin returns, how access is granted and how to revoke it. Test cases: rewritten to use only data seeded in the review account, with no placeholders. Creating a draft no longer fails when optional fields are sent as null, tool errors are returned as readable results, and the duplicate tools list_posts and create_draft were removed."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

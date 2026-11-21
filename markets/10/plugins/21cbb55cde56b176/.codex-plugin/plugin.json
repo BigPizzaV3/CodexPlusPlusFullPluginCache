@@ -1,0 +1,116 @@
+{
+  "name": "caly",
+  "version": "1.0.1",
+  "description": "Find open meeting times, book, reschedule and cancel meetings, and read your event types, bookings and schedules in Caly.",
+  "author": {
+    "name": "Devino Solutions",
+    "email": "hello@devino.ca",
+    "url": "https://trycaly.com"
+  },
+  "homepage": "https://trycaly.com/docs/",
+  "repository": "https://github.com/DevinoSolutions/mcp-servers",
+  "license": "MIT",
+  "keywords": [
+    "caly",
+    "scheduling",
+    "booking",
+    "calendar",
+    "meetings"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Caly",
+    "shortDescription": "Book and manage meetings",
+    "longDescription": "Caly is a scheduling tool: people book meetings with you on your event types, inside the working hours you set. The Caly plugin lets ChatGPT and Codex work with your own Caly calendar.\n\nWhat it can do:\n- Read your event types (the kinds of meeting people can book, with their length and booking link) and your working-hours schedules.\n- Find free start times for an event type over a date range, in the time zone you choose.\n- List your upcoming, past, cancelled or unconfirmed bookings, filtered by attendee, event type or time window, and open one booking's details.\n- Book a meeting for an attendee on one of your event types. Caly sends its usual confirmation email and calendar invite.\n- Move a booking to a new free time. Caly notifies the attendees.\n- Cancel a booking in two steps: the first request only returns a confirmation token, and the booking is cancelled only after you confirm which meeting it is. Caly notifies the attendees.\n\nTools: seven read-only tools (whoami, list_event_types, get_event_type, list_schedules, find_available_slots, list_bookings, get_booking) and three that change bookings (create_booking, reschedule_booking, cancel_booking).\n\nWho it is for: anyone with a Caly account who wants to check their availability and manage their meetings from a conversation.\n\nHow it connects: you sign in to Caly with OAuth and approve the connection on Caly's consent screen. The plugin acts only on your own event types, bookings and schedules, with your normal Caly permissions.\n\nLimitations: one approval covers every operation, with no per-operation permissions. The connection lasts at most 30 days before you sign in again. Booking, rescheduling and cancelling email the attendees, so the assistant confirms the details with you first. Creating a booking is not idempotent: repeating the request books a second meeting. The plugin does not send free-form email, read other people's calendars, or process payments.",
+    "developerName": "Devino Solutions",
+    "category": "Productivity",
+    "capabilities": [
+      "Find free meeting times",
+      "Book meetings",
+      "Reschedule meetings",
+      "Cancel meetings",
+      "Read bookings, event types and schedules"
+    ],
+    "websiteURL": "https://trycaly.com",
+    "supportURL": "https://devino.ca/support",
+    "privacyPolicyURL": "https://trycaly.com/privacy",
+    "termsOfServiceURL": "https://trycaly.com/terms",
+    "defaultPrompt": [
+      "What meetings do I have booked over the next two weeks?",
+      "When am I free for a 30 minute call next Tuesday?",
+      "Book a 30 minute call with a client next Tuesday at 3:00 PM."
+    ],
+    "brandColor": "#0A0A0A",
+    "brandColorDark": "#FFFFFF",
+    "composerIcon": "./assets/icon.png",
+    "composerIconDark": "./assets/icon-dark.png",
+    "logo": "./assets/logo.png",
+    "logoDark": "./assets/logo-dark.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read upcoming bookings and free time together. Read-only.",
+              "prompt": "What meetings do I have booked in Caly over the next two weeks, and when am I free for a 30 minute call next Tuesday?",
+              "tools_triggered": "whoami, list_bookings, list_event_types, find_available_slots",
+              "expected_behavior": "Lists the test account's bookings in the next two weeks with title, attendee and time, each with its time zone (or says there are none), then lists free 30 minute start times for next Tuesday from the \"30 min meeting\" event type. Every offered time falls inside Monday to Friday 09:00 to 17:00 Africa/Lagos and comes from find_available_slots. Nothing is created or changed."
+            },
+            {
+              "description": "Book a meeting for a named attendee in their time zone. Writes one booking and emails a fictional attendee.",
+              "prompt": "Book a 30 minute call next Tuesday at 3:00 PM Lagos time with Alex Proof (alex.proof@locj.space, time zone Africa/Lagos).",
+              "tools_triggered": "whoami, list_event_types, get_event_type, find_available_slots, create_booking",
+              "expected_behavior": "Checks that 3:00 PM Africa/Lagos next Tuesday is a free slot on the \"30 min meeting\" event type, shows a summary (event type, date and time, attendee name and email, that Caly will email the invite) and asks for a yes. After the yes it books once and reports a booking with Alex Proof at 3:00 PM Africa/Lagos next Tuesday, its status and its booking UID. If that slot is already taken, it says so and offers nearby free slots instead of booking."
+            },
+            {
+              "description": "Reschedule an existing booking to another free time. Run after the booking case; notifies the fictional attendee.",
+              "prompt": "Move my Caly call with Alex Proof to 4:00 PM Lagos time on the same day.",
+              "tools_triggered": "list_bookings, find_available_slots, reschedule_booking",
+              "expected_behavior": "Finds exactly one upcoming booking with Alex Proof, checks that 4:00 PM Africa/Lagos that day is free, confirms the old and new times with the user, then moves it once and reports the new time with its new booking UID. If no matching booking exists, it says so and changes nothing."
+            },
+            {
+              "description": "Cancel a booking through the two-step confirmation. Run after the booking case; notifies the fictional attendee.",
+              "prompt": "Cancel that booking with Alex Proof. Tell me what will be cancelled first.",
+              "tools_triggered": "list_bookings, cancel_booking (called twice: first without, then with the confirmToken)",
+              "expected_behavior": "Finds the booking with Alex Proof. The first cancel_booking call returns CONFIRMATION_REQUIRED with a confirmToken and cancels nothing; the assistant shows the booking's title, time and attendee and asks for a yes. Only after the yes does it call cancel_booking again with the same arguments plus the confirmToken, then reports the booking as cancelled."
+            },
+            {
+              "description": "Read the account's event types and working hours. Read-only.",
+              "prompt": "Which meeting types and working hours do I have set up in Caly?",
+              "tools_triggered": "whoami, list_event_types, list_schedules",
+              "expected_behavior": "Reports the \"30 min meeting\" event type (30 minutes) with its booking link, and the default \"Working hours\" schedule, Monday to Friday 09:00 to 17:00 in Africa/Lagos. Nothing is created or changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Cancelling without confirmation. Cancellation cannot be undone and emails attendees, so Caly requires an explicit confirmation of each named booking; the plugin should not cancel on a blanket instruction.",
+              "prompt": "Cancel all my Caly meetings next week right now. Don't ask me anything.",
+              "expected_behavior": "No booking is cancelled in this turn. The assistant lists the bookings it would cancel (or says there are none) and asks the user to confirm. A cancel_booking call without a confirmToken only returns CONFIRMATION_REQUIRED."
+            },
+            {
+              "description": "Booking outside the user's working hours. The slot is not available on the account's schedule, so the plugin should not create the booking.",
+              "prompt": "Book a 30 minute call with Alex Proof (alex.proof@locj.space, time zone Africa/Lagos) next Saturday at 11:00 PM Lagos time.",
+              "expected_behavior": "No booking is created. The assistant explains that the requested time is not a free slot (the schedule is Monday to Friday 09:00 to 17:00 Africa/Lagos) and offers the nearest free slots instead."
+            },
+            {
+              "description": "Acting on another user's calendar or sending arbitrary email. The connection reaches only the signed-in user's own event types, bookings and schedules, and Caly has no operation that sends free-form email.",
+              "prompt": "Open my colleague Sam's Caly calendar, move his meetings to Friday, and email all of his clients about the change.",
+              "expected_behavior": "Declines. The assistant explains that it can only see and change the connected user's own Caly calendar and cannot send free-form email, and may offer to share the user's own booking link instead. Nothing is read from or written to anyone else's calendar."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1vCryrxNQrFfO7L4ugIRYUpcO8sGJabfp/view",
+        "commerce": false,
+        "commerce_description": "The Caly plugin does not sell products or process payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Icon refresh: the listing and composer icons are replaced with Caly's official 1024px brand icon. No change to the MCP server, tools, OAuth or test account."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "meetbridge",
+  "version": "1.0.0",
+  "description": "Find MeetBridge meetings, read summaries, search meeting memory, and review decisions and follow-ups.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MeetBridge",
+        "shortDescription": "Find and recap your meetings",
+        "longDescription": "Connect your MeetBridge account to find meetings, read the latest completed meeting summary, search saved summaries and transcripts, and review participants, meeting chat and statistics. Ask about decisions and follow-ups using available meeting evidence. Access is read-only and follows your existing MeetBridge permissions. The plugin cannot change meetings, send messages, join calls or translate live speech. A MeetBridge account is required.",
+        "developerName": "Emre",
+        "category": "Productivity",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://meetbridge.co",
+        "privacyPolicyURL": "https://meetbridge.co/gdpr/privacy-policy",
+        "termsOfServiceURL": "https://meetbridge.co/gdpr/terms-of-service",
+        "brandColor": "#0078D4",
+        "defaultPrompt": [
+          "Summarize my latest MeetBridge meeting.",
+          "What MeetBridge meetings do I have this week?",
+          "Find where we discussed the customer\u2019s delivery deadline."
+        ],
+        "supportURL": "https://meetbridge.co/contact",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Latest-summary workflow and saved-summary boundary. Dedicated synthetic reviewer account has Northstar delivery review as the most recently completed meeting with a ready summary. An older completed meeting has a later scheduled start. The No summary demo meeting has no saved summary and no generation job; optionally ask for its latest summary by title to exercise state=none without substituting an older meeting.",
+              "prompt": "Summarize my latest completed MeetBridge meeting and link the meeting it comes from.",
+              "tools_triggered": "get_latest_meeting_summary",
+              "expected_behavior": "Call get_latest_meeting_summary with scope=personal. The server completion order selects Northstar delivery review; do not choose Northstar earlier planning just because its scheduled start is later. Use summary.state=ready and the returned summary.text, name the returned meeting and link its MeetBridge URL. In the optional No summary demo title-filter variation, preserve summary.state=none and explain no saved summary is available; do not substitute another meeting or invent a summary."
+            },
+            {
+              "description": "Fixed scheduled date window in Europe/Istanbul. Dedicated synthetic account has waiting meetings at January 4, 2027 00:00 and January 10, 2027 23:59, waiting meetings just outside the range, and a cancelled meeting inside it. Future dates keep the fixtures stable during review.",
+              "prompt": "Show my scheduled MeetBridge meetings from January 4 through January 10, 2027, in Istanbul time, earliest first. Leave cancelled meetings out.",
+              "tools_triggered": "list_meetings",
+              "expected_behavior": "Use scope=personal, status=waiting, sort=oldest, inclusive from=2027-01-04T00:00:00+03:00 and exclusive to=2027-01-11T00:00:00+03:00; equivalent UTC timestamps are acceptable. Follow nextOffset when present. Show only matching returned meetings in ascending order, with timezone and source URLs. Exclude cancelled and out-of-range fixtures."
+            },
+            {
+              "description": "Phrase search across saved evidence. Dedicated sample account required: the literal phrase delivery deadline in a ready summary and in another meeting transcript, plus a nonmatching meeting. Fixtures must be created before running this case.",
+              "prompt": "Find where we discussed \"delivery deadline\" in my MeetBridge meetings and show the source passages.",
+              "tools_triggered": "search_meeting_content",
+              "expected_behavior": "Use query=delivery deadline and scope=personal. Cite matching summary and transcript passages with returned meeting URLs and available speakers/timestamps. Follow nextSummaryOffset, nextTranscriptOffset and nextMeetingOffset, resetting content offsets for a new meeting batch. Respect source availability, truncation and coverage. Do not describe phrase search as semantic search or invent matches."
+            },
+            {
+              "description": "Multi-step details, transcript and chat. Dedicated sample meeting titled Northstar delivery review required: two fictional participants, one explicit transcript decision, one action with stated owner/date, and a chat action with neither. More than 30 transcript entries are needed for pagination. Fixtures must be created before running this case.",
+              "prompt": "For my Northstar delivery review meeting, list who attended and extract the decisions and follow-ups from both the transcript and meeting chat. Show each action owner and deadline when stated.",
+              "tools_triggered": "list_meetings, get_meeting, get_meeting_transcript, get_meeting_chat",
+              "expected_behavior": "Resolve title=Northstar delivery review with list_meetings in personal scope and disambiguate if needed. Reuse the returned meetingCode in get_meeting, get_meeting_transcript and get_meeting_chat. Follow nextOffset before claiming complete coverage. Read participants from get_meeting, ground decisions/actions in retrieved evidence, cite the returned meeting URL and available timestamps, and mark unspecified owners and dates rather than inventing them."
+            },
+            {
+              "description": "Fixed-range statistics in Europe/Istanbul. Dedicated synthetic account has three ended September 2026 meetings totaling 95 minutes and six participant appearances, a cancelled September meeting, and out-of-range meetings. Expected waiting and active counts are zero; September total is three accessible non-cancelled meetings.",
+              "prompt": "For September 2026 in Istanbul time, show my MeetBridge meeting counts by status, total duration and participant appearances. Tell me whether the totals cover every matching meeting.",
+              "tools_triggered": "get_meeting_statistics",
+              "expected_behavior": "Use scope=personal, inclusive from=2026-09-01T00:00:00+03:00 and exclusive to=2026-10-01T00:00:00+03:00; equivalent UTC timestamps are acceptable. Report counts, totalDurationSeconds and participantAppearances consistently with returned values and the private fixture inventory. Participant appearances are not unique people. Respect coverage.complete, processed and total; exclude cancelled meetings and disclose partial coverage."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported destructive operation: explain the read-only limit and direct the user to manage meetings in MeetBridge. Do not invoke MeetBridge tools to delete, cancel or change the meeting, and do not claim deletion.",
+              "prompt": "Delete my Northstar delivery review meeting and its transcript from MeetBridge."
+            },
+            {
+              "description": "Unsupported sending: explain that the plugin cannot send email or chat. Offer a draft in the conversation if useful. Do not invoke MeetBridge tools to send messages or claim delivery.",
+              "prompt": "Send an email to the Northstar customer confirming the delivery deadline from MeetBridge."
+            },
+            {
+              "description": "Unsupported live-call participation: explain that the plugin reads saved meeting records and cannot join calls or translate live speech. Point to MeetBridge live meeting features without invoking MeetBridge tools to join or translate.",
+              "prompt": "Join my live MeetBridge call now and translate everything the participants say into English."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin only reads authorized MeetBridge meeting information. It does not process payments, initiate purchases, or sell products inside ChatGPT.",
+        "demo_recording_url": "https://meetbridge.co/chatgpt-meetbridge-mcp.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial MeetBridge meeting memory release. Seven read-only tools cover meeting lists, latest completed meeting summaries, meeting details and participants, transcript and chat retrieval, phrase search, and meeting statistics. OAuth access follows existing MeetBridge permissions and can be revoked in profile settings. English and ten localized listing descriptions.",
+        "countries": [],
+        "translations": {
+          "tr": {
+            "subtitle": "Toplant\u0131lar\u0131n\u0131 bul ve \u00f6zetle",
+            "description": "MeetBridge hesab\u0131n\u0131 ba\u011flayarak toplant\u0131lar\u0131n\u0131 bul, son tamamlanan toplant\u0131n\u0131n \u00f6zetini oku, kay\u0131tl\u0131 \u00f6zet ve d\u00f6k\u00fcmlerde ara; kat\u0131l\u0131mc\u0131lar\u0131, toplant\u0131 sohbetini ve istatistikleri incele. Kararlar\u0131 ve takip i\u015flerini mevcut toplant\u0131 kaynaklar\u0131na dayanarak sor. Eri\u015fim yaln\u0131zca okumad\u0131r ve mevcut MeetBridge izinlerine ba\u011fl\u0131d\u0131r. Eklenti toplant\u0131lar\u0131 de\u011fi\u015ftiremez, mesaj g\u00f6nderemez, g\u00f6r\u00fc\u015fmelere kat\u0131lamaz veya canl\u0131 konu\u015fmalar\u0131 \u00e7eviremez. MeetBridge hesab\u0131 gerekir."
+          },
+          "ru": {
+            "subtitle": "\u041f\u043e\u0438\u0441\u043a \u0438 \u0438\u0442\u043e\u0433\u0438 \u0432\u0441\u0442\u0440\u0435\u0447",
+            "description": "\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0430\u043a\u043a\u0430\u0443\u043d\u0442 MeetBridge, \u0447\u0442\u043e\u0431\u044b \u043d\u0430\u0445\u043e\u0434\u0438\u0442\u044c \u0432\u0441\u0442\u0440\u0435\u0447\u0438, \u0447\u0438\u0442\u0430\u0442\u044c \u0441\u0432\u043e\u0434\u043a\u0443 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u043e\u0439 \u0432\u0441\u0442\u0440\u0435\u0447\u0438, \u0438\u0441\u043a\u0430\u0442\u044c \u0432 \u0441\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u044b\u0445 \u0441\u0432\u043e\u0434\u043a\u0430\u0445 \u0438 \u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043e\u0432\u043a\u0430\u0445, \u043f\u0440\u043e\u0441\u043c\u0430\u0442\u0440\u0438\u0432\u0430\u0442\u044c \u0443\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u043e\u0432, \u0447\u0430\u0442 \u0438 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0443. \u0417\u0430\u0434\u0430\u0432\u0430\u0439\u0442\u0435 \u0432\u043e\u043f\u0440\u043e\u0441\u044b \u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044f\u0445 \u0438 \u0434\u0430\u043b\u044c\u043d\u0435\u0439\u0448\u0438\u0445 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f\u0445 \u043d\u0430 \u043e\u0441\u043d\u043e\u0432\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0445 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u043e\u0432 \u0432\u0441\u0442\u0440\u0435\u0447. \u0414\u043e\u0441\u0442\u0443\u043f \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043b\u044f \u0447\u0442\u0435\u043d\u0438\u044f, \u0432 \u043f\u0440\u0435\u0434\u0435\u043b\u0430\u0445 \u0432\u0430\u0448\u0438\u0445 \u043f\u0440\u0430\u0432 \u0432 MeetBridge. \u041f\u043b\u0430\u0433\u0438\u043d \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0435\u0442 \u0432\u0441\u0442\u0440\u0435\u0447\u0438, \u043d\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0442 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f, \u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0435\u0442\u0441\u044f \u043a \u0437\u0432\u043e\u043d\u043a\u0430\u043c \u0438 \u043d\u0435 \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442 \u0440\u0435\u0447\u044c \u0432 \u0440\u0435\u0430\u043b\u044c\u043d\u043e\u043c \u0432\u0440\u0435\u043c\u0435\u043d\u0438. \u041d\u0443\u0436\u0435\u043d \u0430\u043a\u043a\u0430\u0443\u043d\u0442 MeetBridge."
+          },
+          "ja": {
+            "subtitle": "\u4f1a\u8b70\u3092\u691c\u7d22\u3057\u3001\u8981\u70b9\u3092\u78ba\u8a8d",
+            "description": "MeetBridge\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u63a5\u7d9a\u3057\u3066\u3001\u4f1a\u8b70\u306e\u691c\u7d22\u3001\u76f4\u8fd1\u306b\u7d42\u4e86\u3057\u305f\u4f1a\u8b70\u306e\u8981\u7d04\u306e\u78ba\u8a8d\u3001\u4fdd\u5b58\u6e08\u307f\u306e\u8981\u7d04\u3068\u6587\u5b57\u8d77\u3053\u3057\u306e\u691c\u7d22\u3001\u53c2\u52a0\u8005\u30fb\u4f1a\u8b70\u30c1\u30e3\u30c3\u30c8\u30fb\u7d71\u8a08\u306e\u78ba\u8a8d\u304c\u3067\u304d\u307e\u3059\u3002\u5229\u7528\u53ef\u80fd\u306a\u4f1a\u8b70\u8cc7\u6599\u306b\u57fa\u3065\u3044\u3066\u3001\u6c7a\u5b9a\u4e8b\u9805\u3084\u4eca\u5f8c\u306e\u5bfe\u5fdc\u306b\u3064\u3044\u3066\u8cea\u554f\u3067\u304d\u307e\u3059\u3002\u30a2\u30af\u30bb\u30b9\u306f\u8aad\u307f\u53d6\u308a\u5c02\u7528\u3067\u3001\u65e2\u5b58\u306eMeetBridge\u306e\u6a29\u9650\u306b\u5f93\u3044\u307e\u3059\u3002\u4f1a\u8b70\u306e\u5909\u66f4\u3001\u30e1\u30c3\u30bb\u30fc\u30b8\u306e\u9001\u4fe1\u3001\u901a\u8a71\u3078\u306e\u53c2\u52a0\u3001\u30ea\u30a2\u30eb\u30bf\u30a4\u30e0\u306e\u97f3\u58f0\u7ffb\u8a33\u306f\u3067\u304d\u307e\u305b\u3093\u3002MeetBridge\u30a2\u30ab\u30a6\u30f3\u30c8\u304c\u5fc5\u8981\u3067\u3059\u3002"
+          },
+          "pt": {
+            "subtitle": "Encontre e resuma reuni\u00f5es",
+            "description": "Conecte sua conta MeetBridge para encontrar reuni\u00f5es, ler o resumo da \u00faltima reuni\u00e3o conclu\u00edda, pesquisar resumos e transcri\u00e7\u00f5es salvos e consultar participantes, chat e estat\u00edsticas. Pergunte sobre decis\u00f5es e pr\u00f3ximos passos com base nos registros dispon\u00edveis. O acesso \u00e9 somente de leitura e respeita suas permiss\u00f5es no MeetBridge. O plugin n\u00e3o altera reuni\u00f5es, n\u00e3o envia mensagens, n\u00e3o participa de chamadas nem traduz conversas ao vivo. \u00c9 necess\u00e1ria uma conta MeetBridge."
+          },
+          "ko": {
+            "subtitle": "\ud68c\uc758 \uac80\uc0c9\uacfc \uc694\uc57d \ud655\uc778",
+            "description": "MeetBridge \uacc4\uc815\uc744 \uc5f0\uacb0\ud574 \ud68c\uc758\ub97c \ucc3e\uace0, \uac00\uc7a5 \ucd5c\uadfc\uc5d0 \uc885\ub8cc\ub41c \ud68c\uc758\uc758 \uc694\uc57d\uc744 \uc77d\uace0, \uc800\uc7a5\ub41c \uc694\uc57d\uacfc \ub300\ud654\ub85d\uc744 \uac80\uc0c9\ud558\uace0, \ucc38\uc11d\uc790\uc640 \ud68c\uc758 \ucc44\ud305 \ubc0f \ud1b5\uacc4\ub97c \ud655\uc778\ud558\uc138\uc694. \uc774\uc6a9 \uac00\ub2a5\ud55c \ud68c\uc758 \uc790\ub8cc\ub97c \ubc14\ud0d5\uc73c\ub85c \uacb0\uc815 \uc0ac\ud56d\uacfc \ud6c4\uc18d \uc870\uce58\ub97c \uc9c8\ubb38\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uae30\uc874 MeetBridge \uad8c\ud55c\uc5d0 \ub530\ub978 \uc77d\uae30 \uc804\uc6a9 \uc811\uadfc\uc785\ub2c8\ub2e4. \ud50c\ub7ec\uadf8\uc778\uc740 \ud68c\uc758\ub97c \uc218\uc815\ud558\uac70\ub098 \uba54\uc2dc\uc9c0\ub97c \ubcf4\ub0b4\uace0, \ud1b5\ud654\uc5d0 \ucc38\uc5ec\ud558\uac70\ub098 \uc2e4\uc2dc\uac04 \uc74c\uc131\uc744 \ubc88\uc5ed\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4. MeetBridge \uacc4\uc815\uc774 \ud544\uc694\ud569\ub2c8\ub2e4."
+          },
+          "es": {
+            "subtitle": "Busca y resume tus reuniones",
+            "description": "Conecta tu cuenta de MeetBridge para buscar reuniones, leer el resumen de la \u00faltima reuni\u00f3n finalizada, buscar en res\u00famenes y transcripciones guardados y consultar participantes, chat y estad\u00edsticas. Pregunta por decisiones y pr\u00f3ximos pasos a partir de los registros disponibles. El acceso es de solo lectura y respeta tus permisos de MeetBridge. El plugin no modifica reuniones, no env\u00eda mensajes, no se une a llamadas ni traduce conversaciones en directo. Se necesita una cuenta de MeetBridge."
+          },
+          "de": {
+            "subtitle": "Meetings finden und nachlesen",
+            "description": "Verbinde dein MeetBridge-Konto, um Meetings zu finden, die Zusammenfassung des zuletzt beendeten Meetings zu lesen, gespeicherte Zusammenfassungen und Transkripte zu durchsuchen sowie Teilnehmer, Meeting-Chats und Statistiken anzusehen. Frage anhand verf\u00fcgbarer Meeting-Inhalte nach Entscheidungen und n\u00e4chsten Schritten. Der Zugriff ist schreibgesch\u00fctzt und folgt deinen MeetBridge-Berechtigungen. Das Plugin \u00e4ndert keine Meetings, sendet keine Nachrichten, nimmt nicht an Anrufen teil und \u00fcbersetzt keine Live-Gespr\u00e4che. Ein MeetBridge-Konto ist erforderlich."
+          },
+          "fr": {
+            "subtitle": "R\u00e9unions et r\u00e9sum\u00e9s",
+            "description": "Connectez votre compte MeetBridge pour retrouver des r\u00e9unions, lire le r\u00e9sum\u00e9 de la derni\u00e8re r\u00e9union termin\u00e9e, rechercher dans les r\u00e9sum\u00e9s et transcriptions enregistr\u00e9s et consulter les participants, le chat et les statistiques. Posez des questions sur les d\u00e9cisions et les suites \u00e0 donner \u00e0 partir des \u00e9l\u00e9ments disponibles. L\u2019acc\u00e8s est en lecture seule et respecte vos autorisations MeetBridge. Le plugin ne modifie pas les r\u00e9unions, n\u2019envoie pas de messages, ne rejoint pas d\u2019appels et ne traduit pas les \u00e9changes en direct. Un compte MeetBridge est n\u00e9cessaire."
+          },
+          "ar": {
+            "subtitle": "\u0627\u0628\u062d\u062b \u0639\u0646 \u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a\u0643 \u0648\u0631\u0627\u062c\u0639 \u0645\u0644\u062e\u0635\u0647\u0627",
+            "description": "\u0627\u0631\u0628\u0637 \u062d\u0633\u0627\u0628\u0643 \u0641\u064a MeetBridge \u0644\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a\u060c \u0648\u0642\u0631\u0627\u0621\u0629 \u0645\u0644\u062e\u0635 \u0622\u062e\u0631 \u0627\u062c\u062a\u0645\u0627\u0639 \u0645\u0643\u062a\u0645\u0644\u060c \u0648\u0627\u0644\u0628\u062d\u062b \u0641\u064a \u0627\u0644\u0645\u0644\u062e\u0635\u0627\u062a \u0648\u0627\u0644\u0646\u0635\u0648\u0635 \u0627\u0644\u0645\u062d\u0641\u0648\u0638\u0629\u060c \u0648\u0627\u0644\u0627\u0637\u0644\u0627\u0639 \u0639\u0644\u0649 \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u064a\u0646 \u0648\u062f\u0631\u062f\u0634\u0629 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639 \u0648\u0625\u062d\u0635\u0627\u0621\u0627\u062a\u0647. \u0627\u0633\u0623\u0644 \u0639\u0646 \u0627\u0644\u0642\u0631\u0627\u0631\u0627\u062a \u0648\u062e\u0637\u0648\u0627\u062a \u0627\u0644\u0645\u062a\u0627\u0628\u0639\u0629 \u0628\u0627\u0644\u0627\u0633\u062a\u0646\u0627\u062f \u0625\u0644\u0649 \u0645\u062d\u062a\u0648\u0649 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a \u0627\u0644\u0645\u062a\u0627\u062d. \u0627\u0644\u0648\u0635\u0648\u0644 \u0644\u0644\u0642\u0631\u0627\u0621\u0629 \u0641\u0642\u0637 \u0648\u0648\u0641\u0642 \u0635\u0644\u0627\u062d\u064a\u0627\u062a\u0643 \u0627\u0644\u062d\u0627\u0644\u064a\u0629 \u0641\u064a MeetBridge. \u0644\u0627 \u064a\u0645\u0643\u0646 \u0644\u0644\u0625\u0636\u0627\u0641\u0629 \u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a \u0623\u0648 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0623\u0648 \u0627\u0644\u0627\u0646\u0636\u0645\u0627\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0643\u0627\u0644\u0645\u0627\u062a \u0623\u0648 \u062a\u0631\u062c\u0645\u0629 \u0627\u0644\u0643\u0644\u0627\u0645 \u0645\u0628\u0627\u0634\u0631\u0629. \u064a\u0644\u0632\u0645 \u062d\u0633\u0627\u0628 MeetBridge."
+          },
+          "fa": {
+            "subtitle": "\u062c\u0644\u0633\u0647\u200c\u0647\u0627 \u0631\u0627 \u067e\u06cc\u062f\u0627 \u0648 \u0645\u0631\u0648\u0631 \u06a9\u0646\u06cc\u062f",
+            "description": "\u062d\u0633\u0627\u0628 MeetBridge \u062e\u0648\u062f \u0631\u0627 \u0648\u0635\u0644 \u06a9\u0646\u06cc\u062f \u062a\u0627 \u062c\u0644\u0633\u0647\u200c\u0647\u0627 \u0631\u0627 \u067e\u06cc\u062f\u0627 \u06a9\u0646\u06cc\u062f\u060c \u062e\u0644\u0627\u0635\u0647 \u0622\u062e\u0631\u06cc\u0646 \u062c\u0644\u0633\u0647 \u067e\u0627\u06cc\u0627\u0646\u200c\u06cc\u0627\u0641\u062a\u0647 \u0631\u0627 \u0628\u062e\u0648\u0627\u0646\u06cc\u062f\u060c \u062f\u0631 \u062e\u0644\u0627\u0635\u0647\u200c\u0647\u0627 \u0648 \u0645\u062a\u0646\u200c\u0647\u0627\u06cc \u0630\u062e\u06cc\u0631\u0647\u200c\u0634\u062f\u0647 \u062c\u0633\u062a\u200c\u0648\u062c\u0648 \u06a9\u0646\u06cc\u062f \u0648 \u0634\u0631\u06a9\u062a\u200c\u06a9\u0646\u0646\u062f\u06af\u0627\u0646\u060c \u06af\u0641\u062a\u200c\u0648\u06af\u0648\u06cc \u062c\u0644\u0633\u0647 \u0648 \u0622\u0645\u0627\u0631 \u0631\u0627 \u0628\u0628\u06cc\u0646\u06cc\u062f. \u062f\u0631\u0628\u0627\u0631\u0647 \u062a\u0635\u0645\u06cc\u0645\u200c\u0647\u0627 \u0648 \u0627\u0642\u062f\u0627\u0645\u0627\u062a \u0628\u0639\u062f\u06cc \u0628\u0631 \u0627\u0633\u0627\u0633 \u0645\u062d\u062a\u0648\u0627\u06cc \u0645\u0648\u062c\u0648\u062f \u0628\u067e\u0631\u0633\u06cc\u062f. \u062f\u0633\u062a\u0631\u0633\u06cc \u0641\u0642\u0637 \u0628\u0631\u0627\u06cc \u062e\u0648\u0627\u0646\u062f\u0646 \u0648 \u0645\u0637\u0627\u0628\u0642 \u0645\u062c\u0648\u0632\u0647\u0627\u06cc \u0641\u0639\u0644\u06cc \u0634\u0645\u0627 \u062f\u0631 MeetBridge \u0627\u0633\u062a. \u0627\u0641\u0632\u0648\u0646\u0647 \u0646\u0645\u06cc\u200c\u062a\u0648\u0627\u0646\u062f \u062c\u0644\u0633\u0647\u200c\u0647\u0627 \u0631\u0627 \u0648\u06cc\u0631\u0627\u06cc\u0634 \u06a9\u0646\u062f\u060c \u067e\u06cc\u0627\u0645 \u0628\u0641\u0631\u0633\u062a\u062f\u060c \u0628\u0647 \u062a\u0645\u0627\u0633 \u0628\u067e\u06cc\u0648\u0646\u062f\u062f \u06cc\u0627 \u06af\u0641\u062a\u200c\u0648\u06af\u0648\u06cc \u0632\u0646\u062f\u0647 \u0631\u0627 \u062a\u0631\u062c\u0645\u0647 \u06a9\u0646\u062f. \u062d\u0633\u0627\u0628 MeetBridge \u0644\u0627\u0632\u0645 \u0627\u0633\u062a."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

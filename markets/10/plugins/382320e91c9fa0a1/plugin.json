@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "impact-economic-calendar",
+  "version": "1.0.3",
+  "description": "Read-only access to Impact's economic calendar, its measured market reactions to economic releases, and the price candles in the first minute after a release.",
+  "author": {
+    "name": "Dostum Amigo SLU",
+    "email": "impact@dostumamigo.com",
+    "url": "https://impact.dostumamigo.com"
+  },
+  "homepage": "https://impact.dostumamigo.com",
+  "keywords": [
+    "economic calendar",
+    "CPI",
+    "nonfarm payrolls",
+    "macro",
+    "forex",
+    "market reaction",
+    "price candles"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Impact Economic Calendar",
+        "shortDescription": "Economic releases & reactions",
+        "longDescription": "Impact is an economic calendar for traders. This plugin lets ChatGPT read Impact's calendar and its historical market measurements, so you can ask things like \"What is on the economic calendar this week?\", \"Show me the last six US CPI prints\" or \"How did markets react to the last US payrolls release?\".\n\nFive read-only tools:\n- list_releases: scheduled and past releases (CPI, payrolls, GDP, central bank rates and more) between two dates, with the time in UTC, the country, and the actual figure, consensus forecast and previous figure. Up to 14 days per call, covering the last 24 months and upcoming releases.\n- get_release: one release in full, including the revised previous figure and the surprise (actual minus consensus).\n- release_history: up to 24 past prints of the same release, newest first.\n- market_reaction: for releases in the last 90 days, the measured price move in pips at 2s, 5s, 10s, 30s, 1m and 5m after the release, and the spread before and at the release, across currency pairs, indices, metals, oil and crypto.\n- release_candles: for releases in the last 90 days, the 2-second and 5-second price candles (open, high, low, close) for each affected instrument in the first 60 seconds after the release, with the instrument's pip size, so you can compare the first move with how far it went.\n\nIt only reads, and cannot change anything in your Impact account. It returns recorded facts, not forecasts, trading signals or investment advice.\n\nRequirements: an Impact account with AI app access. You sign in to Impact once when you connect, and ChatGPT never sees your password. Fair-use limits apply per account; the documentation lists them.\n\nPrivacy: for each call Impact records the time, the app, the tool, the number of rows and the outcome, never the content of your conversation. You can disconnect at any time from the AI apps section of your Impact account page, or from ChatGPT's settings.",
+        "developerName": "Dostum Amigo SLU",
+        "category": "Finance",
+        "capabilities": [
+          "Look up scheduled and past economic releases",
+          "Compare past prints of a release with consensus",
+          "Read measured market reactions to a release",
+          "Read the price candles in the first minute after a release"
+        ],
+        "websiteURL": "https://impact.dostumamigo.com",
+        "supportURL": "https://impact.dostumamigo.com/contact.html",
+        "privacyPolicyURL": "https://impact.dostumamigo.com/privacy.html",
+        "termsOfServiceURL": "https://impact.dostumamigo.com/terms.html",
+        "defaultPrompt": [
+          "What's on the economic calendar this week?",
+          "Show me the last 6 US CPI prints with the consensus and the surprise.",
+          "How did markets react to the most recent US Nonfarm Payrolls release?"
+        ],
+        "brandColor": "#0B6BCB",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Upcoming calendar for the next week. Any 7-day window holds dozens of releases; for example 5-9 October 2026 held 199.",
+              "prompt": "What's on the economic calendar for the next 7 days?",
+              "tools_triggered": "list_releases",
+              "expected_behavior": "Lists the scheduled releases with the time in UTC, the country, the release name and the consensus and previous figures where they exist. Upcoming releases have no actual figure yet."
+            },
+            {
+              "description": "Past prints of a release with the surprise. US CPI YoY, for example: 11 Sep 2026 3.4 vs 3.4 consensus; 12 Aug 3.4 vs 3.4; 14 Jul 3.5 vs 3.8.",
+              "prompt": "Show me the last 6 US CPI YoY prints with the consensus and the surprise.",
+              "tools_triggered": "list_releases, release_history",
+              "expected_behavior": "Finds a US CPI YoY release_id with list_releases, then returns six prints newest first, each with the date, the actual, the consensus, the previous figure and the surprise (actual minus consensus)."
+            },
+            {
+              "description": "Full detail of one recent release.",
+              "prompt": "Give me the full details of the most recent US Nonfarm Payrolls release.",
+              "tools_triggered": "list_releases, get_release",
+              "expected_behavior": "Returns one release with its time in UTC, actual, consensus, previous, revised previous and surprise. For example, 2 Oct 2026 12:30 UTC printed 29 against a consensus of 90, previous 162."
+            },
+            {
+              "description": "Measured market reaction to a release in the last 90 days.",
+              "prompt": "How did markets react to the most recent US Nonfarm Payrolls release?",
+              "tools_triggered": "list_releases, market_reaction",
+              "expected_behavior": "For each affected instrument (currency pairs, indices, metals, oil, crypto), reports the price move in pips at 2s, 5s, 10s, 30s, 1m and 5m after the release with its direction, and the spread before and at the release. Presented as past measurements, not as a forecast."
+            },
+            {
+              "description": "Filtering by country and by releases that carry a consensus forecast.",
+              "prompt": "Which US releases next week have a consensus forecast?",
+              "tools_triggered": "list_releases",
+              "expected_behavior": "Returns only US releases in the coming week that have a consensus value, with their times in UTC and the consensus and previous figures."
+            },
+            {
+              "description": "Second-by-second price candles after a release in the last 90 days. For the 14 Oct 2026 US CPI (12:30 UTC), EURUSD's first 2-second candle opened at 1.11973 and closed at 1.11762 (about 21 pips down), and the low of the first minute was 1.11575 (about 40 pips below the open).",
+              "prompt": "Show me the 2-second candles for EURUSD in the first minute after the most recent US CPI release, and compare the first candle's move with the biggest move in that minute.",
+              "tools_triggered": "list_releases, release_candles",
+              "expected_behavior": "Finds the US CPI release_id with list_releases, then returns the 2-second and 5-second candles with open, high, low and close and the pip size for the first 60 seconds, and works out the first candle's move and the largest move in pips. It names the other US releases published at the same time, which share the same candles. Presented as past prices, not as a forecast."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin is read-only: it cannot change or delete anything or create alerts, so ChatGPT should say so rather than attempt it.",
+              "prompt": "Delete the next US CPI release from my Impact calendar and set an alert for it."
+            },
+            {
+              "description": "No predictions and no investment advice. The tools return recorded facts only, and every response carries a notice saying so. ChatGPT may show the published consensus, labelled as consensus.",
+              "prompt": "What will the next US CPI print be, and should I buy EUR/USD before it?"
+            },
+            {
+              "description": "Bulk extraction is refused: list_releases covers at most 14 days per call, and the tool returns 'At most 14 days per call; ask for a shorter range and call again for the next one.'",
+              "prompt": "List every economic release from the last two years."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell anything or process payments. People sign in with their own existing Impact account.",
+        "demo_recording_url": "https://impact.dostumamigo.com/review/18beb6e89bb8ee81/impact-connector-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "1.0.3: adds release_candles, a fifth read-only tool returning the 2-second and 5-second price candles for the first 60 seconds after a release (releases in the last 90 days). Listing text updated to describe it. The other four tools are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

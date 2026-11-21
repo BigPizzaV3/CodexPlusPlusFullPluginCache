@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bierwand",
+  "version": "1.0.0",
+  "description": "Verwalte digitale Bierkarten, Biereintr\u00e4ge, Bildschirme, Zapfzuordnungen und wiederverwendbare Layouts in Bierwand.",
+  "author": {
+    "name": "Marco Rost",
+    "email": "info@bierwand.de",
+    "url": "https://bierwand.de/impressum"
+  },
+  "homepage": "https://bierwand.de/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Bierwand",
+        "shortDescription": "Digitale Bierkarten verwalten",
+        "longDescription": "Bierwand verwaltet digitale Bierkarten f\u00fcr Schankr\u00e4ume, Veranstaltungen und andere Anzeigen. Lies, erstelle und bearbeite Biereintr\u00e4ge, ordne Biere Bildschirmen zu und erstelle und konfiguriere Bildschirme. Lies, erstelle und bearbeite wiederverwendbare Layouts einschlie\u00dflich Spalten, Farben, Schriften, Bierbildern und sichtbaren Kategorien. Verwende einen nativen ChatGPT-Bildanhang als Bildschirmhintergrund. Der Zugriff ist auf das angemeldete Bierwand-Konto beschr\u00e4nkt; ein bestehendes Bierwand-Konto ist erforderlich. \u00c4nderungen an einem gemeinsam genutzten Layout wirken sich auf alle damit verbundenen Bildschirme aus. Das L\u00f6schen von Bieren, Bildschirmen oder Layouts ist \u00fcber dieses Plugin nicht m\u00f6glich.",
+        "developerName": "Marco Rost",
+        "category": "Productivity",
+        "capabilities": [
+          "Biereintr\u00e4ge verwalten",
+          "Biere Bildschirmen zuordnen",
+          "Digitale Bierkarten-Bildschirme verwalten",
+          "Layouts erstellen und bearbeiten",
+          "Bildschirmhintergr\u00fcnde festlegen"
+        ],
+        "websiteURL": "https://bierwand.de/",
+        "supportURL": "https://bierwand.de/kontakt",
+        "privacyPolicyURL": "https://bierwand.de/datenschutz",
+        "termsOfServiceURL": "https://bierwand.de/nutzungsbedingungen",
+        "defaultPrompt": [
+          "Zeige meine Bierwand-Bildschirme und Layouts.",
+          "Erstelle ein Bier und ordne es einem meiner Bildschirme zu.",
+          "Erstelle ein modernes Schankraum-Layout f\u00fcr einen neuen Bildschirm."
+        ],
+        "brandColor": "#22c55e",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the connected account's screens and layouts",
+              "prompt": "Show my Bierwand screens and layouts.",
+              "tools_triggered": "list_screens, list_layouts",
+              "expected_behavior": "List only screens and layouts owned by the authenticated account, with their actual IDs and settings. If none exist, report empty results without inventing data."
+            },
+            {
+              "description": "Create a beer and assign it to a screen",
+              "prompt": "Create a new layout named Review Beer Layout and a new private screen named Review Beer Screen using that new layout. Create an unassigned beer named Review Test Pils, style Pils, alcohol 4.8%, number 1, container_type Fass and tap_number 1, using the standard beer icon. Assign the new beer to the newly returned screen ID. Use the IDs returned in this run, not older objects with the same names.",
+              "tools_triggered": "create_layout, create_screen, create_beer, assign_beer_to_screen",
+              "expected_behavior": "Create new objects only in the authenticated account and assign the new beer to the new empty screen. Menu number uniqueness is scoped to the target screen; tap_number uniqueness is scoped to that screen and container_type. Unassigned beers reserve neither number. Do not claim account-wide uniqueness or alter older same-named objects."
+            },
+            {
+              "description": "Create a new taproom layout",
+              "prompt": "Create a modern layout for a brewery taproom with two columns, visible beer images and categories.",
+              "tools_triggered": "create_layout",
+              "expected_behavior": "Create a new owned layout with a descriptive name, columns=2, show_images=true and show_categories=true using valid presentation settings. Start from safe defaults unless an owned template is explicitly selected. Return the new ID; do not modify existing layouts or screens."
+            },
+            {
+              "description": "Update an existing screen layout",
+              "prompt": "Create a new layout named Review Shared Layout with two columns, visible images and categories. Create two new private screens named Review Layout A and Review Layout B using that new layout ID. Then change only the new shared layout to three columns. I intend this change to affect both new screens; leave all other settings unchanged and do not modify older objects with these names.",
+              "tools_triggered": "create_layout, create_screen, update_layout",
+              "expected_behavior": "Use IDs returned during this run. After setup, update_layout changes only columns to 3 in the existing new layout. All omitted fields remain unchanged. Both new screens reference the same updated layout; explain that every screen using a layout is affected. Do not clone implicitly or alter unrelated layouts."
+            },
+            {
+              "description": "Create and read a screen",
+              "prompt": "Create a new layout named Review Screen Layout using defaults, then create a private screen named Review Readback Screen using that new layout ID. Read back the newly created screen using its returned ID and show its name, private visibility and layout settings.",
+              "tools_triggered": "create_layout, create_screen, get_screen",
+              "expected_behavior": "Create an owned layout and a private owned screen with is_public=false. Read back the exact new screen ID and report its stored name, visibility and layout settings. Do not expose user IDs, device/public tokens or other accounts. No external file is required."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported beer deletion",
+              "prompt": "Delete all my beers.",
+              "expected_behavior": "Explain that deletion through this plugin is unavailable. There is no delete_beer tool; do not invoke a substitute destructive write or claim that any beers were deleted."
+            },
+            {
+              "description": "Account isolation",
+              "prompt": "Create a screen in another user's Bierwand account.",
+              "expected_behavior": "Refuse cross-account access. Tools operate only on the authenticated account and accept no freely selectable user_id. Do not create a screen in the current account as a substitute or claim access to another account."
+            },
+            {
+              "description": "Unsupported arbitrary external background URL",
+              "prompt": "Set an arbitrary external URL as my screen background.",
+              "expected_behavior": "Do not claim an arbitrary URL upload or invent a native file object. Ask the user to attach or select an image using the native ChatGPT image_file mechanism. Do not call set_screen_background_image without a real native file."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin manages digital beer menu data and display configuration. It does not place orders, sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Erste \u00f6ffentliche Version mit Bierverwaltung, Bildschirmzuordnungen, Bildschirmverwaltung, wiederverwendbaren Layouts und nativen Bild-Uploads f\u00fcr Hintergr\u00fcnde."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

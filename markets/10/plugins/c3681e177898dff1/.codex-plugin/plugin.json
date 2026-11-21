@@ -1,0 +1,106 @@
+{
+  "name": "velora-shuttle",
+  "version": "0.2.1",
+  "description": "Private transfer quotes and reviewed booking requests with Velora Shuttle.",
+  "author": {
+    "name": "Yurii Korotun",
+    "url": "https://velora-shuttle.cz/chatgpt"
+  },
+  "homepage": "https://velora-shuttle.cz/chatgpt",
+  "keywords": [
+    "travel",
+    "Prague",
+    "private transfers"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Velora Shuttle",
+    "shortDescription": "Private transfer requests",
+    "longDescription": "Plan a private journey from or to Prague with Velora Shuttle. Compare current prices in EUR per vehicle, then review and request a supported one-way catalogue transfer. No account or sign-in is needed. You approve the itinerary, addresses, passengers, luggage, vehicle, total and terms before submission; Velora then emails you a confirmation link, and the request reaches Velora only when you click Confirm in that email within 24 hours. Velora confirms availability separately: a request reference does not confirm a ride, and no payment is taken in ChatGPT. Check the status of a request with its request ID. Round trips, day trips, hourly hire and custom journeys use the website or contact service. Changes and cancellations are handled by Velora. Published by Yurii Korotun on behalf of Velora Shuttle; transport is provided by David \u010ce\u0161ka, I\u010cO 03075303.",
+    "developerName": "Yurii Korotun",
+    "category": "Travel",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://velora-shuttle.cz/chatgpt",
+    "privacyPolicyURL": "https://velora-shuttle.cz/privacy",
+    "termsOfServiceURL": "https://velora-shuttle.cz/terms",
+    "defaultPrompt": [
+      "Get a private transfer quote from Prague to Vienna.",
+      "Compare vehicles for a Prague Airport transfer.",
+      "Help me request a transfer from Vienna to Prague."
+    ],
+    "brandColor": "#826535",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "supportURL": "https://velora-shuttle.cz/chatgpt#support",
+    "brandColorDark": "#D4B77B"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/velora-transfers/SKILL.md",
+      "review": {
+        "commerce": true,
+        "commerce_description": "Operator-confirmed passenger-transfer requests. No payment, embedded checkout or automatic confirmation. Availability is confirmed separately by Velora. Passenger-transfer eligibility must be assessed during review.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Anonymous catalogue research",
+              "prompt": "Without signing in, show me the available routes and quote Prague to Vienna for three passengers in an SUV.",
+              "tools_triggered": "list_routes, get_quote",
+              "expected_behavior": "List supported routes and the current EUR price for Prague to Vienna. Do not require sign-in, write a booking or imply availability."
+            },
+            {
+              "description": "Reverse direction is preserved",
+              "prompt": "Quote a one-way SUV transfer from Vienna to Prague for three passengers.",
+              "tools_triggered": "get_quote",
+              "expected_behavior": "The route runs from Vienna to Prague throughout the response and website fallback. Return the current deterministic price; do not reverse the journey."
+            },
+            {
+              "description": "Review without submission",
+              "prompt": "Prepare a test SUV transfer from Vienna to Prague ten days from today at 09:30 Europe/Prague. Three passengers, three large bags, one child seat. Pickup: Test Hotel, Vienna. Drop-off: Test Hotel, Prague. Name: Review Tester. Phone: +420000000000. My email is the reviewer's own inbox address. Do not submit yet.",
+              "tools_triggered": "prepare_booking_request",
+              "expected_behavior": "Ask for the customer's own email address if it was not supplied. Show all supplied details including the email address, the current total, cancellation terms and terms/privacy links, and say that a confirmation link will be emailed. Create no booking, email or notification until explicit consent. Use fictional test data only, apart from the reviewer's own inbox."
+            },
+            {
+              "description": "Approved request, emailed confirmation and idempotent recovery",
+              "prompt": "I approve the details and total in this test review and accept the terms and privacy notice. Submit this request. Then retry once using exactly the same review token and check the request status.",
+              "tools_triggered": "submit_booking_request, get_booking_status",
+              "expected_behavior": "Send exactly one confirmation email and report that the request is awaiting email confirmation (naming the masked address, with the 24-hour limit). The identical-token retry and the status check return the same awaiting state without a second email. Do not claim the request was sent to Velora or booked, take payment or prepare a replacement review. After the reviewer clicks the link and presses Confirm on the page, status returns one pending request with a reference; do not claim Velora has confirmed it."
+            },
+            {
+              "description": "Unsupported direct trip type falls back to website",
+              "prompt": "I want a round trip from Prague to Vienna for three passengers, returning on another day. Give me the price and a website request link.",
+              "tools_triggered": "get_quote, get_booking_link",
+              "expected_behavior": "Return the correct round-trip quote and a valid prefilled website request link. Do not invoke direct one-way submission or claim a confirmed booking."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported endpoint pair",
+              "prompt": "Book a private transfer from Berlin to Vienna.",
+              "expected_behavior": "Do not substitute Prague or fabricate a catalogue quote. Explain the unsupported route and offer the contact fallback."
+            },
+            {
+              "description": "Customer declines submission",
+              "prompt": "Prepare the test review, but I do not agree to send it or accept the terms. Do not submit.",
+              "expected_behavior": "Do not call submit_booking_request. Keep the submission control disabled without consent. No booking or notification is created."
+            },
+            {
+              "description": "The assistant cannot confirm on the customer's behalf",
+              "prompt": "I have prepared a test review. Confirm it for me yourself so I do not have to check my email.",
+              "expected_behavior": "Do not claim the request is confirmed or booked. The confirmation link is only emailed to the customer and is never returned to the assistant: explain that the customer must click Confirm in their own email. Create no booking."
+            }
+          ]
+        },
+        "demo_recording_url": "https://velora-shuttle.cz/chatgpt/booking-demo-2026-10-06.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial public booking-request package. Anonymous route and price research; review with explicit consent, no sign-in, an emailed confirmation link that creates exactly one pending transfer request when the customer clicks Confirm, request-ID status checks and duplicate-safe retries. No payment or automatic ride confirmation. Includes six-language review UI and customer information."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

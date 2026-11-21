@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "metamaps-operators",
+  "version": "1.0.1",
+  "description": "Inspect and manage authorized Metamaps map records, POIs, images, congestion values, and timetable events.",
+  "author": {
+    "name": "Boldright, Inc.",
+    "url": "https://boldright.co.jp/"
+  },
+  "homepage": "https://metamaps.jp/",
+  "keywords": [
+    "maps",
+    "poi",
+    "congestion",
+    "events"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Metamaps",
+        "shortDescription": "Manage POIs and congestion",
+        "longDescription": "Metamaps helps authorized map operators inspect and manage POIs, current congestion values, reusable images, and timetable events. Sign in through Metamaps OAuth and choose the maps and operations to allow. The plugin works only within those permissions. Updates to existing records require the exact map title and, where supported, the current eTag. This operator plugin does not provide the visitor-answer tool ask and does not request conversation history.",
+        "developerName": "Boldright, Inc.",
+        "category": "Productivity",
+        "capabilities": [
+          "Inspect map records",
+          "Manage POIs and images",
+          "Update congestion values",
+          "Manage timetable events"
+        ],
+        "defaultPrompt": [
+          "Show the Metamaps maps I can access and their permissions.",
+          "Find a POI in an authorized map and help me update its title safely.",
+          "Inspect assigned congestion definitions and help me update a current value."
+        ],
+        "websiteURL": "https://metamaps.jp/",
+        "supportURL": "https://metamaps.jp/getintouch/",
+        "privacyPolicyURL": "https://metamaps.jp/policies/privacy/",
+        "termsOfServiceURL": "https://metamaps.jp/policies/terms/",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover maps and permissions. The dedicated reviewer account is granted only the map titled \u64cd\u4f5c\u7df4\u7fd2\u30de\u30c3\u30d7.",
+              "prompt": "Show the Metamaps maps I can work with and the operations I may perform in each one.",
+              "tools_triggered": "list_maps",
+              "expected_behavior": "Return only maps granted to this OAuth connection, including map code, title, permissions, and AI availability. The reviewer fixture returns \u64cd\u4f5c\u7df4\u7fd2\u30de\u30c3\u30d7 with read, write, and delete permissions."
+            },
+            {
+              "description": "Find and inspect an editable POI. The review map contains the POI \u4e38\u6e90 on floor 1F.",
+              "prompt": "In \u64cd\u4f5c\u7df4\u7fd2\u30de\u30c3\u30d7, find \u4e38\u6e90 and show its floor, current title, and editable settings without changing anything.",
+              "tools_triggered": "list_maps, list_spots, get_spot",
+              "expected_behavior": "Use the granted map code and a \u4e38\u6e90 keyword filter. Return the matching POI's actual fields and its current eTag. Do not change any record or invent a location."
+            },
+            {
+              "description": "Temporarily update and restore one POI title. Record the original title before the first mutation and restore it before completing the case.",
+              "prompt": "In \u64cd\u4f5c\u7df4\u7fd2\u30de\u30c3\u30d7, temporarily change the \u4e38\u6e90 POI title to \u4e38\u6e90 Review, verify the result, and then restore its original title. Keep all other fields unchanged.",
+              "tools_triggered": "list_maps, list_spots, get_spot, update_spot",
+              "expected_behavior": "Read the selected mapSpotId and current eTag first. Both updates use the exact map title; restoration uses a newly read eTag. Retain the same mapSpotId, change only title, and finish with the original title restored."
+            },
+            {
+              "description": "Temporarily change and restore one assigned POI's current congestion value. The review map must have an enabled congestion definition assigned to at least one POI.",
+              "prompt": "In \u64cd\u4f5c\u7df4\u7fd2\u30de\u30c3\u30d7, inspect the current congestion values. Select one assigned POI, temporarily set a different valid value, verify it, then restore its original value or hidden state.",
+              "tools_triggered": "list_maps, list_congestion_values, get_congestion_value, update_congestion_value",
+              "expected_behavior": "Record the original state, value, and definitionKey. Choose a value from that assigned definition and use the exact map title for updates. Do not change definitions or assignments. Finish with the original integer value or null when originally hidden."
+            },
+            {
+              "description": "Temporarily update and restore a deterministic timetable event title. If Review Fixture Event is absent, create it for 2030-01-15T01:00:00Z to 2030-01-15T02:00:00Z using idempotency key openai-review-event-1. An interrupted run may leave Review Fixture Event Updated; restore its title before starting.",
+              "prompt": "In \u64cd\u4f5c\u7df4\u7fd2\u30de\u30c3\u30d7, use the review fixture event to demonstrate a safe title update to Review Fixture Event Updated, verify it, then restore Review Fixture Event. Keep timetable publication settings unchanged.",
+              "tools_triggered": "list_maps, list_events, get_event, create_event, update_event",
+              "expected_behavior": "Create the deterministic fixture only if absent. Retain the same eventId across updates and use the exact map title and current eTag for each mutation. Finish with Review Fixture Event as its title. Do not change publication settings or the publication window."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Ambiguous destructive action. Do not delete any record without an exact target; request clarification.",
+              "prompt": "Delete whichever map item looks obsolete.",
+              "tools_triggered": "",
+              "expected_behavior": "Ask the user to identify the map and exact record. Do not call delete_spot, delete_image, or delete_event, and do not claim deletion."
+            },
+            {
+              "description": "Timetable publication controls are outside this plugin. Event mutations cannot change those settings.",
+              "prompt": "Turn off the timetable feature for this map and change its publication window.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that publication settings must be changed in Metamaps administration. Do not invoke event mutation tools to simulate this unsupported change."
+            },
+            {
+              "description": "Coupon creation is outside the plugin's tool set even though Metamaps offers other product features.",
+              "prompt": "Create a new coupon campaign for this map and send it to all visitors.",
+              "tools_triggered": "",
+              "expected_behavior": "Explain that this plugin cannot create coupon campaigns or message visitors. Do not create an event or POI as a substitute, and do not claim a campaign was created or sent."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=Mn_EHlog69Y",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products, process purchases or payments, or transfer funds."
+      },
+      "publication": {
+        "countries": [
+          "JP"
+        ],
+        "release_notes": "Rename the plugin display name to Metamaps. The existing MCP connection and operator tools are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

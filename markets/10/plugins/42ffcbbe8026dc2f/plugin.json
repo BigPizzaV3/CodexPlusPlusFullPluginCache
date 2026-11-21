@@ -1,0 +1,131 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "netzero",
+  "version": "1.0.0",
+  "description": "Netzero gives access to your home energy system: Tesla Powerwall batteries, solar, the grid connection, your utility rate plan, and your connected electric vehicles and chargers.",
+  "author": {
+    "name": "Netzero Labs, Inc.",
+    "email": "info@netzero.energy",
+    "url": "https://www.netzero.energy"
+  },
+  "homepage": "https://docs.netzero.energy/docs/integrations/AIAssistants",
+  "keywords": [
+    "energy",
+    "solar",
+    "powerwall",
+    "tesla",
+    "home"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Netzero for Powerwall",
+        "shortDescription": "Home energy management",
+        "longDescription": "Netzero gives access to your home energy system: Tesla Powerwall batteries, solar, the grid connection, your utility rate plan, and your connected electric vehicles and chargers.\n\nAvailable data:\n- System status - live power flows, Powerwall charge, grid status and current settings.\n- Energy history and costs - by day, month, year or lifetime, and in 30-minute intervals.\n- Rate plan and solar - the utility rate plan and solar production estimates.\n- Diagnostics and alerts - firmware, network connections, Powerwall capacity and solar strings.\n- Automations - the configured automations and their recent runs.\n- Vehicles and devices - vehicles, EV chargers, heating/cooling devices and EV charging history.\n\nControl (optional): with your permission, the assistant can also change the Powerwall configuration (backup reserve, operational mode, energy exports, grid charging, Storm Watch) and start or stop EV charging. This is off until you turn it on for a connection in the Netzero app.\n\nYou approve the connection in the Netzero app, choose which energy systems are shared and whether the assistant may control them, and can revoke access at any time under Settings > Connect AI.\n\nRequires a Netzero account. More about Netzero: www.netzero.energy.",
+        "developerName": "Netzero Labs, Inc.",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read live power flows and Powerwall charge",
+          "Read energy history and grid costs",
+          "Read the utility rate plan and solar estimates",
+          "Read diagnostics and alerts",
+          "Read automations and their runs",
+          "Read vehicles, EV chargers and charging history",
+          "Change the Powerwall configuration, when you allow it",
+          "Start or stop EV charging, when you allow it"
+        ],
+        "websiteURL": "https://docs.netzero.energy/docs/integrations/AIAssistants",
+        "supportURL": "https://docs.netzero.energy/docs/integrations/AIAssistants",
+        "privacyPolicyURL": "https://www.netzero.energy/privacy",
+        "termsOfServiceURL": "https://www.netzero.energy/terms",
+        "defaultPrompt": [
+          "Is anything wrong with my system? Check the diagnostics, the alerts and each solar string.",
+          "Why did my Powerwall charge from the grid last night? Was it one of my automations?",
+          "Are my Powerwalls losing capacity faster than they should?"
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Live status and power direction. Start a fresh conversation connected to the reviewer demo account. The account has two energy sites, one with Powerwalls and solar and one that is solar only; the prompt refers to the one with Powerwalls. Use only a site_id returned by list_energy_sites({}). Record tool arguments, responses and the final answer. The Powerwall site has live telemetry.",
+              "prompt": "What is my Powerwall's charge right now, and is my home running on solar, the battery or the grid?",
+              "tools_triggered": "list_energy_sites, get_site_status",
+              "expected_behavior": "Call list_energy_sites with no arguments, then get_site_status with {site_id: selected approved site_id}. Report live_status.percentage_charged as a percentage and solar_power, battery_power, grid_power and load_power in W or consistently converted kW. Positive battery_power means discharging; negative means charging. Positive grid_power means importing; negative means exporting. Explain the simultaneous flows using those signs without inventing source allocations or forcing independently sampled measurements to balance. A null live_status is unavailable telemetry. If authentication or a provider fails, explain the returned error and recovery action; do not invent data or claim success. Missing data must be described as unavailable, not as a zero or proof that the system is healthy."
+            },
+            {
+              "description": "Previous calendar month and Wh-to-kWh conversion. Start a fresh conversation connected to the reviewer demo account. The account has two energy sites, one with Powerwalls and solar and one that is solar only; the prompt refers to the one with Powerwalls. Use only a site_id returned by list_energy_sites({}). Record tool arguments, responses and the final answer. The Powerwall site has solar and grid history for the complete previous calendar month.",
+              "prompt": "How much solar energy did my Powerwall system produce last month, and how much did it import from the grid?",
+              "tools_triggered": "list_energy_sites, get_energy_history",
+              "expected_behavior": "Call list_energy_sites({}), then get_energy_history with site_id, period=\"month\", and date set to the first day of the previous calendar month derived from that site's current_local_time and time_zone. For example, local 2026-10-05 means date=\"2026-09-01\". Confirm the returned start_date/end_date cover that month and identify the month in the answer. Read Solar and Grid views by metadata.title in telemetry_history.graph_views: their main_value.raw_value totals are solar production and grid imports in Wh; divide each by 1000 for kWh. Do not use grid exports, net flow, a billing month, daily power samples, or grid_cost as the energy total. A missing raw_value inside a returned total means zero per the tool contract; an absent view is unavailable. If authentication or a provider fails, explain the returned error and recovery action; do not invent data or claim success. Missing data must be described as unavailable, not as a zero or proof that the system is healthy."
+            },
+            {
+              "description": "Diagnostics versus historical and informational alerts. Start a fresh conversation connected to the reviewer demo account. The account has two energy sites, one with Powerwalls and solar and one that is solar only; the prompt refers to the one with Powerwalls. Use only a site_id returned by list_energy_sites({}). Record tool arguments, responses and the final answer. The Powerwall site has a stored diagnostics snapshot; its recorded_at shows how old it is.",
+              "prompt": "Is anything wrong with my Powerwall system? Check the diagnostics and the alerts.",
+              "tools_triggered": "list_energy_sites, get_site_diagnostics, get_site_alerts",
+              "expected_behavior": "Call list_energy_sites({}), get_site_diagnostics({site_id}) and get_site_alerts({site_id}) for the same approved site. Cite diagnostics recorded_at and alert triggered_at to distinguish snapshot age and historical events from current faults. Summarize diagnostic_alerts and alerts using returned titles, descriptions and system_alert_docs. Types 6, 7 and 8 are informational; raw component codes absent from diagnostic_alerts are not independent faults. If both returned lists are empty, say no actionable diagnostics or Netzero alerts are reported, without guaranteeing hardware health. Do not claim an old alert is still active without corroboration; get_site_status({site_id}) is allowed if needed for current state. If authentication or a provider fails, explain the returned error and recovery action; do not invent data or claim success. Missing data must be described as unavailable, not as a zero or proof that the system is healthy."
+            },
+            {
+              "description": "Changing the Powerwall configuration. Start a fresh conversation connected to the reviewer demo account. The account has two energy sites, one with Powerwalls and solar and one that is solar only; the prompt refers to the one with Powerwalls. Use only a site_id returned by list_energy_sites({}). Record tool arguments, responses and the final answer. The demo account is a real system that reviewers share, so set_site_configuration changes nothing on it: it answers as a change would, with demo_account true and verified null.",
+              "prompt": "Set my Powerwall backup reserve to 50%.",
+              "tools_triggered": "list_energy_sites, set_site_configuration",
+              "expected_behavior": "Call list_energy_sites({}), then set_site_configuration with {site_id, backup_reserve_percent: 50} for the Powerwall site, after any confirmation the client asks of the user. Send only the setting the user asked for. Report previous_configuration.backup_reserve_percent and the resulting configuration.backup_reserve_percent in %. The response carries demo_account true and verified null: say that this is a demo account and the change was not applied to the system, and do not claim it was verified. On a real account, verified true means the Powerwall system confirmed the change, false that it did not take effect, and null that it could not be checked. If the tool answers that the connection may only read, say that the user can allow control in the Netzero app under Settings > Connect AI; do not retry or claim success. If authentication or a provider fails, explain the returned error and recovery action; do not invent data or claim success."
+            },
+            {
+              "description": "Stopping EV charging. Start a fresh conversation connected to the reviewer demo account. The account has two energy sites, one with Powerwalls and solar and one that is solar only; the prompt refers to the one with Powerwalls. Use only a site_id returned by list_energy_sites({}). Record tool arguments, responses and the final answer. The demo account is a real system that reviewers share, so set_ev_charging sends no command on it: it returns ran false with demo_account true.",
+              "prompt": "Stop charging my car.",
+              "tools_triggered": "list_energy_sites, set_ev_charging",
+              "expected_behavior": "Call list_energy_sites({}), then set_ev_charging with {site_id, action: \"stop\"}, after any confirmation the client asks of the user. No device is named: the tool stops every vehicle and charger that is charging at the site. The response has ran false, an empty responses list and demo_account true: say that this is a demo account and no command was sent, and do not claim that charging stopped. On a real account, ran false means nothing was charging, and responses holds each device's own answer. Reading the state with get_vehicles({site_id}) or get_ev_chargers({site_id}) is allowed. If the tool answers that the connection may only read, say that the user can allow control in the Netzero app under Settings > Connect AI; do not retry or claim success. If authentication or a provider fails, explain the returned error and recovery action; do not invent data or claim success."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Start a fresh conversation connected to the reviewer demo account. Explain that this connection cannot create, edit or run Netzero automations, and direct the user to the Netzero app. Reading the existing automations with get_automations is acceptable; do not claim an automation was created, and do not change the backup reserve now in its place unless the user asks for that.",
+              "prompt": "Create an automation that sets my backup reserve to 100% every evening at 21:00."
+            },
+            {
+              "description": "Start a fresh conversation connected to the reviewer demo account. Explain that this connection cannot take the system off-grid or reconnect it to the grid. Reading the grid status with get_site_status is acceptable; do not change the operational mode or the backup reserve as a substitute, and do not claim the system went off-grid.",
+              "prompt": "Take my Powerwall off-grid now."
+            },
+            {
+              "description": "Start a fresh conversation connected to the reviewer demo account. Explain that only the account and sites approved for this connection can be read. Listing the connected account's own sites is acceptable; do not guess another site id, request a neighbor's credentials, or present the connected user's data as the neighbor's.",
+              "prompt": "Show me the Powerwall status of my neighbor's Netzero account."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No payments or purchases take place in ChatGPT or through this plugin. Access requires a Netzero Pro subscription or active trial; subscriptions are purchased separately in the Netzero app through app stores.",
+        "demo_recording_url": "https://www.netzero.energy/static-web/misc/netzero-chatgpt-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial release: access to system status, energy history and costs, the utility rate plan, solar estimates, diagnostics, alerts, automations, vehicles and chargers, with optional control of the Powerwall configuration and EV charging.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "Energiemanagement f\u00fcr Zuhause",
+            "description": "Netzero bietet Zugriff auf Ihr Heimenergiesystem: Tesla Powerwall-Batterien, Solaranlage, Netzanschluss, Ihr Stromtarif sowie Ihre verkn\u00fcpften Elektrofahrzeuge und Ladestationen.\n\nVerf\u00fcgbare Daten:\n- Systemstatus: aktuelle Leistungsfl\u00fcsse, Ladezustand der Powerwall, Netzstatus und die aktuellen Einstellungen.\n- Energieverlauf und Kosten: pro Tag, Monat, Jahr oder \u00fcber die gesamte Laufzeit sowie in 30-Minuten-Intervallen.\n- Tarif und Solar: der Stromtarif und die gesch\u00e4tzte Solarproduktion.\n- Diagnose und Warnungen: Firmware, Netzwerkverbindungen, Powerwall-Kapazit\u00e4t und Solarstr\u00e4nge.\n- Automatisierungen: die eingerichteten Automatisierungen und ihre letzten Ausf\u00fchrungen.\n- Fahrzeuge und Ger\u00e4te: Fahrzeuge, EV-Ladestationen, Heiz- und K\u00fchlger\u00e4te und der Ladeverlauf der Fahrzeuge.\n\nSteuerung (optional): Mit Ihrer Erlaubnis kann der Assistent au\u00dferdem die Powerwall-Einstellungen \u00e4ndern (Notreserve, Betriebsmodus, Energieexporte, Netzaufladung, Unwetterwarnung) und EV-Ladevorg\u00e4nge starten oder stoppen. Das ist ausgeschaltet, bis Sie es in der Netzero-App f\u00fcr eine Verbindung einschalten.\n\nSie genehmigen die Verbindung in der Netzero-App, w\u00e4hlen die freigegebenen Energiesysteme aus und ob der Assistent sie steuern darf, und k\u00f6nnen den Zugriff jederzeit unter Einstellungen > KI verbinden widerrufen.\n\nErforderlich ist ein Netzero-Konto. Mehr \u00fcber Netzero: www.netzero.energy."
+          },
+          "it-IT": {
+            "subtitle": "Gestione energia domestica",
+            "description": "Netzero d\u00e0 accesso al tuo sistema energetico domestico: batterie Tesla Powerwall, solare, connessione alla rete, il tuo piano tariffario e i tuoi veicoli elettrici e caricatori collegati.\n\nDati disponibili:\n- Stato del sistema: flussi di potenza in tempo reale, carica del Powerwall, stato della rete e impostazioni attuali.\n- Storico dell'energia e costi: per giorno, mese, anno o per l'intera vita dell'impianto, e a intervalli di 30 minuti.\n- Piano tariffario e solare: il piano tariffario e le stime di produzione solare.\n- Diagnostica e avvisi: firmware, connessioni di rete, capacit\u00e0 del Powerwall e stringhe solari.\n- Automazioni: le automazioni configurate e le loro esecuzioni recenti.\n- Veicoli e dispositivi: veicoli, caricatori EV, dispositivi di riscaldamento e raffrescamento e lo storico delle ricariche EV.\n\nControllo (facoltativo): con il tuo permesso, l'assistente pu\u00f2 anche modificare la configurazione Powerwall (riserva di backup, modalit\u00e0 operativa, esportazioni di energia, ricarica da rete elettrica, Scudo Tempesta) e avviare o fermare la ricarica EV. \u00c8 disattivato finch\u00e9 non lo attivi per un collegamento nell'app Netzero.\n\nApprovi il collegamento nell'app Netzero, scegli quali sistemi energetici condividere e se l'assistente pu\u00f2 controllarli, e puoi revocare l'accesso in qualsiasi momento in Impostazioni > Collega IA.\n\nRichiede un account Netzero. Maggiori informazioni su Netzero: www.netzero.energy."
+          },
+          "es-ES": {
+            "subtitle": "Gesti\u00f3n energ\u00e9tica del hogar",
+            "description": "Netzero da acceso a tu sistema energ\u00e9tico dom\u00e9stico: bater\u00edas Tesla Powerwall, solar, la conexi\u00f3n a la red, tu tarifa y tus veh\u00edculos el\u00e9ctricos y cargadores vinculados.\n\nDatos disponibles:\n- Estado del sistema: flujos de potencia en tiempo real, carga del Powerwall, estado de la red y los ajustes actuales.\n- Historial de energ\u00eda y costes: por d\u00eda, mes, a\u00f1o o toda la vida del sistema, y en intervalos de 30 minutos.\n- Tarifa y solar: la tarifa y las estimaciones de producci\u00f3n solar.\n- Diagn\u00f3stico y alertas: firmware, conexiones de red, capacidad del Powerwall y strings solares.\n- Automatizaciones: las automatizaciones configuradas y sus ejecuciones recientes.\n- Veh\u00edculos y dispositivos: veh\u00edculos, cargadores de EV, equipos de calefacci\u00f3n y refrigeraci\u00f3n y el historial de carga de EV.\n\nControl (opcional): con tu permiso, el asistente tambi\u00e9n puede cambiar la configuraci\u00f3n del Powerwall (reserva de respaldo, modo operativo, exportaciones de energ\u00eda, carga desde la red, Vigilancia de tormenta) e iniciar o detener la carga de EV. Est\u00e1 desactivado hasta que lo activas para una conexi\u00f3n en la app Netzero.\n\nApruebas la conexi\u00f3n en la app Netzero, eliges qu\u00e9 sistemas energ\u00e9ticos se comparten y si el asistente puede controlarlos, y puedes revocar el acceso en cualquier momento en Ajustes > Conectar IA.\n\nRequiere una cuenta de Netzero. M\u00e1s informaci\u00f3n sobre Netzero: www.netzero.energy."
+          },
+          "fr-FR": {
+            "subtitle": "Gestion \u00e9nerg\u00e9tique domestique",
+            "description": "Netzero donne acc\u00e8s \u00e0 votre syst\u00e8me \u00e9nerg\u00e9tique domestique\u00a0: batteries Tesla Powerwall, solaire, raccordement au r\u00e9seau, votre plan tarifaire, ainsi que vos v\u00e9hicules \u00e9lectriques et chargeurs associ\u00e9s.\n\nDonn\u00e9es disponibles\u00a0:\n- \u00c9tat du syst\u00e8me\u00a0: flux de puissance en temps r\u00e9el, charge du Powerwall, \u00e9tat du r\u00e9seau et r\u00e9glages actuels.\n- Historique d'\u00e9nergie et co\u00fbts\u00a0: par jour, mois, ann\u00e9e ou sur toute la dur\u00e9e de vie, et par intervalles de 30 minutes.\n- Plan tarifaire et solaire\u00a0: le plan tarifaire et les estimations de production solaire.\n- Diagnostics et alertes\u00a0: firmware, connexions r\u00e9seau, capacit\u00e9 du Powerwall et cha\u00eenes solaires.\n- Automatisations\u00a0: les automatisations configur\u00e9es et leurs ex\u00e9cutions r\u00e9centes.\n- V\u00e9hicules et appareils\u00a0: v\u00e9hicules, chargeurs VE, appareils de chauffage/climatisation et historique de recharge des VE.\n\nContr\u00f4le (facultatif)\u00a0: avec votre autorisation, l'assistant peut aussi modifier la configuration du Powerwall (r\u00e9serve de secours, mode de fonctionnement, \u00e9nergie export\u00e9e, recharge depuis le r\u00e9seau, Surveillance des orages) et d\u00e9marrer ou arr\u00eater la recharge des VE. Cette option est d\u00e9sactiv\u00e9e tant que vous ne l'activez pas pour une connexion dans l'application Netzero.\n\nVous approuvez la connexion dans l'application Netzero, choisissez les syst\u00e8mes \u00e9nerg\u00e9tiques partag\u00e9s et si l'assistant peut les contr\u00f4ler, et pouvez r\u00e9voquer l'acc\u00e8s \u00e0 tout moment dans Param\u00e8tres > Connecter une IA.\n\nN\u00e9cessite un compte Netzero. En savoir plus sur Netzero\u00a0: www.netzero.energy."
+          },
+          "ja-JP": {
+            "subtitle": "\u30db\u30fc\u30e0\u30a8\u30cd\u30eb\u30ae\u30fc\u7ba1\u7406",
+            "description": "Netzero\u306f\u3054\u5bb6\u5ead\u306e\u30a8\u30cd\u30eb\u30ae\u30fc\u30b7\u30b9\u30c6\u30e0\u3078\u306e\u30a2\u30af\u30bb\u30b9\u3092\u63d0\u4f9b\u3057\u307e\u3059\u3002\u5bfe\u8c61\u306fTesla Powerwall\u3001\u592a\u967d\u5149\u767a\u96fb\u3001\u96fb\u529b\u7cfb\u7d71\u3068\u306e\u63a5\u7d9a\u3001\u6599\u91d1\u30d7\u30e9\u30f3\u3001\u9023\u643a\u3057\u305f\u96fb\u6c17\u81ea\u52d5\u8eca\u3068\u5145\u96fb\u5668\u3067\u3059\u3002\n\n\u5229\u7528\u3067\u304d\u308b\u30c7\u30fc\u30bf\uff1a\n\u30fb\u30b7\u30b9\u30c6\u30e0\u306e\u72b6\u614b\uff1a\u73fe\u5728\u306e\u96fb\u529b\u306e\u6d41\u308c\u3001Powerwall\u306e\u5145\u96fb\u7387\u3001\u96fb\u529b\u7cfb\u7d71\u306e\u72b6\u614b\u3001\u73fe\u5728\u306e\u8a2d\u5b9a\u3002\n\u30fb\u30a8\u30cd\u30eb\u30ae\u30fc\u5c65\u6b74\u3068\u30b3\u30b9\u30c8\uff1a\u65e5\u3001\u6708\u3001\u5e74\u3001\u5168\u671f\u9593\u3001\u304a\u3088\u307330\u5206\u9593\u9694\u3002\n\u30fb\u6599\u91d1\u30d7\u30e9\u30f3\u3068\u592a\u967d\u5149\uff1a\u6599\u91d1\u30d7\u30e9\u30f3\u3068\u592a\u967d\u5149\u767a\u96fb\u306e\u4e88\u6e2c\u3002\n\u30fb\u8a3a\u65ad\u3068\u30a2\u30e9\u30fc\u30c8\uff1a\u30d5\u30a1\u30fc\u30e0\u30a6\u30a7\u30a2\u3001\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u63a5\u7d9a\u3001Powerwall\u306e\u5bb9\u91cf\u3001\u30bd\u30fc\u30e9\u30fc\u30b9\u30c8\u30ea\u30f3\u30b0\u3002\n\u30fb\u30aa\u30fc\u30c8\u30e1\u30fc\u30b7\u30e7\u30f3\uff1a\u8a2d\u5b9a\u6e08\u307f\u306e\u30aa\u30fc\u30c8\u30e1\u30fc\u30b7\u30e7\u30f3\u3068\u6700\u8fd1\u306e\u5b9f\u884c\u5c65\u6b74\u3002\n\u30fb\u8eca\u4e21\u3068\u6a5f\u5668\uff1a\u8eca\u4e21\u3001EV\u5145\u96fb\u5668\u3001\u51b7\u6696\u623f\u6a5f\u5668\u3001EV\u5145\u96fb\u306e\u5c65\u6b74\u3002\n\n\u5236\u5fa1\uff08\u4efb\u610f\uff09\uff1a\u8a31\u53ef\u3059\u308b\u3068\u3001\u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u306fPowerwall\u306e\u8a2d\u5b9a\uff08\u30d0\u30c3\u30af\u30a2\u30c3\u30d7\u306e\u305f\u3081\u306e\u84c4\u96fb\u7387\u3001\u904b\u8ee2\u30e2\u30fc\u30c9\u3001\u30a8\u30cd\u30eb\u30ae\u30fc\u306e\u30a8\u30af\u30b9\u30dd\u30fc\u30c8\u3001\u30b0\u30ea\u30c3\u30c9\u5145\u96fb\u3001Storm Watch\uff09\u306e\u5909\u66f4\u3084\u3001EV\u5145\u96fb\u306e\u958b\u59cb\u30fb\u505c\u6b62\u3082\u3067\u304d\u308b\u3088\u3046\u306b\u306a\u308a\u307e\u3059\u3002Netzero\u30a2\u30d7\u30ea\u3067\u63a5\u7d9a\u3054\u3068\u306b\u30aa\u30f3\u306b\u3059\u308b\u307e\u3067\u306f\u30aa\u30d5\u3067\u3059\u3002\n\n\u63a5\u7d9a\u306fNetzero\u30a2\u30d7\u30ea\u3067\u627f\u8a8d\u3057\u3001\u5171\u6709\u3059\u308b\u30a8\u30cd\u30eb\u30ae\u30fc\u30b7\u30b9\u30c6\u30e0\u3068\u3001\u30a2\u30b7\u30b9\u30bf\u30f3\u30c8\u306b\u3088\u308b\u5236\u5fa1\u3092\u8a31\u53ef\u3059\u308b\u304b\u3069\u3046\u304b\u3092\u9078\u629e\u3067\u304d\u307e\u3059\u3002\u30a2\u30af\u30bb\u30b9\u306f\u300c\u8a2d\u5b9a > AI\u9023\u643a\u300d\u304b\u3089\u3044\u3064\u3067\u3082\u53d6\u308a\u6d88\u305b\u307e\u3059\u3002\n\nNetzero\u30a2\u30ab\u30a6\u30f3\u30c8\u304c\u5fc5\u8981\u3067\u3059\u3002Netzero\u306e\u8a73\u7d30\uff1awww.netzero.energy"
+          }
+        },
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

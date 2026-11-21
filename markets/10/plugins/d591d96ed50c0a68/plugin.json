@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "eyivo-sites",
+  "version": "0.1.0",
+  "description": "Connect ChatGPT to Eyivo Sites to inspect accessible websites and manage website content through Eyivo's authenticated MCP server.",
+  "author": {
+    "name": "Eyivo"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Eyivo Sites",
+        "shortDescription": "Manage your Eyivo sites",
+        "longDescription": "Connect your Eyivo account to inspect your websites and manage site content through ChatGPT. Review pages and site settings, save content drafts, and publish selected changes when you ask. Access is limited to your Eyivo sites, permissions, and approved OAuth scopes.",
+        "developerName": "Eyivo",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Show me my Eyivo sites.",
+          "What languages and content types can I edit on my Eyivo site?",
+          "Help me create a draft page on my Eyivo site."
+        ],
+        "websiteURL": "https://eyivo.com/developers/mcp",
+        "supportURL": "https://eyivo.com/contact",
+        "privacyPolicyURL": "https://eyivo.com/legal/privacy",
+        "termsOfServiceURL": "https://eyivo.com/legal/terms",
+        "logo": "./assets/eyivo-icon.png",
+        "composerIcon": "./assets/eyivo-icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1LVr6xTLnzl5xEBmievx9pKtaMWsEjBom/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated reviewer Eyivo account. Pass when every reported site and status comes from the tool response.",
+              "prompt": "Which Eyivo sites can I access?",
+              "tools_triggered": "list-sites-tool",
+              "expected_behavior": "Call list-sites-tool with no arguments. Report only returned sites, using their IDs, platform subdomain keys, and statuses. If none are returned, say so."
+            },
+            {
+              "description": "The reviewer account has an accessible site. Inspect the first site's authoring capabilities; do not invent languages or page types.",
+              "prompt": "For my first Eyivo site, which languages and page types are available?",
+              "tools_triggered": "list-sites-tool, get-site-capabilities-tool",
+              "expected_behavior": "Call list-sites-tool, then get-site-capabilities-tool with site_id equal to the first returned site ID. Report the default and selected locales and supported page types from the result."
+            },
+            {
+              "description": "The reviewer account has a site with at least one page. Read the first page in the site's default locale and report actual draft and publication details.",
+              "prompt": "On my first Eyivo site, show me the first page and tell me whether its default-language version has a draft.",
+              "tools_triggered": "list-sites-tool, get-site-capabilities-tool, list-pages-tool, get-page-tool",
+              "expected_behavior": "Resolve site_id and default locale, call list-pages-tool with site_id, then get-page-tool with that site_id, the first returned page_id, and default locale. Report returned title and status. If no page exists, say so."
+            },
+            {
+              "description": "Use a dedicated reviewer test site as the first site. If chatgpt-review-draft already exists, choose a new unused slug with a unique suffix. Pass when the new page is a draft only. Run the next case in this conversation.",
+              "prompt": "On my first Eyivo site, create a draft page titled ChatGPT Review Draft with slug chatgpt-review-draft in its default language. If that slug is already used, add a unique suffix. Do not publish it. Tell me the new page ID and slug.",
+              "tools_triggered": "list-sites-tool, get-site-capabilities-tool, list-pages-tool, create-page-tool, get-page-tool",
+              "expected_behavior": "Resolve site_id and default locale. Check existing pages to avoid a slug collision. Call create-page-tool with site_id, type page, default locale, slug chatgpt-review-draft if unused or a unique suffixed variant, and title ChatGPT Review Draft. Read the new page and report its ID, slug, and draft state. Do not call publish-page-tool."
+            },
+            {
+              "description": "Run immediately after positive case 4 in the same conversation. Pass when only that newly created page's default-language draft becomes live.",
+              "prompt": "Publish the ChatGPT Review Draft page you just created on my first Eyivo site in its default language. Use the page ID from the previous step.",
+              "tools_triggered": "get-page-tool, publish-page-tool",
+              "expected_behavior": "Use the site ID, page ID, and default locale from the previous step. Inspect publication readiness with get-page-tool, then call publish-page-tool for that exact page and locale. Read it again and report its publication state. Do not publish unrelated pages or languages."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The Eyivo MCP server does not report Google Analytics traffic. It may inspect the site's integration configuration with read-only tools, but must not call a write tool, claim access to historical metrics, or invent numbers.",
+              "prompt": "Show me yesterday's Google Analytics visitors and conversion rate for my Eyivo site."
+            },
+            {
+              "description": "The Eyivo MCP server does not purchase domains or charge cards. Explain that purchase is unavailable here; do not call Eyivo tools or claim an order was placed.",
+              "prompt": "Buy a new domain for my Eyivo site and charge my credit card."
+            },
+            {
+              "description": "The Eyivo MCP server does not deploy arbitrary application code. Explain its site-content scope; do not call Eyivo tools or claim a deployment occurred.",
+              "prompt": "Deploy my local Laravel repository to a new server using Eyivo."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial Eyivo Sites integration for viewing accessible sites, editing website content as drafts, and publishing selected changes through the authenticated MCP server."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

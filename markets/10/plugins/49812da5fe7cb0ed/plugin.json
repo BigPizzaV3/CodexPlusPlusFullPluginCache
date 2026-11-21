@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hootel",
+  "version": "1.1.2",
+  "description": "Search Hootel partner properties and get a link to book on the property's own website.",
+  "author": {
+    "name": "REM S.r.l.s.",
+    "email": "support@hootel.ai",
+    "url": "https://hootel.ai"
+  },
+  "homepage": "https://hootel.ai",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hootel",
+        "shortDescription": "Find Hootel partner properties",
+        "longDescription": "Hootel searches the accommodation properties that have partnered with Hootel and gives you a link to book directly on each property's own website.\n\nDescribe your trip in ChatGPT: destination, dates, number of guests and what matters to you, such as a pool, parking or a budget per night. Hootel searches its partner properties and shows each match with photos, its location, the total and nightly price for your dates (VAT included, city tax shown separately) and the reasons it fits your request.\n\nYou can open a partner property to see its rooms, rates, amenities, policies and contact details, change dates or guests, or ask about a specific partner property by name, for example whether it accepts pets or has parking.\n\nWhen you are ready to book, Hootel gives you a link to the property's own booking page, with your dates and guests filled in when the property's booking system supports it. Booking and payment take place on the property's website: Hootel does not make reservations or take payments in ChatGPT.\n\nResults include only Hootel partner properties, not every place to stay in an area. Ask Hootel which destinations it currently covers. Prices and availability are supplied by each property and show when they were last updated; without dates, prices are shown as indicative starting prices.",
+        "developerName": "REM S.r.l.s.",
+        "category": "Travel",
+        "websiteURL": "https://hootel.ai",
+        "supportURL": "https://fattoai-mcp.fly.dev/support?lang=en",
+        "privacyPolicyURL": "https://fattoai-mcp.fly.dev/privacy?lang=en",
+        "termsOfServiceURL": "https://fattoai-mcp.fly.dev/terms?lang=en",
+        "defaultPrompt": [
+          "Find an apartment in San Vincenzo, Tuscany, for two adults for a week in June.",
+          "Show me places to stay in San Vincenzo, Tuscany, near the beach.",
+          "Does Antea Apartments in San Vincenzo accept dogs? Is there parking?"
+        ],
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Network coverage without guessing destinations. No prior conversation or sign-in required.",
+              "prompt": "Where can I use Hootel to find a place to stay?",
+              "tools_triggered": "list_destinations",
+              "expected_behavior": "Call list_destinations with language=en. Report only the destinations in the returned catalog (currently San Vincenzo, Tuscany, Italy) and disclose that Hootel covers partner properties only."
+            },
+            {
+              "description": "Explore a destination without dates. Prices are indicative, not quotes for specific dates.",
+              "prompt": "Show me places to stay in San Vincenzo, Tuscany. I have not decided on dates yet.",
+              "tools_triggered": "search_hotels",
+              "expected_behavior": "Call search_hotels with destination=San Vincenzo, place_type=city, country_code=IT, city=San Vincenzo and coordinates near 43.0917,10.5394. Omit check_in/check_out. Display the returned property cards and label any from prices as indicative. Summarize the actual results; do not invent properties or rates."
+            },
+            {
+              "description": "Answer questions about one named property without displaying a carousel of other properties.",
+              "prompt": "Does Antea Apartments in San Vincenzo accept dogs? Is there parking?",
+              "tools_triggered": "find_hotel",
+              "expected_behavior": "Call find_hotel with name=Antea Apartments, city=San Vincenzo, country_code=IT and language=en. Answer from the returned policies and amenities: pets are allowed for a fee, and paid parking is available in a garage (the published note gives the price and distance). Treat missing information as unknown and offer the property contacts. Do not call search_hotels for this question and do not display unrelated cards."
+            },
+            {
+              "description": "Resolve a misspelled property name.",
+              "prompt": "Can you find the Anteaa apartmens in San Vincenzo and tell me how to contact them?",
+              "tools_triggered": "find_hotel",
+              "expected_behavior": "Call find_hotel with the misspelled name, city=San Vincenzo and country_code=IT. The tool returns ANTEA APARTMENTS; reply with its published name and its actual phone and email. If status=ambiguous, ask the user to confirm one of the returned names before answering. Never run a generic city search or invent contact details."
+            },
+            {
+              "description": "Find available dates and get a booking link without booking or paying. The properties are seasonal and require a minimum stay (5 to 7 nights in summer), so the case asks for a week in June.",
+              "prompt": "I would like a week for two adults at Zefiro Apartments in San Vincenzo next June. Find available dates and give me the booking link for the first available stay.",
+              "tools_triggered": "find_hotel, find_available_dates, get_booking_link",
+              "expected_behavior": "Resolve the property with find_hotel. Call find_available_dates with its property_id, nights=7, adults=2, rooms=1 and date_from/date_to covering June. Call get_booking_link with the check_in/check_out of a returned stay and the same guests. The link opens the property's own booking engine with dates and guests filled in. State that booking and payment happen on the property's website; do not claim a reservation or payment occurred. If no stay is returned, say so and do not invent a dated offer."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Flights are outside Hootel accommodation search. Explain the limit without invoking any Hootel tools or claiming a flight reservation.",
+              "prompt": "Book me a flight from Rome to Pisa and charge it to my card."
+            },
+            {
+              "description": "Restaurant table booking is not supported. Explain this without invoking Hootel search or booking-link tools.",
+              "prompt": "Reserve a table for four at a restaurant in San Vincenzo tonight."
+            },
+            {
+              "description": "Hootel cannot modify existing reservations or issue refunds. Explain that the traveller must contact the property or the original booking provider. Do not invoke tools or claim cancellation/refund success.",
+              "prompt": "Cancel my existing hotel reservation ABC123 and refund the payment. I do not need hotel contact details."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Travellers can follow links to purchase accommodation stays directly on the property official website. Booking, payment, changes and cancellations are handled by the property, outside ChatGPT. Hootel does not take payments or create reservations.",
+        "demo_recording_url": "https://streamable.com/5gsb63"
+      },
+      "publication": {
+        "release_notes": "Rewrote the listing subtitle and description to state plainly that Hootel searches its partner properties and that booking and payment happen on the property's website. Updated starter prompts and test cases to the current partner properties in San Vincenzo, Tuscany; booking links now lead to the property's own booking engine. No changes to tools.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

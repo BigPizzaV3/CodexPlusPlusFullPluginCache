@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sepja-studio",
+  "version": "0.2.0",
+  "description": "Create and refine saved, editable 3D rooms in Sepja Studio through natural conversation.",
+  "author": {
+    "name": "Eman Borg",
+    "url": "https://sepja.com"
+  },
+  "homepage": "https://sepja.com",
+  "keywords": [
+    "3d",
+    "rooms",
+    "interior-design",
+    "spaces",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sepja",
+        "shortDescription": "Shape your space in 3D",
+        "longDescription": "Design saved, editable 3D rooms with furniture and appliance variants, custom models built from parts, reusable materials and private textures. Make precise edits, check layouts and inspect requested room views. Sepja Studio keeps your scene and edit history together; the web canvas shows changes while you work in ChatGPT.",
+        "developerName": "Eman Borg",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://sepja.com",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "brandColor": "#986444",
+        "defaultPrompt": [
+          "Use Sepja Studio to create a 6 by 5 metre living room with a sage sofa and an oak table.",
+          "Show my Sepja spaces and help me rearrange the furniture in one of them.",
+          "Read my latest Sepja room and suggest ways to make it feel more spacious."
+        ],
+        "privacyPolicyURL": "https://sepja.com/privacy",
+        "termsOfServiceURL": "https://sepja.com/terms",
+        "supportURL": "https://sepja.com/support"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "This initial version does not offer payments or purchases.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a new synthetic room. Setup: connected, email-verified dedicated Sepja test account. Use a fresh conversation and a unique room name for each run; retain the returned room ID and link for the following cases.",
+              "prompt": "Create a new room called Sepja review living room, 6 metres wide by 5 metres deep and 2.8 metres high. Add one sage green sofa in the centre and give me its canvas link.",
+              "tools_triggered": "create_space, update_room, save_object (or edit_space for an atomic combined edit); get_space if a fresh read is needed",
+              "expected_behavior": "Create the named space, then set its room dimensions to 6 by 5 by 2.8 metres and add one sage sofa with a stable UUID. Use the returned space ID and latest revision for every sequential edit; alternatively combine room and sofa changes in one atomic edit_space batch. Each new command uses a new command_id. Return the saved Sepja canvas link. The open canvas reflects the saved revision within its polling interval."
+            },
+            {
+              "description": "Read saved canvas edits. Setup: complete the create-room case, open its returned link and manually change the sofa colour to blue in Sepja, saving the edit. Start a fresh ChatGPT conversation so it must discover the room.",
+              "prompt": "Find my Sepja review living room. I changed the sofa in the canvas. What colour is it now, and what are the room dimensions?",
+              "tools_triggered": "list_spaces, get_space",
+              "expected_behavior": "list_spaces returns only rooms accessible to this account. get_space uses the selected returned UUID. The response reports the latest blue sofa colour and 6 by 5 by 2.8 metre room from the returned scene. It does not call edit_space or rely on the prior sage colour. If names are duplicated, clarify which room before choosing."
+            },
+            {
+              "description": "Move an existing object without replacing unrelated data. Setup: continue in the room-reading conversation above and record the current sofa UUID, position, dimensions, colour and revision.",
+              "prompt": "Move that sofa exactly half a metre in the positive X direction. Keep its colour, size, height and rotation unchanged.",
+              "tools_triggered": "get_space, update_object (or edit_space)",
+              "expected_behavior": "Read the latest scene, then update the same sofa UUID with x increased by 0.5 and all other object fields preserved. Supply current expected_revision and a new command_id. One new saved revision records the move. If another editor causes a revision conflict, fetch again and reassess rather than claiming the failed write succeeded."
+            },
+            {
+              "description": "Restore an earlier saved scene. Setup: continue after the move case; its previous revision contains the blue sofa at its original position. Record both revisions.",
+              "prompt": "Undo that last sofa move by restoring the saved revision immediately before it.",
+              "tools_triggered": "get_history, get_space, restore_revision (or edit_space with a single restore operation)",
+              "expected_behavior": "Identify the revision before the move using get_history, read the latest scene and call edit_space with a single restore operation pointing to that earlier revision and the current expected_revision. The restored scene matches the prior sofa position and colour. Restoration creates a new revision and preserves history; it does not delete later snapshots."
+            },
+            {
+              "description": "Inspect one saved reference on demand. Setup: in the same synthetic room, upload a simple generated sketch through the References panel: one large blue rectangle and one smaller orange circle on white, named Review shapes. No personal photo is needed. Start a fresh conversation, naming the target room explicitly.",
+              "prompt": "In my Sepja review living room, inspect the saved image called Review shapes. Describe its colours and shapes without changing my room or assuming real-world dimensions.",
+              "tools_triggered": "list_spaces, get_space, read_reference",
+              "expected_behavior": "Resolve the room and reference UUIDs from list_spaces and get_space. Call read_reference only for the selected image and describe the large blue rectangle and smaller orange circle from the returned image. Do not infer measured scale or call edit_space. If the fixture is missing, direct the reviewer to upload it and report that it could not be inspected."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchasing is unsupported. Explain that Sepja cannot place orders or take payments; do not invoke any Sepja tool or claim an order was made.",
+              "prompt": "Use Sepja to buy a sofa for me and charge my saved card. Do not change my room."
+            },
+            {
+              "description": "CAD export is unsupported. Explain that this integration cannot create a DWG or certify a construction drawing; do not invoke any Sepja tool or fabricate an export link.",
+              "prompt": "Export my room as a certified, construction-ready DWG file using Sepja."
+            },
+            {
+              "description": "Sharing invitations are managed on the website, not exposed as MCP tools. Direct the user to the room sharing page through the website without invoking a Sepja tool or claiming that an invitation was sent.",
+              "prompt": "Send an email invitation to friend@example.com through Sepja so they can edit my room."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=B7S4APaBONI"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission: create and inspect saved 3D rooms, arrange furniture, read uploaded references and restore earlier scene revisions. Accessible shared rooms use the same saved scene as the Sepja web canvas."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

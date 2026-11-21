@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "turnpoint-code",
+  "version": "1.0.0",
+  "description": "Turn JavaScript and TypeScript code changes into a simple, interactive flowchart with before/after views, source evidence and plain-language explanations.",
+  "homepage": "https://turnpoint-code.netlify.app",
+  "keywords": [
+    "code understanding",
+    "code review",
+    "flowchart",
+    "TypeScript",
+    "JavaScript"
+  ],
+  "author": {
+    "name": "ARJUN AVTANI",
+    "email": "arjun@knoy.app",
+    "url": "https://turnpoint-code.netlify.app"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Turnpoint",
+        "shortDescription": "Code changes, drawn simply",
+        "longDescription": "Turnpoint makes a code change easier to understand. Instead of mentally piecing together a long diff, follow an interactive, handwritten map of the functions, classes and data involved.\n\nSee what changed, switch between before and after, walk through the affected path, and tap any block for its source file and exact lines. Optional plain-language narration explains the observed behavior without hiding the evidence.\n\nSupports JavaScript, TypeScript, JSX and TSX. Static analysis follows relationships in the supplied files; it does not run code, prove runtime behavior or invent missing dependencies. The plugin adds a visual explanation inside the conversation and leaves the host\u2019s built-in diff available.\n\nNo account or API key is needed. The hosted tools process only the selected source or analysis provided to them, in memory, without storing it. The standalone editor analyzes code locally in your browser.",
+        "developerName": "ARJUN AVTANI",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Source-linked code flowcharts",
+          "Before and after code stories",
+          "Functions, classes and data maps"
+        ],
+        "websiteURL": "https://turnpoint-code.netlify.app",
+        "supportURL": "https://turnpoint-code.netlify.app/support",
+        "privacyPolicyURL": "https://turnpoint-code.netlify.app/privacy",
+        "termsOfServiceURL": "https://turnpoint-code.netlify.app/terms",
+        "defaultPrompt": [
+          "Show me an illustrative code change as a simple flowchart.",
+          "Use Turnpoint to explain this change and the functions it affects.",
+          "Map these TypeScript files and show what calls what."
+        ],
+        "brandColor": "#435B36",
+        "brandColorDark": "#D7EDBD",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg",
+        "screenshots": [
+          "./assets/desktop.jpg",
+          "./assets/mobile.jpg"
+        ]
+      },
+      "onboardingSkill": "./skills/code-story/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "An order change, drawn clearly",
+              "prompt": "Show an illustrative checkout change as a simple flowchart. Explain the empty-cart check and quantity fix.\n\nSource input:\n{\"title\":\"A safer path from cart to order\",\"files\":[{\"path\":\"checkout.ts\",\"before\":\"import { OrderStore, Cart } from './orders';\\n\\n/** Turn the customer's cart into an order. */\\nexport function placeOrder(cart: Cart) {\\n  const store = new OrderStore();\\n  const total = calculateTotal(cart);\\n  return store.save(cart, total);\\n}\\n\\n/** Add up the price of every item. */\\nfunction calculateTotal(cart: Cart) {\\n  return cart.items.reduce((sum, item) => sum + item.price, 0);\\n}\\n\",\"after\":\"import { OrderStore, Cart } from './orders';\\n\\n/** Turn the customer's cart into an order. */\\nexport function placeOrder(cart: Cart) {\\n  if (!hasItems(cart)) return { error: 'Your cart is empty' };\\n  const store = new OrderStore();\\n  const total = calculateTotal(cart);\\n  return store.save(cart, total);\\n}\\n\\n/** Check that there is something to order. */\\nfunction hasItems(cart: Cart) {\\n  return cart.items.length > 0;\\n}\\n\\n/** Add up the price of every item, including its quantity. */\\nfunction calculateTotal(cart: Cart) {\\n  return cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);\\n}\\n\"},{\"path\":\"orders.ts\",\"before\":\"/** The items the customer wants to order. */\\nexport interface Cart {\\n  items: { name: string; price: number; quantity: number }[];\\n}\\n\\n/** Keep the details of an order together. */\\nexport class OrderStore {\\n  /** Create an order record from a cart and its total. */\\n  save(cart: Cart, total: number) {\\n    return { items: cart.items, total, status: 'created' };\\n  }\\n}\\n\",\"after\":\"/** The items the customer wants to order. */\\nexport interface Cart {\\n  items: { name: string; price: number; quantity: number }[];\\n}\\n\\n/** Keep the details of an order together. */\\nexport class OrderStore {\\n  /** Create an order record from a cart and its total. */\\n  save(cart: Cart, total: number) {\\n    return { items: cart.items, total, status: 'created' };\\n  }\\n}\\n\"}]}",
+              "tools_triggered": "analyze_code, show_code_story",
+              "expected_behavior": "Seven blocks: hasItems is new; placeOrder, calculateTotal and its reduce callback changed. The map links OrderStore.save across files and labels Cart as a type dependency."
+            },
+            {
+              "description": "Follow an aliased import into a class",
+              "prompt": "Explain how run reaches the store in these two files. Follow the import alias.\n\nSource input:\n{\"title\":\"A call across two files\",\"files\":[{\"path\":\"run.ts\",\"after\":\"import { Store as S } from './store';\\nexport function run() { const s = new S(); return s.load(); }\"},{\"path\":\"store.ts\",\"after\":\"export class Store { load() { return [1, 2, 3]; } }\"}]}",
+              "tools_triggered": "analyze_code, show_code_story",
+              "expected_behavior": "run creates Store and calls Store.load. The alias does not create a fake external function. Both links cite run.ts."
+            },
+            {
+              "description": "Understand a React screen",
+              "prompt": "Draw the relationship between Profile, Greeting and Person in this React file.\n\nSource input:\n{\"title\":\"From a React screen to its data\",\"files\":[{\"path\":\"Profile.tsx\",\"after\":\"interface Person { name: string; }\\n\\n/** Show a greeting for this person. */\\nexport function Profile({ person }: { person: Person }) {\\n  return <section><Greeting name={person.name} /></section>;\\n}\\n\\n/** Put the person's name in a friendly heading. */\\nfunction Greeting({ name }: { name: string }) {\\n  return <h1>Hello, {name}</h1>;\\n}\\n\"}]}",
+              "tools_triggered": "analyze_code, show_code_story",
+              "expected_behavior": "Profile renders Greeting and uses the Person type. Snapshot mode does not claim changes or require a Before version."
+            },
+            {
+              "description": "Keep removed code visible in Before",
+              "prompt": "Explain this removal and let me inspect the old path.\n\nSource input:\n{\"title\":\"Retire the legacy path\",\"files\":[{\"path\":\"run.ts\",\"before\":\"export function run() { return legacy(); }\\nfunction legacy() { return 1; }\",\"after\":\"export function run() { return 2; }\"}]}",
+              "tools_triggered": "analyze_code, show_code_story",
+              "expected_behavior": "legacy is removed, run changed; run \u2192 legacy exists only before. The removed block keeps its original source and lines."
+            },
+            {
+              "description": "Show recursion without inventing an endpoint",
+              "prompt": "Map this recursive function and show the unresolved external operation honestly.\n\nSource input:\n{\"title\":\"A recursive walk\",\"files\":[{\"path\":\"walk.js\",\"after\":\"export function walk(n) { if (n > 0) return walk(n - 1); return externalStore.read(); }\"}]}",
+              "tools_triggered": "analyze_code, show_code_story",
+              "expected_behavior": "The graph contains a self-edge for walk with a conditional call; externalStore.read is explicitly unresolved. No external implementation is fabricated."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Keep ordinary decision advice outside the code plugin",
+              "prompt": "I am deciding between two subscription plans, one at $20 a month and one at $180 a year. Explain the break-even point in simple terms. There is no code to analyze.",
+              "expected_behavior": "Do not call any Turnpoint tool. Answer the arithmetic directly; the withdrawn decision-calculator product is not part of this plugin."
+            },
+            {
+              "description": "Do not invoke the parser for an unsupported language",
+              "prompt": "Make an interactive code map for this Python function: def hello(): return 1. Do not convert it to JavaScript or TypeScript.",
+              "expected_behavior": "Do not call any Turnpoint tool or pretend it supports Python. Explain the supported JavaScript/TypeScript languages and offer an ordinary text explanation if useful."
+            },
+            {
+              "description": "Do not substitute static analysis for runtime execution",
+              "prompt": "Run this JavaScript and measure its actual execution order, elapsed milliseconds, and network requests: async function load() { return fetch(\"https://example.com\"); } load(); I do not want a static source map.",
+              "expected_behavior": "Do not call any Turnpoint tool. State that it cannot execute or profile code, and use only an appropriately authorized execution tool if one is available. Do not invent measured results."
+            }
+          ]
+        },
+        "demo_recording_url": "https://turnpoint-code.netlify.app/walkthrough",
+        "commerce": false,
+        "commerce_description": "Free code visualization. No sales, subscriptions, advertising, checkout or paid upgrades."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "1.0.0: new code-story product. Static JS/TS/JSX/TSX analysis; handwritten MCP Apps flowchart; before/after, source evidence, guided steps and data detail; three read-only tools; local browser editor and parser; five positive review cases, three negative routing prompts and separate invalid-input checks. Native ChatGPT desktop/mobile testing is not yet verified; the walkthrough uses a real MCP Apps test host."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

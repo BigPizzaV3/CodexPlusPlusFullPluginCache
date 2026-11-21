@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "store-prices",
+  "version": "1.0.1",
+  "description": "Ask what an online store sells, what it charges and what changed since the last time anyone looked.",
+  "author": {
+    "name": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Store Price Tracker",
+        "shortDescription": "Track an online store's prices",
+        "longDescription": "Ask what an online store sells, what it charges and what changed since the last time anyone looked.\n\nAsk \"track competitor prices on allbirds.com\", \"what did gymshark.com change this week?\", \"which products on this store are sold out?\" or \"how has the price of this hoodie moved?\".\n\nStore Price Tracker reads the public product feed that Shopify stores publish at /products.json, the same list any visitor's browser can fetch without logging in.\n\nIt reports products, prices, variants and availability, and compares each daily snapshot with the one before it: new products, removed products, price changes and stock changes, per variant.\n\nA store you ask about is added to a daily snapshot list, so its price history grows over time and can be read back for any product.\n\nIt checks the store's robots.txt first, identifies itself with a clear User-Agent, pauses between requests and backs off when a store asks for fewer.\n\nWhen comparing stores across borders quoting in different currencies, it normalizes prices using daily foreign exchange reference rates of the European Central Bank (ECB, https://www.ecb.europa.eu), read through the keyless Frankfurter API (https://frankfurter.dev; URL: https://api.frankfurter.dev/v2/providers/ecb/rates; checked 2026-10-02). Data is reused under the ECB Conditions for Reuse of Public Sector Information with attribution.\n\nStores that are not on Shopify, or that keep their feed private, are reported as unavailable.\n\nIt stores only public product data (titles, prices, variants, availability) and the store's address.\n\nNothing about you is kept: no prompts, no account and no IP address, only a daily count of calls per tool.",
+        "developerName": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Lists the products, prices, variants and availability of a Shopify store",
+          "Shows new products, removed products, price changes and stock changes since the previous daily snapshot",
+          "Keeps a daily snapshot of every store it is asked about, so price history builds up",
+          "Reads the price and availability history of one product",
+          "Compares up to five stores in one answer",
+          "Compares store catalogs for price gaps, currency differences, and landed margins"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "Track competitor prices on allbirds.com",
+          "What did gymshark.com change this week?",
+          "How has the price of the Allbirds Tree Runner moved?"
+        ],
+        "brandColor": "#0F766E",
+        "brandColorDark": "#1B9E92",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/store-prices.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "One store entry, status ok, with the snapshot date, product count, currency and a list of products with prices and availability; the first call for a store has no changes yet. Check against: Allbirds' public product feed: https://www.allbirds.com/products.json",
+              "prompt": "Track competitor prices on allbirds.com",
+              "tools_triggered": "check_store_prices",
+              "expected_behavior": "Calls check_store_prices with stores [\"allbirds.com\"] and no filters."
+            },
+            {
+              "description": "One store entry whose changeCounts and changes list new products, removed products, price changes and availability changes against the previous snapshot. Check against: Gymshark's public product feed: https://www.gymshark.com/products.json",
+              "prompt": "What did gymshark.com change since yesterday?",
+              "tools_triggered": "check_store_prices",
+              "expected_behavior": "Calls check_store_prices with stores [\"gymshark.com\"]."
+            },
+            {
+              "description": "A price gap report listing matching products with their price difference, percentage spread, and stock availability. Check against: https://mysneakerstore.com/products.json and https://www.allbirds.com/products.json",
+              "prompt": "Compare product prices on mysneakerstore.com with allbirds.com and find products with at least 15% price gap",
+              "tools_triggered": "compare_store_prices",
+              "expected_behavior": "Calls compare_store_prices with source_store \"mysneakerstore.com\", target_store \"allbirds.com\", and min_gap_pct 15."
+            },
+            {
+              "description": "A product history with per-variant points (day, price, compare-at price, availability), or a list of matching titles to choose from. Check against: https://www.allbirds.com/products.json",
+              "prompt": "How has the price of the Allbirds Tree Runner changed over time?",
+              "tools_triggered": "get_product_price_history",
+              "expected_behavior": "Calls get_product_price_history with store \"allbirds.com\" and product \"Tree Runner\"."
+            },
+            {
+              "description": "One store entry whose products carry an available flag per product and per variant, so the sold-out ones can be picked out. Check against: ColourPop's public product feed: https://colourpop.com/products.json",
+              "prompt": "Which products at colourpop.com are sold out right now?",
+              "tools_triggered": "check_store_prices",
+              "expected_behavior": "Calls check_store_prices with stores [\"colourpop.com\"] and a limit of 25."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A writing task names no store whose products or prices need to be read. Expected: Does not call either tool; writes the description directly.",
+              "prompt": "Write a product description for my new candle."
+            },
+            {
+              "description": "The plugin only reads public product data and cannot sign in to or edit a store. Expected: Does not call either tool; explains it cannot change a store.",
+              "prompt": "Log in to my Shopify admin and lower all my prices by 10 percent."
+            },
+            {
+              "description": "Amazon is not a Shopify store, so there is no public product feed to read. Expected: Does not call either tool; says it only reads stores that publish a Shopify product feed.",
+              "prompt": "What is the price of the iPhone 17 on amazon.com?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release. Reads the public product feed of Shopify stores, keeps a daily snapshot per store and reports new and removed products, price changes and stock changes per variant, plus the price history of a product."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

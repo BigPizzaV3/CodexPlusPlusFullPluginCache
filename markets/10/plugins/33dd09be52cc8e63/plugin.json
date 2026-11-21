@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "travel",
+  "version": "1.0.1",
+  "description": "Check what the UK and US governments currently advise about a country, and see live delays and weather at an airport.",
+  "author": {
+    "name": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Travel Check",
+        "shortDescription": "Travel advice and airports",
+        "longDescription": "Check what the UK and US governments currently advise about a country, and see live delays and weather at an airport.\n\nAsk \"what is the travel advice for Thailand?\", \"what are the entry requirements for Japan?\", \"compare Mexico, Colombia and Peru\" or \"is JFK delayed right now?\".\n\nTravel Check reads the UK Foreign, Commonwealth and Development Office (FCDO) travel advice on GOV.UK, the US State Department travel advisories, the FAA National Airspace System status and the NOAA Aviation Weather Center.\n\nEvery answer shows the advisory level or alert, the date it was last reviewed, and a link to the official page.\n\nUK advice is written for British citizens and US advice for US citizens, and the answer says so: entry rules and risks differ by passport, so check your own government's advice. It does not include visa rules for other nationalities.\n\nIt is not medical, legal or safety advice and not for flight planning. Advisories change, so confirm on the official page before you travel. FAA delay data covers US airports only.\n\nUK content is published under the Open Government Licence v3.0, \u00a9 Crown copyright. It stores nothing about you: answers are cached for a few hours, and the only lasting record is a daily count of calls per tool.",
+        "developerName": "HI\u1ebeU V\u0168 TRUNG NGUYEN",
+        "category": "Travel",
+        "capabilities": [
+          "Shows the UK FCDO travel advice alert and last review date for a country",
+          "Shows the US State Department advisory level, summary and date for a country",
+          "Quotes the UK entry requirements, safety or health section on request",
+          "Compares the UK and US advice for up to five countries at once",
+          "Reports FAA delays and closures at a US airport",
+          "Shows the latest weather observation and forecast for an airport by IATA or ICAO code",
+          "Links every answer to the official source and says which citizens the advice is written for"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "What is the current travel advice for Thailand?",
+          "Compare the UK and US travel advice for Mexico, Colombia and Peru",
+          "Is JFK having delays right now?"
+        ],
+        "brandColor": "#0B7285",
+        "brandColorDark": "#3BB6CC",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/travel.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "status ok with the UK FCDO alert text, reviewedAt date and latest change, and the US State Department level and summary with an updated date, both with official links, plus the note that UK advice is for British citizens and US advice for US citizens and the OGL attribution. Check against: https://www.gov.uk/api/content/foreign-travel-advice/thailand and https://cadataapi.state.gov/api/TravelAdvisories",
+              "prompt": "What is the current travel advice for Thailand?",
+              "tools_triggered": "get_travel_advice",
+              "expected_behavior": "Calls get_travel_advice with country \"Thailand\" and the default summary section."
+            },
+            {
+              "description": "status ok and a uk.section named \"Entry requirements\" with the GOV.UK text (passport validity, visas, customs), a reviewedAt date, the official link and the citizenship note. The text is quoted as written, not paraphrased into visa advice. Check against: https://www.gov.uk/foreign-travel-advice/japan/entry-requirements",
+              "prompt": "What are the entry requirements for Japan for a British traveller?",
+              "tools_triggered": "get_travel_advice",
+              "expected_behavior": "Calls get_travel_advice with country \"Japan\" and section \"entry-requirements\"."
+            },
+            {
+              "description": "status ok and three countries, each with the UK alert text and review date and the US level text and update date, with official links; the citizenship note is included once. Check against: https://cadataapi.state.gov/api/TravelAdvisories (entries for Mexico, Colombia and Peru)",
+              "prompt": "Compare the UK and US travel advice for Mexico, Colombia and Peru.",
+              "tools_triggered": "compare_advisories",
+              "expected_behavior": "Calls compare_advisories with countries [\"Mexico\", \"Colombia\", \"Peru\"]."
+            },
+            {
+              "description": "status ok, icao KJFK, faa.status ok with a delays list (empty when the FAA reports none) and an updated time, and a metar with flight category, temperature, wind, visibility and observation time, plus the raw TAF. The answer states it is not for flight planning. Check against: https://nasstatus.faa.gov/api/airport-status-information and https://aviationweather.gov/api/data/metar?ids=KJFK&format=json",
+              "prompt": "Is JFK having delays right now?",
+              "tools_triggered": "get_airport_status",
+              "expected_behavior": "Calls get_airport_status with airport \"JFK\"."
+            },
+            {
+              "description": "status ok, icao EGLL, faa.status not_applicable (FAA data is US only), and the latest METAR (raw text, flight category, temperature, wind) and raw TAF from the Aviation Weather Center. Check against: https://aviationweather.gov/api/data/metar?ids=EGLL&format=json",
+              "prompt": "What is the weather at London Heathrow, EGLL?",
+              "tools_triggered": "get_airport_status",
+              "expected_behavior": "Calls get_airport_status with airport \"EGLL\"."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin has no nationality-specific visa data; UK and US entry text applies only to their own citizens. Expected: Does not present the UK or US advice as visa rules for an Indian passport. Either calls get_travel_advice and states clearly that the text is written for British and US citizens and does not cover Indian passports, or declines and points to the Brazilian consulate or the official visa page.",
+              "prompt": "Do I need a visa to enter Brazil with an Indian passport?"
+            },
+            {
+              "description": "It is a medical and trip-decision question; the plugin returns government advisory text and airport conditions only. Expected: Does not call a tool. Says it cannot give medical advice and suggests contacting a doctor and the airline or insurer.",
+              "prompt": "Should I cancel my trip because I feel unwell and have a fever?"
+            },
+            {
+              "description": "The plugin covers airports, not flights; airport weather is not a flight prediction and is not for flight planning. Expected: Does not call get_airport_status for a flight lookup. Says it has no flight, schedule or seat data and offers an airport's current delays and weather instead.",
+              "prompt": "Will my flight BA117 be on time tomorrow, and which seat should I pick?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release. Reads UK FCDO travel advice from GOV.UK, US State Department advisories, FAA airport delays and NOAA airport weather (METAR and TAF). Compares up to five countries. Answers are cached for a few hours (five minutes for airports); read-only, no sign-in."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+---
+name: habits-tracking
+description: Daily habits, simple check-ins, and progress over time.
+---
+
+# Habits
+
+Use Habits to create personal habits, record completed activities, correct check-ins and show progress. Plans and intentions are not completed actions. Use actual user reports; never infer a check-in from conversational enthusiasm.
+
+Use the supplied Habits widget as the only visual display of habits and progress. Do not generate additional cards, charts, progress bars, tables, buttons, HTML or emoji/block grids. The widget always uses small square cells in seven weekday rows, including short date ranges. Keep any follow-up to one short sentence without repeating the widget's data or adding a logging prompt. If the host cannot render widgets, give a brief plain-text summary. Use `show_habits` for display requests; `list_habits`, `get_habit_history` and `get_habit_summary` provide data for reasoning and edits, not for constructing another UI.
+
+When the user reports an activity, such as “I did 10 pushups”, record it right away. Match it to an existing habit; for quantities use `mode: "add"`. If nothing matches, call `create_habit` once: a quantity habit named after the activity with its unit (target: the stated daily goal, otherwise the reported amount), the reported amount in `checkins`, a fitting emoji `icon` and a `color` that suits the goal. This shows a single grid that already includes the activity; do not follow it with `record_checkins`. Mention that the target can be changed.
+
+Create binary or quantity habits with explicit weekdays. Use the current IDs and revisions to record check-ins. Quantity entries support add or set; distinguish “another glass” from “five glasses total.” Batch reported habits in one record_checkins call. A repeated request must reuse its UUID so it cannot count twice.
+
+Record past activity even when it predates habit creation. The first backdated check-in extends the original schedule using its original weekdays and target, preserving later changes and existing entries. Read the requested date range first for check-in revisions. For a statement such as “10 push-ups every day last month”, use the actual local calendar month, `mode: "set"`, and batches of at most 50 dates. Never fill in unreported activity.
+
+`show_habits` always renders the full-width, year-style contribution grid shown on the website: the trailing 53 weeks ending on the requested period's end, never after today. Shorter periods do not shrink the grid. Without a specified period, use the default rolling view, which ends today. When the user asks about a past month, quarter or year, pass `view: "month"`, `"quarter"` or `"year"` with a date in that period, or supply `from` and `to`, so the grid ends there. Do not say the grid can be narrowed to a shorter period. Habit icons are emoji first. Every new habit gets one emoji that fits it (🧘 meditation, 📚 reading, 💧 water, 🏃 running) and a color that suits the goal (blue water, green walking, orange workouts, red strength or cardio, yellow reading or learning, purple sleep or meditation, pink self-care, gray chores), unless the user names them. When the user asks to change an icon, use `update_habit` with the emoji they name or a fitting one. Use a named icon from the tool schema (for example meditate, sleep, journal, cardio or study) or `auto` only when they ask for a plain symbol. Icon changes are immediate and preserve the schedule. Set a habit’s `color` with `create_habit` or `update_habit` when requested (green, blue, purple, pink, red, orange, yellow or gray).
+
+Schedule and target edits apply tomorrow; pausing preserves earlier history. Streaks count scheduled days. Explain only the progress returned by the backend. `create_habit`, `update_habit` and `record_checkins` display each affected habit’s grid themselves; do not call `show_habits` after them unless a different period is requested. Use `show_habits` when the user asks to see their habits. Do not promise reminders or background monitoring.
+
+Authenticate the account before private operations. Ask for an IANA timezone if missing. Before storing the first record, disclose what tracking data is stored and obtain explicit consent; never set consent merely because a tool requires it.
+
+Call tools with a fresh requestId for a new action and the same ID and arguments for a retry. Report errors truthfully. Do not claim a write succeeded without a tool result. Never promote subscriptions, show pricing, initiate checkout, or link to a transaction page inside ChatGPT. Existing account entitlements determine access. When a write returns the `HABIT_LIMIT` notice, the widget already explains the Free plan limit and links to plan information; say the limit is reached, offer to archive a habit, and add nothing about upgrading.

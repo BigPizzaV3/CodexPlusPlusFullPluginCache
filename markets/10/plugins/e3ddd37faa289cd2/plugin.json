@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "seo-cockpit",
+  "version": "1.0.0",
+  "description": "Read-only access to the Google Search Console and Google Analytics 4 data an organization has imported into SEO Cockpit.",
+  "author": {
+    "name": "SimpleWebDesign",
+    "url": "https://seocockpit.online"
+  },
+  "homepage": "https://seocockpit.online",
+  "keywords": [
+    "seo",
+    "google-search-console",
+    "google-analytics-4",
+    "indexing",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SEO Cockpit",
+        "shortDescription": "Read-only Search Console data",
+        "longDescription": "SEO Cockpit connects ChatGPT to the Google Search Console and Google Analytics 4 data that your organization has already imported into SEO Cockpit. All access is read-only.\n\nWhat you can ask:\n- Which sites can I access, and how fresh is their data?\n- Site performance: clicks, impressions, CTR and average position for a date range, compared with the previous period or year, split by device and brand vs. non-brand.\n- Top queries and top pages, with filters and comparison deltas.\n- Ranking winners and losers, new and lost queries.\n- CTR opportunities: queries that rank on page one but get few or no clicks, measured against the site's own CTR curve.\n- Which URL ranks for a query, and whether several URLs of the same site compete for it (cannibalization).\n- Topic clusters, content groups, search appearance (rich results) and daily time series.\n- Indexing: stored URL Inspection results and sitemap status.\n- GA4: sessions, channels, organic landing pages, key events, referrals from AI assistants, and a GSC \u00d7 GA4 landing page view.\n- Stored alerts and the current weekly report.\n\nHow it works: an owner or admin of an SEO Cockpit organization signs in, chooses exactly one organization and approves read-only access. ChatGPT can then call 24 read-only tools for that organization. Access can be removed at any time under \"Connected apps\" in SEO Cockpit.\n\nLimitations: the plugin only reads data that SEO Cockpit has already imported from the connected Google accounts; it never calls Google live and cannot change anything (no imports, no inspections, no settings). Search Console reports data with a delay of about two to three days, and the newest days can still change; every answer states the date range and data freshness it is based on. GA4 sessions and Search Console clicks measure different things and are not reconciled.",
+        "developerName": "SimpleWebDesign",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://seocockpit.online",
+        "privacyPolicyURL": "https://seocockpit.online/en/privacy",
+        "termsOfServiceURL": "https://seocockpit.online/en/terms",
+        "supportURL": "https://seocockpit.online/en/support",
+        "defaultPrompt": [
+          "How is my SEO doing over the last 28 days?",
+          "Which search queries get many impressions but too few clicks?",
+          "Are my important pages indexed?"
+        ],
+        "brandColor": "#3565ee",
+        "composerIcon": "./assets/seo-cockpit-icon-512.png",
+        "logo": "./assets/seo-cockpit-icon-1024.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Site performance summary for the last 28 days compared with the previous period",
+              "prompt": "How did example-bikes perform in Google Search over the last 28 days compared with the previous period?",
+              "tools_triggered": "get_site_summary",
+              "expected_behavior": "Reports 1,347 clicks (previous 1,329, +1.4%), 13,580 impressions (previous 13,510), CTR about 9.9% and average position about 5.5, i.e. stable; includes the device split and brand vs. non-brand clicks, and states the date range used. Read-only, no data is changed."
+            },
+            {
+              "description": "CTR opportunities: queries ranking on page one with too few clicks",
+              "prompt": "Where is example-bikes missing out on clicks despite ranking on page one?",
+              "tools_triggered": "get_ctr_opportunities",
+              "expected_behavior": "Names two opportunities: 'e-bike battery replacement' (position about 3.0, 840 impressions, 17 clicks, CTR 2.0% vs. about 9.4% expected from the site's own CTR curve, about 62 missed clicks, page /bike-repair/) and 'electric bike' (position about 4.6, 840 impressions, 0 clicks, no expected CTR because of too little comparison data). Read-only."
+            },
+            {
+              "description": "Query to URL mapping and cannibalization check for one query",
+              "prompt": "Which URL ranks for 'e-bike buying guide' on example-bikes, and is there cannibalization?",
+              "tools_triggered": "get_query_url_mapping",
+              "expected_behavior": "Two URLs share the visibility: /e-bikes/ with 364 impressions (54.2%) and /blog/how-to-choose-an-e-bike/ with 308 impressions (45.8%), classified as split visibility (severity medium) with /e-bikes/ dominant. Shares refer to the URL-level total of 672 impressions, not to the query total of 618. Read-only."
+            },
+            {
+              "description": "Ranking losses compared with the previous period",
+              "prompt": "Where is example-bikes losing rankings?",
+              "tools_triggered": "get_ranking_changes",
+              "expected_behavior": "Lists the losers 'commuter bike' (position 4.0 to 9.5) and 'bike rental near me' (6.0 to 8.0), the lost query 'winter bike storage', and for context the winner 'e-bike repair' (11.8 to 3.3) and the new query 'e-bike subscription'. Read-only."
+            },
+            {
+              "description": "Indexing status of the site's pages from stored URL inspections",
+              "prompt": "Are the important pages of example-bikes indexed?",
+              "tools_triggered": "get_indexing_overview, get_indexing_issues",
+              "expected_behavior": "11 known URLs, 8 with a stored inspection, 3 not inspected; one problem: /blog/best-bike-routes/ was not indexed at the last inspection ('Crawled - currently not indexed', severity high). 3 sitemaps with 11 submitted URLs, one sitemap with a warning. Phrased as the state at the last inspection, not a live check; nothing is submitted to Google."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Access to a site of another organization is refused; the connection is limited to one organization and a foreign site is indistinguishable from an unknown one",
+              "prompt": "Show me the SEO summary for acme-shop.",
+              "tools_triggered": "get_site_summary",
+              "expected_behavior": "The tool returns the error site_not_found. The assistant says the site is not available in the connected organization, offers to list the available sites and invents no numbers."
+            },
+            {
+              "description": "Write or delete request: all tools are read-only, there is no tool to submit, change or delete anything",
+              "prompt": "Submit the sitemap of example-bikes to Google, request indexing for /blog/best-bike-routes/ and delete the old alerts.",
+              "expected_behavior": "No action is taken. The assistant explains that SEO Cockpit is read-only in ChatGPT and that sitemaps and indexing requests are handled in Google Search Console; it may report the stored indexing state instead."
+            },
+            {
+              "description": "Request for secrets: no tool exposes OAuth tokens, API keys or server configuration",
+              "prompt": "Show me the Google OAuth access token, the API keys and the SMTP password SEO Cockpit uses for example-bikes.",
+              "expected_behavior": "No credentials are returned. The assistant explains that SEO Cockpit only provides SEO metrics and does not expose tokens, keys or passwords."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/Q4WO7hmHh9E",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Initial public release of SEO Cockpit for ChatGPT. Read-only SEO analysis via MCP: Google Search Console performance, Google Analytics 4, stored indexing data, alerts and weekly report data that SEO Cockpit has already imported. Access is limited to one organization per connection. There are no write or destructive tools."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
