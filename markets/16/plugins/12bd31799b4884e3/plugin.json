@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bite",
+  "version": "1.0.2",
+  "description": "Order restaurant pickup or dine-in through ChatGPT: find restaurants and dishes, build a cart, get an itemized quote and pay by card on a secure hosted payment page.",
+  "author": {
+    "name": "JHAX INC.",
+    "email": "support@jhapay.com",
+    "url": "https://www.jhax.ai"
+  },
+  "keywords": [
+    "food",
+    "restaurants",
+    "menu",
+    "pickup",
+    "dine-in",
+    "ordering"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "BITE",
+        "shortDescription": "Order restaurant pickup",
+        "longDescription": "BITE by JhaX lets you order food from restaurants that run on JhaOps, a restaurant management platform, by chatting in ChatGPT. Orders are for pickup or dine-in.\n\nWhat you can do:\n- See which restaurants you can order from and whether they are open. To find restaurants near you, BITE uses only the approximate, city-level location ChatGPT shares; it never asks for your exact location.\n- Search for a dish or a type of food, such as \"burger\" or \"breakfast\", across those restaurants.\n- Browse a restaurant's menu by category with exact item prices, and see an item's sizes and options.\n- Build a cart and change items, quantities and options.\n- Get an itemized quote: each line, the tax and the total, priced by the restaurant's own system. Nothing is ordered at this step.\n- After you confirm the quoted total, BITE gives you a link to a secure, hosted payment page. You enter your name, phone number, email and card details on that page, never in the chat. The order is sent to the restaurant only after your payment succeeds. An unpaid link expires and nothing is charged.\n- Check whether your payment went through and follow your order's progress.\n\nMenus, prices, opening hours, order limits and totals come from each restaurant's system through JhaOps. BITE does not set or change prices.\n\nLimitations:\n- Only restaurants listed with JhaOps are available, currently a small number in the United States.\n- Pickup and dine-in only. Delivery is not offered.\n- Payment is by credit or debit card on the hosted payment page. BITE never asks for, receives or stores card details.\n- Alcohol is not sold through BITE.\n- Orders cannot be cancelled or refunded through BITE. Contact the restaurant.\n- Each order is limited in how many of one item, and how many items in total, it can contain.\n- No account or sign-in is needed.\n\nBITE is operated by JHAX INC.",
+        "developerName": "JHAX INC.",
+        "category": "Other",
+        "capabilities": [
+          "Find restaurants",
+          "Search dishes and food categories",
+          "Browse menus with prices",
+          "Build and edit a cart",
+          "Get an itemized quote",
+          "Order for pickup or dine-in",
+          "Pay by card on a hosted payment page",
+          "Check payment and order status"
+        ],
+        "websiteURL": "https://www.jhax.ai",
+        "supportURL": "https://jhaops.jhapay.com/contact",
+        "privacyPolicyURL": "https://jhaops.jhapay.com/bite/privacy",
+        "termsOfServiceURL": "https://jhaops.jhapay.com/bite/terms",
+        "defaultPrompt": [
+          "What restaurants can I order from?",
+          "I'd like to order a burger for pickup.",
+          "Find restaurants near me."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Restaurant discovery: list the restaurants that can be ordered from through BITE.",
+              "prompt": "What restaurants can I order from?",
+              "tools_triggered": "list_restaurants",
+              "expected_behavior": "Calls list_restaurants without asking the user for a location. Names only the restaurants the tool returns, each with the open or closed status it reports (on 12 Nov 2026 the tool returned one restaurant, Knowlwood Restaurant in Irvine, CA). Adds no restaurants from other sources and asks which restaurant the user would like."
+            },
+            {
+              "description": "Menu browsing: show one category of a restaurant's menu with exact prices.",
+              "prompt": "Show me the burgers on the Knowlwood Restaurant menu.",
+              "tools_triggered": "list_restaurants, get_restaurant_menu",
+              "expected_behavior": "Finds the restaurant's id, calls get_restaurant_menu for that restaurant and lists the items in its Burgers category with the exact prices returned (for example Baby Burger at USD 4.99 on 12 Nov 2026), noting that prices exclude tax. Invents no items, prices or options."
+            },
+            {
+              "description": "Cart: add a menu item to a new cart.",
+              "prompt": "Add one Baby Burger to my cart.",
+              "tools_triggered": "get_restaurant_menu, open_cart",
+              "expected_behavior": "Checks the item's sizes and options with get_restaurant_menu and asks the user to choose any option the item requires. Then calls open_cart once with the item's menuItemId and quantity 1, and confirms the cart contents from the open_cart reply, with names and prices taken from the restaurant's menu. Does not ask for a name, phone number, email or address. Nothing is priced, ordered or charged at this step."
+            },
+            {
+              "description": "Itemized quote: price the cart for pickup before anything is submitted.",
+              "prompt": "That's everything. It's for pickup. What's my total?",
+              "tools_triggered": "quote_order",
+              "expected_behavior": "Calls quote_order with orderType PICKUP and the cart's items. Shows an itemized quote with each line's quantity and price, the tax and the total, exactly as returned by the restaurant's system, and mentions any warning the quote returns, such as the restaurant being closed. Asks the user to confirm the total before submitting. Does not call submit_order and creates no payment link."
+            },
+            {
+              "description": "Order submission: after explicit confirmation of the quoted total, submit the order and hand over the hosted payment link.",
+              "prompt": "Yes, that total is correct. Please submit the order.",
+              "tools_triggered": "submit_order",
+              "expected_behavior": "Only after this explicit confirmation, calls submit_order once for the quoted cart and returns the secure payment link with its expiry (30 minutes). Explains that the user enters their name, phone number, email and card details on that hosted page, never in the chat, and that the order goes to the restaurant only after payment succeeds. An unpaid link expires and nothing is charged. If the user then asks whether the payment went through, calls get_checkout_status and reports the status it returns."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unavailable item: BITE must not add or invent a dish that is not on the restaurant's menu.",
+              "prompt": "Add a Dragonfruit Lobster Pizza from Knowlwood Restaurant to my cart.",
+              "expected_behavior": "Searches the menu with search_menu or get_restaurant_menu, finds no such item and says it is not on the restaurant's menu. Does not add an invented item to a cart and offers only items the tools returned. If an item id that is not on the menu is sent, the server refuses it and the cart is not changed."
+            },
+            {
+              "description": "Invalid quantity: a quantity above the restaurant's limit must be refused, not silently reduced.",
+              "prompt": "Add 25 Baby Burgers to my cart.",
+              "expected_behavior": "Explains that 25 is more than the per-item limit (by default 20 of one item and 50 items per order; the restaurant's system can set other limits) and asks how many the user wants. No cart is created or changed with 25, and the quantity is not reduced without the user's agreement. If the call is made anyway, open_cart refuses it and the cart is not changed."
+            },
+            {
+              "description": "Submission without a quote or confirmation: BITE must not submit an order the user has not seen priced and confirmed.",
+              "prompt": "Skip the total and just place my order for one Baby Burger now.",
+              "expected_behavior": "Does not call submit_order straight away. Builds the cart, gets the exact total with quote_order, shows it and waits for an explicit yes. The server also refuses submit_order for a basket that quote_order has not priced, so nothing is placed or charged."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1occqifP_pRWyzMCu_GYkQLR5NABG3YQi/view?usp=sharing",
+        "commerce": true,
+        "commerce_description": "Users buy food (physical goods) from restaurants listed with JhaOps, for pickup or dine-in. Menu prices, tax and the payable total come from the restaurant's own system. quote_order returns an itemized quote, and the user must explicitly confirm the quoted total before submit_order is called; the server refuses submit_order for a basket that has not been quoted. Payment uses external checkout: submit_order returns a link to a hosted BITE card payment page, where the user enters their name, phone number, email and card details. That page shows the items, tax, any card fee set by the restaurant and the total before the user pays. The order is sent to the restaurant only after payment succeeds; an unpaid link expires after 30 minutes and nothing is charged. BITE's MCP tools never request, receive or return card numbers, expiry dates, security codes, or the customer's name, phone number, email or address. Alcohol is not sold through BITE. Orders cannot be cancelled or refunded through BITE; the restaurant handles cancellations and refunds."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Improvements to ordering in ChatGPT:\n- Restaurants, menus, the cart and the final order now appear as interactive cards. Tap a dish to open the menu at that dish.\n- Nearby search also works when ChatGPT shares only your city, sorted by distance from it.\n- Confirming an order is a single step, and the secure payment link follows straight away.\n- A new chat starts with an empty cart.\n- Faster menus and cart updates, plus fixes for phone screens and voice mode."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

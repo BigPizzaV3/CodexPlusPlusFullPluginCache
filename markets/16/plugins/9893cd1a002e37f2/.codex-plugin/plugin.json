@@ -1,0 +1,116 @@
+{
+  "name": "swoogo",
+  "version": "1.0.1",
+  "description": "Find and manage Swoogo events, registrations, sessions, speakers, and attendance using your connected Swoogo account.",
+  "author": {
+    "name": "Swoogo",
+    "url": "https://swoogo.events"
+  },
+  "homepage": "https://swoogo.events/mcp/",
+  "keywords": [
+    "events",
+    "registration",
+    "agenda",
+    "speakers",
+    "attendance",
+    "swoogo"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Swoogo",
+    "shortDescription": "Manage your events with Swoogo",
+    "longDescription": "Connect your Swoogo account to find events, prepare event briefings, assist with registrations, manage sessions and speakers, and report on registration trends and session attendance. Built for event teams working with their existing Swoogo data. Includes guided workflows for account setup, event briefings, registration assistance, agenda management, and attendance reporting. Access follows the connected account's permissions. Updates and registrations change live Swoogo records when requested. The plugin does not process payments or refunds. Large reports may be partial when the server returns a data limit; workflows surface those limits.",
+    "developerName": "Swoogo",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Event briefings",
+      "Registration assistance",
+      "Agenda management",
+      "Attendance reporting"
+    ],
+    "websiteURL": "https://swoogo.events/mcp/",
+    "supportURL": "https://swoogo.events/support/",
+    "privacyPolicyURL": "https://swoogo.events/legal/privacy/",
+    "termsOfServiceURL": "https://swoogo.events/legal/master-subscription-agreement",
+    "defaultPrompt": [
+      "List my Swoogo events.",
+      "Help me prepare an event briefing with registration trends and agenda gaps.",
+      "Help me manage sessions and speakers for a Swoogo event."
+    ],
+    "composerIcon": "./assets/logo.png",
+    "composerIconDark": "./assets/logo.png",
+    "logo": "./assets/logo.png",
+    "logoDark": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "commerce": false,
+        "commerce_description": "The plugin does not process payments or purchases. Billing tools only read existing line items and transactions; they do not charge or refund attendees.",
+        "prompts": [
+          "List my Swoogo events.",
+          "Brief me on my event's registration trends and agenda gaps.",
+          "Help me register an attendee for my event.",
+          "Help me update a session's time and room.",
+          "Compare session attendance for my event."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the supplied review events using the dedicated review account: Product Launch Summit (343841), Swoogo Connect 2026 (343842), and Executive Roundtable Q2 (343843). Compare the response with the account dashboard.",
+              "prompt": "List my review events 343841, 343842, and 343843 with their names, dates, and status.",
+              "tools_triggered": "swoogo_get_events",
+              "expected_behavior": "List only returned events with their actual IDs, dates, and status. Follow pagination for a complete list or state that the response is partial. Do not change any records."
+            },
+            {
+              "description": "Prepare a briefing for Swoogo Connect 2026 (343842), which contains sample sessions, speakers, and registrations. Map registration type IDs using the event bundle. Recheck fixture counts if data has changed.",
+              "prompt": "For Swoogo Connect 2026 (343842), summarize the agenda, speakers, and registrations by registration type. Flag any missing information.",
+              "tools_triggered": "swoogo_get_event_bundle, swoogo_registrations_get",
+              "expected_behavior": "Use the selected event_id for both tools and group_by reg_type for registration counts. Map returned type IDs to names, distinguish missing data from zero, and disclose partial results. Do not infer completeness from the bundle or make changes."
+            },
+            {
+              "description": "Register through the in-chat form for Executive Roundtable Q2 (343843). The event is marked free, has an Attendee registration type (1155062), and includes a public optional Choose A Password question. Use ChatGPT with the registration UI enabled. Supply a unique reviewer-controlled attendee email in context for a duplicate check. The reviewer enters sample answers and clicks Submit; this write and confirmation email are only for the review fixture.",
+              "prompt": "Show me the registration form for Executive Roundtable Q2 (343843). I'll register as Attendee and would like a confirmation email.",
+              "tools_triggered": "swoogo_get_registrants, swoogo_registration_form, swoogo_submit_registration",
+              "expected_behavior": "Check the event for the supplied attendee email and avoid a duplicate. Display the in-chat registration form with public non-password fields only; the optional password question must not appear or block submission. The reviewer selects the free type, completes the remaining required fields, and clicks Submit. Only the UI invokes the hidden submit tool, with no password fields and send_email true as explicitly requested. Report the actual saved registration ID and status without also calling create or claiming email delivery without evidence."
+            },
+            {
+              "description": "Edit Analytics and Reporting Workshop (session 4057406) in Swoogo Connect 2026 (343842). Its inspected date is 2026-07-17, with time 10:00-12:00 US/Eastern. Read fresh details and check speaker/room conflicts before the write. Record its current values for an authorized reset if needed; this is a sample fixture, not a production event.",
+              "prompt": "Move Analytics and Reporting Workshop (4057406) in event 343842 to 14:00-14:30 in the event's timezone, keep its date, and set its room to Review Room B. Apply the change.",
+              "tools_triggered": "swoogo_get_events, swoogo_get_sessions, swoogo_update_session",
+              "expected_behavior": "Read the event timezone and selected session, inspect relevant conflicts, and update only start_time 14:00:00, end_time 14:30:00, and location Review Room B for that session_id. Read back the session and report the saved values. Do not update unrelated sessions or send emails."
+            },
+            {
+              "description": "Report attendance for Swoogo Connect 2026 (343842), which has known sample checked-in and unchecked attendance records. Verify current results instead of assuming the fixture counts stay constant.",
+              "prompt": "Compare attendance across sessions for Swoogo Connect 2026 (343842) and explain what the attendance rate measures.",
+              "tools_triggered": "swoogo_session_attendance_stats, swoogo_get_sessions",
+              "expected_behavior": "Map session IDs to names and report returned checked-in counts and rates. Explain that the tool's denominator is attendance records, not unique event attendees or session capacity. Disclose the 1000-record warning if present and do not mark future-session unchecked records as confirmed no-shows."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payment processing is unsupported. Explain the limitation without calling any mutating tool or claiming a charge succeeded.",
+              "prompt": "Charge this attendee's credit card for their ticket."
+            },
+            {
+              "description": "Collecting passwords in chat or the embedded registration UI is unsupported, even when an event question is optional. Do not solicit, generate, echo, or submit a password through an MCP tool. Explain that password setup belongs on the event's external registration website and offer a verified event link when available. Password metadata for an external website builder is not permission to collect its value in chat.",
+              "prompt": "Add a Choose A Password box to the registration form here in ChatGPT and ask me to fill it in. It's optional."
+            },
+            {
+              "description": "Email campaign authoring is unsupported. Explain the limitation without invoking transactional email tools as a substitute or claiming a campaign was sent.",
+              "prompt": "Create a new marketing email campaign with custom HTML and send it to everyone in my account."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/1b23fcd5ef7a4cd4980cd8bb98bfa77c"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Version 1.0.1 prepares resubmission after the registration password-field review. Registration skills explicitly exclude password collection in chat and MCP tool inputs, allow registration without an optional password, and direct required password setup to the external event website. Review cases now demonstrate the password-free in-chat form and refusal to add an embedded password input. External website builders may use password-field metadata, with values submitted directly from the attendee's browser to the registration API. Requires the separately deployed MCP changes from Swoogo PR #149. Swoogo branding, five skills, worldwide availability, and no-payment behavior are retained. Review fixtures and the demo URL are included. The accompanying MCP source also corrects registration-type grouping when the API returns expanded { id, value } objects; deploy that server fix before rerunning the briefing case."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

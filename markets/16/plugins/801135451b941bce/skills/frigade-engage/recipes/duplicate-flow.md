@@ -1,0 +1,61 @@
+# recipes/duplicate-flow.md — STUB
+
+**Status:** Phase-1 target. v1 dogfood uses pattern-match off `promote-to-prod.md` + `reference/operations.md` + `reference/rest-endpoints.md`.
+
+## Intent
+User asks to duplicate an existing flow — either to iterate on a variant (A/B style), make a copy under a new slug, or create a new draft version of the same flow. Typical phrasing: "duplicate `welcome-to-my-product` so I can experiment with a new copy", "clone the tour to a new slug", "make a new version of my checklist so I can edit without affecting the live one".
+
+## Pattern
+Follows the same shape as `promote-to-prod.md` for multi-call orchestration, but single-env (stays in dev or stays in prod). Two distinct "duplicate" meanings, each with its own endpoint:
+- **Variant A — new flow** (logical copy). Fetch source with `GET /v1/flows/<slug>`; `POST /v1/flows/` copying `name`, `type`, `data`, `targetingLogic`, `codeSnippet` — **without** an invented `slug` (Frigade assigns a fresh `flow_<nanoid8>`). Pattern from `promote-to-prod.md` §4.1 CREATE-path but against the same env (promotion is the one case that *does* pass the existing slug, to preserve pairing; a duplicate does not).
+- **Variant B — new draft version of same slug** (versioning copy). `POST /v1/flows/<numericFlowId>/versions` — returns a new `DRAFT` row with incremented version, same slug. Pattern from `promote-to-prod.md` §4.2b "Create new draft" variant.
+Ask the user which they mean if the prompt is ambiguous. "Copy to a new slug" → Variant A. "New draft version" / "new draft to edit" → Variant B.
+
+## API op
+See `reference/operations.md` §"Flow operations".
+- Variant A (new slug): `createFlow` → `POST /v1/flows/` (see `rest-endpoints.md` §"POST /v1/flows/").
+- Variant B (new version): `createFlowVersion (duplicate / new draft)` → `POST /v1/flows/:id/versions` (see `rest-endpoints.md` §"POST /v1/flows/:id/versions").
+- Auth: `Authorization: Bearer $FRIGADE_API_KEY_SECRET` (or `_PROD` for prod).
+
+## Confirmation
+Safety tag: **safe** in dev, **`steer` → dangerous** in prod (both variants — same rows as `createFlow` / `createFlowVersion` in `operations.md`). Duplicating a flow directly in prod is discouraged — emit the **prod steer** first (`operations.md` §"Prod is promote-only"): offer to duplicate in dev and promote (`promote-to-prod.md`). Only if the user types the exact override `edit prod directly` do you fall through to the canonical prod prompt: `"About to create flow '<new-slug>' in prod. This affects live flow state. Confirm? (y/n)"` (Variant A) or the generic `"About to <verb> <target> in <env>. Confirm? (y/n)"` for Variant B (new draft version in prod).
+
+## Pre-conditions
+- `first-run-setup.md` Section 1 state-check passed.
+- Dev private key available (or prod for prod ops).
+- Source flow exists (verify with `GET /v1/flows/<slug>` before proceeding — 404 → halt with "source flow not found").
+
+## Minimal flow
+
+**Variant A — new flow (Frigade-assigned slug):**
+
+1. Ask or infer which variant the user wants.
+2. `GET /v1/flows/<source-slug>` with dev key → capture `name`, `type`, `data`, `targetingLogic`, `codeSnippet`, `description`.
+3. **Do not derive a human slug and do not collision-check.** Unlike a same-slug promotion, a duplicate is a *new* flow, so let Frigade assign a fresh `flow_<nanoid8>` slug — omit `slug` from the create body. (A `slug` field may still be *passed through* — e.g. a caller-supplied value — but the backend only honors it when it already starts with `flow_`; a human/custom slug is ignored and regenerated. So never rely on a custom slug persisting.) Give the copy a distinct `name` (e.g. append " (copy)" or the user's requested name) — the human label lives in `name`, not the slug.
+4. Confirmation if env is prod (prod steer applies — see safety section above).
+5. `POST /v1/flows/` with the copied body (no invented `slug`). Default `active: false` (let the user activate when ready).
+6. Read the server-assigned `slug` from the response; report it + the dashboard URL; log `duplicate-flow:variant-a:success`.
+
+**Variant B — new draft version:**
+
+1. `GET /v1/flows/<source-slug>` → capture numeric `id`.
+2. Confirmation if env is prod.
+3. `POST /v1/flows/<id>/versions` with body `{}` — returns new draft row.
+4. Report: new draft exists at the same slug, different numeric id; the live version is unchanged.
+5. If the user also wants to edit and publish, hand off to `update-yaml.md` then `publish-flow.md`. Log `duplicate-flow:variant-b:success`.
+
+## Example invocation
+
+User: "Duplicate `flow_a1b2c3d4` so I can try a different copy — call it 'Welcome v2'."
+
+The agent's actions (abbreviated):
+- Interpret as Variant A (new flow). No slug to derive or check — Frigade will assign one.
+- `GET /v1/flows/flow_a1b2c3d4` → body.
+- `POST /v1/flows/` with `name: "Welcome v2"`, same type/data, no `slug` field, `active: false`.
+- Response returns the new flow with a server-assigned slug (e.g. `flow_v2x9y8z7`); report that + the new dashboard URL.
+
+## TODO (Phase 1)
+- Write the fully-authored version.
+- Clarify variant-disambiguation prompt wording when user says "duplicate" without specifics.
+- Mount-site handoff: Variant A creates a new flow that's not yet mounted in the host codebase — surface a "NEXT" pointer to the appropriate `create-<type>.md` recipe's Step 7 (mount phase), or offer to mount under a new React component automatically.
+- Handle "duplicate and flip active" (e.g. "duplicate and activate the copy") — chain through `publish-flow.md`.

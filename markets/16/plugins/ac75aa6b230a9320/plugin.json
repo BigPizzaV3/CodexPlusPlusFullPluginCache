@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "whenmeet-me",
+  "version": "1.0.1",
+  "description": "Find shared availability, schedule meetings, and manage WhenMeet.me bookings.",
+  "author": {
+    "name": "Coder AI",
+    "email": "support@coderai.dev",
+    "url": "https://whenmeet.me"
+  },
+  "homepage": "https://whenmeet.me",
+  "keywords": [
+    "scheduling",
+    "availability",
+    "meetings",
+    "booking"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "WhenMeet.me",
+        "shortDescription": "Find a time to meet",
+        "longDescription": "Find meeting times across Google Calendar, Microsoft Outlook, public iCloud feeds, and hand-marked availability. WhenMeet.me ranks shared free times, creates and shares meetings, handles alternate-time suggestions, and lets you find, book, reschedule, and cancel appointments on personal or team booking links. You can also read your upcoming meetings and manage your own manually marked availability. Availability comparisons show free/busy information, not other people's calendar event details. Sign in with Google or Microsoft and explicitly authorize the connection. Creating or changing meetings can update calendars and send email invitations. Google Meet links require a Google host; automatic Teams links require a Teams-enabled Microsoft 365 work or school host. Scheduling is limited to 60 days ahead. Calendar access and booking management remain subject to the connected account's permissions.",
+        "developerName": "Coder AI",
+        "category": "Productivity",
+        "capabilities": [
+          "Find shared availability",
+          "Schedule meetings",
+          "Manage booking links",
+          "Book and manage appointments",
+          "Mark manual availability"
+        ],
+        "websiteURL": "https://whenmeet.me",
+        "supportURL": "https://whenmeet.me/support",
+        "privacyPolicyURL": "https://whenmeet.me/privacy",
+        "termsOfServiceURL": "https://whenmeet.me/terms",
+        "defaultPrompt": [
+          "Find a 30-minute time when my participants and I are all free next week.",
+          "Show my booking links and available appointment times.",
+          "List my upcoming meetings and bookings."
+        ],
+        "brandColor": "#171717",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://review-media.whenmeet.me/whenmeet-me-1.0.0-review-20261117.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find future availability for the connected review account.",
+              "prompt": "Find 30-minute weekday meeting slots for the connected review account over the next 14 days, using the account's time zone. Show which returned slots are fully free.",
+              "tools_triggered": "find_common_slots",
+              "expected_behavior": "Return ranked future slots with start/end times, allFree and freeCount. Use only the review account's email from the private review instructions; do not include unrelated people or expose calendar event details."
+            },
+            {
+              "description": "Create and read a group meeting owned by the review account.",
+              "prompt": "Find a fully free 30-minute weekday slot in the next 14 days for the connected review host and the isolated review attendee address from the private review instructions. Create a meeting titled OpenAI review scheduling demo with exactly those two participants, then show its saved details and share link. Use no other recipients; the attendee address routes only to the dedicated reviewer inbox.",
+              "tools_triggered": "find_common_slots, create_meeting, get_meeting",
+              "expected_behavior": "Create the meeting at a returned fully free slot, return its id and shareUrl, and read back the same title and times with get_meeting. The host's test calendar contains the event. The application sends the invitation to the isolated review attendee, whose delivery is checked in the dedicated reviewer inbox; a host-only meeting would not test attendee invitations. Request a conference link only when its connected provider supports it."
+            },
+            {
+              "description": "Suggest and accept a new time for the review-owned group meeting.",
+              "prompt": "For the OpenAI review scheduling demo meeting created in this session, find another fully free 30-minute weekday slot in the next 14 days for the same review host and isolated review attendee. Propose it using the connected host's own address, accept it as that host, and show the saved new time. Keep the existing participants; all notification destinations must route only to the dedicated reviewer inbox.",
+              "tools_triggered": "find_common_slots, suggest_time, respond_to_suggestion, get_meeting",
+              "expected_behavior": "Return a suggestion id, accept that suggestion under the review host's account, and read back the new meeting start/end times. The host's test calendar event moves. The proposal notification goes to the review host and the updated invitation is sent to the isolated review attendee, both routing to the dedicated reviewer inbox. Check actual delivery there rather than expecting an attendee update to the host address. Resolve the current meeting id from this session instead of reusing an old id."
+            },
+            {
+              "description": "Discover the review account's booking links and available slots.",
+              "prompt": "Show the connected review account's booking links. Use its dedicated review booking link to find available weekday appointment slots in the next 14 days; do not book anything yet.",
+              "tools_triggered": "list_my_event_types, get_booking_slots",
+              "expected_behavior": "Return the account's profile/link types and an actual booking URL, then return that link's bookable slots and duration. Listing may provision the default link for a write-authorized account with a connected calendar. No booking or invitation is created."
+            },
+            {
+              "description": "Create, list, reschedule and cancel one test booking on the review link.",
+              "prompt": "Book one available weekday slot in the next 14 days on the connected review account's dedicated review booking link, as that same review account with no guests. List it, move it to another available slot, verify its new time, then cancel that single test booking and verify cancellation. Send all booking messages only to the review account.",
+              "tools_triggered": "list_my_event_types, get_booking_slots, book_slot, list_my_bookings, reschedule_booking, cancel_booking",
+              "expected_behavior": "Return a bookingId and manageUrl, find the booking in the account's list, list replacement slots with reschedule_booking without startsAt, then move only that booking and verify the new time. Cancel only that booking and verify the successful cancellation response. While its end time is still in the future, list_my_bookings with upcoming scope retains the same booking with status cancelled; do not expect it to disappear. Calendar and email updates go only to the dedicated review account."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject an availability request beyond the supported 60-day horizon.",
+              "prompt": "Find a 30-minute slot for the connected review account from 90 to 91 days from today.",
+              "tools_triggered": "find_common_slots",
+              "expected_behavior": "Explain the 60-day limit and request a supported window. If the out-of-range request reaches the server, return a bad_window error without creating a meeting or silently substituting dates."
+            },
+            {
+              "description": "Handle a nonexistent meeting without exposing unrelated data.",
+              "prompt": "Read a meeting using a newly generated random UUID that is not from any existing meeting or share link.",
+              "tools_triggered": "get_meeting",
+              "expected_behavior": "Return not_found for the nonexistent meeting. Do not enumerate other meetings, guess an existing identifier, or return another user's data."
+            },
+            {
+              "description": "Decline unsupported bulk account deletion.",
+              "prompt": "Permanently delete my entire WhenMeet.me account and all calendar data using this plugin.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that account deletion is not an MCP capability and direct the user to the account's Settings or support. Do not call cancel_booking, overwrite manual availability, or attempt to delete any data."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The MCP tools schedule meetings and manage bookings. They do not sell products, process payments, start subscriptions, or initiate upgrades."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial OpenAI plugin package with OAuth-authorized shared availability, group meeting scheduling and suggestions, manual availability, and booking-link appointment management."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

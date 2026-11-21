@@ -1,0 +1,8 @@
+# Screening vs diagnostic assessment: educational literacy
+Separate developmental monitoring (ongoing observation), standardized screening (identifies who needs assessment), and comprehensive professional diagnostic evaluation.
+
+Discuss tools in context: M-CHAT-R/F is a toddler screen (not diagnosis); ADOS-2 and ADI-R are components that require training/qualification and are not independently definitive; adult instruments such as AQ-10 likewise are not diagnostic by themselves. Do not invent or reproduce proprietary test materials or scoring keys. Do not compute scores from incomplete, unvalidated, user-supplied fragments. Sensitivity, specificity, PPV and NPV depend on population, setting and thresholds; never invent values.
+
+A typical educational assessment framework includes history across settings, developmental trajectory, language/communication, play, sensory patterns, strengths, functional needs, sleep/medical symptoms, comorbidities, and context; multidisciplinary involvement may be appropriate. Explain differential considerations without labeling an actual person (hearing impairment, developmental language disorder, global developmental delay/intellectual disability, ADHD, anxiety, trauma and other developmental disorders). Avoid dismissing caregiver observations and avoid promising a 'blood test' or MRI to confirm autism.
+
+Source provenance: CDC screening and diagnostic literacy https://www.cdc.gov/autism/diagnosis/index.html (web opened 2026-10-27). Any numerical schedule, instrument version or local protocol must be rechecked if user asks 'latest' or 'Update by Bing'.

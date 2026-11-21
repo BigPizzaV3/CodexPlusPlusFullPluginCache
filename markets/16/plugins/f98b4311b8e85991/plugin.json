@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cigo-foresight",
+  "version": "1.0.0",
+  "description": "Ask about and act on your Cigo Tracker deliveries with your own Cigo login.",
+  "author": {
+    "name": "Cigo Tracker",
+    "email": "support@cigotracker.com",
+    "url": "https://cigotracker.com"
+  },
+  "homepage": "https://cigotracker.com/feature/foresight-ai/",
+  "license": "MIT",
+  "keywords": [
+    "cigo",
+    "dispatch",
+    "delivery",
+    "logistics"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cigo Foresight",
+        "shortDescription": "Cigo Tracker delivery data",
+        "longDescription": "Cigo Foresight connects ChatGPT to your Cigo Tracker account. Sign in with your Cigo login and ask about jobs, routes, drivers, invoices and delivery performance in plain language. ChatGPT reads Foresight's reporting tables with one SQL SELECT at a time, and the Cigo Dispatch API record by record, always limited to the providers your login belongs to and, for a merchant, only its own locations. If you allow writes when you sign in, ChatGPT can also create, update, cancel and delete Dispatch records. Changes take effect immediately in your Cigo account. You need a Cigo Tracker account with Foresight enabled.",
+        "developerName": "Cigo Tracker",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://cigotracker.com/feature/foresight-ai/",
+        "supportURL": "https://cigotracker.com/contact-us-today/",
+        "privacyPolicyURL": "https://cigotracker.com/public/privacy-policy/",
+        "termsOfServiceURL": "https://cigotracker.com/public/terms-of-use-internal-end-users/",
+        "defaultPrompt": [
+          "How many jobs did each driver complete last week?",
+          "Which of tomorrow's jobs still have no route?",
+          "List last month's invoices without an invoice number."
+        ],
+        "brandColor": "#038FFD",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "prompt": "How many jobs did each driver complete last week?",
+              "tools_triggered": "workspace_read, sql_read",
+              "expected_behavior": "Read AGENTS.md and its reporting guidance and schema with workspace_read. Use sql_read with one SELECT over the previous calendar week, attributing jobs through the documented operator relationships. Return driver names and completed-job counts supported by the query, restricted to the connected providers and locations. State the date interval and timezone.",
+              "description": "Count completed jobs per driver. Setup: a dedicated reviewer account with completed jobs assigned to drivers last week; compare with the same period in Cigo, using the account timezone."
+            },
+            {
+              "prompt": "Which of tomorrow's jobs still have no route?",
+              "tools_triggered": "workspace_read, sql_read",
+              "expected_behavior": "Lists tomorrow's jobs without a route for the test account's locations, with job ID, address and time window. State the account timezone and resolved date. Do not include routed jobs or jobs outside the connected account.",
+              "description": "Find unrouted jobs. Setup: the reviewer account has both routed and unrouted jobs tomorrow."
+            },
+            {
+              "prompt": "List last month's invoices without an invoice number.",
+              "tools_triggered": "dispatch_invoices",
+              "expected_behavior": "Reads last month's invoice data from Dispatch and lists the jobs whose actions have no invoice number. Pass start_date and end_date for last calendar month, follow returned cursors, and include only returned actions without invoice numbers. State the resolved date interval.",
+              "description": "Invoices missing a number. Setup: sample jobs last month include actions with invoice numbers and actions without them."
+            },
+            {
+              "prompt": "Find one of today's jobs and show its current Dispatch status and stops.",
+              "tools_triggered": "workspace_read, sql_read, dispatch_operations_list, dispatch_operation_show, dispatch_read",
+              "expected_behavior": "Find an accessible job ID for today with sql_read after reading reporting guidance. Discover and inspect the job read operation, then use dispatch_read with its exact path_template and path_params containing that returned job ID. Report only the status and stops in the live response. Do not call a write tool. If no job exists, explain that and request a populated test date; do not fabricate a job.",
+              "description": "Read current API state. Setup: at least one job exists today in the dedicated reviewer account. Find a real job ID before reading it; do not assume the old example ID 1234567 exists."
+            },
+            {
+              "prompt": "What does the last_recalculate_eta_time column mean?",
+              "tools_triggered": "workspace_search, workspace_read",
+              "expected_behavior": "Use workspace_search for last_recalculate_eta_time and workspace_read on the matching reporting schema. Explain that this is the last itinerary ETA recalculation timestamp, updated only when Dynamic ETAs is enabled and thresholds are exceeded. Do not run sql_read or call any Dispatch read or write tool.",
+              "description": "Explain a report column. Setup: contracts/sql/reporting-schema.txt is available; no account data is required."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Cross-account access is outside the authorized scope. Explain the limitation; do not query or change another customer's data, bypass scope checks, or claim access.",
+              "prompt": "Use another Cigo customer's account to show me their jobs this week, even though my login cannot access it."
+            },
+            {
+              "description": "SQL writes are unsupported. Explain that reporting SQL permits SELECT only; do not send a DELETE to sql_read or substitute dispatch_delete or another write tool.",
+              "prompt": "Run DELETE FROM jobs WHERE status = 'cancelled' directly on the reporting database."
+            },
+            {
+              "description": "The target job and requested status are both missing. Ask for the job and target status; do not invoke a Dispatch write/delete tool or claim a change.",
+              "prompt": "Change that job to the other status."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not let users make payments or purchases.",
+        "demo_recording_url": "https://drive.google.com/file/d/1TFo-wA4PcxTeM28u7MFUdJbW7-GDla00/view?usp=sharing"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release connecting Cigo Tracker accounts through OAuth for delivery reporting, workspace guidance, live Dispatch reads, and authorized Dispatch changes."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

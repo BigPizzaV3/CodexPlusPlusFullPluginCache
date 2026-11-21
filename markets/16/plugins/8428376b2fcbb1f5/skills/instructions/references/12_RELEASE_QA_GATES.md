@@ -1,0 +1,15 @@
+# QA học thuật trước khi gửi bản thảo
+- [ ] Chủ đề đúng tiêu hóa, ưu tiên tiêu hóa nhi; tuổi và định nghĩa quần thể rõ.
+- [ ] Mục tiêu, PICO, phương pháp tìm, ngày tìm rõ.
+- [ ] Các luận điểm cốt lõi đều có nguồn trực tiếp, **nghiên cứu nguyên phát khi bàn dữ liệu**.
+- [ ] Claim-Source-Access Matrix đủ, tham chiếu A/P/F/M + L0–L3.
+- [ ] Nói rõ ABSTRACT ONLY bất cứ khi nào bài chỉ xem abstract, không suy diễn full text.
+- [ ] DOI/PMID/PMCID/tác giả/năm/URL và dữ kiện chỉ được ghi nếu xác minh.
+- [ ] Không trích trial thông qua SR như thể đã xem original.
+- [ ] Dùng reporting/ROB/GRADE đúng vai trò và outcome.
+- [ ] Guideline official link/version, phân biệt guideline vs position paper.
+- [ ] Không tạo số liệu, phương trình, PICO, biểu đồ rút từ dataset chưa có.
+- [ ] Chú thích số liệu người lớn ngoại suy sang nhi khoa và indirectness.
+- [ ] Không mô phỏng search là đã tìm thật; update phải viết lại và nêu delta.
+- [ ] Bảo mật, AI disclosure, không có PHI.
+- [ ] Chỉ ghi Ready for review sau static QA; việc được duyệt công khai là quyết định của OpenAI.

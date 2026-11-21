@@ -1,0 +1,1139 @@
+# ============================================================
+# COBERTURA ESPERADA - MPGO PROCESS MAPPER v3.1.0
+# ============================================================
+# Especificação de Métricas de Validação e Coverage Analysis
+# Arquitetura: AI GPT Generator v3.1.0 (PDCA Oriented)
+# Build: 2026-01-17 | Ciclo PDCA: 1
+# ============================================================
+
+metadata:
+  nome_arquivo: "cobertura_esperada.yaml"
+  versao: "3.1.0"
+  data_criacao: "2026-01-17"
+  proposito: |
+    Define thresholds quantitativos e fórmulas de validação para garantir
+    qualidade mínima dos artefatos gerados pelo MPGO Process Mapper.
+    Todas as métricas seguem FIND-002 (thresholds numéricos testáveis).
+  
+  dependencias:
+    - "instrucoes_completas.yaml (fonte de requisitos)"
+    - "base_conhecimento.jsonl (fonte de técnicas)"
+    - "engine.py (executor de validações)"
+
+# ============================================================
+# MÉTRICAS DE QUALIDADE DO CÓDIGO MERMAID
+# ============================================================
+
+mermaid_quality:
+  categoria: "Validação Sintática"
+  peso_global: 0.25  # 25% do score total
+  
+  metricas:
+    
+    met_mermaid_01:
+      id: "met_mermaid_01"
+      nome: "Sintaxe Válida"
+      descricao: "Código Mermaid renderiza sem parse errors em mermaid.live"
+      threshold: 1.0  # 100%
+      threshold_text: "100%"
+      formula: "mermaid_parse_errors == 0"
+      formula_executavel: |
+        def validar_sintaxe_mermaid(codigo_mermaid: str) -> bool:
+            # Simulação de validação (em produção, integrar mermaid-cli)
+            import re
+            
+            # Verificações básicas
+            if not re.search(r'flowchart (TD|LR|BT|RL)', codigo_mermaid):
+                return False
+            
+            # Verificar padrões de erro comum
+            if re.search(r'\(\{.*?\}\)', codigo_mermaid):  # Losango com parênteses
+                return False
+            
+            if re.search(r'["\'].*?["\'].*?["\']', codigo_mermaid):  # Aspas não-escapadas
+                # Verificar se contém escape correto
+                if '&quot;' not in codigo_mermaid:
+                    return False
+            
+            return True
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      exemplo_pass: |
+        flowchart TD
+            A["Início"] --> B["Fim"]
+      exemplo_fail: |
+        flowchart TD
+            A("Início") -> B("Fim")  # Seta simples, deveria ser dupla
+      
+      ferramenta_validacao: "https://mermaid.live"
+      automacao: true
+      
+    met_mermaid_02:
+      id: "met_mermaid_02"
+      nome: "Convenção de IDs Alfabéticos"
+      descricao: "Todos os IDs de nós são letras maiúsculas sequenciais (A, B, C...)"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "count(ids_nao_alfabeticos) == 0"
+      formula_executavel: |
+        def validar_ids_alfabeticos(codigo_mermaid: str) -> dict:
+            import re
+            
+            # Extrair todos os IDs de nós
+            pattern = r'\b([A-Z_][A-Z0-9_]*)\[|([A-Z_][A-Z0-9_]*)\{|([A-Z_][A-Z0-9_]*)\('
+            ids = re.findall(pattern, codigo_mermaid)
+            ids_unicos = set([id for grupo in ids for id in grupo if id])
+            
+            # Verificar se são alfabéticos puros
+            ids_validos = [id for id in ids_unicos if re.match(r'^[A-Z]$', id)]
+            ids_invalidos = [id for id in ids_unicos if not re.match(r'^[A-Z]$', id)]
+            
+            return {
+                'total_ids': len(ids_unicos),
+                'ids_validos': len(ids_validos),
+                'ids_invalidos': len(ids_invalidos),
+                'lista_invalidos': list(ids_invalidos),
+                'passou': len(ids_invalidos) == 0
+            }
+      
+      criticidade: "ALTA"
+      peso: 0.8
+      exemplo_pass: "A, B, C, D, E"
+      exemplo_fail: "INICIO, PROT1, analise, 001"
+      
+    met_mermaid_03:
+      id: "met_mermaid_03"
+      nome: "Escape de Aspas Internas"
+      descricao: "Aspas duplas dentro de textos são escapadas com &quot;"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "count(unescaped_quotes_inside_text) == 0"
+      formula_executavel: |
+        def validar_escape_aspas(codigo_mermaid: str) -> dict:
+            import re
+            
+            # Extrair textos entre ["..."]
+            pattern = r'\["(.*?)"\]'
+            textos = re.findall(pattern, codigo_mermaid)
+            
+            violacoes = []
+            for texto in textos:
+                # Verificar se contém aspas duplas não-escapadas
+                # (aspas escapadas devem ser &quot;)
+                if '"' in texto and '&quot;' not in texto:
+                    violacoes.append(texto)
+            
+            return {
+                'total_textos': len(textos),
+                'violacoes': len(violacoes),
+                'lista_violacoes': violacoes,
+                'passou': len(violacoes) == 0
+            }
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      exemplo_pass: 'A["Documento com &quot;aspas&quot;"]'
+      exemplo_fail: 'A["Documento com "aspas""]'
+    
+    met_mermaid_04:
+      id: "met_mermaid_04"
+      nome: "Losangos sem Parênteses Extras"
+      descricao: "Nós de decisão (losangos) usam apenas chaves {\"...\"}, sem parênteses"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "count(losangos_com_parenteses) == 0"
+      formula_executavel: |
+        def validar_losangos(codigo_mermaid: str) -> dict:
+            import re
+            
+            # Detectar padrão incorreto: ({\"...\"}), {(\"...\")}
+            pattern_errado = r'\(\{["\'].*?["\']\}\)|\{\(["\'].*?["\']\)\}'
+            erros = re.findall(pattern_errado, codigo_mermaid)
+            
+            # Detectar padrão correto: {\"...\"}
+            pattern_correto = r'\{["\'].*?["\']\}'
+            corretos = re.findall(pattern_correto, codigo_mermaid)
+            
+            return {
+                'losangos_corretos': len(corretos),
+                'losangos_incorretos': len(erros),
+                'exemplos_erros': erros[:3],  # Primeiros 3 erros
+                'passou': len(erros) == 0
+            }
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      exemplo_pass: 'C{"Aprovado?"}'
+      exemplo_fail: 'C({"Aprovado?"}), C{("Aprovado?")}'
+      
+      nota: "Este é o erro mais comum em Mermaid v10+ (ADR-022 finding)"
+    
+    met_mermaid_05:
+      id: "met_mermaid_05"
+      nome: "Rótulos em Decisões"
+      descricao: "Todas as saídas de losangos têm rótulos explícitos (SIM/NÃO, etc.)"
+      threshold: 0.95
+      threshold_text: "≥95%"
+      formula: "saidas_rotuladas / saidas_totais_de_losangos >= 0.95"
+      formula_executavel: |
+        def validar_rotulos_decisoes(codigo_mermaid: str) -> dict:
+            import re
+            
+            # Identificar losangos
+            losangos = re.findall(r'([A-Z])\{["\'].*?["\']\}', codigo_mermaid)
+            
+            saidas_totais = 0
+            saidas_rotuladas = 0
+            
+            for losango_id in losangos:
+                # Encontrar conexões deste losango
+                pattern = rf'{losango_id}\s*-->'
+                conexoes = re.findall(rf'{losango_id}\s*-->(\|["\'].*?["\']\|)?', codigo_mermaid)
+                
+                saidas_totais += len(conexoes)
+                saidas_rotuladas += sum(1 for c in conexoes if c)
+            
+            taxa = saidas_rotuladas / saidas_totais if saidas_totais > 0 else 1.0
+            
+            return {
+                'saidas_totais': saidas_totais,
+                'saidas_rotuladas': saidas_rotuladas,
+                'taxa_rotulacao': taxa,
+                'passou': taxa >= 0.95
+            }
+      
+      criticidade: "ALTA"
+      peso: 0.7
+      exemplo_pass: 'C{"Aprovado?"} -->|"SIM"| D\nC -->|"NÃO"| E'
+      exemplo_fail: 'C{"Aprovado?"} --> D\nC --> E  # Sem rótulos'
+
+  agregacao:
+    formula_score: |
+      score_mermaid = (
+          met_mermaid_01.peso * (1.0 if met_mermaid_01.passou else 0.0) +
+          met_mermaid_02.peso * (met_mermaid_02.ids_validos / met_mermaid_02.total_ids) +
+          met_mermaid_03.peso * (1.0 if met_mermaid_03.passou else 0.0) +
+          met_mermaid_04.peso * (1.0 if met_mermaid_04.passou else 0.0) +
+          met_mermaid_05.peso * met_mermaid_05.taxa_rotulacao
+      ) / sum([met.peso for met in metricas])
+    
+    threshold_aprovacao: 0.90  # 90%
+    threshold_text: "≥90%"
+
+# ============================================================
+# MÉTRICAS DE QUALIDADE DA DOCUMENTAÇÃO
+# ============================================================
+
+documentacao_quality:
+  categoria: "Completude e Estrutura"
+  peso_global: 0.25  # 25% do score total
+  
+  metricas:
+    
+    met_doc_01:
+      id: "met_doc_01"
+      nome: "Completude de Blocos Obrigatórios"
+      descricao: "Todos os 9 blocos obrigatórios estão presentes no output"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "blocos_presentes / 9 == 1.0"
+      formula_executavel: |
+        def validar_blocos_obrigatorios(documentacao_md: str) -> dict:
+            blocos_obrigatorios = [
+                r'#+ .*Brief Executivo',
+                r'#+ .*Requisitos.*Etapas',
+                r'#+ .*Arquitetura.*Fluxograma',
+                r'#+ .*C[oó]digo Mermaid',
+                r'#+ .*Exemplos',
+                r'#+ .*Variantes',
+                r'#+ .*Testes.*M[eé]tricas',
+                r'#+ .*Riscos.*Mitiga[çc][õo]es',
+                r'#+ .*Manuten[çc][ãa]o'
+            ]
+            
+            presentes = []
+            ausentes = []
+            
+            import re
+            for i, pattern in enumerate(blocos_obrigatorios, 1):
+                if re.search(pattern, documentacao_md, re.IGNORECASE):
+                    presentes.append(f"Bloco {i}")
+                else:
+                    ausentes.append(f"Bloco {i}")
+            
+            return {
+                'blocos_presentes': len(presentes),
+                'blocos_ausentes': len(ausentes),
+                'lista_ausentes': ausentes,
+                'total_esperado': 9,
+                'passou': len(presentes) == 9
+            }
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      
+    met_doc_02:
+      id: "met_doc_02"
+      nome: "Referências Normativas"
+      descricao: "Pelo menos 95% das etapas têm base legal (artigo do Regimento)"
+      threshold: 0.95
+      threshold_text: "≥95%"
+      formula: "etapas_com_base_legal / etapas_totais >= 0.95"
+      formula_executavel: |
+        def validar_referencias_normativas(documentacao_md: str) -> dict:
+            import re
+            
+            # Identificar seções de etapas
+            etapas_section = re.search(
+                r'##+ .*Etapas.*?(?=##|\Z)', 
+                documentacao_md, 
+                re.DOTALL | re.IGNORECASE
+            )
+            
+            if not etapas_section:
+                return {'passou': False, 'erro': 'Seção de etapas não encontrada'}
+            
+            texto_etapas = etapas_section.group(0)
+            
+            # Contar etapas (assumindo formato "### Etapa N:")
+            etapas = re.findall(r'###+ Etapa \d+:', texto_etapas)
+            total_etapas = len(etapas)
+            
+            # Contar referências (art., artigo, §, inciso)
+            referencias = re.findall(
+                r'art\.?\s*\d+|artigo\s*\d+|§\s*\d+|inciso\s+[IVX]+',
+                texto_etapas,
+                re.IGNORECASE
+            )
+            etapas_com_ref = min(len(set(referencias)), total_etapas)
+            
+            taxa = etapas_com_ref / total_etapas if total_etapas > 0 else 0.0
+            
+            return {
+                'total_etapas': total_etapas,
+                'etapas_com_referencia': etapas_com_ref,
+                'taxa_cobertura': taxa,
+                'passou': taxa >= 0.95
+            }
+      
+      criticidade: "ALTA"
+      peso: 0.9
+      
+    met_doc_03:
+      id: "met_doc_03"
+      nome: "Clareza de Responsáveis"
+      descricao: "Todas as etapas especificam responsável/setor"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "etapas_com_responsavel / etapas_totais == 1.0"
+      formula_executavel: |
+        def validar_responsaveis(documentacao_md: str) -> dict:
+            import re
+            
+            etapas_section = re.search(
+                r'##+ .*Etapas.*?(?=##|\Z)', 
+                documentacao_md, 
+                re.DOTALL | re.IGNORECASE
+            )
+            
+            if not etapas_section:
+                return {'passou': False}
+            
+            texto_etapas = etapas_section.group(0)
+            
+            # Contar etapas
+            etapas = re.findall(r'###+ Etapa \d+:', texto_etapas)
+            total_etapas = len(etapas)
+            
+            # Contar menções de responsável
+            responsaveis = re.findall(
+                r'\*\*Respons[aá]vel\*\*:.*?[A-Z]',
+                texto_etapas,
+                re.IGNORECASE
+            )
+            
+            return {
+                'total_etapas': total_etapas,
+                'etapas_com_responsavel': len(responsaveis),
+                'passou': len(responsaveis) >= total_etapas
+            }
+      
+      criticidade: "ALTA"
+      peso: 0.8
+    
+    met_doc_04:
+      id: "met_doc_04"
+      nome: "Disclaimer LGPD Presente"
+      descricao: "Documento contém disclaimer de privacidade/LGPD"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "contains('LGPD') or contains('privacidade')"
+      formula_executavel: |
+        def validar_disclaimer_lgpd(documentacao_md: str) -> dict:
+            import re
+            
+            keywords = ['LGPD', 'privacidade', 'dados pessoais', 'anonimiza']
+            
+            encontrados = []
+            for kw in keywords:
+                if re.search(kw, documentacao_md, re.IGNORECASE):
+                    encontrados.append(kw)
+            
+            return {
+                'keywords_encontradas': encontrados,
+                'passou': len(encontrados) > 0
+            }
+      
+      criticidade: "ALTA"
+      peso: 0.7
+    
+    met_doc_05:
+      id: "met_doc_05"
+      nome: "Análise Crítica com Melhorias"
+      descricao: "Seção de análise crítica contém pelo menos 3 melhorias propostas"
+      threshold: 3
+      threshold_text: "≥3 melhorias"
+      formula: "count(melhorias_propostas) >= 3"
+      formula_executavel: |
+        def validar_melhorias(documentacao_md: str) -> dict:
+            import re
+            
+            # Buscar seção de análise/riscos/melhorias
+            analise_section = re.search(
+                r'##+ .*(An[aá]lise|Riscos|Melhorias).*?(?=##|\Z)',
+                documentacao_md,
+                re.DOTALL | re.IGNORECASE
+            )
+            
+            if not analise_section:
+                return {'passou': False, 'melhorias_encontradas': 0}
+            
+            texto_analise = analise_section.group(0)
+            
+            # Contar melhorias (assumindo formato de lista ou numeração)
+            melhorias = re.findall(
+                r'[-\*\d]+\.?\s+(?:MELHORIA|Proposta|Sugest[ãa]o)',
+                texto_analise,
+                re.IGNORECASE
+            )
+            
+            return {
+                'melhorias_encontradas': len(melhorias),
+                'passou': len(melhorias) >= 3
+            }
+      
+      criticidade: "MÉDIA"
+      peso: 0.6
+
+  agregacao:
+    formula_score: |
+      score_doc = sum([
+          met.peso * (1.0 if met.passou else 0.0)
+          for met in metricas.values()
+      ]) / sum([met.peso for met in metricas.values()])
+    
+    threshold_aprovacao: 0.85
+    threshold_text: "≥85%"
+
+# ============================================================
+# MÉTRICAS DE CONFORMIDADE NORMATIVA
+# ============================================================
+
+conformidade_quality:
+  categoria: "Compliance Legal e Institucional"
+  peso_global: 0.20  # 20% do score total
+  
+  metricas:
+    
+    met_conf_01:
+      id: "met_conf_01"
+      nome: "Aderência ao Regimento Interno"
+      descricao: "Artigos citados estão corretos (validação manual requerida)"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "artigos_corretos / artigos_citados == 1.0"
+      
+      nota: |
+        Métrica manual - requer revisão por especialista do MPGO.
+        Automação futura: integração com API do Regimento Interno.
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      validacao_manual: true
+      
+    met_conf_02:
+      id: "met_conf_02"
+      nome: "Conformidade LGPD - Zero PII"
+      descricao: "Nenhum dado pessoal identificável em exemplos"
+      threshold: 0
+      threshold_text: "0 violações"
+      formula: "pii_violations == 0"
+      formula_executavel: |
+        def detectar_pii(texto: str) -> dict:
+            import re
+            
+            violacoes = []
+            
+            # Padrões de PII
+            patterns = {
+                'CPF': r'\d{3}\.\d{3}\.\d{3}-\d{2}',
+                'CNPJ': r'\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}',
+                'Email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+                'Telefone': r'\(\d{2}\)\s*\d{4,5}-\d{4}',
+                'RG': r'\d{1,2}\.\d{3}\.\d{3}-[0-9X]'
+            }
+            
+            for tipo, pattern in patterns.items():
+                matches = re.findall(pattern, texto)
+                if matches:
+                    # Verificar se são placeholders válidos
+                    for match in matches:
+                        if 'XXX' not in match and '[' not in match:
+                            violacoes.append({
+                                'tipo': tipo,
+                                'valor': match[:10] + '...'  # Truncar por segurança
+                            })
+            
+            return {
+                'violacoes_detectadas': len(violacoes),
+                'detalhes': violacoes,
+                'passou': len(violacoes) == 0
+            }
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      
+    met_conf_03:
+      id: "met_conf_03"
+      nome: "Disclaimer de Validação Institucional"
+      descricao: "Documento inclui aviso de necessidade de validação oficial"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "contains('DISCLAIMER') and contains('validação')"
+      formula_executavel: |
+        def validar_disclaimer_institucional(documentacao_md: str) -> dict:
+            import re
+            
+            keywords_obrigatorias = [
+                r'DISCLAIMER|aviso|nota',
+                r'valida[çc][ãa]o',
+                r'oficial|institucional|competente'
+            ]
+            
+            matches = []
+            for pattern in keywords_obrigatorias:
+                if re.search(pattern, documentacao_md, re.IGNORECASE):
+                    matches.append(pattern)
+            
+            return {
+                'keywords_encontradas': len(matches),
+                'total_esperado': len(keywords_obrigatorias),
+                'passou': len(matches) == len(keywords_obrigatorias)
+            }
+      
+      criticidade: "ALTA"
+      peso: 0.8
+
+  agregacao:
+    formula_score: |
+      score_conf = (
+          met_conf_01.peso * (1.0 if manual_review_passed else 0.0) +
+          met_conf_02.peso * (1.0 if met_conf_02.passou else 0.0) +
+          met_conf_03.peso * (1.0 if met_conf_03.passou else 0.0)
+      ) / sum([met.peso for met in metricas.values()])
+    
+    threshold_aprovacao: 1.0  # 100% - compliance é binário
+    threshold_text: "100%"
+
+# ============================================================
+# MÉTRICAS DE SEGURANÇA
+# ============================================================
+
+seguranca_quality:
+  categoria: "Segurança e Prevenção de Ataques"
+  peso_global: 0.15  # 15% do score total
+  
+  metricas:
+    
+    met_sec_01:
+      id: "met_sec_01"
+      nome: "Prevenção SSTI - Zero Vulnerabilidades"
+      descricao: "HTML gerado não contém padrões de template injection (ADR-022)"
+      threshold: 0
+      threshold_text: "0 vulnerabilidades"
+      formula: "ssti_vulnerabilities == 0"
+      formula_executavel: |
+        def scan_ssti(html_content: str) -> dict:
+            import re
+            
+            padroes_perigosos = {
+                'Template Expression': r'\{\{.*?\}\}',
+                'Template Statement': r'\{%.*?%\}',
+                'Python Internals': r'__class__|__mro__|__subclasses__|__globals__',
+                'Dangerous Functions': r'\beval\(|\bexec\(|\bcompile\(',
+                'Import Statement': r'\bimport\s+\w+'
+            }
+            
+            vulnerabilidades = []
+            for tipo, pattern in padroes_perigosos.items():
+                matches = re.findall(pattern, html_content)
+                if matches:
+                    vulnerabilidades.append({
+                        'tipo': tipo,
+                        'ocorrencias': len(matches),
+                        'exemplos': matches[:2]
+                    })
+            
+            return {
+                'vulnerabilidades_detectadas': len(vulnerabilidades),
+                'detalhes': vulnerabilidades,
+                'passou': len(vulnerabilidades) == 0
+            }
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      adr_reference: "ADR-022"
+      
+    met_sec_02:
+      id: "met_sec_02"
+      nome: "Prevenção XSS - Zero Injeções"
+      descricao: "HTML não contém scripts maliciosos ou event handlers perigosos"
+      threshold: 0
+      threshold_text: "0 vulnerabilidades XSS"
+      formula: "xss_vulnerabilities == 0"
+      formula_executavel: |
+        def scan_xss(html_content: str) -> dict:
+            import re
+            
+            padroes_xss = {
+                'Script Tag': r'<script[^>]*>.*?</script>',
+                'Inline Script': r'javascript:',
+                'Event Handlers': r'\bon\w+\s*=',
+                'Iframe': r'<iframe[^>]*>',
+                'Object/Embed': r'<(object|embed)[^>]*>'
+            }
+            
+            # Whitelist: apenas Mermaid CDN permitido
+            whitelist = [
+                r'https://cdn\.jsdelivr\.net/npm/mermaid@',
+            ]
+            
+            vulnerabilidades = []
+            for tipo, pattern in padroes_xss.items():
+                matches = re.findall(pattern, html_content, re.IGNORECASE | re.DOTALL)
+                
+                for match in matches:
+                    # Verificar se está na whitelist
+                    is_whitelisted = any(
+                        re.search(wl, match) for wl in whitelist
+                    )
+                    
+                    if not is_whitelisted:
+                        vulnerabilidades.append({
+                            'tipo': tipo,
+                            'trecho': match[:50] + '...'
+                        })
+            
+            return {
+                'vulnerabilidades_detectadas': len(vulnerabilidades),
+                'detalhes': vulnerabilidades,
+                'passou': len(vulnerabilidades) == 0
+            }
+      
+      criticidade: "CRÍTICA"
+      peso: 1.0
+      
+    met_sec_03:
+      id: "met_sec_03"
+      nome: "CSP Header Presente"
+      descricao: "HTML contém Content-Security-Policy adequado"
+      threshold: 1.0
+      threshold_text: "100%"
+      formula: "csp_header_presente == True"
+      formula_executavel: |
+        def validar_csp(html_content: str) -> dict:
+            import re
+            
+            # Buscar meta tag CSP ou comentário indicando header HTTP
+            csp_pattern = r'<meta.*?Content-Security-Policy.*?>|CSP:.*?default-src'
+            
+            csp_encontrado = re.search(csp_pattern, html_content, re.IGNORECASE | re.DOTALL)
+            
+            if csp_encontrado:
+                csp_content = csp_encontrado.group(0)
+                
+                # Verificar diretivas essenciais
+                diretivas_essenciais = [
+                    r"default-src\s+['\"]self['\"]",
+                    r'script-src',
+                    r'style-src'
+                ]
+                
+                diretivas_presentes = sum(
+                    1 for d in diretivas_essenciais 
+                    if re.search(d, csp_content, re.IGNORECASE)
+                )
+                
+                return {
+                    'csp_presente': True,
+                    'diretivas_essenciais': diretivas_presentes,
+                    'total_esperado': len(diretivas_essenciais),
+                    'passou': diretivas_presentes == len(diretivas_essenciais)
+                }
+            
+            return {'csp_presente': False, 'passou': False}
+      
+      criticidade: "ALTA"
+      peso: 0.8
+
+  agregacao:
+    formula_score: |
+      score_sec = (
+          met_sec_01.peso * (1.0 if met_sec_01.passou else 0.0) +
+          met_sec_02.peso * (1.0 if met_sec_02.passou else 0.0) +
+          met_sec_03.peso * (1.0 if met_sec_03.passou else 0.0)
+      ) / sum([met.peso for met in metricas.values()])
+    
+    threshold_aprovacao: 1.0  # 100% - segurança é binário
+    threshold_text: "100%"
+
+# ============================================================
+# MÉTRICAS DE UX (INTERFACE HTML)
+# ============================================================
+
+ux_quality:
+  categoria: "Experiência do Usuário"
+  peso_global: 0.15  # 15% do score total
+  
+  metricas:
+    
+    met_ux_01:
+      id: "met_ux_01"
+      nome: "Responsividade Multi-Dispositivo"
+      descricao: "Interface funciona em mobile (<768px), tablet (768-1024px), desktop (>1024px)"
+      threshold: 22.0
+      threshold_text: "≥22/25 pontos"
+      
+      rubrica:
+        mobile_funcional: 10  # Interface usável em mobile
+        tablet_funcional: 5   # Interface usável em tablet
+        desktop_funcional: 5  # Interface usável em desktop
+        sem_scroll_horizontal: 5  # Não requer scroll horizontal
+      
+      formula: "sum(rubrica_items)"
+      
+      criticidade: "MÉDIA"
+      peso: 0.7
+      validacao_manual: true
+      
+    met_ux_02:
+      id: "met_ux_02"
+      nome: "Acessibilidade WCAG 2.1 AA"
+      descricao: "Contraste, ARIA, navegação por teclado, alt text"
+      threshold: 23.0
+      threshold_text: "≥23/25 pontos"
+      
+      rubrica:
+        contraste_adequado: 10      # ≥4.5:1 para texto
+        aria_labels: 5              # Controles com labels
+        navegacao_teclado: 5        # Tab/Enter/Esc funcionam
+        alt_text_imagens: 5         # Imagens com alt descritivo
+      
+      formula: "sum(rubrica_items)"
+      
+      criticidade: "ALTA"
+      peso: 1.0
+      validacao_manual: true
+      
+    met_ux_03:
+      id: "met_ux_03"
+      nome: "Performance de Carregamento"
+      descricao: "First Contentful Paint <1.5s, Time to Interactive <3s"
+      threshold: 20.0
+      threshold_text: "≥20/25 pontos"
+      
+      rubrica:
+        fcp_rapido: 10     # FCP <1.5s
+        tti_rapido: 10     # TTI <3s
+        lighthouse_90: 5   # Score Lighthouse ≥90
+      
+      formula_executavel: |
+        def calcular_performance(metricas_performance: dict) -> dict:
+            pontos = 0
+            
+            # FCP <1.5s = 10 pts
+            if metricas_performance.get('fcp', 999) < 1.5:
+                pontos += 10
+            elif metricas_performance.get('fcp', 999) < 2.5:
+                pontos += 5  # Parcial
+            
+            # TTI <3s = 10 pts
+            if metricas_performance.get('tti', 999) < 3.0:
+                pontos += 10
+            elif metricas_performance.get('tti', 999) < 5.0:
+                pontos += 5  # Parcial
+            
+            # Lighthouse ≥90 = 5 pts
+            if metricas_performance.get('lighthouse', 0) >= 90:
+                pontos += 5
+            
+            return {
+                'pontos': pontos,
+                'passou': pontos >= 20
+            }
+      
+      criticidade: "MÉDIA"
+      peso: 0.8
+      
+    met_ux_04:
+      id: "met_ux_04"
+      nome: "Navegabilidade e Recursos"
+      descricao: "Tabs funcionais, busca, zoom, exportação"
+      threshold: 18.0
+      threshold_text: "≥18/25 pontos"
+      
+      rubrica:
+        tabs_funcionais: 10        # Troca entre Fluxograma/Docs/Análise
+        controles_zoom: 5          # Zoom in/out do fluxograma
+        exportacao_disponivel: 5   # PDF/SVG/PNG export
+        busca_opcional: 5          # Busca textual (bônus)
+      
+      criticidade: "BAIXA"
+      peso: 0.6
+      validacao_manual: true
+
+  agregacao:
+    formula_score: |
+      score_ux = sum([
+          met.peso * (met.pontos / 25.0)
+          for met in metricas.values()
+      ]) / sum([met.peso for met in metricas.values()])
+    
+    threshold_aprovacao: 0.90  # 90/100
+    threshold_text: "≥90/100"
+
+# ============================================================
+# SCORE GLOBAL E AGREGAÇÃO FINAL
+# ============================================================
+
+score_global:
+  nome: "Score Global de Qualidade"
+  descricao: "Agregação ponderada de todas as categorias de métricas"
+  
+  formula: |
+    Score Global = (
+        mermaid_quality.peso_global * mermaid_quality.score +
+        documentacao_quality.peso_global * documentacao_quality.score +
+        conformidade_quality.peso_global * conformidade_quality.score +
+        seguranca_quality.peso_global * seguranca_quality.score +
+        ux_quality.peso_global * ux_quality.score
+    ) * 100
+  
+  formula_executavel: |
+    def calcular_score_global(resultados: dict) -> dict:
+        score = (
+            0.25 * resultados['mermaid_quality']['score'] +
+            0.25 * resultados['documentacao_quality']['score'] +
+            0.20 * resultados['conformidade_quality']['score'] +
+            0.15 * resultados['seguranca_quality']['score'] +
+            0.15 * resultados['ux_quality']['score']
+        ) * 100
+        
+        return {
+            'score_global': round(score, 2),
+            'aprovado': score >= 85.0,
+            'breakdown': {
+                'mermaid': resultados['mermaid_quality']['score'] * 100,
+                'documentacao': resultados['documentacao_quality']['score'] * 100,
+                'conformidade': resultados['conformidade_quality']['score'] * 100,
+                'seguranca': resultados['seguranca_quality']['score'] * 100,
+                'ux': resultados['ux_quality']['score'] * 100
+            }
+        }
+  
+  threshold_aprovacao: 85.0
+  threshold_text: "≥85/100"
+  
+  interpretacao:
+    excelente: "≥95 - Pronto para produção sem ressalvas"
+    bom: "85-94 - Pequenos ajustes recomendados, aprovado"
+    adequado: "70-84 - Revisão necessária antes de uso"
+    insuficiente: "<70 - Refazer artefato"
+
+  pesos_por_categoria:
+    mermaid_quality: 0.25      # 25%
+    documentacao_quality: 0.25 # 25%
+    conformidade_quality: 0.20 # 20%
+    seguranca_quality: 0.15    # 15%
+    ux_quality: 0.15           # 15%
+    # TOTAL: 100%
+
+# ============================================================
+# COBERTURA DA BASE DE CONHECIMENTO
+# ============================================================
+
+knowledge_base_coverage:
+  objetivo: "Garantir que ≥80% da base de conhecimento é aplicada em outputs típicos (met_003)"
+  
+  threshold: 0.80
+  threshold_text: "≥80%"
+  
+  categorias_esperadas:
+    - categoria: "prompt_engineering"
+      tecnicas_minimas: 2
+      peso: 0.15
+      
+    - categoria: "mermaid_syntax"
+      tecnicas_minimas: 4
+      peso: 0.25
+      
+    - categoria: "bpm_patterns"
+      tecnicas_minimas: 1
+      peso: 0.15
+      
+    - categoria: "analise_critica"
+      tecnicas_minimas: 2
+      peso: 0.15
+      
+    - categoria: "conformidade"
+      tecnicas_minimas: 2
+      peso: 0.15
+      
+    - categoria: "validacao"
+      tecnicas_minimas: 1
+      peso: 0.10
+      
+    - categoria: "seguranca"
+      tecnicas_minimas: 1
+      peso: 0.05
+  
+  formula_cobertura: |
+    coverage_score = sum([
+        categoria.peso * min(1.0, tecnicas_aplicadas / categoria.tecnicas_minimas)
+        for categoria in categorias_esperadas
+    ])
+  
+  validacao:
+    tipo: "Análise de conteúdo gerado"
+    metodo: |
+      Para cada categoria, verificar se técnicas foram aplicadas:
+      - prompt_engineering: CoT ou Few-Shot detectados no reasoning
+      - mermaid_syntax: Escape correto, IDs alfabéticos, etc.
+      - bpm_patterns: Padrão identificável (linear/decisório/paralelo)
+      - analise_critica: Gargalos/redundâncias/melhorias presentes
+      - conformidade: Referências LGPD e Regimento
+      - validacao: Selo de validação Mermaid.live
+      - seguranca: Ausência de padrões perigosos
+
+# ============================================================
+# MÉTRICAS DE PERFORMANCE (TEMPO DE BUILD)
+# ============================================================
+
+performance_metrics:
+  
+  met_perf_01:
+    id: "met_005"
+    nome: "Tempo de Build (P95)"
+    descricao: "95º percentil de tempo de geração dos artefatos"
+    threshold: 1500  # milissegundos
+    threshold_text: "≤1500ms"
+    formula: "p95(build_times) <= 1500"
+    
+    medicao:
+      metodo: "Executar 20 builds e calcular percentil 95"
+      comando_exemplo: |
+        for i in {1..20}; do
+          /usr/bin/time -f "%e" python engine.py build > /dev/null 2>> build_times.log
+        done
+        python -c "import numpy as np; times = np.loadtxt('build_times.log'); print(f'P95: {np.percentile(times, 95):.0f}ms')"
+    
+    criticidade: "MÉDIA"
+  
+  met_perf_02:
+    id: "met_perf_02"
+    nome: "Taxa de Cache Hit"
+    descricao: "Porcentagem de validações que usam cache ao invés de reprocessar"
+    threshold: 0.80
+    threshold_text: "≥80%"
+    formula: "cache_hits / (cache_hits + cache_misses) >= 0.80"
+    
+    criticidade: "BAIXA"
+
+# ============================================================
+# REPRODUTIBILIDADE E DETERMINISMO
+# ============================================================
+
+reproducibility_metrics:
+  
+  met_repro_01:
+    id: "met_002"
+    nome: "Reprodutibilidade de Build"
+    descricao: "SHA-256 idêntico para inputs idênticos"
+    threshold: 1.0
+    threshold_text: "100%"
+    formula: "sha256(build_n) == sha256(build_n+1)"
+    
+    validacao:
+      metodo: |
+        1. Executar build com input fixo → gerar hash1
+        2. Executar novamente com mesmo input → gerar hash2
+        3. Comparar hash1 == hash2
+      
+      comando_exemplo: |
+        # Build 1
+        python engine.py build --input test_input.yaml --output output1/
+        sha256sum output1/system_prompt.txt > hash1.txt
+        
+        # Build 2
+        python engine.py build --input test_input.yaml --output output2/
+        sha256sum output2/system_prompt.txt > hash2.txt
+        
+        # Comparar
+        diff hash1.txt hash2.txt  # Deve ser vazio
+    
+    criticidade: "ALTA"
+
+# ============================================================
+# RELATÓRIO DE COVERAGE
+# ============================================================
+
+coverage_report_template:
+  formato: "YAML"
+  
+  estrutura: |
+    coverage_report:
+      timestamp: "2026-01-17T14:30:00Z"
+      versao_sistema: "3.1.0"
+      
+      resumo:
+        score_global: 92.5
+        aprovado: true
+        nivel_qualidade: "Bom"
+      
+      breakdown_por_categoria:
+        mermaid_quality:
+          score: 95.0
+          peso: 0.25
+          contribuicao_global: 23.75
+          status: "✅ PASS"
+        
+        documentacao_quality:
+          score: 88.0
+          peso: 0.25
+          contribuicao_global: 22.0
+          status: "✅ PASS"
+        
+        conformidade_quality:
+          score: 100.0
+          peso: 0.20
+          contribuicao_global: 20.0
+          status: "✅ PASS"
+        
+        seguranca_quality:
+          score: 100.0
+          peso: 0.15
+          contribuicao_global: 15.0
+          status: "✅ PASS"
+        
+        ux_quality:
+          score: 90.0
+          peso: 0.15
+          contribuicao_global: 13.5
+          status: "✅ PASS"
+      
+      metricas_criticas_falhadas: []
+      
+      metricas_com_alerta:
+        - id: "met_doc_05"
+          nome: "Análise Crítica com Melhorias"
+          valor_obtido: 2
+          threshold: 3
+          status: "⚠️ WARN"
+      
+      recomendacoes:
+        - "Adicionar mais 1 melhoria na seção de Análise Crítica"
+        - "Manter qualidade atual nas próximas iterações"
+
+# ============================================================
+# EXIT CODES PARA CI/CD
+# ============================================================
+
+exit_codes:
+  descricao: "Códigos de saída para integração com pipelines CI/CD"
+  
+  codigos:
+    0:
+      nome: "SUCCESS"
+      condicao: "score_global >= threshold_aprovacao"
+      mensagem: "✅ Todos os testes passaram. Build aprovado."
+    
+    1:
+      nome: "QUALITY_THRESHOLD_NOT_MET"
+      condicao: "score_global < threshold_aprovacao"
+      mensagem: "❌ Score global abaixo do threshold. Build reprovado."
+    
+    2:
+      nome: "CRITICAL_METRIC_FAILED"
+      condicao: "any(metrica.criticidade == 'CRÍTICA' and not metrica.passou)"
+      mensagem: "❌ Métrica crítica falhou. Build bloqueado."
+    
+    3:
+      nome: "SECURITY_VIOLATION"
+      condicao: "seguranca_quality.score < 1.0"
+      mensagem: "🔒 Violação de segurança detectada. Build bloqueado."
+    
+    4:
+      nome: "SYNTAX_ERROR"
+      condicao: "met_mermaid_01.passou == False"
+      mensagem: "⚠️ Erro de sintaxe Mermaid. Corrija e reenvie."
+    
+    10:
+      nome: "WARNING_ONLY"
+      condicao: "85 <= score_global < 95"
+      mensagem: "⚠️ Build aprovado com ressalvas. Considere melhorias."
+
+  uso_em_ci_cd: |
+    # GitHub Actions exemplo
+    - name: Validar Artefatos
+      run: |
+        python engine.py validate --coverage
+        EXIT_CODE=$?
+        
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "✅ Build aprovado"
+        elif [ $EXIT_CODE -eq 10 ]; then
+          echo "⚠️ Build aprovado com ressalvas"
+        else
+          echo "❌ Build reprovado - Exit code: $EXIT_CODE"
+          exit $EXIT_CODE
+        fi
+
+# ============================================================
+# METADADOS FINAIS
+# ============================================================
+
+build_info:
+  total_metricas_definidas: 24
+  metricas_criticas: 9
+  metricas_automatizadas: 18
+  metricas_manuais: 6
+  
+  categorias_coverage:
+    mermaid_quality: 5
+    documentacao_quality: 5
+    conformidade_quality: 3
+    seguranca_quality: 3
+    ux_quality: 4
+    performance: 2
+    reproducibility: 1
+    knowledge_base: 1
+  
+  validacao_schema:
+    formato: "YAML"
+    schema_version: "v3.1.0"
+    compatibilidade: "engine.py v3.1.0+"
+
+# ============================================================
+# FIM DO ARQUIVO cobertura_esperada.yaml v3.1.0
+# ============================================================

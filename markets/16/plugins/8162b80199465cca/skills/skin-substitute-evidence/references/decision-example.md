@@ -1,0 +1,9 @@
+# One favorable decision: what the evidence contributed
+
+This is a non-identifying paraphrase of reasoning visually reviewed on pages 4–6 of a redacted Wells ALJ decision held by the publisher. The source PDF and case records are not bundled. The publisher's [public account](https://www.arclightaction.com/insights/favorable-alj-decision-wound-care-real-world-evidence) provides context; it is commentary, not a substitute for the decision or governing authority. The source's finality or later disposition has not been independently established.
+
+On page 4, the adjudicator accepted the appellant's class-wide literature argument in that case and rejected the inference that a Q code alone necessarily established experimental/investigational status. On page 5, the adjudicator credited a nine-case RWE report as part of the evidence, but expressly found that the inference was weakened by missing testimony about similarity between the study patients and the patient under review. The analysis also considered the actual record, clinical testimony, conservative care, and documented product function. Page 6 orders a fully favorable disposition.
+
+The example supports a narrow lesson: case-series observations and related literature can contribute to an adjudicator's assessment, and explaining comparability matters. It does not establish that RWE alone caused reversal, that all cases with such evidence win, or that another provider's product or use is covered. It supplies no denominator for a win-rate estimate and no product healing rate.
+
+Treat regulatory descriptions in a decision as the adjudicator's language unless independently verified. Do not repeat an "FDA approved" description as a product-status finding. When asked for an exact quotation or the ruling's legal weight, obtain an authorized source in the appropriate workflow and verify it; do not invent text or infer generally binding precedent from this summary.

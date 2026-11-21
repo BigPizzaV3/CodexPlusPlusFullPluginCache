@@ -1,0 +1,5 @@
+# Optional PubMed MCP integration (NOT active in v0.1.0)
+
+Deploy a genuine approved HTTPS streamable-http MCP endpoint only after a separate privacy and cost review. Proposed tools: `search_pubmed(query, date_range, max_results)` and `fetch_pubmed_records(pmids[])`. NCBI API key belongs in server-side secrets, never in ZIP or search links. Batch PMID retrieval; canonicalize/cache public metadata; token-bucket rate limit NCBI; normalize and percent-encode queries. Keep the user's research query private to the agreed service and never send uploads, manuscripts or patient identifiers. Logs should not contain health data.
+
+Goal: under 100,000 Cloudflare Worker requests/day; target <80,000 in regular traffic with reserve. This count is Worker HTTP requests, not NCBI E-utilities subrequests or model tokens. Instrument peak requests/sec and 429s, error budgets and queue/backoff. Free tier availability, CPU quotas, NCBI quotas and ChatGPT plugin publication/connection rules should be reverified before deployment. A skills-only V1 works without paid hosting.

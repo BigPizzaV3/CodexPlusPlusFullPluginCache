@@ -1,0 +1,12 @@
+# Product brief
+- Core user and problem:
+- Platform(s) and devices:
+- Key user journey:
+- Required vs optional features:
+- Brand/design references:
+- Data and authentication:
+- Offline / accessibility / localization:
+- Technology choice and rationale:
+- Vertical slice and success criteria:
+- Risks and external approvals:
+- Available execution tools:

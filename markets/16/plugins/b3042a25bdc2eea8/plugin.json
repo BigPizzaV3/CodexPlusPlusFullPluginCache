@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hey-bill",
+  "version": "0.5.0",
+  "description": "Send expenses to your paired Hey Bill app and check delivery status. Open the updated app for automatic entry; your full ledger stays local.",
+  "author": {
+    "name": "xiaochuan li"
+  },
+  "keywords": [
+    "expenses",
+    "expense-tracker",
+    "budget",
+    "local-first",
+    "heybill"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "interface": {
+        "displayName": "Hey Bill",
+        "shortDescription": "Log expenses to your device",
+        "longDescription": "Tell ChatGPT what you spent and send it to your paired Hey Bill iPhone app. Open the compatible app to save new expenses automatically. Send one expense, a batch, or a receipt as one paid total with optional item details, quantities, discounts, tax and tip. The paid total is counted once. Each record keeps its original currency; no currency conversion is performed. Your complete ledger stays on your device. New deliveries are encrypted on the Cloudflare relay for up to seven days and removed after acknowledgement. Queued does not mean saved, and delivery while Hey Bill is closed is not guaranteed. Requires the separately acquired Hey Bill 1.2.0 or later for iPhone and an OAuth device connection. Assistant account, plan and region restrictions apply. The connector can send new expenses and check delivery status only. It cannot read your full ledger, export reports, change budgets, or remotely edit or delete records.",
+        "developerName": "xiaochuan li",
+        "category": "Finance",
+        "websiteURL": "https://heybill.dlc39degree.com/",
+        "supportURL": "https://mcp.dlc39degree.com/support",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "brandColor": "#0F172A",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "defaultPrompt": [
+          "Connect my Hey Bill app.",
+          "Help me send an expense to Hey Bill.",
+          "Check whether my Hey Bill expense was received."
+        ],
+        "privacyPolicyURL": "https://mcp.dlc39degree.com/privacy",
+        "termsOfServiceURL": "https://mcp.dlc39degree.com/terms"
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "The companion Hey Bill iPhone app is a separately acquired, one-time paid App Store download (app ID 6758043507). It is not a subscription. Existing eligible acquisitions are retained. The MCP connector has no purchase tool, checkout, external payment flow, subscription, financial transaction, or upgrade offer. It sends user-requested expense records to an already connected app; amounts are bookkeeping data, not payments. Assistant providers manage their own plans independently. Exact App Store prices vary by region and time and are not advertised by tools.",
+        "prompts": [
+          "Record GBP 3.50 for coffee on 12 November 2026 at 09:00 UTC in Hey Bill.",
+          "Record this itemized HKD 10 receipt: milk 6, soap 5, coupon -1; 12 November 2026 at noon UTC.",
+          "Has my coffee delivery arrived in Hey Bill?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Start a fresh conversation connected to the dedicated synthetic review receiver. Record one explicitly dated expense. This is not the publisher phone or its ledger.",
+              "prompt": "Record a coffee expense of GBP 3.50 on 12 November 2026 at 09:00 UTC in Hey Bill.",
+              "tools_triggered": "add_expenses",
+              "expected_behavior": "Queue exactly one expense with amount 3.5, currency GBP, Food category and 2026-11-12T09:00:00+00:00 (or equivalent UTC timestamp). Use a fresh request_id. Say queued/sent, not saved on the device, unless received is subsequently confirmed."
+            },
+            {
+              "description": "Record a multi-entry batch with explicit original currencies. The receiver supports original-currency records even if its default differs.",
+              "prompt": "Record HKD 30 for coffee and HKD 12.50 for a bus, both on 12 November 2026 at 10:00 Hong Kong time.",
+              "tools_triggered": "add_expenses",
+              "expected_behavior": "Queue two expenses in one batch: HKD 30 Food and HKD 12.5 Transport, with timestamps equivalent to 2026-11-12T10:00:00+08:00. No conversion or mixed-currency aggregation. Count two records, not two requests."
+            },
+            {
+              "description": "In the same conversation after the first case, retry the exact original delivery. Preserve the original request_id and payload from the tool result/context.",
+              "prompt": "Retry that same coffee delivery. It is the same purchase, not another one.",
+              "tools_triggered": "add_expenses",
+              "expected_behavior": "Reuse the exact original request_id and expense arguments. The result must be duplicate:true with the original status; the synthetic receiver must contain only one copy of the original expense."
+            },
+            {
+              "description": "After the first case, keep the isolated browser review receiver open and wait until it saves and acknowledges the coffee. Continue the same ChatGPT conversation using the original request_id. This exercises production delivery APIs, not an iOS download-verification test.",
+              "prompt": "Has that coffee expense arrived in my Hey Bill app?",
+              "tools_triggered": "get_delivery_status",
+              "expected_behavior": "Query only the original request_id. Report received only if the server returns received. Do not infer access to, or quote, the full device ledger."
+            },
+            {
+              "description": "Updated synthetic receiver advertises receiptVersion 1. Send one receipt with reconciled original lines, never another total entry.",
+              "prompt": "Record this receipt from Market, 12 November 2026 at 12:00 UTC, HKD: two milks at 3 each, soap 5, coupon -1, paid total 10. Use itemized mode.",
+              "tools_triggered": "add_receipt",
+              "expected_behavior": "Call add_receipt once with one HKD 10 parent, receipt.mode itemized, milk quantity 2 / unitPrice 3 / amount 6, soap 5 and coupon discount -1. Three receipt lines sum to 10. The dedicated receiver must show one parent with three lines; do not call add_expenses for the same receipt or claim access to device-wide charts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The server cannot read the full ledger or calculate historical spending. Do not fabricate totals or call a write tool.",
+              "prompt": "Read all my Hey Bill records and tell me how much I spent last month."
+            },
+            {
+              "description": "The plugin is append-only and cannot remotely modify or delete an existing record. Explain that editing and deletion are performed in the app; do not claim success.",
+              "prompt": "Delete my last Hey Bill coffee expense and change yesterday's lunch to 5."
+            },
+            {
+              "description": "No complete/reconciled amount is available. Ask for clarification; never create a balancing discount.",
+              "prompt": "Save this receipt itemized in Hey Bill: milk HKD 6, soap HKD 5, paid total HKD 10. No discount is shown."
+            }
+          ]
+        },
+        "demo_recording_url": "https://mcp.dlc39degree.com/review-demo/"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial individual-publisher submission: OAuth device pairing, append-only expense batches, itemized receipts, original-currency preservation, optional notes, delivery-status checks and idempotent retries. Full-ledger access, remote editing/deletion and payments are not supported.",
+        "translations": {
+          "zh-CN": {
+            "subtitle": "\u5c06\u6d88\u8d39\u8bb0\u5f55\u53d1\u9001\u5230\u672c\u673a\u8d26\u672c",
+            "description": "\u628a\u6d88\u8d39\u53d1\u9001\u5230\u5df2\u914d\u5bf9\u7684 Hey Bill iPhone App\uff0c\u6253\u5f00\u517c\u5bb9\u7248\u672c\u540e\u81ea\u52a8\u8bb0\u5165\u672c\u673a\u3002\u652f\u6301\u5355\u7b14\u3001\u591a\u7b14\u548c\u4fdd\u7559\u660e\u7ec6\u7684\u6536\u636e\uff0c\u6574\u5355\u91d1\u989d\u53ea\u8ba1\u4e00\u6b21\u3002\u6bcf\u7b14\u4fdd\u7559\u539f\u5e01\u79cd\uff0c\u4e0d\u81ea\u52a8\u6362\u6c47\u3002\u5b8c\u6574\u8d26\u672c\u7559\u5728\u8bbe\u5907\uff1b\u65b0\u6295\u9012\u901a\u8fc7 Cloudflare \u52a0\u5bc6\u6682\u5b58\u6700\u591a 7 \u5929\uff0c\u786e\u8ba4\u63a5\u6536\u540e\u5220\u9664\u5185\u5bb9\u3002\u5df2\u6295\u9012\u4e0d\u7b49\u4e8e\u5df2\u4fdd\u5b58\uff0c\u4e0d\u4fdd\u8bc1 App \u5173\u95ed\u65f6\u5b9e\u65f6\u5165\u8d26\u3002\u9700\u53e6\u884c\u83b7\u53d6 Hey Bill 1.2.0 \u6216\u66f4\u65b0\u7248\u672c\u5e76\u5b8c\u6210 OAuth \u8bbe\u5907\u8fde\u63a5\uff1b\u52a9\u624b\u8d26\u53f7\u3001\u5957\u9910\u548c\u5730\u533a\u9650\u5236\u4ecd\u9002\u7528\u3002\u63d2\u4ef6\u53ea\u80fd\u65b0\u589e\u6d88\u8d39\u548c\u67e5\u8be2\u6295\u9012\u72b6\u6001\uff0c\u4e0d\u80fd\u8bfb\u53d6\u5b8c\u6574\u8d26\u672c\u3001\u8fdc\u7a0b\u4fee\u6539\u6216\u5220\u9664\u8bb0\u5f55\u3001\u4fee\u6539\u9884\u7b97\u6216\u5bfc\u51fa\u62a5\u8868\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

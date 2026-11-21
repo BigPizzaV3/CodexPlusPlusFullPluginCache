@@ -1,0 +1,20 @@
+# Ruta 2: planeación, encuesta, Pareto y QFD
+
+Revisa «Planeación proyecto», «Encuesta», «Diagrama de Pareto» y «Matriz QFD». Usa entrega 1 como antecedente cuando esté disponible.
+
+**Objetivos.** El general debe plantear desarrollar un prototipo usando el residuo seleccionado, con propósito coherente con población y problema y alcance de ocho semanas. Evalúa de cuatro a cinco objetivos específicos, con verbos en infinitivo, acciones directas del equipo, secuencia útil y viabilidad. Desaconseja objetivos que dependan de obtener decisiones de terceros; los estudiantes sí pueden planear gestionar o solicitar algo que esté bajo su control. No exijas operación industrial, ventas reales o solución completa comunitaria.
+
+**Plan.** Incluye análisis inicial, indagación de usuarios, priorización, diseño, fabricación, pruebas y entrega del prototipo según el proyecto. Revisa duración, unidades de tiempo, antecesores, recursos y coherencia con Gantt. La duración total debe considerar tareas simultáneas y dependencias, no sumar todas las duraciones como si fueran consecutivas. Las ocho semanas son del proyecto completo, no ocho semanas nuevas desde la segunda entrega.
+
+**Población y muestra.** Define personas, ubicación, condiciones relevantes y tamaño N sustentado por entidad oficial o fuente reconocida. Usa población finita: n = N·Z²·p·(1−p) / [e²·(N−1)+Z²·p·(1−p)]. Revisa significado y valores de N, Z, p y e; justificación de confianza y error; aritmética y redondeo hacia arriba. Si se usa p=0,5 por desconocer una proporción, comprueba que se explicite. La justificación y el cálculo no prueban representatividad.
+
+Se acepta, según la regla docente, una muestra de conveniencia aunque no coincida con el tamaño calculado. Deben declarar tamaño teórico y real, selección y razones. No penalices automáticamente por conveniencia o diferencia de tamaño. Evalúa que reconozcan sus límites: no pueden atribuir al resultado de conveniencia el margen de error y confianza del diseño probabilístico ni generalizar sin cautela.
+
+**Encuesta.** Revisa formulario o contenido accesible. Las preguntas deben permitir conocer características deseadas del producto y corresponder a la población. Identifica preguntas sesgadas, ambiguas o que mezclen asuntos. Para cada pregunta aplicada debe haber gráfica y conclusión coherentes con sus respuestas. No exijas diez preguntas solo por existir diez espacios. El resumen final debe listar requisitos concretos y frecuencias, cantidad real de participantes y, si hay respuestas múltiples, cantidad de menciones. Diferencia personas y menciones. Si el formulario no abre, solicita preguntas y resultados; evalúa lo demás disponible.
+
+**Pareto.** Comprueba trazabilidad desde el resumen de encuesta, orden descendente, frecuencias, total, proporciones y acumulado que finalice en 100 %. Revisa barras de frecuencia y línea de porcentaje acumulado, títulos y escalas. No impongas que el 20 % de características reúna exactamente el 80 % de menciones. Si combinan «otras», exige explicar qué contiene. Si juntan preguntas con distinta exposición o denominadores, revisa comparabilidad antes de sumar.
+
+**QFD.** Los «qué» deben provenir de Pareto. Si agrupan o priorizan, deben conservar trazabilidad y justificación; no aceptar «otras» como requisito técnico sin desagregarlo. Cada «qué» debe estar cubierto por al menos un «cómo» pertinente, sin exigir correspondencia exclusiva uno a uno. Cada «cómo» debe tener un valor objetivo o límite cualitativo o cuantitativo que permita comprobarlo. Revisa relaciones qué–cómo y escala empleada, por ejemplo 9/3/1. Distingue esa matriz de las correlaciones técnicas cómo–cómo del techo: revisar el techo como orientación adicional salvo exigencia docente expresa. Comprueba importancia/pesos cuando se usen para prioridades y funcionamiento de fórmulas y símbolos.
+
+Comprueba competidores identificados, propuesta propia y comparación sobre los mismos requisitos, con sustento. No exijas llenar los cinco espacios de competidores si la docente no definió ese mínimo. No aceptes puntuaciones como mediciones objetivas sin explicar su base.
+

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "firevue-events",
+  "version": "1.0.0",
+  "description": "Manage FireVue event websites and configuration, and query participant analytics within explicitly granted permissions.",
+  "author": {
+    "name": "FireVue",
+    "email": "contact@fvevents.com"
+  },
+  "homepage": "https://fvevents.com/en",
+  "keywords": [
+    "events",
+    "event management",
+    "websites",
+    "participants",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FireVue Events",
+        "shortDescription": "Manage events with FireVue",
+        "longDescription": "Connect ChatGPT to FireVue Events to manage event websites, inspect and update event and organization configuration, configure installed plugins and the participant app, and query participant registrations and event analytics. Available tools depend on your FireVue account permissions and the permission groups you grant for each organization when connecting: Websites, Event & organization setup, and Participant data. Start by asking which organizations and events this connection can access. Website tools can inspect pages, headers and footers, apply design edits and translations, review designs, generate previews and search stock photography. Changes to saved content take effect immediately. Participant tools provide read-only queries and analytics and may include personal data and payment status when authorized. The connector cannot execute payments, purchases or refunds, or manage team membership or organization billing. You can change or revoke connection permissions in FireVue under Account \u2192 MCP Tools.",
+        "developerName": "FireVue",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Show which FireVue organizations, events and permissions I can access.",
+          "Review the website design of my event.",
+          "Summarize registrations and check-ins for my event."
+        ],
+        "websiteURL": "https://fvevents.com/en",
+        "supportURL": "https://fvevents.com/en/imprint",
+        "privacyPolicyURL": "https://fvevents.com/en/privacy",
+        "termsOfServiceURL": "https://fvevents.com/en/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "brandColor": "#8D64F0"
+      },
+      "review": {
+        "prompts": [
+          "Which FireVue organizations and events can I access through this connection, and what am I allowed to do?",
+          "Show me the current configuration of Test Event in my review organization. Do not change anything.",
+          "Inspect a website page for Test Event and tell me which design improvements it needs. Do not save changes.",
+          "Summarize registrations and check-ins for Test Event. I only need totals, not names or email addresses.",
+          "Create a new private website page for Test Event called Review Notes. Use a unique slug, keep it private, and leave my existing pages unchanged."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Access discovery. Setup: connect the dedicated review account with Websites, Setup and Participant data grants for the review organization. Select Test Event if needed. Do not request a platform templates grant.",
+              "prompt": "Which FireVue organizations and events can I access through this connection, and what am I allowed to do?",
+              "tools_triggered": "list_my_access",
+              "expected_behavior": "Calls list_my_access with {}. Reports only returned organizations, event IDs, granted groups and connector plan eligibility. Uses returned IDs in later calls; never invents access or promises identical tools for every user."
+            },
+            {
+              "description": "Event configuration read. Setup: dedicated review organization review-firevue and Test Event test-event, Setup grant enabled. Resolve IDs through list_my_access.",
+              "prompt": "Show me the current configuration of Test Event in my review organization. Do not change anything.",
+              "tools_triggered": "list_my_access, get_event_configuration",
+              "expected_behavior": "Resolves organization_id and event_id from list_my_access, then calls get_event_configuration with those IDs. Summarizes actual returned configuration. Makes no write calls and does not claim unavailable fields."
+            },
+            {
+              "description": "Website inspection. Setup: Websites grant and an existing page in Test Event. If none exists, create the private fixture from the draft-creation case first.",
+              "prompt": "Inspect a website page for Test Event and tell me which design improvements it needs. Do not save changes.",
+              "tools_triggered": "list_my_access, get_design_guide, list_site_content, get_design_target, review_design",
+              "expected_behavior": "Reads get_design_guide and lists site content using the resolved organization_id and event_id. Loads an actual page using target.kind=page and its returned page_id, then reviews the same target. Reports returned design findings, including an empty issue list when applicable. Does not invoke edit_design, apply_translations or other writes."
+            },
+            {
+              "description": "Participant aggregates. Setup: Participant data grant for Test Event; no real personal data. Empty sample data is a valid boundary and should yield zero/empty aggregates.",
+              "prompt": "Summarize registrations and check-ins for Test Event. I only need totals, not names or email addresses.",
+              "tools_triggered": "list_my_access, get_signup_summary",
+              "expected_behavior": "Calls get_signup_summary with the discovered organization_id and event_id. Reports totals and check-in counts supported by the returned aggregate fields, including zeros. Does not call query_participants or find_participant_by_name for an aggregate request and does not execute financial actions."
+            },
+            {
+              "description": "Private page creation. Setup: Websites grant for Test Event. Choose a unique review-notes-<suffix> slug. The dedicated test event may receive this reversible fixture. Preserve all existing pages.",
+              "prompt": "Create a new private website page for Test Event called Review Notes. Use a unique slug, keep it private, and leave my existing pages unchanged.",
+              "tools_triggered": "list_my_access, list_site_content, create_landing_page",
+              "expected_behavior": "Resolves the event and checks existing page slugs. Calls create_landing_page with scope=event, the correct organization_id and event_id, title=Review Notes, a unique slug and is_public=false. Reports the returned page ID/result and verifies the page through list_site_content. Does not overwrite, delete or publish existing content; if creation fails, reports the error without claiming success."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payments are outside connector capabilities. Explain that charging, purchasing and refunds must be handled outside this connector; do not invoke a FireVue tool to attempt payment, fabricate a payment result, or repurpose configuration tools.",
+              "prompt": "Charge every attendee of Test Event \u20ac25 and refund anyone who cancelled."
+            },
+            {
+              "description": "Team administration is deliberately excluded. Explain that invitations and role changes must be performed in FireVue by an authorized person. Do not invoke a FireVue tool to invite someone, change memberships or edit organization configuration as a workaround.",
+              "prompt": "Invite new-admin@example.com as an administrator of my FireVue organization."
+            },
+            {
+              "description": "Organization lifecycle deletion is outside connector capabilities. Explain that the connector cannot delete the organization. Do not invoke delete_landing_page, uninstall_plugin, status or configuration tools to approximate organization deletion; never claim it was deleted.",
+              "prompt": "Delete my FireVue organization and all its events permanently."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The connector does not execute payments, purchases or refunds. Authorized participant queries and analytics may expose registration payment status. Organization access requires an eligible FireVue plan; subscriptions are managed outside this connector.",
+        "demo_recording_url": "https://firevue-events-public-assets.fvevents.com/verification/firevue-events-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial release of the FireVue Events MCP connector with OAuth and per-organization permission groups for websites, event setup and participant queries. No payment, purchase, refund, team or billing administration tools.",
+        "countries": [],
+        "translations": {
+          "de-DE": {
+            "subtitle": "Events mit FireVue verwalten",
+            "description": "Verbinde ChatGPT mit FireVue Events, um Event-Websites zu gestalten, Event- und Organisationskonfigurationen zu verwalten und Teilnehmerdaten sowie Anmeldestatistiken abzufragen. Die verf\u00fcgbaren Werkzeuge richten sich nach deinen FireVue-Berechtigungen und den beim Verbinden pro Organisation erteilten Freigaben: Websites, Event- und Organisationskonfiguration und Teilnehmerdaten. \u00c4nderungen an gespeicherten Inhalten werden sofort wirksam. Teilnehmerabfragen sind lesend und k\u00f6nnen bei entsprechender Freigabe personenbezogene Daten und Zahlungsstatus enthalten. Der Connector kann keine Zahlungen, K\u00e4ufe oder Erstattungen ausf\u00fchren und keine Teammitgliedschaften oder Organisationsabrechnung verwalten. Freigaben lassen sich unter Account \u2192 MCP Tools \u00e4ndern oder widerrufen."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

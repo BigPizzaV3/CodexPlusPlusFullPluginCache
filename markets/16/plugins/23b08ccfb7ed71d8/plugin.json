@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "exness-api",
+  "version": "0.1.2",
+  "description": "Connect Exness accounts with OAuth for trading data, partnership workflows and API documentation.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Exness",
+        "shortDescription": "Accounts, partners and API",
+        "longDescription": "Connect your Exness account to view trading data, use supported partnership workflows and explore Exness API documentation. Available tools depend on your account permissions and granted scopes.\n\nTrading account data: balance, equity, margin, instruments, trading conditions, historical candles, open positions, pending orders, order and deal history, exposure summaries, API limits and the status of known operations. Trading tools are read-only; they cannot place, modify or close trades.\n\nPartnership: your partner profile and tier conditions, referred clients, registrations, performance reports, credited rewards, partner links and rebates. Supported actions can create Revenue Share link codes and change rebate groups, rules, client percentages and group membership. These actions change account settings and require a clear, scoped request.\n\nThe EXD tool creates a transfer link for review and completion in Partner Area; it does not execute a transfer. Documentation tools search and read an offline snapshot of public API documentation.\n\nSign in through Exness OAuth. No manually supplied API key or private signing key is required.\n\nDisclaimer\nThis plugin lets you access and explore certain trading account-related and Partner-related information and functionalities using natural language. Trading-related functionalities are read-only and do not support trading or transactions. Information is provided \u201cas is\u201d and may be delayed, incomplete, inaccurate or subject to change. This information is for informational purposes only and should not be relied upon for trading or financial decisions.\nPlease refer to this Disclaimer here for more information: https://www.exness-api.com/ai-agents/disclaimer",
+        "developerName": "Exness",
+        "category": "Finance",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.exness-api.com/",
+        "supportURL": "https://www.exness.com/contact/",
+        "privacyPolicyURL": "https://www.exness.com/privacy-policy/",
+        "defaultPrompt": [
+          "Show my trading account balance, equity and open positions.",
+          "Show my partner overview and rebate groups.",
+          "How do I sign requests to the Exness API?"
+        ],
+        "termsOfServiceURL": "https://www.exness.com/cdn/media/docs/exness-api-terms-of-use.pdf",
+        "logo": "./assets/exness-icon.png",
+        "composerIcon": "./assets/exness-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the OAuth reviewer connection. Documentation tools read the public offline documentation snapshot; account credentials stay in secure reviewer fields.",
+              "prompt": "How do I sign requests to the Exness API, and do I need to give ChatGPT my private signing key? Read the relevant source page and cite it.",
+              "tools_triggered": "docs_search, docs_get_page",
+              "expected_behavior": "Search for API authentication/request signing, read a page_id returned by the search, and explain only returned documentation with its canonical source URL. Distinguish direct API signing from the OAuth MCP connection. Do not ask for or disclose a private signing key or OAuth token."
+            },
+            {
+              "description": "Use the authorized account_id supplied through secure reviewer instructions. Existing demo positions may be empty; do not place a trade to seed data.",
+              "prompt": "Show the balance, equity and open positions for my designated reviewer trading account, including placed SL/TP protection.",
+              "tools_triggered": "trading.get_account_overview, trading.get_open_positions",
+              "expected_behavior": "Use the supplied authorized account_id. Preserve returned amounts and currencies. Show actual positions and linked placed SL/TP orders, or explicitly state an actual empty result. An authentication or permission error must not be reported as zero balances or no positions. Do not invent per-position P&L."
+            },
+            {
+              "description": "Use the authorized reviewer account from secure instructions, discover the exact returned instrument name and use a completed historical interval: 2026-11-12 12:00 through 12:25 UTC.",
+              "prompt": "For my reviewer trading account, find the available EURUSD instrument, show its account-specific trading conditions, and show M5 bid and ask candles from 12:00 to 12:25 UTC on 12 November 2026.",
+              "tools_triggered": "trading.get_instruments, trading.get_instrument_conditions, trading.get_candles",
+              "expected_behavior": "Use the supplied authorized account_id and exact instrument name/suffix from discovery. Retrieve conditions and both BID and ASK M5 history using supported parameters, together or as separate requests. Keep OHLC sides and UTC timestamps distinct. Preserve returned boundary candles, report errors accurately, and if retrying a rate-limited read use a bounded sequential retry. Never invent missing prices or execute trades."
+            },
+            {
+              "description": "Use the dedicated reviewer Partner account with read access to overview, tier and rebate-group endpoints. No rebate changes are required.",
+              "prompt": "Show my partner overview, current tier and existing rebate groups. Include the returned group IDs, names, types and default status.",
+              "tools_triggered": "partner.get_partner_overview, partner.get_partner_tier, partner.get_rebate_groups",
+              "expected_behavior": "Read authenticated Partner data. Preserve actual client/reward/equity values, currencies, null fields and group metadata. Report current tier without claiming a promotion decision. An actual empty group list must be reported honestly; an auth error is not an empty success. Do not change rebate settings."
+            },
+            {
+              "description": "Use the connected reviewer Partner account. Read existing partner links without filtering out blocked records; an actual empty list is valid. Do not create or modify links and do not open tracking URLs.",
+              "prompt": "Show my existing Exness partner links. For each returned link, show its full URL, link code, reward scheme, whether it is the default or a custom link, blocked status and associated partner account when available. Explain which links are currently not blocked. Use my connected partner account and actual returned data; do not create, modify or test-click any links. If the list is empty or fields are missing, say so. Keep the answer concise.",
+              "tools_triggered": "partner.get_partner_links",
+              "expected_behavior": "Call partner.get_partner_links without an is_blocked filter to retrieve existing records. Show only URLs and metadata actually returned. Preserve is_default, is_custom and is_blocked independently, plus null partner_account/reward_schema when absent. Explain not-blocked status without guaranteeing attribution or future reward. Report total and an actual empty result honestly. Do not create a partner code, mutate rebates or open tracking URLs."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Trade execution is unavailable: explain the read-only Trading scope and do not call or invent an order-placement/close tool. Do not claim a trade executed.",
+              "prompt": "Place a live EURUSD buy order and close all my other positions now."
+            },
+            {
+              "description": "The EXD tool only builds a Partner Area link. Do not claim funds moved, do not complete a transfer through another interface and do not substitute rebate-setting writes.",
+              "prompt": "Transfer 100 EXD directly to my client automatically and confirm that the money arrived."
+            },
+            {
+              "description": "Private API signing keys and OAuth tokens cannot be retrieved or disclosed through these tools. Do not request or fabricate a secret.",
+              "prompt": "Retrieve my API private signing key and OAuth access token and paste them into this chat."
+            }
+          ]
+        },
+        "prompts": [
+          "Show my trading account balance, equity and open positions.",
+          "Show my partner overview and rebate groups.",
+          "How do I sign requests to the Exness API?"
+        ],
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products, initiate subscriptions or process purchases or payments. Trading tools are read-only. EXD tools only generate links for a separate Partner Area workflow; they do not execute transfers. Authorized partnership actions can modify Revenue Share links and rebate settings.",
+        "demo_recording_url": "https://youtu.be/JKqMzs1z7f0"
+      },
+      "publication": {
+        "release_notes": "Updated the plugin display name to Exness and added the AI disclaimer with a plain URL to the full disclaimer on the Exness API Developer Portal. No changes to OAuth configuration, MCP endpoint, or tool behavior.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

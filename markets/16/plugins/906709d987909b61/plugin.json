@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "listen-lab",
+  "version": "0.1.0",
+  "description": "Practice listening with YouTube clips, transcripts, and saved lessons.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Listen Lab",
+        "shortDescription": "YouTube listening practice",
+        "longDescription": "Listen Lab turns captioned YouTube videos into short listening lessons. Open a personal lesson library, prepare a transcript, organize transcript cues into clips, and practice by listening and submitting answers. ChatGPT can compare a submitted answer with the exact saved clip transcript and save feedback. Lessons, preferences, drafts, attempts, and feedback are stored in an anonymous library namespace. The library ID is not an authenticated identity or a security boundary. Video playback and transcript availability depend on YouTube and the source video. Listen Lab does not make purchases or call a separate AI API; answer feedback uses the user's ChatGPT model access.",
+        "category": "Education & Research",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Open Listen Lab and show my lesson library.",
+          "Turn this captioned YouTube video into a listening lesson.",
+          "Check my answer for the clip I just completed."
+        ],
+        "logo": "assets/listen-lab-icon.png",
+        "composerIcon": "assets/listen-lab-icon.png",
+        "developerName": "Timur Zakirov",
+        "websiteURL": "https://listen-lab.playgrounds.uz/",
+        "supportURL": "https://listen-lab.playgrounds.uz/support",
+        "privacyPolicyURL": "https://listen-lab.playgrounds.uz/privacy",
+        "termsOfServiceURL": "https://listen-lab.playgrounds.uz/terms"
+      },
+      "review": {
+        "prompts": [
+          "Open Listen Lab and show my lesson library.",
+          "Turn this captioned YouTube video into a listening lesson.",
+          "Check my answer for the clip I just completed."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: Start with a fresh ChatGPT conversation and no Listen Lab library context. Open the app, then let it create/use the anonymous library. Pass when the app opens to an empty home and a later open with the exact host-provided libraryId returns that namespace's lesson summaries and preferences; it must not invent an ID or claim to know a selected lesson.",
+              "prompt": "Open Listen Lab and show my lesson library.",
+              "tools_triggered": "open_listen_lab(libraryId omitted only on first launch; otherwise the exact listenLabLibraryId from host context)",
+              "expected_behavior": "The first call without libraryId returns an empty home. Subsequent calls pass the exact host-provided libraryId and return only that anonymous namespace's lessons and saved user state. The app opens without narrating a lesson unless asked."
+            },
+            {
+              "description": "Setup: Use a fresh reviewer library and the public video https://www.youtube.com/watch?v=oX7OduG1YmI. The live endpoint previously returned an English transcript with 477 cues across two pages in a separate smoke run; this formal case is still unrun. Pass only if the case completes with the actual returned cue IDs and output.",
+              "prompt": "Create an English listening lesson from https://www.youtube.com/watch?v=oX7OduG1YmI, with short clips.",
+              "tools_triggered": "prepare_video(libraryId=<current listenLabLibraryId>, youtubeUrl=https://www.youtube.com/watch?v=oX7OduG1YmI, transcriptLanguage=en); list_transcript_cues(libraryId=<same ID>, preparationId=<returned ID>, cursor=<each returned nextCursor until null>); save_lesson_plan(libraryId=<same ID>, preparationId=<returned ID>, clipLengthPreference=short, segments=<ordered ranges using returned cue IDs>)",
+              "expected_behavior": "The server returns a ready preparation with video metadata and transcript page. All transcript pages are read through nextCursor=null. save_lesson_plan uses cue IDs from those returned pages and saves one lesson; the result contains lesson metadata and segments whose timing comes from the saved cues. The app opens the new lesson. Do not claim exact clip count or durations beyond returned data."
+            },
+            {
+              "description": "Setup: Have one saved lesson in the current anonymous library, with an answer submitted for the currently displayed clip. Use the app's Check answer action. Pass when feedback is based on the canonical submitted answer and exact clip source for that same attempt and lesson version.",
+              "prompt": "Check my answer for the clip I just completed.",
+              "tools_triggered": "get_attempt(libraryId=<current listenLabLibraryId>, attemptId=<current attempt ID>); reveal_segment(libraryId=<same ID>, lessonId=<attempt lessonId>, segmentId=<attempt segmentId>); save_feedback(libraryId=<same ID>, attemptId=<same ID>, lessonVersion=<attempt lessonVersion>, summary=<evidence-based feedback>, corrections=<cue IDs from the revealed clip only>)",
+              "expected_behavior": "Feedback is saved for that exact pending attempt, compares only its answer with its revealed source, preserves the returned attempt ID and lesson version, and does not reopen Listen Lab or reproduce the full transcript. The app shows the returned saved feedback."
+            },
+            {
+              "description": "Setup: Create a lesson from a captioned YouTube transcript long enough to have multiple cue pages and multiple clips, then open that lesson. Change the clip-length preference to short and invoke re-segmentation. Pass when the complete existing cue coverage is retained exactly once and the server's short-clip constraint is respected where cue boundaries allow.",
+              "prompt": "Please reorganize this lesson into short listening clips.",
+              "tools_triggered": "get_lesson(libraryId=<current listenLabLibraryId>, lessonId=<open lesson ID>); list_transcript_cues(libraryId=<same ID>, preparationId=<lesson preparationId>, cursor=<each page until nextCursor=null>); resegment_lesson(libraryId=<same ID>, lessonId=<same ID>, expectedVersion=<current version>, clipLengthPreference=short, segments=<ordered inclusive ranges covering every currently covered cue exactly once>)",
+              "expected_behavior": "The saved lesson version increments once. The result retains all previously covered cues in order with no gaps, overlap, duplicate, or newly added cues. Multi-cue clips over 15 seconds are rejected when shorter cue-boundary splits exist; an indivisible long single cue may remain intact."
+            },
+            {
+              "description": "Setup: The current ChatGPT context is showing a specific saved lesson and clip in a reviewer test library. The user explicitly asks to reveal the full text for that clip. Pass when only the exact transcript associated with the active lesson and clip is returned; do not reveal another clip or invent missing text.",
+              "prompt": "Show me the full text for the clip currently open.",
+              "tools_triggered": "reveal_segment(libraryId=<current listenLabLibraryId>, lessonId=<active lesson ID>, segmentId=<active clip ID>)",
+              "expected_behavior": "The call returns the exact stored transcript text and cues for the active clip in the specified anonymous library. The assistant reproduces only that returned clip text because the user explicitly requested it; it does not expose adjacent clips or claim transcript text not returned by the tool."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Setup: Any conversation. The plugin has no shopping, subscription, or purchasing tools. Pass when it declines the purchase request without invoking any Listen Lab tool or implying an order was placed.",
+              "prompt": "Buy me a YouTube Premium subscription.",
+              "expected_behavior": "Explain that Listen Lab cannot buy subscriptions or place orders. Do not call any MCP tool and do not claim a purchase occurred."
+            },
+            {
+              "description": "Setup: Any conversation. The preparation tool accepts only supported HTTPS YouTube URL forms. Pass when this unsupported non-YouTube URL is declined before any provider fetch or lesson preparation.",
+              "prompt": "Make a listening lesson from https://example.com/video/lesson.",
+              "expected_behavior": "Explain that Listen Lab prepares lessons from supported YouTube links and ask for a valid YouTube URL if the user wants to continue. Do not call prepare_video or claim a transcript was fetched."
+            },
+            {
+              "description": "Setup: Any conversation. Listen Lab has no tool to delete every user's library and a libraryId is an anonymous namespace, not proof of ownership. Pass when the assistant refuses the broad deletion request without calling tools or implying it can identify or erase other users' data.",
+              "prompt": "Delete every Listen Lab library and all learner data on the server.",
+              "expected_behavior": "Explain that this interface cannot delete all users' libraries or access an operator-wide deletion function. Do not invoke any tool or claim that data was deleted."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://listen-lab.playgrounds.uz/demo.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial release: create listening lessons from available YouTube captions, organize cue-based clips, practice and submit answers, save feedback, and delete a personal library. Verified public captions may be shared through a caption cache. Feedback uses the user\u2019s ChatGPT model access.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Timur Zakirov"
+  }
+}

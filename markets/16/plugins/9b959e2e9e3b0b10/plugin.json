@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "amp",
+  "version": "1.0.8",
+  "description": "Use Amp from ChatGPT to find your threads, start and steer coding agents, and open your running cloud environments.",
+  "author": {
+    "name": "Amp",
+    "email": "amp-devs@ampcode.com",
+    "url": "https://ampcode.com"
+  },
+  "homepage": "https://ampcode.com/docs/puck",
+  "keywords": [
+    "amp",
+    "puck",
+    "coding",
+    "agents"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Amp",
+        "shortDescription": "Manage your work in Amp",
+        "longDescription": "Use Amp from ChatGPT. Find your Amp threads, check agent progress, start coding tasks, send follow-up instructions, and open running orbs, Amp's cloud environments.\n\nRequests go through Puck, your Amp assistant, using your connected Amp account and services you have connected there. Requests can start agents or change state in Amp and connected services. Messages go to your latest active Puck conversation, which you can also open in Amp. You can start a new Puck conversation when you want a fresh one.\n\nAn Amp account with permission to use Puck is required. Workspace policies and account limits apply. Some requests continue after the initial response, so Puck provides a reply handle to check progress. When an action requires approval in Amp, open the supplied conversation link to approve it.",
+        "developerName": "Amp",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Find Amp threads",
+          "Start and steer coding agents",
+          "Check agent progress",
+          "Open running orbs"
+        ],
+        "websiteURL": "https://ampcode.com/docs/puck",
+        "supportURL": "https://ampcode.com/docs/support/getting-help",
+        "privacyPolicyURL": "https://ampcode.com/privacy-policy",
+        "termsOfServiceURL": "https://ampcode.com/terms",
+        "defaultPrompt": [
+          "Show my running Amp orbs.",
+          "Find my recent Amp threads about failing tests.",
+          "Which Amp projects can I work in?"
+        ],
+        "composerIcon": "./assets/amp.png",
+        "composerIconDark": "./assets/amp.png",
+        "logo": "./assets/amp.png",
+        "logoDark": "./assets/amp.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Case 1 of 5. Run the positive cases in order in the same ChatGPT conversation. Start a fresh Puck conversation and list projects. No pre-existing projects or threads are required; later cases use the agent thread created in case 2.",
+              "prompt": "Start a fresh Puck conversation and ask Puck to list my Amp projects. Do not create or change any projects.",
+              "tools_triggered": "start_puck_conversation; read_puck_reply if pending",
+              "expected_behavior": "Call start_puck_conversation with message containing the request. Create the conversation and send its first message in one call. Return the conversation link. If queued or working, use read_puck_reply with the returned replyHandle without resending until Puck replies. List the projects returned by Amp, or report that there are none. Do not invent, create, or change projects. Leave any earlier conversations intact."
+            },
+            {
+              "description": "Case 2 of 5. Create one agent thread without a project or repository and obtain its completed answer. The prompt supplies all task input. Account permissions and sufficient credits are required; a blocker or pending status does not count as a pass.",
+              "prompt": "Ask Puck to start one agent in a new Amp thread titled JavaScript sorting review, without a project or repository. Have it explain why JavaScript [10, 2, 1].sort() returns [1, 10, 2] and show how to sort those numbers in ascending numeric order. Give me the thread link and the agent's completed answer. Do not edit files, commit, push, deploy, or change connected services.",
+              "tools_triggered": "send_puck_message; read_puck_reply if pending",
+              "expected_behavior": "Use send_puck_message in the current Puck conversation to request one new agent thread without a project or repository. Return its actual thread link and completed answer: default sorting compares string representations, while sort((a, b) => a - b) produces [1, 2, 10]. If the Puck request is queued or working, use read_puck_reply with its replyHandle rather than resending the task. If Puck replies before the child agent finishes, check that agent's progress through Puck without creating another agent. A locally generated ChatGPT answer without delegation is not a pass. If approval is required, present the question and supplied Amp link. Report policy or usage blockers honestly without bypassing them or directing the user to buy credits or a subscription. Pass only after the agent completes; no files or connected services are changed."
+            },
+            {
+              "description": "Case 3 of 5. After case 2 completes, search for the thread created during this review. No thread needs to exist before the review starts.",
+              "prompt": "Ask Puck to search my Amp threads for JavaScript sorting review and identify the agent thread created earlier in this conversation. Give me its link and a short summary. Search Amp rather than just repeating the link from our chat. Do not create or change any work threads.",
+              "tools_triggered": "send_puck_message; read_puck_reply if pending",
+              "expected_behavior": "Send the search request through send_puck_message and use read_puck_reply if queued or working. Puck searches accessible Amp threads. Return the same agent thread ID as case 2 and a summary consistent with its completed sorting task. Distinguish this run's thread from any earlier threads with the same title. A remembered link alone, a fabricated match, or no match does not pass this case. If case 2 did not create a thread, report this case as blocked rather than creating a substitute."
+            },
+            {
+              "description": "Case 4 of 5. Send a follow-up to the agent thread created in case 2 and found in case 3. Verify that the existing agent receives and completes the new request.",
+              "prompt": "Ask Puck to send a follow-up to that same JavaScript sorting review agent thread: show how to sort [-3, 10, 2, 2, 0] in descending numeric order and explain what happens to duplicate values. Return the agent's completed answer and the same thread link. Do not start another agent or edit any files.",
+              "tools_triggered": "send_puck_message; read_puck_reply if pending",
+              "expected_behavior": "Use send_puck_message to ask Puck to deliver the follow-up to the existing agent thread. Use read_puck_reply for a queued or working Puck request; if the child agent is still working after Puck replies, check its progress without resending the task. Return the child agent's completed answer showing sort((a, b) => b - a), output [10, 2, 2, 0, -3], and preservation of both copies of 2. The thread ID must match case 2, and its transcript must contain the follow-up and agent reply. Answering only in ChatGPT or Puck, creating a replacement agent, or returning only pending status does not pass. If case 2 or 3 is blocked, report that dependency."
+            },
+            {
+              "description": "Case 5 of 5. List active orbs and available portal links. No running orb or portal is required in advance, and the earlier task does not create a web service.",
+              "prompt": "Show my running Amp orbs and their portal links.",
+              "tools_triggered": "list_orbs; get_orb_thread_context only from the app after a user click",
+              "expected_behavior": "Call list_orbs. Display the returned orbs and any available portal links, or report that no orbs are running. If an orb has no portal links, say so without inventing a link. Refresh in the Orbs app must call list_orbs. If a thread is available and the host supports context updates, clicking Use Thread as Context must call get_orb_thread_context and add the returned excerpt only after host acceptance. If no orb exists or the host lacks context support, report that UI step as unavailable without creating an orb. Do not start, stop, or change an orb."
+            }
+          ],
+          "negative": [
+            {
+              "description": "In a fresh ChatGPT conversation, answer a coding question that includes all necessary input and does not request Amp delegation.",
+              "prompt": "Why does [10, 2, 1].sort() return [1, 10, 2] in JavaScript?",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that default sorting compares string representations and show sort((a, b) => a - b) for numeric order. Answer directly without calling Amp tools or starting an agent."
+            },
+            {
+              "description": "In a fresh ChatGPT conversation with no thread selected or identified, clarify an ambiguous request to contact an agent.",
+              "prompt": "Tell the agent to add a test for that bug.",
+              "tools_triggered": "None",
+              "expected_behavior": "Ask which agent thread and bug the user means before calling Amp tools. Do not choose a thread from earlier Puck activity, send instructions, or start another agent."
+            },
+            {
+              "description": "After the positive cases, distinguish drafting a follow-up from sending it to the existing agent. No additional account objects are required.",
+              "prompt": "Draft a follow-up for the sorting agent asking it to explain how JavaScript sort handles undefined values. Don't send it yet.",
+              "tools_triggered": "None",
+              "expected_behavior": "Write a follow-up message in ChatGPT for the user to review. Do not call Amp tools, send the draft to Puck or the agent, or create a thread."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Rename the plugin to Amp and use the Amp app icon. Update review cases for direct coding answers, unclear agent requests, and drafts that must not be sent."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

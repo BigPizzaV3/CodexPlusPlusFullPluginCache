@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "timesheet-calculator",
+  "version": "1.0.0",
+  "description": "Timesheet calculator for ChatGPT: turn shifts into hours worked, overtime, and gross pay, and export a CSV time card.",
+  "author": {
+    "name": "Gabriel Dietsch",
+    "email": "gabriel@primecapequity.com",
+    "url": "https://timesheet-calculator-three.vercel.app"
+  },
+  "homepage": "https://timesheet-calculator-three.vercel.app",
+  "keywords": [
+    "timesheet calculator",
+    "time card calculator",
+    "hours worked calculator",
+    "work hours calculator",
+    "overtime",
+    "payroll hours",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Timesheet Calculator",
+        "shortDescription": "Calculate hours and overtime",
+        "longDescription": "Timesheet Calculator turns a list of shifts into hours worked. Enter each start and end in an everyday form such as 9am, 9:00 AM, or 17:30, and include an unpaid lunch or other break when there is one. Shifts that end the next morning, after midnight, are counted through the night.\n\nEach day comes back in decimal hours and as hours and minutes, along with the total for the list. The list is one pay period. Hours after 40 in that period are overtime, which matches the usual US weekly rule, and you can set a different weekly cutoff. You can also set a daily overtime cutoff. Add an hourly rate to see gross pay. Overtime pay defaults to one and a half times the hourly rate.\n\nAsk for a CSV when you want the timesheet as a file or as text for a spreadsheet. The calculator does not store shifts, clock anyone in, or file payroll, and it does not compute taxes or benefits.\n\nUse it as a timesheet calculator, time card calculator, hours worked calculator, or work hours calculator for hourly employees, freelancers, and anyone checking a paycheck against their shifts.",
+        "developerName": "Gabriel Dietsch",
+        "category": "Productivity",
+        "capabilities": [
+          "Calculate hours worked from shifts",
+          "Deduct unpaid breaks",
+          "Handle overnight shifts",
+          "Calculate weekly and daily overtime",
+          "Estimate gross pay",
+          "Export a CSV timesheet"
+        ],
+        "websiteURL": "https://timesheet-calculator-three.vercel.app",
+        "supportURL": "https://timesheet-calculator-three.vercel.app/support",
+        "privacyPolicyURL": "https://timesheet-calculator-three.vercel.app/privacy",
+        "termsOfServiceURL": "https://timesheet-calculator-three.vercel.app/terms",
+        "defaultPrompt": [
+          "Calculate my hours worked Monday to Friday, 9am to 5pm, with a 30 minute lunch.",
+          "I worked 10pm to 6am three nights with a 30 minute unpaid break. How many hours is that?",
+          "Timesheet for Mon 9am-5pm, Tue 9am-7pm, $20 an hour, overtime after 40 hours."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Lunch week: five weekday shifts with an unpaid 30-minute lunch, no hourly rate. Checks break deduction and the period total with no overtime.",
+              "prompt": "Calculate my hours worked Monday to Friday, 9am to 5pm, with a 30 minute lunch.",
+              "tools_triggered": "calculate_hours_worked",
+              "expected_behavior": "Calls calculate_hours_worked with five shifts (Monday to Friday, start 9am, end 5pm, breakMinutes 30). Each day shows 7:30 (7.50 h); the period total is 37:30 (37.50 h), regular 37:30, overtime 0:00. No gross pay is shown because no rate was given. The timesheet widget renders the day-by-day table."
+            },
+            {
+              "description": "The 42-hour week: weekly overtime after the default 40-hour threshold, with gross pay at time and a half.",
+              "prompt": "Mon through Thu 9:00 to 17:00, Friday 9:00 to 19:00, no breaks, $20 an hour.",
+              "tools_triggered": "calculate_hours_worked",
+              "expected_behavior": "Calls calculate_hours_worked with five shifts and hourlyRate 20. Total 42:00 (42.00 h), regular 40:00, overtime 2:00 falling on Friday. Gross pay $860.00 (regular $800.00 + overtime $60.00 at $20.00/h x 1.5)."
+            },
+            {
+              "description": "Overnight shifts that cross midnight, each with an unpaid 30-minute break.",
+              "prompt": "Time card: 10pm to 6:30am with a 30 minute unpaid break, three nights.",
+              "tools_triggered": "calculate_hours_worked",
+              "expected_behavior": "Calls calculate_hours_worked with three shifts (start 10pm, end 6:30am, breakMinutes 30). Each shift is marked as crossing midnight and counts 8:00 (8.00 h); total 24:00 (24.00 h), regular 24:00, overtime 0:00 at the default 40-hour threshold."
+            },
+            {
+              "description": "Daily overtime: a daily cutoff of 8 hours instead of only the weekly rule, with an hourly rate.",
+              "prompt": "Five days, 8:00 to 18:00, daily overtime after 8 hours, $10/hour.",
+              "tools_triggered": "calculate_hours_worked",
+              "expected_behavior": "Calls calculate_hours_worked with five 8:00-18:00 shifts, dailyOvertimeAfterHours 8, hourlyRate 10. Total 50.00 h, regular 40.00 h, overtime 10.00 h (2 h per day, not double counted toward weekly overtime). Gross pay $550.00 (regular $400.00 + overtime $150.00)."
+            },
+            {
+              "description": "CSV export: the user asks for the timesheet as a CSV file for a spreadsheet.",
+              "prompt": "Export a CSV time card for Wednesday 7:00-15:30 with a 30 minute break at $16/hour.",
+              "tools_triggered": "export_timesheet_csv",
+              "expected_behavior": "Calls export_timesheet_csv with one shift (Wednesday, start 7:00, end 15:30, breakMinutes 30) and hourlyRate 16. Hours worked 8:00 (8.00 h), overtime 0:00, gross pay $128.00. The response includes the CSV text and a CSV data URL the user can save."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated request (weather). The plugin should not be called; ChatGPT answers without Timesheet Calculator tools, since the plugin only calculates hours from shifts the user provides.",
+              "prompt": "What's the weather in Chicago tomorrow?"
+            },
+            {
+              "description": "Calendar scheduling is out of scope. Neither calculate_hours_worked nor export_timesheet_csv should be called, and ChatGPT must not claim the plugin created an event; the plugin cannot read or write calendars.",
+              "prompt": "Add a meeting to my calendar Friday at 2pm."
+            },
+            {
+              "description": "Tax filing is out of scope. The plugin does not compute taxes, withholding, or benefits, so its tools should not be called and it must not present tax figures as coming from Timesheet Calculator.",
+              "prompt": "How do I file my taxes?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Timesheet Calculator does not sell products, show prices or ads, or process payments. It only calculates hours and pay from the shifts and rate the user provides."
+      },
+      "publication": {
+        "release_notes": "Initial release (1.0.0): calculate hours worked from shifts with unpaid breaks and overnight shifts, weekly and daily overtime, gross pay from an hourly rate, and CSV timesheet export."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

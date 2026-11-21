@@ -1,0 +1,123 @@
+---
+name: frigade-engage
+description: Build and manage Frigade Engage flows (announcements, tours, checklists, nudges, forms, banners, cards, NPS surveys) and collections directly from your coding agent, including end-to-end wiring into React/Next.js codebases. Use when the user mentions Frigade, onboarding flows, product tours, checklists, announcements, in-product guides, or flow collections (promoting, creating, or adding flows to a collection).
+metadata:
+  upstream-version: "0.0.1"
+  upstream-commit: "aeba3dfc792b1ed9dcccfe576efabb039a2b9514"
+  authored-against:
+    backend-app: "d245b4fd"
+    frigade-web: "17326986"
+    docs: "fc1fe0c3"
+    demo-v2: "82b68403"
+    frigade-react: "2.9.4"
+---
+
+# frigade-engage
+
+> **ChatGPT/Codex compatibility.** Load this skill through the plugin and read `reference/agent-harness.md` before executing. It maps recipe tool labels to the tools actually available in the host. Resolve recipe, reference, and example paths relative to this skill directory; resolve application paths against the user’s selected project.
+
+## What this skill does
+
+`frigade-engage` lets you build onboarding flows for your product — announcements, tours, checklists, forms, surveys, banners, and cards — directly from ChatGPT or Codex with the required project and execution tools. It manipulates your Frigade workspace via the Frigade API (GraphQL + REST) and wires the `@frigade/react` SDK into your Next.js or React codebase end-to-end. Once your keys are set up, you never need to open the Frigade dashboard: the agent reads and writes flow definitions, targeting rules, YAML payloads, and the component calls that render flows in your app — all from one conversation.
+
+## Critical pre-flight: always run first-run-setup
+
+**Every skill invocation runs `recipes/first-run-setup.md` first.** This ensures the project has Frigade API keys configured, the repo is bound to a Frigade workspace, and the `.env.local` / `.gitignore` / `.frigade/project.json` are set up correctly before any API call is made. Never skip this step. If keys or the workspace binding are missing, the setup recipe walks the user through initialization (public key + private secret for dev, optionally prod) and writes `.frigade/project.json` so subsequent invocations skip straight to work.
+
+If the user's request looks entirely read-only ("what flows do I have?"), setup still runs — it's what proves we have credentials to read in the first place.
+
+## Two environments — the mental model
+
+Every Frigade workspace has two sibling environments, each with its own key pair: **dev** (`FRIGADE_API_KEY_SECRET` / `NEXT_PUBLIC_FRIGADE_API_KEY`) and **prod** (`..._SECRET_PROD` / `..._PROD`). They are separate Organization records — a flow in dev and its prod counterpart are distinct rows linked by a shared slug. **You build and iterate in dev; you ship to prod by promoting from dev.** The skill defaults to dev for everything and only ever touches prod when the user is explicitly promoting or has explicitly asked to operate in prod (see `recipes/first-run-setup.md` Section 5 for how the target env is resolved per call).
+
+## Safety model summary
+
+- **Dev environment (default):** All operations run immediately. Fast iteration, low friction, no confirmation prompts.
+- **Prod is promote-only for flow & collection content.** The **only** sanctioned way to change a prod flow or collection is to make the change in dev and promote it (`recipes/promote-to-prod.md`, `recipes/promote-collection-to-prod.md`). Direct authoring in prod — creating, updating, publishing, or deactivating a flow or collection straight against the prod key — is **discouraged**. When a user asks for it, the skill **steers them to the dev→promote path** and proceeds only on an explicit typed override (`edit prod directly`). See `reference/operations.md` §"Prod is promote-only" for the exact steer template and the list of ops it covers.
+- **Prod environment (other writes):** Any operation tagged `dangerous` in `reference/operations.md` requires explicit confirmation (`"About to <verb> <target> in prod. Confirm? (y/n)"`) before executing.
+- **Destructive operations** (`delete-flow`, `reset-user`, `delete-user-group`, `delete-rule`, and others flagged in `reference/operations.md`) are tagged `dangerous` in **both** environments — confirmation is always required regardless of env.
+- **Batch confirmations:** One confirmation per operation batch, not per sub-item. Example: promoting 3 flows dev → prod = one confirmation covering all three, not three separate prompts.
+- **Confirmation canonical format:** `"About to <verb> <target> in <environment>. Confirm? (y/n)"`. Anything other than `y`/`yes` aborts cleanly — no partial state is left behind.
+
+The authoritative list of operation names, their verbs, their targets, their `dangerous` flag, and whether they trigger the prod steer is `reference/operations.md`. Always consult that file before emitting a confirmation or steer prompt.
+
+## Dispatch table — recipes
+
+| If the user wants to… | Read |
+|---|---|
+| First use, set up, plug in keys | `recipes/first-run-setup.md` |
+| Create an announcement | `recipes/create-announcement.md` |
+| Create a tour (with DOM anchors) | `recipes/create-tour.md` |
+| Link flows (e.g., announcement CTA starts a tour) | `recipes/link-flows.md` |
+| Promote dev → prod | `recipes/promote-to-prod.md` |
+| Reset a user so they see flows again | `recipes/reset-user.md` |
+| Create a checklist | `recipes/create-checklist.md` |
+| Create a form | `recipes/create-form.md` |
+| Create a survey | `recipes/create-survey.md` |
+| Create an NPS survey | `recipes/create-nps-survey.md` |
+| Create a banner | `recipes/create-banner.md` |
+| Create a card | `recipes/create-card.md` |
+| Create a collection (and embed it in your app) | `recipes/create-collection.md` |
+| Add one or more flows to a collection | `recipes/add-flows-to-collection.md` |
+| Promote a collection dev → prod | `recipes/promote-collection-to-prod.md` |
+| Duplicate a flow | `recipes/duplicate-flow.md` |
+| Delete a flow | `recipes/delete-flow.md` |
+| Update a flow's YAML | `recipes/update-yaml.md` |
+| Update targeting on a flow | `recipes/update-targeting.md` |
+| Publish a flow | `recipes/publish-flow.md` |
+| List flows in the workspace | `recipes/list-flows.md` |
+| Get a single flow's details | `recipes/get-flow.md` |
+| Manage flow versions (revert, diff, history) | `recipes/version-management.md` |
+| Anything not above | Consult `reference/operations.md` + `reference/rest-endpoints.md` and extend the closest fully-authored recipe pattern |
+
+## Dispatch table — references
+
+| For questions about… | Read |
+|---|---|
+| Running this skill on Codex / another harness (tool mapping, terminology) | `reference/agent-harness.md` |
+| Which ops exist, their verb/target, their safety tag | `reference/operations.md` |
+| GraphQL queries and mutations (shapes, arguments, responses) | `reference/graphql-schema.md` |
+| REST endpoints (URLs, headers, bodies, auth) | `reference/rest-endpoints.md` |
+| `@frigade/react` SDK surface (provider, components, hooks, env vars) | `reference/sdk-react.md` |
+| How to wire Frigade into a Next.js App Router project (≥13) | `reference/next-app-router.md` |
+| How to wire Frigade into a Next.js Pages Router project | `reference/next-pages-router.md` |
+| Flow YAML structure (the `data` field of a flow) | `reference/yaml-spec.md` |
+| Targeting rules and audience DSL | `reference/targeting-and-rules.md` |
+| Error classes, status codes, and recovery strategy | `reference/errors.md` |
+
+## Hard rules (non-negotiable)
+
+1. **Private keys never enter web-app code.** `FRIGADE_API_KEY_SECRET` and `FRIGADE_API_KEY_SECRET_PROD` only appear in `.env.local` (gitignored) and in `Authorization: Bearer ...` headers in `curl` / server-side fetch calls issued from the skill itself. Never inside JSX/TSX, never as a React prop, never in a client-side `fetch`, never in any file under `src/`, `app/`, `pages/`, or `components/`. **Grep guard:** after any code emission, confirm `grep -r FRIGADE_API_KEY_SECRET src/ app/ pages/ components/` returns zero hits. If it returns anything, revert the emission and report the violation.
+
+2. **Multi-file code edits are atomic.** If any edit in a batch fails (syntax error, type error, failed write, failed API call mid-batch), revert all prior edits in that same batch. Keep pre-edit snapshots of every file touched. Never leave the repo half-wired.
+
+3. **Upstream Frigade state is preserved on partial failure.** Never auto-delete a server-side flow to "recover" from a downstream failure. If flow creation succeeded but code wiring failed, report what succeeded and what failed, and offer an explicit retry path or user-initiated cleanup (`recipes/delete-flow.md`). The skill does not silently unwind server state.
+
+4. **Consistency between server and code.** Deleting a flow also removes in-code `<Flow flowId="..." />` / `<Tour flowId="..." />` / hook references. Renaming a flow ID updates both the server-side flow **and** every code site that references it. If code cannot be safely updated (e.g., the flow ID is constructed dynamically, is referenced from a file the skill can't parse, or lives in an unsupported framework), refuse the rename and explain why.
+
+5. **Every write op logs to `.frigade/skill.log`** in the host repo. Log entries: ISO timestamp, operation name, request (with `Authorization` REDACTED), response body, and any recovery taken on failure. `.frigade/skill.log` is gitignored by the setup recipe. Reads are not logged — only writes (create, update, delete, publish, promote, reset).
+
+6. **Confirmation prompts use the canonical format.** Exact wording: `"About to <verb> <target> in <environment>. Confirm? (y/n)"`. The verb and target come from the matching row in `reference/operations.md`. Anything other than `y`/`yes` aborts — no partial state, no "well I already did step 1".
+
+7. **Recipe-based execution.** For every user intent, consult the dispatch table, read the matched recipe end to end, then follow it. Do not improvise multi-step operations. If the matched recipe is a stub (short file, no concrete steps) and the user's request needs depth the stub doesn't cover, extend the pattern from the closest fully-authored recipe (`create-announcement.md`, `create-tour.md`, `link-flows.md`, `promote-to-prod.md`, `reset-user.md`, `first-run-setup.md`) and surface that you're extrapolating so the user can sanity-check.
+
+8. **Prod is promote-only; steer away from direct prod authoring.** Never create, update, publish, or deactivate a flow or collection *directly* against the prod key as a first move. When the resolved target env is `prod` and the op is authoring a flow or collection (not a read, not a promotion, not a destructive delete/reset — see the covered-ops list in `reference/operations.md` §"Prod is promote-only"), emit the **prod steer** first: explain that the change belongs in dev and should reach prod via promotion, offer to do exactly that, and require the explicit typed override `edit prod directly` before proceeding. `y`/`yes` alone does **not** satisfy this gate — the override phrase must be typed verbatim. The promotion recipes themselves (`promote-to-prod.md`, `promote-collection-to-prod.md`) are the sanctioned prod-write path and are **not** subject to the steer; they use the normal dev→prod confirmation.
+
+9. **Flow slugs are always backend-generated — never invent one on create.** When creating a flow (`POST /v1/flows`), **omit the `slug` field entirely**. Frigade assigns every new flow a unique slug of the form `flow_<nanoid8>`; the human label lives in `name`, not the slug. Do not derive a slug from the title, do not kebab-case anything into a slug, and do not run a "slug collision" pre-check — there is nothing to collide with. After the create call, read the server-assigned `slug` from the response and use **that** value for every code-wiring reference (`<Frigade.* flowId="flow_..." />`), dashboard URL, and log entry. The **only** ops that legitimately send a slug are cross-environment promotion (`promote-to-prod.md`) and duplication (`duplicate-flow.md`), which replicate an existing, already-valid `flow_...` slug — never a freshly-invented one. (The backend enforces this too: a create body whose slug does not already start with `flow_` is ignored and a fresh `flow_...` slug is generated.)
+
+## Framework support
+
+- **React (plain):** supported via the vanilla `<FrigadeProvider>` + component pattern. See the relevant recipe's "wire into React" section and `reference/sdk-react.md`.
+- **Next.js App Router (≥13):** supported. See `reference/next-app-router.md` for provider placement, server/client boundaries, and env var wiring.
+- **Next.js Pages Router:** supported. See `reference/next-pages-router.md` for `_app.tsx` wiring and API route patterns.
+- **Other frameworks (Vue, Remix, SvelteKit, React Native, Angular, Astro, etc.):** not yet. The skill will happily create flows server-side, but code-emission stops at the framework check. It reports:
+
+  > Flow is live in Frigade but I can't automatically wire it into this framework — manual setup: https://docs.frigade.com/quickstart
+
+  Flow creation, update, delete, and promotion still work end-to-end — only codebase wiring is affected.
+
+The framework detection happens in `recipes/first-run-setup.md` and is re-checked by every wiring-capable recipe before it emits code.
+
+## When a request doesn't map cleanly
+
+If a user's request does not map cleanly to a row in the dispatch table, do not silently improvise. Tell the user which recipe you think is closest, propose an extension of that pattern, and wait for confirmation before executing.

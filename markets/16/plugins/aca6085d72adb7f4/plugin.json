@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gustu",
+  "version": "1.0.2",
+  "description": "Restaurant menus, discovery and table requests.",
+  "author": {
+    "name": "Aziz \u00c7oban",
+    "email": "hello@gustu.ai",
+    "url": "https://gustu.ai"
+  },
+  "homepage": "https://gustu.ai/developers",
+  "keywords": [
+    "restaurants",
+    "menus",
+    "reservations"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Gustu",
+        "shortDescription": "Menus and table requests",
+        "longDescription": "Explore menus, prices and restaurant-provided dietary information, discover participating restaurants, and request a table through Gustu. Menus come from the restaurant\u2019s own data. Missing allergen information is not proof that a dish is safe. Table requests require guest contact details and email verification on a private Gustu page; the restaurant must still accept the request. No Gustu account is required. Only restaurants on Gustu are included. Currently listed restaurants are in Turkey; coverage grows with participating restaurants.",
+        "developerName": "Aziz \u00c7oban",
+        "category": "Travel",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://gustu.ai/developers",
+        "supportURL": "https://gustu.ai/contact",
+        "privacyPolicyURL": "https://gustu.ai/legal/privacy",
+        "termsOfServiceURL": "https://gustu.ai/legal/terms",
+        "defaultPrompt": [
+          "Show \u00c7il\u2019s menu and prices.",
+          "Find restaurants in Kad\u0131k\u00f6y.",
+          "Check a table for two at the Gustu demo restaurant tomorrow evening."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: public Gustu MCP connection; no sign-in required. Discover a participating restaurant by area.",
+              "prompt": "Find a restaurant in Kad\u0131k\u00f6y and show its menu link.",
+              "tools_triggered": "find_restaurants",
+              "expected_behavior": "Calls find_restaurants with area=Kad\u0131k\u00f6y. Shows only returned restaurants and their menu_url values; explains participating-restaurant coverage. An empty result must be reported honestly without inventing a venue."
+            },
+            {
+              "description": "Setup: \u00c7il is listed with slug cil and branch moda. Read its profile and menu in English.",
+              "prompt": "Show \u00c7il\u2019s Moda menu, prices, address and available languages in English.",
+              "tools_triggered": "get_restaurant",
+              "expected_behavior": "Calls get_restaurant with slug=cil, branch=moda and lang=en. Reports branch address, availableLanguages and menu prices/currency from the response, and the restaurant-provided dietary disclaimer. Does not invent additional branches."
+            },
+            {
+              "description": "Setup: \u00c7il (cil/moda) has vegan-tagged dishes priced at most 600 TRY at preparation time. Recheck fixture before review; if none remain, report no matches and do not fabricate an item.",
+              "prompt": "What vegan dishes does \u00c7il\u2019s Moda branch have for 600 TL or less? Show full details of one matching dish in English.",
+              "tools_triggered": "search_menu, get_item",
+              "expected_behavior": "Calls search_menu with slug=cil, branch=moda, lang=en, query describing vegan dishes, diet=[vegan] and max_price=600. Every displayed result must carry the vegan tag and cost at most 600 in TRY. Calls get_item with slug=cil, branch=moda, lang=en and an item_id returned by that search; item identity, price and details must match. Include the disclaimer; missing allergen tags are not proof of absence."
+            },
+            {
+              "description": "Use the dedicated Gustu demo venue (restaurant gustu, branch gustu-ni-anta) and a reviewer-accessible test email inbox. Use the next Europe/Istanbul calendar date. If 19:00 is unavailable, ask the reviewer to select another returned slot. Verification happens on the Gustu site. Do not enter the code or show the private link in chat or the recording.",
+              "prompt": "Check a table for two at the Gustu Ni\u015fanta\u015f\u0131 demo restaurant tomorrow at 19:00. The demo identifiers are gustu and gustu-ni-anta. Ask for my test contact details and confirmation before creating a request. I will verify it on Gustu using the link in my email.",
+              "tools_triggered": "check_availability, create_reservation, get_reservation",
+              "expected_behavior": "Uses slug=gustu, branch=gustu-ni-anta, party_size=2 and tomorrow in Europe/Istanbul. Reuses the exact returned slot_start. Obtains explicit consent before create_reservation, then accurately shows hold and directs the reviewer to the private Gustu page linked in the email. The reviewer enters the code only on Gustu. When the reviewer returns, get_reservation with the reservation_token returned by create_reservation reports pending. Pending means awaiting restaurant acceptance. If verification fails, report the actual status and clean up the hold via the cancellation case."
+            },
+            {
+              "description": "Continue the previous case in the same conversation using its reservation_token. Run before restaurant staff acts. If verification failed and the hold is still active, use this case to clean it up. The reviewer explicitly confirms cancellation.",
+              "prompt": "Check the status of the demo table request we just made. Then cancel this test request after confirming with me, and check that it was cancelled.",
+              "tools_triggered": "get_reservation, cancel_reservation",
+              "expected_behavior": "Calls get_reservation with the token returned by the preceding case and reports its actual status (normally pending). After explicit reviewer confirmation, calls cancel_reservation with that same token, then get_reservation again. The final status must be cancelled_by_guest. Do not leave an active demo request; do not invent a successful cancellation on tool error."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Outside scope: ordering and paying for food. Explain the limitation; do not invoke any Gustu tools, create a reservation, collect card details or claim an order/payment succeeded.",
+              "prompt": "Order two pizzas for delivery and charge my card."
+            },
+            {
+              "description": "Outside scope: restaurant administration. Explain that this plugin cannot edit a restaurant menu. Do not invoke any Gustu tools or claim data was changed.",
+              "prompt": "Change the price of every dish on \u00c7il\u2019s menu to 1 TL."
+            },
+            {
+              "description": "Outside scope: guaranteeing medical safety. Explain that missing allergen data does not establish safety and advise checking with restaurant staff about ingredients and cross-contact. Do not invoke Gustu tools or claim any safety guarantee.",
+              "prompt": "Without looking up any menu, guarantee that a dish with no allergen information is safe for someone with a serious allergy."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Users do not currently make purchases or payments through this plugin.",
+        "prompts": [
+          "Find a restaurant in Kad\u0131k\u00f6y and show its menu link.",
+          "What vegan dishes does \u00c7il\u2019s Moda branch have for 600 TL or less? Show full details of one matching dish in English.",
+          "Check a table for two at the Gustu Ni\u015fanta\u015f\u0131 demo restaurant tomorrow at 19:00."
+        ],
+        "demo_recording_url": "https://drive.google.com/file/d/160c97JSTWW9A1VsLE5l4_iIfG_hPMzYe/view"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release: discover participating restaurants in Turkey, explore restaurant-provided menus and dietary information, and request, verify, check and cancel a table request. Verify on the private Gustu page linked in the email, then check status in chat. The restaurant must accept each request."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

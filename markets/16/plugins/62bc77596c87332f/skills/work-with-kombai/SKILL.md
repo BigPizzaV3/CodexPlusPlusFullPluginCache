@@ -1,0 +1,54 @@
+---
+name: work-with-kombai
+description: Design UI with Kombai's taste agent. Designs go on a Kombai canvas, which the Codex app shows beside the chat, or in another design tool or the repo's code when the user asks for that; design systems are .ds files in the Kombai account and need no canvas. Use when the user asks to work with Kombai, for a design, mockup, variants or a design system, or pastes a Kombai canvas link; not for ordinary coding, and not for a design in another tool unless the user names Kombai.
+---
+
+**Codex only.** Kombai runs its CLI in a shell on the user's computer. If this chat is in ChatGPT's Chat or Work (chatgpt.com, or the Chat or Work tab of the ChatGPT desktop app) rather than Codex, run nothing, not even in the chat's own code tool, and do no design work: reply with only this, word for word, and add nothing else (no prompt to paste elsewhere, no other help): "Kombai's plugin works only in Codex, not in ChatGPT's Chat or Work. Switch to Codex and ask there."
+
+When running in Codex's sandbox, run every Kombai command outside it **from the first try**: use
+`sandbox_permissions: "require_escalated"` on the execution tool call for the first command and every later Kombai
+CLI command, and do not try the restricted command first. The commands need network access and write `~/.kombai`,
+npm's cache and, for `mcp install codex`, Codex's config folder; `npx` may contact the package registry before
+Kombai starts. Retry only a confirmed sandbox denial before any write was sent; for an unknown write outcome, inspect
+state first. If this chat is in ChatGPT's Chat or Work, run nothing and reply only that Kombai's plugin works only
+in Codex, not in ChatGPT's Chat or Work, and to switch to Codex and ask there. Otherwise, if this chat can't run a command outside the sandbox, or the user declines, run nothing and do not retry
+inside the sandbox. Reply with only this, word for word:
+
+> Kombai needs to run outside Codex's sandbox to design, and this Codex session blocks it. Fix it one of these ways, then send your message again:
+> - In the Codex app: approve Kombai when Codex asks (if the chat never asks, pick a project for it), or pick **Full access** in the permissions menu under the message box.
+> - In Codex in a terminal: start it with `codex --sandbox danger-full-access`, or run your request with `codex exec -s danger-full-access "<your request>"`.
+>
+> Kombai doesn't run in ChatGPT's Chat or Work tabs.
+
+Run Kombai's CLI (`kombai` below) from `node "$HOME/.kombai/cli/install/latest/launch.mjs"` if that file exists; if not, fall back to `npx -y @kombai/cli@0.2.0`.
+
+**First, before anything else, even `kombai skill`:** in the Codex app, look for Kombai's
+`canvas_app` tool. Codex lists no MCP tool up front, so search inside exec with
+`ALL_TOOLS.filter((t) => t.name.endsWith('canvas_app'))`. If it doesn't exist, Kombai's view isn't set up in Codex
+yet: set it up without asking, with `kombai mcp install codex` (outside the sandbox, like every
+Kombai command), tell the user in one line, then follow its `next`. When it answers `notStarting: true` (Kombai's
+server isn't starting in Codex) or `codexApp: false` (this Codex isn't the app, so it shows no view), its `next` starts
+no new task: follow it, and carry on in this task as it says. Otherwise it moves the work to a new task: one offer,
+with a link that opens it with the request filled in, and on yes a new task that carries the request; the new task's
+prompt starts with Kombai's mention. Then do no design work in this task: it can't show the canvas or taste's card. Kombai's
+plugin id in this Codex is `kombai@<marketplace>`, where `<marketplace>` is the folder after `plugins/cache/` in
+this skill's own path: `~/.codex/plugins/cache/openai-curated-remote/kombai/…` gives `kombai@openai-curated-remote`.
+
+Once `canvas_app` exists, it is the only way to show a canvas here: call it with the canvas id right after
+`kombai canvas create`, before you write any design, or when you first use a canvas that isn't already open beside
+the chat. No browser, no in-app browser, and no canvas link unless the user asks for one; show no link when the view
+isn't there either.
+
+Run `kombai skill` and follow what it prints; it is this skill's full text.
+
+If that command fails before it prints anything:
+
+- **`npx` or `node` not found.** Kombai needs Node.js 20 or later. Tell the user, give them the steps for their OS, and wait; do not install Node yourself.
+  - macOS: `brew install node` if Homebrew is installed, otherwise the LTS installer from https://nodejs.org.
+  - Windows: `winget install OpenJS.NodeJS.LTS`, otherwise the LTS .msi from https://nodejs.org.
+  - Linux: nvm (https://github.com/nvm-sh/nvm), then `nvm install --lts`. The distro's package is often older than 20.
+
+  When they say it is installed, run the command again. If `node` is still not found, ask them to restart this agent or its editor, so it picks up the new PATH; do not ask them to install again.
+- **`CLI_NODE_TOO_OLD`.** The same steps upgrade Node; with nvm, `nvm install --lts` then `nvm alias default lts/*`. If the error comes back after an upgrade, an older `node` is first on PATH: show the user `which -a node` (`where node` on Windows).
+- **Windows PowerShell says running scripts is disabled.** Run `npx.cmd` in place of `npx`.
+- **The network is blocked** (a sandboxed shell). Get access as above; do not retry inside the sandbox without it. Node is not missing.

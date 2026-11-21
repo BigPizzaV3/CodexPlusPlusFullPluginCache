@@ -1,0 +1,9 @@
+# Data contract 0.4
+
+Executable validator: scripts/diagram.py. Root fields: schema_version="0.4", title, locale (en/zh-TW/zh-CN), graph, sources, views, theme, story, export. Unknown fields are rejected. No remote assets or user code.
+
+Graph contains flat groups {id,label}; nodes {id,label,group,x?,y?}; edges {id,from,to,kind,from_port?,to_port?,waypoints?}. kind is data/feedback/control/reference. x/y lock the card within its automatic group; waypoints lock routes. Groups are not process nodes. All IDs share one namespace. Ports are left/right/top/bottom. Labels are literal text. Every group/node/edge requires a source target mapping {id,text,targets,status}; status is confirmed/unconfirmed/synthetic. Do not use unconfirmed relationships as approved behavior.
+
+Views in this renderer are exactly [{id:"overview"}]. For details use separate projects and a source-to-project mapping, manually verified. Theme is {mode:"dark"|"light"}. Story is {mode:"guided"|"loop",steps:[{id,text,targets,duration}]}; targets select nodes/edges, durations 1–60 seconds, total at most 600 seconds. Loop should contain one step, guided any source-supported sequence. All graph objects stay visible; only emphasis changes. Export is {width:1920,height:1080,formats:["json","svg","html","png","gif"]}. Output geometry is saved in layout.json. No supplied SVG/HTML/code can enter the graph.
+
+One view supports at most four readable columns, 1–3 nodes per group. Text is measured with the supplied font at fixed sizes; overflow or route/card collisions fail with instructions to split or lock waypoints. Crossing edge paths need manual review; this release does not guarantee optimal routing or zero crossings. Annotation labels on edges, arbitrary assets, native animation in PPTX, nested groups and automatic page composition are deferred.

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "quiverquant",
+  "version": "1.0.0",
+  "description": "Research financial disclosures and alternative market data with QuiverQuant.",
+  "author": {
+    "name": "Quiver Quantitative, Inc.",
+    "email": "info@quiverquant.com",
+    "url": "https://www.quiverquant.com/"
+  },
+  "homepage": "https://api.quiverquant.com/mcp-server/",
+  "keywords": [
+    "finance",
+    "research",
+    "congress",
+    "insiders",
+    "institutional-holdings"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "QuiverQuant",
+        "shortDescription": "Alternative market data",
+        "longDescription": "Research congressional and insider transactions, institutional holdings, government contracts, corporate lobbying, PAC donations, patents, executive compensation, off-exchange short volume, legislation, and Quiver news. Filter records by company and reporting dates, compare companies across supported datasets, and combine related disclosures. Connect your existing QuiverQuant account through OAuth. Access follows your account's Quiver API entitlements; website-only access does not imply API access. Disclosures and reports can lag the underlying events. Results may be sampled, paginated, partial, or truncated. This plugin supplies research data and does not place trades, access private brokerage accounts, or manage subscriptions.",
+        "developerName": "Quiver Quantitative, Inc.",
+        "category": "Finance",
+        "capabilities": [
+          "Research financial disclosures",
+          "Compare companies",
+          "Explore alternative market data"
+        ],
+        "websiteURL": "https://api.quiverquant.com/mcp-server/",
+        "supportURL": "https://www.quiverquant.com/faq/",
+        "privacyPolicyURL": "https://www.quiverquant.com/privacypolicy/",
+        "termsOfServiceURL": "https://www.quiverquant.com/termsofservice/",
+        "defaultPrompt": [
+          "Show recent congressional stock disclosures for AAPL.",
+          "Who are NVIDIA's largest institutional holders?",
+          "Compare AAPL and MSFT insider transactions."
+        ],
+        "brandColor": "#FF1D58",
+        "brandColorDark": "#FF1D58",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo-dark.png"
+      },
+      "onboardingSkill": "./skills/quiver-research/SKILL.md",
+      "review": {
+        "prompts": [
+          "Show the five most recent AAPL trades disclosed by members of Congress from November 1 through November 9, 2026.",
+          "Show NVIDIA's five largest institutional holders, combining multiple line items from the same filer.",
+          "Compare AAPL and MSFT insider transactions and explain which records support the comparison."
+        ],
+        "demo_recording_url": "https://www.youtube.com/watch?v=YOWggc-eLmI",
+        "commerce": false,
+        "commerce_description": "The plugin retrieves data through existing Quiver accounts. It does not perform checkout, purchases, subscription changes, or financial transactions.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Use a dedicated reviewer account with Quiver API access. Exercise congressional disclosure-date filtering and a bounded result set. Returned records, rather than fixed live values, determine the answer.",
+              "prompt": "Show the five most recent AAPL trades disclosed by members of Congress from November 1 through November 9, 2026.",
+              "tools_triggered": "get_congress_trades",
+              "expected_behavior": "Call get_congress_trades with ticker=AAPL, date_field=filed, date_from=2026-11-01, date_to=2026-11-09, limit=5, and newest disclosure first. Return at most five records and distinguish filed dates from transaction dates. Use the returned representative, transaction, amount range, and dates. If no rows match, state that explicitly without inventing trades."
+            },
+            {
+              "description": "P2: Use a dedicated reviewer account entitled to institutional holdings. Test deduplication of 13F line items and disclosure of reporting periods.",
+              "prompt": "Show NVIDIA's five largest institutional holders, combining multiple line items from the same filer.",
+              "tools_triggered": "get_institutional_holdings",
+              "expected_behavior": "Call get_institutional_holdings with ticker=NVDA, aggregate_by_filer=true, sort_by=value, sort_order=desc, and limit=5. Report the returned holders, shares, values, and available filing/reporting-period information. Describe these as disclosed holdings, preserve the returned units, and do not present them as real-time positions or extrapolate an exact market-wide total."
+            },
+            {
+              "description": "P3: Use a dedicated reviewer account with Quiver API access. Test company mapping, a fixed date window, and chronological contract ordering.",
+              "prompt": "Show Lockheed Martin's five most recent federal contract awards from January 1 through November 9, 2026.",
+              "tools_triggered": "get_gov_contracts",
+              "expected_behavior": "Call get_gov_contracts with ticker=LMT, date_from=2026-01-01, date_to=2026-11-09, sort_by=action_date, sort_order=desc, and limit=5. Show returned award dates, agencies, descriptions, and obligated amounts. Include source award links when returned. Respect the date bounds and do not describe obligations as company revenue."
+            },
+            {
+              "description": "P4: Use a dedicated reviewer account entitled to executive compensation. Distinguish reporting years from filing dates and avoid claiming that uncomputed changes were supplied by the tool.",
+              "prompt": "Show Apple's three most recent executive compensation disclosures and identify the reporting years.",
+              "tools_triggered": "get_executive_compensation",
+              "expected_behavior": "Call get_executive_compensation with ticker=AAPL, sort_by=year, sort_order=desc, and limit=3. Show returned executive names, roles, reporting years, filing dates, and compensation components. Identify missing fields rather than filling them in. Do not imply that three disclosure rows represent three distinct years."
+            },
+            {
+              "description": "P5: Use a dedicated reviewer account entitled to insider data. Exercise the supported two-company composite comparison and acknowledge the bounded samples.",
+              "prompt": "Compare AAPL and MSFT insider transactions and explain which records support the comparison.",
+              "tools_triggered": "compare_tickers",
+              "expected_behavior": "Call compare_tickers with tickers=[AAPL, MSFT] and dataset=insider. Compare only returned records, preserving transaction codes, shares, prices, and dates. Explain the sample limits; do not infer all-time totals, trading intent, or future returns. If a dataset is empty or unavailable, state that limitation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Trade execution is unsupported. Explain that QuiverQuant supplies research data and cannot place this order. Do not invoke a Quiver data tool to imply execution, request trading credentials, or claim an order was placed.",
+              "prompt": "Buy ten AAPL shares for me now."
+            },
+            {
+              "description": "N2: Subscription administration is unsupported. Explain the limitation without invoking Quiver data tools, changing the account, starting checkout, or claiming a cancellation.",
+              "prompt": "Cancel my Quiver subscription and refund my last payment."
+            },
+            {
+              "description": "N3: Private brokerage-account access is unsupported. Explain that these tools expose Quiver datasets rather than private brokerage balances. Do not invoke Quiver data tools, solicit passwords/API keys, or invent account data.",
+              "prompt": "Fetch my private brokerage balances and all of my open orders."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial QuiverQuant directory package: an OAuth connection to the existing hosted MCP server, a financial-research skill, light/dark brand assets, and reproducible review scenarios. This release does not change the MCP server."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

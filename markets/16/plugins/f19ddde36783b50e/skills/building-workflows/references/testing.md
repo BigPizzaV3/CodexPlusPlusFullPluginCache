@@ -1,0 +1,30 @@
+# Testing 3B workflow steps
+
+Run every changed step with representative input before committing or publishing. Read-only steps may run immediately. Get the user’s approval before a normal test run that sends messages, creates or changes external records, charges money, or has another side effect. A route step’s test input is an HTTP request; use the interface’s mock-request support when available. When the workflow uses a visitor-mode connector, also run each step its visitors open in a browser as a visitor who hasn’t connected; see “Connect screens” in [connectors.md](connectors.md).
+
+If a run fails, inspect that execution’s full logs, fix the cause, and rerun it. For downstream steps, use a real upstream output when possible. Use custom input only when the scenario needs data that the last upstream execution does not provide.
+
+When generating route URLs, check that links and callbacks to sibling routes preserve the current draft and use the current space’s origin. Exercise URL construction with synthetic `_3B_WORKFLOW_BASE_URL` values for Live, a draft, and another space; include origin-relative paths when used. These checks need no external requests.
+
+## Step tests
+
+A step test stores one successful run’s input and expected output under `<Step>/tests/step-tests/`. Replays are hermetic, have no network egress, and compare output byte-for-byte except for trailing newlines. HTTP tests compare the complete response. Replays run with the real clock and real randomness, so if the output contains a timestamp, UUID, random value, or another volatile field, add a deterministic POSIX `tests/serialize-output` script. It reads the step’s stdout on stdin and prints it with those values masked, and replay compares its output for the expected and actual stdout. Add tests only for deterministic behavior: do not capture output that depends on live data or an unreplayable external effect.
+
+When an edit reports existing step tests, run them after finishing the step. Run these tests without asking even if the normal step has side effects, because external requests are replayed and writable volumes are isolated. Never finish with a test failure unresolved.
+
+Treat a failure according to its cause:
+
+- If the edit introduced a bug, fix the code and rerun the tests.
+- If only timestamps, IDs, or other volatile values differ, add `tests/serialize-output` (`tests/serialize` for a volume, or `tests/serialize-request` when a recorded request differs) that masks only those values and rerun the tests, without asking.
+- If intended behavior changed the expected output, show the user the expected-versus-actual result. Update the test to the new output only after the user confirms the new behavior.
+- Remove a test only when the user explicitly asks to remove that specific test.
+
+Native image step tests run inside the step’s image. Preserve the template’s POSIX shell tools, `curl`, and `jq` for recorded request replay and `sqlite3` for SQLite volume fixtures. If a custom image lacks these tools, install them in its Dockerfile and rebuild before capturing or replaying tests. Keep the application’s runtime and command unchanged.
+
+## Volume and request fixtures
+
+For a volume test, provide only the initial files needed before the step runs. 3B captures the expected final stdout and writable volume state and verifies that read-only volumes remain unchanged. Use UTF-8 for text, `sqlite-dump` with SQL statements for SQLite, and base64 only for other binary files. SQLite is compared logically.
+
+For another binary store whose bytes can vary despite equivalent content, or a volume that stores timestamps or other volatile values, add a deterministic POSIX `tests/serialize` script. It receives the volume name as its first argument and prints a stable, sorted text representation of `/storage/<volume>`.
+
+Adding a step test records external requests and their responses for replay. If a request contains a timestamp, UUID, nonce, or another volatile field, add a deterministic POSIX `tests/serialize-request` script. It reads `{method, url, headers, body, bodyEncoding}` JSON from stdin, with `body` base64-encoded, and prints the stable key used to match that request during replay.

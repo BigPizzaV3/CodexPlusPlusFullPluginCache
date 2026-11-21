@@ -1,0 +1,3 @@
+# Vi sinh LS — Release Notes v0.8.0 (25/10/2026)
+
+**Nâng cấp từ v0.7.1.** Giữ nguyên package ID, tên và biểu tượng gốc; hai PDF về chống ảo và Luật Update by Bing giữ nguyên nội dung. Bổ sung 12 reference Markdown để dạy vi sinh lâm sàng, AST/AMR, xét nghiệm phân tử, IQC/EQA, ISO 15189, vi sinh nhi khoa, trích dẫn nghiên cứu nguyên phát và an toàn sinh học. Xóa khẳng định tạo PubMed link mô phỏng; thêm kiểm chứng URL L0–L3 và trục FULLTEXT/PARTIAL/ABSTRACT ONLY/METADATA ONLY. Metadata công khai rút gọn và gắn 4 URL HLP Plugin Hub. Sửa 3 Conversation Starters, không thêm tuyên bố bảo đảm được xét duyệt. Không khai báo Public/Free vì không phải điều kiện cần của ZIP Skills-only. Kiểm thử static không thay thế kiểm thử thực tế trên Portal.

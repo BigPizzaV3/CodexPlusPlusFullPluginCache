@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scio.md/schemas/claim.json",
+  "title": "Claim",
+  "description": "One claim as sent in scio_propose_edit.claims[]. Sourced claims (the default) carry a quote from an external source; demonstrated claims (C10) carry their premises and the demonstration itself. Source class and archive snapshot are assigned by the server at verification.",
+  "type": "object",
+  "required": ["ordinal", "text"],
+  "properties": {
+    "ordinal": {"type": "integer", "minimum": 1, "description": "N in the [^cN] marker that ends the sentence in the body"},
+    "text": {"type": "string", "minLength": 1, "maxLength": 2000, "description": "The whole sentence that ends at this claim's marker, as the body says it — never a part of it: from the end of the previous sentence (or the start of its line, or of its table cell) to the marker, without the marker and the block id. Both are compared exactly as written, normalised only for whitespace (every run of spaces, no-break spaces and line breaks is one space, the ends trimmed): case, emphasis and code marks, wikilinks, typographic quotes and dashes are part of the text and must be the sentence's own. A clause cited mid-sentence is the sentence up to its marker. A GFM table cell that ends in a marker is a sentence: its claim is the cell's text. Every line or cell that cites the claim must say exactly this text (claim_text_mismatch otherwise). Not compared: the front matter's summary, a demonstration's working, and a premise cited inline in the sentence of the demonstrated claim that rests on it. A small edit answers for the sentences it writes and for the claims it lists anew: a line it keeps as the base revision has it is read as it was published (the claim's text found in the sentence, case, emphasis, code marks, wikilinks, typographic quotes and dashes folded) only for the claims it re-cites exactly as the base carries them (or leaves unlisted); a kept line's claim listed with any other text, source or authored field is held to the whole sentence or cell. A marker in a heading, a table's header row or a callout's title is marker_outside_sentence."},
+    "kind": {"type": "string", "enum": ["sourced", "demonstrated"], "default": "sourced"},
+    "source_url": {"type": "string", "format": "uri", "description": "A source and its nonblank exact quote are supplied together, including optional citations on demonstrated claims. Every URL of a claim (source_url, second_source_url, a premise's source_url) is one line with no control or invisible character, at most limits.url_max_chars characters (2048 until a rules version carries the key).", "maxLength": 2048},
+    "quote": {"type": "string", "minLength": 1, "pattern": "\\S", "description": "Exact span from the source that supports the sentence, in the source's language", "maxLength": 2000},
+    "second_source_url": {"type": "string", "format": "uri", "description": "Optional second evidence, required for sourced claims in sensitive domains; always paired with second_quote. Another document than source_url: the same page under another spelling, a URL that redirects to the page source_url reaches, or a page whose text is source_url's, is second_source_not_independent.", "maxLength": 2048},
+    "second_quote": {"type": "string", "minLength": 1, "pattern": "\\S", "maxLength": 2000},
+    "accessed_at": {"type": "string", "format": "date-time"},
+    "premises": {
+      "type": "array", "minItems": 1, "maxItems": 20,
+      "description": "Demonstrated claims only: what the demonstration starts from. Each is an earlier claim of this proposal (claim_ordinal lower than this claim's; premise_unresolved otherwise) or a cited source with the exact span (an axiom, definition, law, constant), never both.",
+      "items": {"type": "object", "properties": {
+        "claim_ordinal": {"type": "integer", "minimum": 1},
+        "source_url": {"type": "string", "format": "uri"},
+        "quote": {"type": "string", "minLength": 1, "pattern": "\\S", "maxLength": 2000},
+        "accessed_at": {"type": "string", "format": "date-time"}
+      }, "oneOf": [{"required": ["claim_ordinal"]}, {"required": ["source_url", "quote"]}], "additionalProperties": false}
+    },
+    "demonstration": {
+      "type": "object",
+      "description": "Demonstrated claims only: the proof, calculation or machine-checkable artefact — complete enough to re-derive without filling gaps.",
+      "properties": {
+        "method": {"type": "string", "enum": ["proof", "calculation", "proof_assistant", "program"]},
+        "text": {"type": "string", "description": "The written proof or the calculation with every intermediate value", "maxLength": 20000},
+        "checker": {"type": "string", "description": "e.g. lean 4.12, coq 8.19, python 3.12 — required for proof_assistant and program"},
+        "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Uploaded via scio_upload_media as text; the file the checker runs"},
+        "output": {"type": "string", "description": "Exact output of the checker or program", "maxLength": 20000}
+      },
+      "required": ["method"], "additionalProperties": false
+    },
+    "scope": {"type": "string", "minLength": 1, "description": "Demonstrated claims: the model and conditions under which the result holds (e.g. classical mechanics, n ≥ 1, 1 atm)", "maxLength": 500},
+    "wikidata_id": {"type": "string", "pattern": "^Q[1-9][0-9]{0,18}$", "maxLength": 20, "description": "A Wikidata id as Wikidata writes it: Q and at most nineteen digits, no leading zero."},
+    "origin_claim_id": {"type": "string", "description": "The claim this one translates or propagates"}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "demonstrated"}}, "required": ["kind"]},
+     "then": {"required": ["premises", "demonstration", "scope"]},
+     "else": {"required": ["source_url", "quote", "accessed_at"]}}
+  ],
+  "dependentRequired": {"source_url": ["quote", "accessed_at"], "quote": ["source_url"], "second_source_url": ["second_quote"], "second_quote": ["second_source_url"]},
+  "additionalProperties": false
+}

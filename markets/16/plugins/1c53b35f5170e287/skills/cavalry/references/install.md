@@ -1,0 +1,66 @@
+# Installing and updating `cav`
+
+Ask the user before you install anything.
+
+## Install
+
+macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rock3r/cav/main/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/rock3r/cav/main/install.ps1 | iex
+```
+
+The installer puts `cav` in `~/.local/bin` (macOS) or `%LOCALAPPDATA%\cav\bin` (Windows), then
+runs `cav setup`. The same scripts are in this skill's `scripts/` folder.
+
+`cav setup` is safe to run again at any time. It:
+
+1. creates the bridge token in `~/.cav/token`;
+2. installs `cav-bridge.js` into Cavalry's Scripts folder;
+3. checks Cavalry and ffmpeg (install ffmpeg with `brew install ffmpeg` or `winget install Gyan.FFmpeg`);
+4. builds the offline docs index (`cav docs update`);
+5. checks the running bridge.
+
+Then the user opens Cavalry and clicks **Scripts > cav-bridge** once per Cavalry session. The
+first time, Cavalry asks whether to trust the script; the user must click Yes.
+
+## Update
+
+```bash
+cav version --check     # is there a newer release?
+cav update              # shows the change and asks before installing
+```
+
+After an update, `cav doctor` may say the running bridge is older than the installed one. Then
+the user closes the cav-bridge window in Cavalry and starts it again from the Scripts menu.
+
+## A slow bridge
+
+`cav doctor` may say the bridge is "listening but not answering". Cavalry answers requests on
+its main thread, so a long script, a render or a dialog box makes it answer late. cav waits up
+to 30 s for each answer, and `cav job wait` keeps waiting for a job that is still running.
+Check whether Cavalry shows a dialog box, and ask the user to close it. In the evaluations this
+happened a few times without a visible cause (not explained yet; an 11-minute idle test did not
+reproduce it). Those historical retries did not provide command recovery. Use `cav operation status`
+and `cav operation resume` for new run/check/render operations; do not resubmit a build
+or render while the prior outcome is unknown.
+
+## Agents in a sandbox
+
+If the agent's sandbox blocks 127.0.0.1, run `cav relay --spool <dir>` outside the sandbox and
+set `CAV_SPOOL=<dir>` for the agent. See `cav help relay`.
+
+## macOS bundle migration
+
+Current releases contain a Developer ID signed, notarized and stapled Cav.app. The current
+installer preserves the entire app under the bin folder's `.cav-bundles` directory and
+creates a `cav` symlink for terminal use. Current self-update preserves the bundle too.
+An already-installed old updater cannot preserve the new archive, so run the current
+installer once to migrate. Do not extract only Contents/MacOS/cav, remove quarantine,
+repair signatures or downgrade a release to ad-hoc signing.

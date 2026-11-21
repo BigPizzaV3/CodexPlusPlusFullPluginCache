@@ -1,0 +1,78 @@
+# Proving the check can see
+
+**Read when:** dispatching a check — the calibration task of a plan, the check of
+a page task, or a small change. It is the dispatcher's: a checker handed a page
+does not read it.
+
+Before the checker of a kind is given its first page, show another agent, given
+the same brief, **a copy of the reference with one role deliberately written
+differently** — a different size on a button, a literal instead of a theme
+value, its own error message instead of the shared helper.
+
+- **The one that plants is not the one that looks.** The dispatching agent — or
+  the author — makes the copy.
+- Tell that agent only that the copy differs from the checklist somewhere —
+  never what or where — and not to open the original the copy was made from. An
+  agent that plants and checks in one context proves only that it can find what
+  it just wrote.
+- **Where the copy lives decides what it proves.** In a git repository, make it
+  a temporary worktree in a newly created directory outside the checkout, and
+  remove it afterwards: imports, the theme and child components resolve, so the
+  calibration proves what needs the project.
+- Outside a git repository, copy the reference alone into a newly created
+  temporary directory. It proves only what one file shows: a class, a literal,
+  which helper is called.
+- If the harness refuses a write outside the checkout, copy the reference alone
+  into a newly created directory in the scratch location the harness gives. It
+  proves what one file shows.
+- If that is refused too, put the planted copy's text into the brief of the
+  agent shown it, in place of a file, with nothing of the original. It proves
+  what one file shows.
+- Never use a fixed, guessable path, and never a copy that could be committed.
+- **Calibrate once per work and kind of page.** The calibration proves the check
+  — this checklist, this skill, a checker given them — not one agent.
+- A later task in the same work, checking a page of the same kind, does not
+  repeat it; a new kind owes a new one. A shared piece built for those pages is
+  of their kind. The plan's first task is that calibration
+  (`../planning/plan-file.md`).
+- **The checker of the pages is a new agent**, given the same checklist and the
+  same instructions — not the one shown the planted copy: that one knows a plant
+  exists, and reads the page expecting one. That new agent is the one checker of
+  that kind for the work.
+- **A change without a plan** owes the proof once, and cheaply: one plant, at the
+  position the change touches, in a copy of that one file.
+- **Once for the change**: the second round of checking, and any later checker of
+  the same page, reuses it.
+
+## When the plant counts
+
+- **A plant counts only when the checker names it as a difference of the page**,
+  against the checklist or the family. Found by comparing the copy with its
+  original, or reported as something the reference does too, it does not count.
+- If the planted difference is not reported, the check is blind for that kind of
+  difference. **Say so before anything is built or passed**, and name the
+  difference the plant tested as unchecked in every report that check makes.
+- **Name the proof in the final report of the work, to the person**, even
+  when every page passed:
+  - where the copy lived, and what that left unproven;
+  - what was planted, and whether it counted;
+  - what no plant tested: *a copy in the brief, one file only; the plant was a
+    heading's weight, counted; nothing tested sizes, scrolling or the words.*
+
+## A refactor
+
+The checklist describes the page after the change, so the reference fails it.
+Plant in a line the reference already meets, and name the lines the change adds
+as unproven.
+
+## A process that already reviews each task
+
+- Where the running process sends each task to a reviewer that did not write it,
+  put the checklist and `ui-consistency:verifying` into that reviewer's brief,
+  and dispatch no second checker for the tasks. One checker of the kind still
+  compares all its pages at the end.
+- Calibrate with the same brief. Plant a type role with only part of its bundle
+  set — the weight changed, the typeface left as it was: the kind of difference
+  a general review passes.
+- If the reviewer misses the plant, its check is blind to it: dispatch a
+  separate checker again.

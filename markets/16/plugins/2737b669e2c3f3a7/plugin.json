@@ -1,0 +1,86 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agentphone",
+  "version": "1.0.0",
+  "description": "Create and manage AI phone agents, connect phone numbers, send texts, place calls, and review conversations from ChatGPT. Includes contact management, webhooks, and account usage reporting.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AgentPhone",
+        "shortDescription": "Phone numbers for AI agents",
+        "longDescription": "Give your AI agents a phone number and manage their calls and messages directly from ChatGPT.\n\nCreate and configure AI phone agents, choose a voice, and connect a phone number. Send texts, place calls, review conversations, and manage contacts\u2014all through natural language. Use AgentPhone to set up an AI receptionist, coordinate appointments, or follow up with customers.\n\nKeep track of your agents, phone numbers, recent activity, and usage in one place. Outbound messages, calls, and paid phone number purchases require explicit confirmation before they go through.\n\nAn AgentPhone account is required.",
+        "developerName": "AgentPhone",
+        "category": "Communication",
+        "websiteURL": "https://agentphone.ai/",
+        "supportURL": "https://agentphone.ai/help",
+        "privacyPolicyURL": "https://agentphone.ai/privacy",
+        "termsOfServiceURL": "https://agentphone.ai/terms",
+        "defaultPrompt": [
+          "Create an AI phone agent to greet callers and answer appointment questions.",
+          "Prepare a text to a contact confirming their appointment, and show it to me before sending.",
+          "Show my recent calls and conversations and summarize the activity."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read an account snapshot without creating or modifying resources.",
+              "prompt": "Show my AgentPhone account overview, including agents, phone numbers, webhook status, and usage limits.",
+              "tools_triggered": "account_overview",
+              "expected_behavior": "Call account_overview and summarize the returned agents, numbers, webhook status, and usage limits. Distinguish empty sections from lookup failures. Do not invent activity or mutate the account."
+            },
+            {
+              "description": "Discover available voices and present a bounded sample without claiming the sample is the full catalog.",
+              "prompt": "List up to 10 voices available for my AgentPhone agents, including their complete IDs and any returned name, provider, gender, and accent. Clearly label this as a sample if more voices are available. Only state a total if the tool result establishes it.",
+              "tools_triggered": "list_voices",
+              "expected_behavior": "Call list_voices and show up to 10 actual returned records with complete voice IDs and the attributes actually provided. Mark null or absent attributes accurately. If more records are returned, explicitly label the output as a sample. Do not claim completeness or invent the catalog total when the visible tool result is truncated. Optional preview URLs are not required. A successful result must exercise list_voices; an API failure must be surfaced as a test failure rather than counted as a completed listing."
+            },
+            {
+              "description": "Retrieve a daily usage breakdown for the last seven days without changing usage.",
+              "prompt": "Show my daily AgentPhone usage for the last 7 days.",
+              "tools_triggered": "get_usage",
+              "expected_behavior": "Call get_usage with breakdown=daily and the supported seven-day range parameters. Summarize the returned message, call, webhook, and number metrics as available. Do not invent missing buckets, treat a lookup error as zero usage, or interpret usage counts as the account credit balance."
+            },
+            {
+              "description": "Create one clearly labeled hosted voice test agent. This test creates an agent but does not purchase or attach numbers or initiate calls.",
+              "prompt": "Create a hosted AI voice agent named Directory Review Test Agent. Set its system prompt to: You are an AI appointment assistant. Introduce yourself as AI, greet callers, and answer basic appointment questions. Do not buy a phone number or place any calls.",
+              "tools_triggered": "create_agent",
+              "expected_behavior": "Call create_agent with the requested name, voice_mode=hosted, and the supplied system_prompt. Return the actual created ID and saved configuration. Connector-added disclosure text is acceptable. Do not claim a phone number was attached or that a call occurred."
+            },
+            {
+              "description": "Discover an eligible sender and request the MCP message authorization preview only. No message may be sent.",
+              "prompt": "Find an eligible AgentPhone sending number, then prepare\u2014but do not send\u2014a text to +14155550123 saying exactly: Your appointment is confirmed for tomorrow at 3 PM. You may request the tool preview with confirm omitted or false. Do not use confirm=true.",
+              "tools_triggered": "list_agents, check_readiness, send_message",
+              "expected_behavior": "Discover a real sender using list_agents and/or list_numbers and check the selected number with check_readiness. If prerequisites allow, call send_message only with confirm omitted or false and show its actual recipient/content preview. Never send a message or report a sent-message ID or delivery status. If no eligible sender exists or a hard blocker prevents the preview, clearly report the missing prerequisite; do not purchase numbers, change registration, or substitute an invented sender."
+            }
+          ],
+          "negative": [
+            {
+              "description": "An ambiguous recipient must not cause a guessed destination or an outbound send. Read-only discovery is allowed.",
+              "prompt": "Text my customer that their appointment is confirmed.",
+              "expected_behavior": "Ask which customer or destination phone number the user means and clarify any needed sender or appointment details. Read-only contact or account lookup is allowed, but do not guess the recipient, invoke send_message with confirm=true, or claim delivery."
+            },
+            {
+              "description": "Do not claim that a standard SMS-only number can originate an iMessage or silently switch the requested channel.",
+              "prompt": "I have only a standard SMS-only AgentPhone number. Send an iMessage from it to +14155550123 saying Hello. Do not send an SMS, buy another number, or change my setup.",
+              "expected_behavior": "Explain that an SMS-only sender does not support originating iMessage and that an eligible iMessage line is needed. Read-only capability checks are allowed. Do not send via SMS as a substitute, call send_message with confirm=true, purchase a line, modify the setup, or claim successful delivery."
+            },
+            {
+              "description": "An explicit instruction not to purchase must remain effective when requesting the paid-number confirmation preview.",
+              "prompt": "Show me the purchase confirmation for a US number in area code 415, but do not buy it or charge my account.",
+              "expected_behavior": "Request buy_number only with confirm omitted or false, using the supported US and area-code fields. Explain the actual preview and any price or terms returned, without inventing an exact available number or price. Never call buy_number with confirm=true, charge the account, or claim a number was purchased."
+            }
+          ]
+        },
+        "demo_recording_url": "https://cdn.manufact.com/demo-video/85331b24-436d-4736-9e16-d7710d14b32f/demo-189142ff-3bd0-4f70-a693-51f16d0a6844.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial directory listing draft based on the current AgentPhone MCP inventory: account administration, phone numbers, messaging, voice calls, agents, conversations, contacts, webhooks, and usage reporting."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

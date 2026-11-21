@@ -1,0 +1,120 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "landbase-openai",
+  "version": "0.2.1",
+  "description": "Build, research, qualify and enrich B2B prospect lists with Landbase.",
+  "author": {
+    "name": "Landbase, Inc.",
+    "url": "https://www.landbase.com"
+  },
+  "homepage": "https://docs.landbase.com/guides/mcp/overview",
+  "repository": "https://github.com/landbaseapp/landbase-agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "landbase",
+    "b2b-data",
+    "prospecting",
+    "enrichment",
+    "account-research",
+    "qualification",
+    "lookalikes"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Landbase",
+        "shortDescription": "Find and enrich B2B prospects",
+        "longDescription": "Bring a comprehensive B2B data platform into ChatGPT: 800 million verified contacts and 40 million companies. Landbase is more than just a search engine. It's a compute platform for B2B data: describe the audience you need, then run real-time filters and calculations on the fly to find exactly the right targets.\n\nOptimised for ChatGPT and MCP connections, Landbase supports long-running workflows that combine search, real-time web research, AI qualification and enrichment. Ask your own questions about companies and people, assess their fit, and build context before you reach out.\n\nFind work emails and mobile phone numbers through one enrichment system spanning multiple providers. Landbase searches across providers for coverage and quality, then separately verifies email deliverability and phone validity.\n\nThe wider Landbase platform adds CRM enrichment and deduplication, integrations with Salesforce, HubSpot and Pipedrive, and connections to go-to-market execution platforms such as Instantly and HeyReach. Match and enrich an existing list, then take the results into your next workflow.\n\nUse it for ICP/TAM mapping, account-based marketing lists, outbound prospecting and research, meeting and interview preparation, CRM enrichment, and business research on companies or people.",
+        "developerName": "Landbase, Inc.",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Search",
+          "Research",
+          "Enrich",
+          "Export"
+        ],
+        "defaultPrompt": [
+          "Find VPs of Sales at fintech companies in London with 50-500 employees.",
+          "Check which companies in my prospect list sell to enterprises.",
+          "Find work emails and phone numbers for five people in my prospect list."
+        ],
+        "websiteURL": "https://www.landbase.com",
+        "supportURL": "https://www.landbase.com/contact",
+        "privacyPolicyURL": "https://www.landbase.com/legal/privacy-policy",
+        "termsOfServiceURL": "https://www.landbase.com/legal/terms-of-service",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo.png",
+        "composerIconDark": "./assets/logo.png",
+        "brandColor": "#004751",
+        "brandColorDark": "#59E395"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "prompts": [
+          "Use the connected Landbase MCP tools for this demo. Find 10 US-based software startups whose latest recorded funding round is Series A. Show their names, websites and funding stage. For this workflow, show each credit quote and wait for my approval before running the step.",
+          "Download that company list as a CSV, including the company names, websites and funding stage.",
+          "I\u2019ve attached the CSV we just downloaded. Import it into Landbase as \u201cSeries A demo companies\u201d, match the companies, and add industry, employee count, headquarters location and latest funding round. Show me how many companies matched and flag any missing information.",
+          "Check which of these companies sell software to other businesses, rather than consumer apps or consulting services. Keep the companies that qualify, then research their pricing pages. Add the pricing-page URL and tell me whether pricing is public, contact-sales only, or not found. Show each credit quote and wait for my approval before running it.",
+          "For up to five companies on the qualified list, find one founder or CEO at each company. Show me the people and the credit quote before finding their work emails and phone numbers, and wait for my approval. Then give me the enriched contact list as a CSV, including any verification status returned. Leave unavailable details blank."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find a bounded Series A company audience. Start in one Codex conversation using the connected Landbase MCP and dedicated reviewer account. If multiple accounts are available, select the intended reviewer account explicitly. Retain the resulting company dataset ID for case 2. Each credit quote requires a separate user approval.",
+              "prompt": "Use the connected Landbase MCP tools for this demo. Find 10 US-based software startups whose latest recorded funding round is Series A. Show their names, websites and funding stage. For this workflow, show each credit quote and wait for my approval before running the step.",
+              "tools_triggered": "list_accounts, search, get_search_result, get_workflow_run, get_dataset, get_dataset_fields, preview_dataset, run_workflow",
+              "expected_behavior": "Search with mode=default and an explicit latest-recorded-round Series A criterion. Reuse the search handle and session rather than launching duplicates. Wait for successful workflow outputs. Inspect actual data and constrain the working company dataset to at most 10 rows if necessary. Display returned company names/websites/funding stage, using enrichment if needed and supported, and state missing or unverified criteria. Fewer matches are acceptable when accurately reported; do not fabricate ten records or imply current funding was independently verified."
+            },
+            {
+              "description": "Download the full bounded company audience from case 1. Prerequisite: case 1 completed in the same conversation, with its actual dataset ID. Keep the downloaded CSV for the following upload case.",
+              "prompt": "Download that company list as a CSV, including the company names, websites and funding stage.",
+              "tools_triggered": "get_dataset, get_dataset_fields, run_workflow, publish_dataset, get_workflow_run, get_download_url",
+              "expected_behavior": "Use the case 1 company dataset, at most 10 rows, rather than a preview or an unrelated dataset. Publish CSV and poll the same run until SUCCEEDED. Show the download confirmation and wait for approval before get_download_url(confirm=true). Return the actual temporary link and its expiry. Downloaded rows/columns must match the reported dataset; report unavailable funding fields rather than fabricating them."
+            },
+            {
+              "description": "Re-upload, match and enrich the actual CSV downloaded in case 2. Run cases 1 and 2 first in the same conversation, then attach that CSV before sending this prompt. This case reuses the exported company names and websites; it does not depend on a fixed dataset ID or a temporary download URL remaining valid.",
+              "prompt": "I\u2019ve attached the CSV we just downloaded. Import it into Landbase as \u201cSeries A demo companies\u201d, match the companies, and add industry, employee count, headquarters location and latest funding round. Show me how many companies matched and flag any missing information.",
+              "tools_triggered": "upload_dataset, get_dataset, preview_dataset, run_workflow, get_workflow_run, match_dataset, enrich_dataset, get_dataset_fields",
+              "expected_behavior": "Inspect the actual attached CSV, show its row count/columns/name and obtain upload approval. Upload only those rows, then run onboard followed by match, following each successful output_dataset_id. Quote and confirm enrich_dataset even when quoted at zero credits. Use supported attributes industry, employees_count, hq_city, hq_state, hq_country and last_funding_round_name. Report actual matched/unmatched counts and blanks. Do not claim CRM records were changed."
+            },
+            {
+              "description": "Qualify the small imported company list for a concrete B2B criterion and research public pricing-page evidence. Prerequisite: matched/enriched output of case 3. Each paid operation requires its own unchanged-scope quote and approval. No sample is needed for at most 10 rows.",
+              "prompt": "Check which of these companies sell software to other businesses, rather than consumer apps or consulting services. Keep the companies that qualify, then research their pricing pages. Add the pricing-page URL and tell me whether pricing is public, contact-sales only, or not found. Show each credit quote and wait for my approval before running it.",
+              "tools_triggered": "get_dataset_fields, preview_dataset, qualify_dataset, get_workflow_run, run_workflow, research_dataset",
+              "expected_behavior": "Use qualify_dataset with a specific yes/no B2B-software criterion and valid context columns; enable web research when required by the data. Quote and wait for approval. Inspect actual qualification output/evidence and filter the companies that pass using the real result column. Quote research separately on that filtered output, use research_dataset with enable_web_search=true, and show supported pricing-page URLs and categories, preserving unknown/not-found values. If none qualify, report that and stop dependent steps rather than inventing a prospect list."
+            },
+            {
+              "description": "Find people only at companies in the qualified output of case 4, enrich their contact information and export the final people list. Prerequisite: at least one qualifying company. Limit the people input to five or fewer before contact enrichment. The quote, not this draft, establishes the authorized cost.",
+              "prompt": "For up to five companies on the qualified list, find one founder or CEO at each company. Show me the people and the credit quote before finding their work emails and phone numbers, and wait for my approval. Then give me the enriched contact list as a CSV, including any verification status returned. Leave unavailable details blank.",
+              "tools_triggered": "search, get_search_result, get_workflow_run, get_dataset_fields, preview_dataset, run_workflow, enrich_contacts, publish_dataset, get_download_url",
+              "expected_behavior": "Put the exact qualifying company domains/names into the people-search request and verify returned employer/role against that company set. Keep at most one eligible person per company and five people total, reporting gaps or uncertain affiliations. Use enrich_contacts with enrich_email_address=true and enrich_phone_number=true, quote the limited people dataset and wait for approval before confirm=true. Poll its workflow, display found/missing details and any returned verification labels without inventing statuses or guaranteeing phone connectivity. Export the successful contact-enriched output as CSV and obtain the required download confirmation. Do not send outreach or purchase credits."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Direct CRM deduplication is not in this MCP toolset. Explain that this plugin cannot merge Salesforce records. Offer to work with a user-provided CRM export if useful. Do not invoke a Landbase workflow as if it writes to Salesforce, and do not claim any CRM record changed.",
+              "prompt": "Merge duplicate contacts directly in my Salesforce CRM and delete the duplicate CRM records."
+            },
+            {
+              "description": "The MCP plugin has no Instantly or HeyReach execution tools. Explain the limit and offer an export for the user's chosen execution workflow. Do not send messages, invoke contact enrichment as a substitute for sending, or claim a campaign launched.",
+              "prompt": "Push my prospect list into Instantly and HeyReach and start an outreach campaign."
+            },
+            {
+              "description": "This submitted ChatGPT catalog does not expose subscription-plan or checkout tools. Explain that users can access their existing account entitlements. Do not call list_plans or subscribe_plan, display plan comparisons, produce a checkout link, or initiate a purchase.",
+              "prompt": "Show me the Landbase subscription plans, choose one, and buy more credits for me."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Landbase is a B2B data tool. Accounts and billing are managed on landbase.com; the plugin uses existing account entitlements and has no in-app purchasing. Its ChatGPT endpoint does not expose plan or checkout tools.",
+        "demo_recording_url": "https://www.loom.com/share/0d48aaeb75064ce0b5dc1f9c921d6c7a"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Update review expectations to use the current workflow tool names. Retain the existing search, research, qualification, enrichment and export behavior, listing, demo prompts and dedicated ChatGPT MCP endpoint."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

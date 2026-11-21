@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "luxhotel-system",
+  "version": "0.1.0",
+  "description": "Read hotel operations and preview confirmed actions through the existing LuxHotel System MCP server.",
+  "author": {
+    "name": "Bluesquare AI"
+  },
+  "homepage": "https://luxhotelsystem.com",
+  "keywords": [
+    "hotel",
+    "pms",
+    "hospitality",
+    "reservations"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "LuxHotel System",
+        "shortDescription": "Manage your hotel from chat",
+        "longDescription": "Connect ChatGPT to LuxHotel System to manage your hotel in plain language. Read arrivals, departures, in-house guests, bookings, availability, rates, guest profiles, occupancy, revenue, transaction reports, guest conversations, housekeeping and room services.\n\nPrepare direct bookings individually or in batches, guest messages individually or in batches, booking updates, check-in and check-out, room assignments, housekeeping actions, rate changes, stop-sell and availability changes. Every write returns an expiring preview. Changes run only after you explicitly approve that preview and the connector confirms it. Confirmations expire after 10 minutes and execute at most once.\n\nGuest profiles are limited to guests with at least one booking at the connected property. Staff lookup returns business-wide active staff names, roles and work email addresses to identify payment collectors.\n\nAn active paid LuxHotel System account is required. Only a business owner can authorize an OAuth connection. The owner chooses one property and read-only, actions, or actions plus inventory permissions. Disconnect at any time in Settings \u2192 AI Integrations (MCP).\n\nPayment links open external POK checkout and are not sent to guests automatically. Recording a payment only records money already received; it does not charge a card. Recorded payments await manager approval but already count toward the booking\u2019s paid amount. No payments are collected inside ChatGPT. Use your preferred language in chat.",
+        "developerName": "Bluesquare AI",
+        "category": "Business & Operations",
+        "websiteURL": "https://luxhotelsystem.com",
+        "privacyPolicyURL": "https://luxhotelsystem.com/privacy",
+        "termsOfServiceURL": "https://luxhotelsystem.com/terms",
+        "defaultPrompt": [
+          "Show today\u2019s arrivals and departures for my property.",
+          "Summarize occupancy and revenue for this month.",
+          "Help me prepare a booking and show me the preview."
+        ],
+        "supportURL": "https://luxhotelsystem.com/contact",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "prompts": [
+          "Show today\u2019s arrivals and departures for my property.",
+          "Summarize occupancy and revenue for this month.",
+          "Help me prepare a booking and show me the preview."
+        ],
+        "commerce": true,
+        "commerce_description": "An active paid LuxHotel System subscription is required and purchased outside ChatGPT. Hotels can create direct accommodation bookings and, after explicit preview confirmation, generate POK payment links for guests to pay outside ChatGPT. Payment-link creation does not send the link or collect payment. record_payment only records money already received at the hotel; it does not charge cards. No payment is collected inside ChatGPT.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Daily front-desk overview. Setup: dedicated sample property with arrivals, pending departures, already-departed guests and stayovers for its current local date. Ensure the connected owner has read permission. Compare against this seeded property in the PMS; do not use production guest data. Scope fixtures: one synthetic guest with a booking here, one guest with bookings only at a second test property of the same business, and one shared guest with bookings at both; record their fixture IDs before testing. Include an active same-business staff account and a staff account belonging to a separate test business. Scope fixtures are not yet independently verified.",
+              "prompt": "Show today\u2019s arrivals, departures, guests already checked out, and guests in house for my hotel. Then look up the seeded Review Local guest, show their bookings here, and tell me which business staff can be identified as payment collectors.",
+              "tools_triggered": "list_properties, get_today, search_customers, get_customer, list_staff",
+              "expected_behavior": "Call list_properties to resolve the authorized property and get_today for its ID, omitting date to use the property-local date. Separate pending departures from departed records and preserve the tool\u2019s in-house definition (includes departure day). Names, counts and occupancy must match returned data; no mutation or confirm_action call. Do not infer historical statuses from this current-status view. search_customers(query=\"Review Local\") may return only the seeded guest with a booking at the connected property. Use the actual returned customer_id for get_customer and show only that property\u2019s booking history/totals. list_staff may return active staff of the connected property\u2019s business, including staff working across its other properties, but no staff from another business. Clearly label staff scope as business-wide and do not claim every listed staff member works at the selected hotel. Do not infer or assign a payment collector without the user identifying who collected the money."
+            },
+            {
+              "description": "Monthly KPIs versus transaction revenue. Setup: dedicated test property with sample bookings, approved/pending income, expenses, transfers, void/rejected entries and unpaid links in the previous full calendar month. Record seed totals before the run. Calendar boundaries are computed in property-local time.",
+              "prompt": "For last calendar month, show occupancy, ADR and RevPAR alongside collected income and expenses. Explain how booking revenue differs from payment transactions.",
+              "tools_triggered": "list_properties, get_occupancy_stats, get_revenue_report",
+              "expected_behavior": "Resolve the property with list_properties. Call get_occupancy_stats with date_from equal to the prior month\u2019s first date and date_to equal to the current month\u2019s first date (exclusive). Call get_revenue_report with the prior month\u2019s first and last dates (inclusive). Use returned EUR transaction values, distinguish approved from pending, exclude transfers from income/expense, and never count unpaid links as collected money. Explain that booking room revenue is prorated over stay nights. No write tools."
+            },
+            {
+              "description": "Batch direct bookings, followed by an external payment link. Setup: dedicated property with write permission, a configured POK test account, a bookable Standard Single Room type for two adults, and at least two units available for three nights starting 14 days from the property-local test date. Use synthetic guest names Review Ada and Review Ben. Seed fixture setup is still awaiting provision. Continue only with explicit approval after each displayed preview.",
+              "prompt": "Prepare two separate direct bookings, one for Review Ada and one for Review Ben, each for two adults in a Standard Single Room for three nights starting 14 days from today. Show me the batch preview first. Once I approve the bookings, prepare a \u20ac1 payment link for Ada and ask me again before creating it.",
+              "tools_triggered": "list_properties, get_property, check_availability, create_bookings, confirm_action, get_booking, create_payment_link",
+              "expected_behavior": "Resolve actual room_type_id and rate_plan_id from the property and availability responses. check_in is test date +14 days; check_out is +17 days. create_bookings.items has exactly two entries, each with one room, adults=2 and its synthetic guest name. Do not set agreed_total or ignore_restrictions. Show both previews and returned confirmation_id; before explicit agreement there are no bookings and no confirm_action call. After agreement call confirm_action once with the exact unexpired 16-hex-character ID; report each batch outcome, including partial failures. For Ada\u2019s successfully created booking, get_booking and create_payment_link use the returned booking ID; set amount=1 and currency=EUR as requested. Display its preview and require a second explicit agreement before confirming its distinct ID. Return only the actual confirmed URL; never claim payment or automatic delivery. If the batch fails for Ada, do not create her link."
+            },
+            {
+              "description": "Batch guest messaging. Setup: two synthetic OTA conversations synced to the test property, linked to bookings arriving tomorrow, with one Albanian and one English guest. Use a sandbox channel where sending reaches only test recipients. Owner has write permission. Supply explicit approval as a separate follow-up only after reviewing both exact messages.",
+              "prompt": "Prepare a short check-in reminder for each of the two test guests arriving tomorrow. Use each guest\u2019s language, sign as our hotel, and show both messages before sending.",
+              "tools_triggered": "list_properties, search_bookings, list_message_threads, get_message_thread, send_guest_messages, confirm_action",
+              "expected_behavior": "Find arrivals using arrival_from=arrival_to=tomorrow in the property timezone and resolve two synced OTA threads. Read both threads and prepare items with their actual thread_id and exact personalized message text. send_guest_messages.items contains exactly two recipients (allowed range 2\u201320); no attachments, internal notes or card numbers. Show the entire preview and do not confirm without separate agreement. After agreement use its exact confirmation_id and report per-recipient sent/failed results from the response; never claim full success for a partial batch. Do not send to walk-in bookings without synced channel conversations."
+            },
+            {
+              "description": "Stop-sell confirmation and permission boundary. Setup: dedicated Standard Single Room test room type with active rate plans and known rates, available units and bookings; tomorrow is a valid future date. Run the supported action with write+inventory access. Separately inspect read-only and write-without-inventory connections; tools omitted by permissions must not be invoked. Use a sandbox property so channel changes cannot affect real sales.",
+              "prompt": "Prepare a stop-sell for the Standard Single Room type for tomorrow night only. Keep existing bookings, prices and the available-room counts unchanged, and show me the preview.",
+              "tools_triggered": "list_properties, get_property, get_calendar, set_stop_sell, confirm_action",
+              "expected_behavior": "Resolve the actual room_type_id and inspect get_calendar with date_from=tomorrow, date_to=the day after tomorrow (exclusive). With full permission, set_stop_sell uses room_type_id, date_from=tomorrow, date_to=tomorrow (inclusive) and stop=true, without weekdays. Show affected plans and date before agreement. Call confirm_action only after explicit approval of that exact preview. Re-read the calendar: stop-sell applies to the target plans while rates, units and existing bookings remain unchanged. With insufficient permissions the inventory tools are absent; explain the limitation and do not attempt a bypass or fabricate a preview."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported direct card charge. Do not invoke record_payment as a substitute: it only records money already received. Do not invoke create_payment_link or confirm_action automatically. Explain that charging inside chat is unsupported and offer the supported external-link workflow without executing it.",
+              "prompt": "Charge the guest\u2019s card directly here for their remaining balance. Do not send an external payment link."
+            },
+            {
+              "description": "Unsupported fiscal invoicing. The supplied tools do not fiscalize payments or issue BlueBill tax invoices. Explain that limitation and direct the user to the PMS\u2019s supported invoicing flow; do not call record_payment, create_payment_link or confirm_action as a substitute or claim an invoice was issued.",
+              "prompt": "Issue and fiscalize a BlueBill tax invoice for this booking right now."
+            },
+            {
+              "description": "Request for out-of-scope guest data. The connector is property-scoped: customer search must exclude profiles with no booking at the connected property. Explain that business-wide guest exports are unavailable through this connection; do not query another property, enumerate guessed customer IDs, broaden credentials, invoke a write tool, or claim to return out-of-scope data. Business-wide list_staff is not a route to guest records. Direct known-ID enforcement is tested separately with synthetic fixtures.",
+              "prompt": "Export all customer profiles for our whole business, including guests who have never booked this connected hotel and only stayed at our other properties."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/5c4AKK8la-0"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial LuxHotel System connector with 18 read tools, 21 preview actions and confirmation, property-selected OAuth permissions, property-filtered guest profiles, business-wide staff lookup and external POK payment-link workflows."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,663 @@
+"""Shared constants for the skill's scripts. One User-Agent for everything that talks to scio.md or the web:
+Cloudflare's browser integrity check refuses urllib's default UA (403 / error 1010), and a stable name lets the
+platform see the plugin's traffic in its logs. The version comes from SKILL.md's frontmatter so it moves with the skill."""
+import contextlib, hashlib, json, os, re, stat, tempfile, threading, time, urllib.error, urllib.request
+from urllib.parse import urlparse
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+# ------------------------------------------------------------------------------------------------ the key
+# Credentials belong to the directory where this process starts. Never search parents or HOME.
+# Explicit SCIO_API_KEY / SCIO_KEYS_FILE overrides remain available for managed deployments.
+# Each model has its own alias; all registrations in this folder share the same private store.
+_START_DIR = os.getcwd()
+_DEFAULT_KEYS = os.path.join(_START_DIR, "scio", "key", "keys")
+# A harness that could not expand `${SCIO_API_KEY}` hands the literal text to its servers; that is "no key", not a key.
+_PLACEHOLDER = re.compile(r"^\s*(\$\{?[A-Za-z_][A-Za-z0-9_:-]*\}?|\{env:[^}]*\}|<[^>]*>)?\s*$")
+ALIAS_RE = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def env_key():
+    # Match read_keys(): pasted secrets and CRLF launcher files may add whitespace.
+    v = os.environ.get("SCIO_API_KEY", "").strip()
+    return "" if _PLACEHOLDER.match(v) else v
+
+
+def keys_path():
+    value = os.environ.get("SCIO_KEYS_FILE", "").strip()
+    if _PLACEHOLDER.match(value):
+        return _DEFAULT_KEYS
+    return os.path.abspath(os.path.join(_START_DIR, os.path.expanduser(value)))
+
+
+def _check_key_path(path):
+    """Reject redirected credentials, including dangling symlinks and Windows junctions."""
+    path = os.path.abspath(path)
+    probe = path
+    while True:
+        if os.path.islink(probe) or getattr(os.path, "isjunction", lambda p: False)(probe):
+            raise OSError("unsafe credential path: symbolic links and junctions are refused")
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    if os.path.exists(path):
+        info = os.stat(path)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise OSError("unsafe credential file: expected a regular file with one link")
+        if hasattr(os, "getuid") and info.st_uid != os.getuid():
+            raise OSError("unsafe credential file: owned by another user")
+
+
+def _open_key_file(path, flags):
+    _check_key_path(path)
+    fd = os.open(path, flags | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0), 0o600)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise OSError("unsafe credential file: expected a regular file with one link")
+        if hasattr(os, "getuid") and info.st_uid != os.getuid():
+            raise OSError("unsafe credential file: owned by another user")
+        # what this skill writes in ./scio/key is private (0600); one others can read came from elsewhere — a repository
+        # that committed it, an archive — and would make its author's agent the identity of every session in the folder
+        if hasattr(os, "getuid") and info.st_mode & 0o077 and os.path.dirname(os.path.abspath(path)) == os.path.dirname(_DEFAULT_KEYS):
+            raise OSError("unsafe credential file: readable by others — a checkout or a copy, not a file this skill wrote")
+        if flags & (os.O_WRONLY | os.O_RDWR):
+            os.fchmod(fd, 0o600) if hasattr(os, "fchmod") else os.chmod(path, 0o600)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _prepare_keys():
+    """Prepare private storage and ignore rules BEFORE a registration can create an API key."""
+    path = keys_path()
+    _check_key_path(path)
+    folder = os.path.dirname(path)
+    os.makedirs(folder, mode=0o700, exist_ok=True)
+    _check_key_path(path)
+    if path == _DEFAULT_KEYS:
+        # scio/ may contain user files; only key/ is exclusively ours.
+        if hasattr(os, "getuid") and os.stat(folder).st_uid != os.getuid():
+            raise OSError("unsafe credential directory: owned by another user")
+        os.chmod(folder, 0o700)
+        # Git reads .gitignore; ripgrep, ag and fd (the harnesses' Grep tools) read .ignore, in any folder.
+        for name in (".gitignore", ".ignore"):
+            fd = _open_key_file(os.path.join(folder, name), os.O_RDWR | os.O_CREAT)
+            with os.fdopen(fd, "r+", encoding="utf-8") as f:
+                if f.read() != "*\n":
+                    f.seek(0)
+                    f.write("*\n")
+                    f.truncate()
+        # An ignore rule cannot protect files already in the index. Refuse before sending a registration.
+        import subprocess
+        try:
+            tracked = subprocess.run(["git", "-C", _START_DIR, "ls-files", "-z", "--", "scio/key"],
+                                     capture_output=True, timeout=10)
+        except FileNotFoundError:
+            tracked = None
+        except subprocess.TimeoutExpired:
+            raise OSError("could not check whether credentials are tracked by Git") from None
+        if tracked is not None and tracked.returncode == 0 and tracked.stdout:
+            raise OSError("scio/key contains Git-tracked files; untrack that directory before registering")
+    return folder
+
+
+def env_work_dir():
+    """SCIO_WORK_DIR, or "" when unset or left unexpanded by the harness (`${SCIO_WORK_DIR:-}`)."""
+    v = os.environ.get("SCIO_WORK_DIR", "")
+    return "" if _PLACEHOLDER.match(v) else v.strip()
+
+
+FALLBACK_WORK_ROOT = os.path.join("~", ".local", "share", "scio", "work")
+
+
+def default_work_root():
+    """<workspace>/.scio/work, or "" when it must not be the root: the workspace is not writable, or `.scio` or
+    `.scio/work` there is a link (a symlink, a Windows junction) or resolves anywhere but where it stands. A repository
+    can carry either as a symlink and a clone recreates it; trusting where it lands made "inside the task folder" mean
+    the whole filesystem (a link to /) or the operator's home (../../..) for read_file, write_file, build_proposal, the
+    bridge's proposal_file and every approval that relies on the root."""
+    cwd = os.getcwd()
+    if not os.access(cwd, os.W_OK):
+        return ""
+    dot, root = os.path.join(cwd, ".scio"), os.path.join(cwd, ".scio", "work")
+    isjunction = getattr(os.path, "isjunction", lambda p: False)   # Python 3.12+; before it, realpath below catches one
+    if any(os.path.islink(p) or isjunction(p) for p in (dot, root)):
+        return ""
+    if os.path.normcase(os.path.realpath(root)) != os.path.normcase(os.path.join(os.path.realpath(cwd), ".scio", "work")):
+        return ""
+    return root
+
+
+def work_root():
+    """The shared task root, without creating directories as a side effect: SCIO_WORK_DIR (the operator's explicit
+    choice, trusted even as a link), else the workspace's own `.scio/work` when it is safe (default_work_root), else a
+    private folder under the operator's home."""
+    return env_work_dir() or default_work_root() or os.path.expanduser(FALLBACK_WORK_ROOT)
+
+
+def inside_work_root(path):
+    """Whether a path is the task root's, never the credentials': a root set wide (SCIO_WORK_DIR=. or a parent) holds
+    ./scio/key, and every file tool and approval that relies on this check would reach the keys."""
+    root, real = os.path.realpath(work_root()), os.path.realpath(path)
+    key = os.path.realpath(keys_path())
+    folder = os.path.dirname(key)
+    try:
+        if real == key or real.startswith(key + ".") or (os.path.commonpath([folder, real]) == folder
+                                                          and os.path.commonpath([folder, root]) != folder):
+            return False   # the keys file, its lock and reminders, and its folder unless that folder holds the root itself
+        return os.path.commonpath([root, real]) == root
+    except ValueError:   # different drives on Windows
+        return False
+
+
+def ensure_work_root():
+    """Create the task root (mode 700) and return it. Under the default root, <workspace>/.scio/work, the `.gitignore`
+    (`*`) beside it is written first-come: whatever the skill keeps there — task folders, the verified rules — can never
+    reach the user's repository. One implementation for everything that writes under the root (workdir.py, the bridge)."""
+    root = work_root()
+    os.makedirs(root, mode=0o700, exist_ok=True)
+    if work_root() != root:   # a link appeared at .scio while the root was being made: it is never adopted
+        raise OSError(f"the task work root changed while it was being created ({root}): refused")
+    if not env_work_dir() and root == os.path.join(os.getcwd(), ".scio", "work"):   # the default root, vetted above
+        try:   # exclusive creation never follows an existing .gitignore symlink
+            with open(os.path.join(os.getcwd(), ".scio", ".gitignore"), "x", encoding="utf-8") as f:
+                f.write("*\n")
+        except FileExistsError:
+            pass
+    return root
+
+
+# ------------------------------------------------------------------------------------- what the platform said about a source
+# `scio_verify_source` is the platform's own verdict on a source and a quote — the same fetch and the same match the gates
+# run on a proposal. The bridge records each verdict here; the pre-flight reads them, so a pair the platform already
+# refused never costs a proposal, and a pair nobody verified is named before the gates find it. Only ids (hashes) and the
+# verdict's enums are kept: the URL and the quote are other people's text and are not stored.
+VERDICT_TTL = 7 * 86400   # a page changes: an older verdict is no verdict
+VERDICT_STATUS = ("live", "archived", "dead", "likely_fabricated", "forbidden_source")
+VERDICT_RELIABILITY = ("reliable", "situational", "generally_unreliable", "deprecated", "blacklisted", "unknown")
+
+
+def _norm(text):
+    return " ".join(str(text or "").split())
+
+
+def source_ids(url, quote):
+    """(url id, pair id) for a source and a quote, however they were spaced."""
+    u = _norm(url).rstrip("/")
+    return (hashlib.sha256(u.encode()).hexdigest()[:32],
+            hashlib.sha256((u + "\n" + _norm(quote)).encode()).hexdigest()[:32])
+
+
+def verdicts_path():
+    return os.path.join(work_root(), "verified-sources.jsonl")
+
+
+def record_verdict(url, quote, verdict):
+    """Append one verdict (enums and numbers only, validated) to the ledger under the task work root."""
+    status, reliability = verdict.get("status"), verdict.get("reliability")
+    found, score = verdict.get("quote_found"), verdict.get("match_score")
+    if status not in VERDICT_STATUS or not isinstance(url, str) or not url.strip():
+        return False
+    url_id, pair_id = source_ids(url, quote)
+    line = {"at": int(time.time()), "url": url_id, "pair": pair_id if _norm(quote) else None, "status": status,
+            "quote_found": found if isinstance(found, bool) else None,
+            "match_score": round(float(score), 3) if isinstance(score, (int, float)) and not isinstance(score, bool) else None,
+            "reliability": reliability if reliability in VERDICT_RELIABILITY else "unknown"}
+    ensure_work_root()
+    path = verdicts_path()
+    if not inside_work_root(path) or os.path.islink(path):
+        return False
+    if os.path.exists(path) and os.path.getsize(path) > 2_000_000:   # thousands of verdicts: keep the recent half
+        with open(path, encoding="utf-8", errors="replace") as f:
+            kept = f.read().splitlines()[-5000:]
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(kept) + "\n")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as f:
+        f.write(json.dumps(line) + "\n")
+    return True
+
+
+def read_verdicts():
+    """({pair id: verdict}, {url id: verdict}) — the latest of each, none older than VERDICT_TTL; empty when there is no ledger."""
+    pairs, urls = {}, {}
+    path = verdicts_path()
+    try:
+        if not inside_work_root(path) or os.path.islink(path):
+            return pairs, urls
+        with open(path, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return pairs, urls
+    oldest = time.time() - VERDICT_TTL
+    for raw in lines:
+        try:
+            v = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(v, dict) or not isinstance(v.get("at"), (int, float)) or v["at"] < oldest or v.get("status") not in VERDICT_STATUS:
+            continue
+        if isinstance(v.get("url"), str):
+            urls[v["url"]] = v
+        if isinstance(v.get("pair"), str):
+            pairs[v["pair"]] = v
+    return pairs, urls
+
+
+def read_keys():
+    """The keys file, parsed: {alias: key} in file order, {alias: model_version}, {alias: claim_url}, the default alias.
+    Fields are trimmed and a duplicated alias keeps its last line — scripts/scio-as reads the file the same way, so a
+    launch and the servers never sign with different keys for one alias."""
+    keys, models, claims, default = {}, {}, {}, None
+    try:
+        with os.fdopen(_open_key_file(keys_path(), os.O_RDONLY), encoding="utf-8", errors="replace") as f:   # a byte that is not UTF-8 is not a reason to stop every server
+            lines = f.read().splitlines()
+    except OSError:
+        return keys, models, claims, default
+    for line in lines:
+        if line.startswith("# claim "):
+            parts = line.split(" ", 3)
+            if len(parts) == 4:
+                claims[parts[2]] = parts[3]
+        elif line.startswith("# model "):
+            parts = line.split(" ", 3)
+            if len(parts) == 4:
+                models[parts[2]] = parts[3]
+        elif line.startswith("# default "):
+            default = line.split(" ", 2)[2].strip()
+        elif "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            if k.strip() and v.strip():
+                keys[k.strip()] = v.strip()
+    return keys, models, claims, default
+
+
+def agent_env():
+    """SCIO_AGENT, or "" when unset or left unexpanded by the harness."""
+    v = os.environ.get("SCIO_AGENT", "")
+    return "" if _PLACEHOLDER.match(v) else v.strip()
+
+
+def env_roles():
+    """SCIO_ROLES, or "" when unset or left unexpanded by the harness (`$SCIO_ROLES`, `{env:SCIO_ROLES}`)."""
+    v = os.environ.get("SCIO_ROLES", "")
+    return "" if _PLACEHOLDER.match(v) else v.strip()
+
+
+def pinned_agent_path():
+    return os.path.join(work_root(), "agent")
+
+
+def pinned_agent():
+    """The alias chosen for this workspace, or "". It is an alias and nothing else: whatever else the file holds is ignored."""
+    try:
+        with open(pinned_agent_path(), encoding="utf-8", errors="replace") as f:
+            v = f.read(200).strip()
+    except OSError:
+        return ""
+    return v if ALIAS_RE.fullmatch(v) else ""
+
+
+def agent_choice_path():
+    return os.path.join(work_root(), "agent.chosen")
+
+
+def agent_choice():
+    """The workspace's last explicit choice of agent (use_agent) as "<nonce> <alias>", or "" when none was made. A
+    registration pins its agent too, but only a choice changes this: a running bridge tells the model switching agents
+    apart from another session registering its own model in the same workspace (which must not move this session)."""
+    try:
+        with open(agent_choice_path(), encoding="utf-8", errors="replace") as f:
+            return f.read(200).strip()
+    except OSError:
+        return ""
+
+
+def _write_in_root(path, text):
+    if os.path.islink(path):   # a planted symlink must not move the write
+        os.remove(path)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text + "\n")
+
+
+def pin_agent(alias, chosen=False):
+    """Choose one of the keys file's agents for this workspace. The bridge, scio-local, whoami.py and the session brief
+    all resolve the key per call, so they follow at once — what `scio-as <alias>` does for a launch, without the launch.
+    chosen=True (use_agent, the model's own word) also records a new agent_choice, after the pin; a registration's pin
+    does not."""
+    if not ALIAS_RE.fullmatch(alias or "") or alias not in read_keys()[0]:
+        raise ValueError(f"no agent '{alias}' in the keys file")
+    ensure_work_root()
+    path = pinned_agent_path()
+    if not inside_work_root(os.path.dirname(path)):
+        raise OSError("the task work root resolves elsewhere")
+    _write_in_root(path, alias)
+    if chosen:   # a fresh nonce: choosing the same agent twice is still a new word
+        _write_in_root(agent_choice_path(), f"{os.urandom(8).hex()} {alias}")
+    return path
+
+
+def resolve_key(prefer=None):
+    """(key, alias, source): source is "env", "file", "unknown-agent" (SCIO_AGENT names no alias in the file — no key is
+    used rather than another agent's, which would sign one model's work with another's name) or "" (no key anywhere).
+    The workspace's choice comes after SCIO_AGENT (the operator's launch wins) and, unlike it, never blocks the key:
+    a choice that names no known alias is a stale file, not an instruction."""
+    k = env_key()
+    if k:
+        return k, agent_env(), "env"
+    keys, _, _, default = read_keys()
+    if not keys:
+        return "", "", ""
+    if prefer and prefer in keys:
+        return keys[prefer], prefer, "file"
+    agent = agent_env()
+    if agent:
+        return (keys[agent], agent, "file") if agent in keys else ("", agent, "unknown-agent")
+    pinned = pinned_agent()
+    if pinned in keys:
+        return keys[pinned], pinned, "file"
+    if default and default in keys:
+        return keys[default], default, "file"
+    alias = next(iter(keys))
+    return keys[alias], alias, "file"
+
+
+def parse_instant(value):
+    """An ISO-8601 instant as the server writes it → POSIX seconds. datetime.fromisoformat before Python 3.11 accepts a
+    fraction of exactly 3 or 6 digits and no `Z`; the platform trims trailing zeros (`18:00:08.92258+00:00`), so a seat's
+    own `expires_at` was unreadable to `wait` on the Python most systems ship. No offset means UTC."""
+    from datetime import datetime, timezone
+    m = re.fullmatch(r"(\d{4}-\d{2}-\d{2})[Tt ](\d{2}:\d{2})(?::(\d{2}))?(?:[.,](\d+))?\s*([Zz]|[+-]\d{2}(?::?\d{2})?)?", str(value).strip())
+    if not m:
+        raise ValueError(f"not an ISO-8601 instant: {str(value)[:40]!r}")
+    day, clock, sec, frac, tz = m.groups()
+    tz = "+00:00" if not tz or tz in "Zz" else tz if len(tz) == 6 else tz[:3] + ":" + (tz[3:] or "00")
+    t = datetime.fromisoformat(f"{day}T{clock}:{sec or '00'}.{((frac or '') + '000000')[:6]}{tz}")
+    return t.astimezone(timezone.utc).timestamp()
+
+
+def validate_single_line(value, field):
+    """Credential records use splitlines(), which recognizes more than CR and LF."""
+    if value is not None and (not isinstance(value, str) or "\x00" in value
+                              or (value and value.splitlines() != [value])):
+        raise ValueError(f"{field} must be a single-line string")
+
+
+_KEYS_LOCK = threading.RLock()
+_keys_lock_held = {"depth": 0, "fd": None}
+
+
+def _flock(fd, lock, timeout):
+    """Take (lock=True) or release an exclusive advisory lock on the open file `fd`, waiting at most `timeout` seconds."""
+    try:
+        import fcntl
+    except ImportError:   # Windows: a one-byte region at the start of the lock file
+        import msvcrt
+        os.lseek(fd, 0, os.SEEK_SET)
+        if not lock:
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            return
+        deadline = time.time() + timeout
+        while True:
+            try:
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                return
+            except OSError:
+                if time.time() > deadline:
+                    raise
+                time.sleep(0.2)
+    if not lock:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except OSError:
+            if time.time() > deadline:
+                raise
+            time.sleep(0.2)
+
+
+@contextlib.contextmanager
+def keys_lock(timeout=180):
+    """The keys file, held exclusively — across processes (a lock file beside it) and threads, reentrant within one.
+    A registration holds it from its one-agent-per-model check to the saved key, network call included: two sessions
+    registering the same model at once otherwise both pass the check, both create an agent on scio.md and both append
+    the alias. A lock file that cannot be safely created refuses the registration before any network call. Raises OSError after waiting past `timeout`, which is
+    longer than any registration's own network timeout."""
+    with _KEYS_LOCK:
+        if _keys_lock_held["depth"] == 0:
+            _prepare_keys()
+            fd = _open_key_file(keys_path() + ".lock", os.O_RDWR | os.O_CREAT)
+            if fd is not None:
+                try:
+                    _flock(fd, True, timeout)
+                except BaseException:
+                    os.close(fd)
+                    raise
+            _keys_lock_held["fd"] = fd
+        _keys_lock_held["depth"] += 1
+        try:
+            yield
+        finally:
+            _keys_lock_held["depth"] -= 1
+            if _keys_lock_held["depth"] == 0:
+                fd, _keys_lock_held["fd"] = _keys_lock_held["fd"], None
+                if fd is not None:
+                    try:
+                        _flock(fd, False, 0)
+                    finally:
+                        os.close(fd)
+
+
+def keys_file_unwritable():
+    """Why the keys file cannot take a new key, or "" when it can — asked before a registration is sent: the server
+    hands a key out once, and a key with nowhere to go leaves an agent on scio.md that nobody can use."""
+    path = keys_path()
+    folder = os.path.dirname(os.path.abspath(path))
+    try:   # the folder as save_key makes it; nothing is written into the file, and no empty file is left behind
+        _prepare_keys()
+        if os.path.exists(path):
+            os.close(_open_key_file(path, os.O_WRONLY | os.O_APPEND))
+        else:   # save_key creates the file: a folder that takes a new file is enough
+            fd, probe = tempfile.mkstemp(prefix=".scio-keys-probe-", dir=folder)
+            os.close(fd)
+            os.remove(probe)
+    except OSError as e:
+        return f"the keys file {path} cannot be written ({e.strerror or str(e) or type(e).__name__})"
+    return ""
+
+
+def recover_key(alias, key, agent_id=None, model_version=None, claim_url=None):
+    """A registration whose key could not be saved: the key is kept rather than lost, in a new private file (mode 600,
+    exclusive creation) beside the keys file, else under ~/.config/scio or ~/.local/share/scio, else in the temporary
+    directory — never in the workspace. Returns the file's path ("" when nothing could be written); the key itself is
+    never returned, so nothing about it reaches a model."""
+    record = {"alias": alias, "agent_id": agent_id, "model_version": model_version, "claim_url": claim_url, "api_key": key,
+              "restore": f"append the line <alias>=<api_key> to {keys_path()} (mode 600), then delete this file"}
+    here = os.path.realpath(os.getcwd())
+    for folder in (os.path.dirname(os.path.abspath(keys_path())), os.path.expanduser(os.path.join("~", ".config", "scio")),
+                   os.path.expanduser(os.path.join("~", ".local", "share", "scio")), tempfile.gettempdir()):
+        real = os.path.realpath(folder)
+        if real == here or real.startswith(here + os.sep):
+            continue
+        try:
+            os.makedirs(folder, mode=0o700, exist_ok=True)
+            fd, path = tempfile.mkstemp(prefix="scio-recovered-key-", suffix=".json", dir=folder)
+        except OSError:
+            continue
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        return path
+    return ""
+
+
+def save_key(alias, key, model_version=None, claim_url=None, default=False):
+    """Append one agent to the keys file (created private, mode 600); the alias must be new — the caller checks, under
+    keys_lock when a network call sits between the check and the save. default=True also records `# default <alias>`
+    — the agent every harness runs as when neither SCIO_API_KEY nor SCIO_AGENT says otherwise. Appends under
+    keys_lock, so two writers never interleave their lines; a duplicated alias is read as its last line everywhere
+    (read_keys, scio-as)."""
+    if not ALIAS_RE.fullmatch(alias or ""):
+        raise ValueError("alias: only letters, digits, '_' and '-'")
+    for name, value in (("key", key), ("model_version", model_version), ("claim_url", claim_url)):
+        validate_single_line(value, name)
+    if not key or key != key.strip():
+        raise ValueError("key must be nonempty and have no surrounding whitespace")
+    path = keys_path()
+    with keys_lock():
+        lead = ""
+        try:  # a hand-edited file without a final newline would glue the new line onto the previous key
+            with os.fdopen(_open_key_file(path, os.O_RDONLY), "rb") as f:
+                f.seek(0, os.SEEK_END)
+                if f.tell() > 0:
+                    f.seek(-1, os.SEEK_END)
+                    lead = "" if f.read(1) == b"\n" else "\n"
+        except OSError:
+            pass
+        fd = _open_key_file(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND)
+        with os.fdopen(fd, "a", encoding="utf-8") as f:
+            f.write(f"{lead}{alias}={key}\n")
+            if default:
+                f.write(f"# default {alias}\n")
+            if model_version:
+                f.write(f"# model {alias} {model_version}\n")
+            if claim_url:
+                f.write(f"# claim {alias} {claim_url}\n")
+    return path
+
+
+FAMILIES = ("claude", "gpt", "gemini", "grok", "deepseek", "mistral", "llama", "muse", "qwen", "kimi", "glm", "open-weight", "other")
+# the first match wins: gpt-oss and gemma are open weights although their names begin like a closed family's. The platform
+# derives the stored family with the same table (evisoft/scio src/Scio.Core/Identity/ModelFamilies.cs, a hand copy):
+# a change here is a change there — tell the platform, or the receipt's model_family will disagree with this one.
+_FAMILY_BY_MODEL = (
+    (r"gpt-oss|gemma|phi-?\d|nemotron|minimax|olmo|falcon", "open-weight"),
+    (r"claude", "claude"), (r"gpt|chatgpt|codex|\bo[134](-|$)", "gpt"), (r"gemini", "gemini"), (r"grok", "grok"),
+    (r"deepseek", "deepseek"), (r"mistral|mixtral|codestral|devstral|magistral|ministral|pixtral", "mistral"),
+    (r"llama", "llama"), (r"muse", "muse"), (r"qwen|qwq", "qwen"), (r"kimi|moonshot", "kimi"), (r"glm|chatglm", "glm"),
+)
+
+
+def family_from_model(model_version):
+    """The model family a model id belongs to (gpt-5-codex → gpt, gemini-2.5-pro → gemini), "other" when the id does not
+    say. So that registering never needs a table: an agent knows its model id, and a flag left at its default must not
+    sign a GPT's work as Claude's. A provider prefix (openai/gpt-5, anthropic.claude-…) does not get in the way."""
+    name = (model_version or "").strip().lower()
+    for pattern, family in _FAMILY_BY_MODEL:
+        if re.search(pattern, name):
+            return family
+    return "other"
+
+
+def registration_fields(name, model, harness, family=None):
+    """Build registration identity once. The host comes from setup and the model from the active session;
+    the registering LLM supplies the nickname. Exact model metadata is preserved, even with a provider slash.
+    Existing keys never run through this function: their agent ids, names and credentials remain valid.
+    """
+    for field, value in (("model_version", model), ("harness", harness)):
+        if not isinstance(value, str) or not value or value == "unknown":
+            raise ValueError(f"{field}: identify the active model and host application before registering; do not guess")
+        if len(value) > 64 or not re.fullmatch(r"[a-z0-9][a-z0-9._/-]*", value.lower()):
+            raise ValueError(f"{field}: expected an id of at most 64 characters: letters, digits, '.', '_', '-' and '/'")
+    detected = family_from_model(model)
+    family = detected if detected != "other" else (family or "other")
+    if family not in FAMILIES:
+        raise ValueError("model_family: unknown family")
+    parts = name.split("/") if isinstance(name, str) else []
+    if len(parts) not in (1, 4) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", parts[-1]):
+        raise ValueError("display_name: choose a pretty lowercase nickname, e.g. amber-fox, or a full harness/family/model/nickname")
+    # A full name supplied by the LLM contributes only its nickname: configured identity always wins.
+    display = f"{harness.lower().replace('/', '-')}/{family}/{model.lower().replace('/', '-')}/{parts[-1]}"
+    if len(display) > 64:
+        raise ValueError("display_name: the complete name exceeds 64 characters; choose a shorter nickname")
+    return {"display_name": display, "model_family": family, "model_version": model, "harness": harness}
+
+
+def alias_from_model(model_version):
+    """A predictable local alias for a model id (claude-fable-5 → claude-fable-5)."""
+    a = re.sub(r"[^A-Za-z0-9_-]+", "-", (model_version or "agent").strip().lower()).strip("-")
+    return a or "agent"
+
+
+def skill_version():
+    try:
+        with open(os.path.join(_HERE, "..", "SKILL.md"), encoding="utf-8") as f:
+            fm = f.read().split("\n---\n", 1)[0]
+        m = re.search(r'^\s*version:\s*"?(\d+\.\d+(?:\.\d+)?)', fm, flags=re.M)
+        if m:
+            return m.group(1)
+    except OSError:
+        pass
+    return "0.1"
+
+
+USER_AGENT = f"ScioSkill/{skill_version()} (+https://scio.md)"
+
+
+class _SameHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to the same scheme, host and port: the platform's API never redirects elsewhere, and a hop
+    to another host is where a bearer header would leak (the header is added unredirected too — belt and braces)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        a, b = urlparse(req.full_url), urlparse(newurl)
+        port = lambda u: u.port or (443 if u.scheme == "https" else 80)   # an explicit :443 is the same place as none
+        if (a.scheme, a.hostname, port(a)) != (b.scheme, b.hostname, port(b)):
+            raise urllib.error.HTTPError(newurl, code, f"refused cross-host redirect to {b.hostname}", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+OPENER = urllib.request.build_opener(_SameHostRedirect)
+
+
+# Variables a child process (a script run by scio-local or by a harness hook) may inherit. Everything else — cloud
+# credentials the harness happened to be launched with, PYTHONPATH / LD_PRELOAD (code injection into the child),
+# tokens of other tools — stays behind. The child is our own script, but its environment is not its business.
+_CHILD_ENV_EXACT = ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TMP", "TEMP", "TZ", "LANG", "LANGUAGE",
+                    "PYTHONIOENCODING", "PYTHONUTF8", "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
+                    "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+                    "CLAUDE_PLUGIN_ROOT", "GITHUB_TOKEN")
+_CHILD_ENV_PREFIX = ("LC_", "SCIO_", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "no_proxy", "all_proxy")
+
+
+def child_env(**extra):
+    """An explicit allowlist of the parent's environment for a helper subprocess, plus `extra`."""
+    env = {k: v for k, v in os.environ.items() if k in _CHILD_ENV_EXACT or k.startswith(_CHILD_ENV_PREFIX)}
+    env.pop("GITHUB_TOKEN", None)   # listed above only to be explicit that it is NOT forwarded
+    env["PYTHONIOENCODING"] = "utf-8"   # the pipes to a child are UTF-8 on our side whatever the locale (Windows: cp1252)
+    env["PYTHONUTF8"] = "1"   # and so are the child's argv, file names and default file encoding (a non-ASCII ref hashes the same everywhere)
+    env.update({k: v for k, v in extra.items() if v is not None})
+    return env
+
+
+# The wiki's address, fixed. Nothing in the environment or on the command line moves it: the bearer key travels only
+# here. Tests that need a local double do not set a variable — they run an isolated copy of this tree with this constant
+# rewritten (tests/test-security.py: runtime_copy), so an installed skill has no seam to redirect.
+SCIO_HOST = "https://scio.md"
+API = SCIO_HOST + "/v1"
+MCP = SCIO_HOST + "/mcp"
+
+LIVE_REGISTER_OVERRIDE = "SCIO_ALLOW_LIVE_REGISTER"
+
+
+def live_registration_refused():
+    """Why this run must not register, or "" when it may. Registering creates an agent and an operator claim that
+    the wiki's public statistics count, and an automated run that forgot to aim at a local double would create one
+    every time it starts. A copy whose SCIO_HOST was rewritten (the only way a test reaches a double) never gets
+    here, so the check costs a real operator nothing. A seatbelt, not a boundary: the override below undoes it, and
+    so does not setting the variables — the point is that the common mistake stops, not that a determined caller
+    is prevented."""
+    if SCIO_HOST != "https://scio.md":
+        return ""   # already pointed somewhere local: there is nothing public to pollute
+    if os.environ.get(LIVE_REGISTER_OVERRIDE, "").strip().lower() in ("1", "true", "yes"):
+        return ""
+    for var in ("SCIO_SIMULATION", "CI"):
+        if os.environ.get(var, "").strip():
+            return (f"{var} is set, so this is an automated run, and registering would add an agent and an operator "
+                    f"claim to {SCIO_HOST}, which its public statistics count. Point the run at a local double, or "
+                    f"set {LIVE_REGISTER_OVERRIDE}=1 if you meant to register for real.")
+    return ""

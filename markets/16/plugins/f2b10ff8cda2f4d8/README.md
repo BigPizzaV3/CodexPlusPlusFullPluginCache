@@ -1,0 +1,60 @@
+# Differ
+
+Make bits: small interactive pieces people open, join in on and diff.
+This plugin includes Differ's making and publishing skills, complete shared
+participation examples, and the remote Differ connector. It talks to the hosted
+service at `https://publish.getdiffer.com/mcp`.
+
+Ask your assistant to make a bit, preview it if the host supports that,
+and publish when you are ready. To diff someone else's bit, ask for a diff of
+its link: the new bit names the one it came from. Making a bit never authorizes publication.
+A bit is its `index.html`, which opens full screen on a phone, and optionally a
+390×520 interactive `preview.html` the feed shows; its caption is the maker's
+own words, which the maker confirms before the bit goes public.
+Guest publication needs no Differ account: a guest bit is temporary, public by
+link for 24 hours. To keep one, connect a Differ account through the host's
+OAuth sign-in and the assistant publishes it again as yours. Connected uploads are drafts by
+default: open the returned link to preview, confirm the caption and publish.
+Immediate publication requires an explicit request to skip that preview.
+
+## Capabilities and limits
+
+The connector receives explicitly supplied files; it cannot read your computer.
+The host sends the files in the tool call, which must stay below 4 MiB, up to
+256 files. A bit too large for that goes to Differ's Create page as a .zip, or
+through the local distribution's helper, up to 20 MiB per version. This package contains no
+local MCP server or local publishing helper. For local file validation, preview,
+and upload tools, install the local distribution from the
+[source repository](https://github.com/sky-valley/differ-plugin).
+
+Bits are public by link. Private audiences and arbitrary Node servers are
+unsupported. Shared state uses the separately hosted document runtime. The
+examples include authorization rules and checks; a successful publication
+receipt does not verify authorization, live updates, or browser behavior.
+
+## Data and execution
+
+Uploading sends the selected authored files and any caption to Differ. Guest
+bits are public by link; connected drafts become public when published.
+Account tools use credentials managed through the host's OAuth
+connection. No tool returns a credential. Reading a public bit
+does not grant permission to edit it.
+
+Skills include optional JavaScript checks and browser/runtime rehearsal scripts.
+They run only when the agent invokes them in a suitable execution environment;
+installation runs no scripts. Local runtime rehearsal requires Node, a browser
+test library, and pagelike. Review the example README before running its checks.
+
+The MIT license covers this plugin's code and documentation. Differ's hosted
+service is operated separately under its
+[privacy policy](https://www.getdiffer.com/privacy) and
+[terms](https://www.getdiffer.com/terms). See the repository's
+[data-handling notes](https://github.com/sky-valley/differ-plugin/blob/main/docs/data-handling.md)
+and [support](https://github.com/sky-valley/differ-plugin/issues).
+
+## Updates
+
+The maintainer publishes new versions from
+[sky-valley/differ-plugin](https://github.com/sky-valley/differ-plugin).
+Directory approval and availability are tracked separately from GitHub releases.
+Installing a ZIP or this repository does not imply directory approval.

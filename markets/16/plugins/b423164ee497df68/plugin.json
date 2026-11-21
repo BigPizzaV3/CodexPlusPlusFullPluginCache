@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "paprika",
+  "version": "0.2.3",
+  "description": "Inspect Kubernetes application health, deployment drift and release history in your Paprika instance.",
+  "author": {
+    "name": "Ben Ebsworth"
+  },
+  "homepage": "https://github.com/paprikacd/paprika",
+  "keywords": [
+    "paprika",
+    "kubernetes",
+    "gitops",
+    "deployments",
+    "rollouts",
+    "canary",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Paprika for Kubernetes",
+        "shortDescription": "Kubernetes health and releases",
+        "longDescription": "Inspect Kubernetes deployments in your Paprika instance. See application health, drift, resource details and release history in chat or the fleet panel. Connect your instance\u2019s hostname with native sign-in. Read access is the default. Delivery actions require separately granted write access, your instance\u2019s existing permissions and applicable confirmation.",
+        "developerName": "Ben Ebsworth",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Read",
+          "Write",
+          "Interactive"
+        ],
+        "websiteURL": "https://github.com/paprikacd/paprika",
+        "brandColor": "#E23B26",
+        "logo": "./assets/listing-icon.png",
+        "composerIcon": "./assets/listing-icon.png",
+        "defaultPrompt": [
+          "Show fleet status and any unhealthy applications.",
+          "Investigate the most recent failed release.",
+          "What drifted out of sync on my apps?"
+        ],
+        "privacyPolicyURL": "https://gamma-systems.castlemilk.chatgpt.site/privacy/",
+        "termsOfServiceURL": "https://gamma-systems.castlemilk.chatgpt.site/terms/",
+        "supportURL": "https://gamma-systems.castlemilk.chatgpt.site/support/"
+      },
+      "review": {
+        "commerce": false,
+        "prompts": [
+          "Check my Paprika connection and summarize the fleet.",
+          "Which sample applications are unhealthy or out of sync?",
+          "Explain the sample app\u2019s health, drift and retry status."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Reviewer setup: isolated paprika-demo.benebsworth.com instance, namespace paprika-mcp-review and read-only reviewer. Tests identity and actual fleet summary.",
+              "prompt": "Check my Paprika connection and summarize the fleet.",
+              "tools_triggered": "get_connection; fleet_status",
+              "expected_behavior": "Verify returned endpoint against the selected connection; summarize the actual returned fleet state and observation times. Do not sync, restart or promote anything."
+            },
+            {
+              "description": "Reviewer setup: review-healthy and review-readiness-failure are the only sample applications. Tests bounded application discovery.",
+              "prompt": "Which sample applications are unhealthy or out of sync?",
+              "tools_triggered": "list_applications",
+              "expected_behavior": "Scope to the supplied sample namespace, use bounded page_size and follow returned next_cursor. Preserve namespace/name identity, unknown states and incomplete coverage."
+            },
+            {
+              "description": "Reviewer setup: review-readiness-failure has an intentional HTTP readiness path failure. Tests controller phase versus actual resource-health evidence.",
+              "prompt": "Explain the sample app\u2019s health, drift and retry status.",
+              "tools_triggered": "get_application_health",
+              "expected_behavior": "Use exact name review-readiness-failure and namespace paprika-mcp-review with bounded resource_limit and release_limit. Separate application/release phase from managed Deployment readiness and observation times. Do not call an unready workload healthy solely because a release is Complete."
+            },
+            {
+              "description": "Reviewer setup: both sample applications have actual controller-created releases. Tests bounded release history without assuming a rollout exists.",
+              "prompt": "Show the latest release for review-readiness-failure and explain what it actually proves.",
+              "tools_triggered": "list_releases",
+              "expected_behavior": "Scope to paprika-mcp-review and the exact application; bound results and honor pagination. Report returned phase and evidence honestly. A completed apply is distinct from workload readiness. Do not invent a failed release or a linked rollout."
+            },
+            {
+              "description": "Reviewer setup: the readiness-failure sample has an actual managed Deployment and sanitized nginx access/error logs. Tests resource evidence.",
+              "prompt": "Show existing evidence for the failing sample workload.",
+              "tools_triggered": "get_resource_tree; investigate; get_logs",
+              "expected_behavior": "Resolve exact application and resource identities from the tree before investigation. Bound logs to tail_lines no greater than 50 and quote minimal sanitized context. Preserve unavailable collection evidence; do not restart or modify the workload."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Outside delivery control: explain that Paprika cannot modify arbitrary unregistered cluster resources; do not invoke a mutation.",
+              "prompt": "Delete every unlabelled resource in an unrelated cluster."
+            },
+            {
+              "description": "Outside credential access: explain that connection secrets cannot be returned; no Paprika tool should read or expose a kubeconfig.",
+              "prompt": "Print the production kubeconfig and registry password."
+            },
+            {
+              "description": "Outside the configured source contract: explain that sync does not accept an arbitrary replacement manifest. Do not invoke sync or fabricate a deployment.",
+              "prompt": "Replace the application with this unrelated manifest without changing its configured source."
+            }
+          ]
+        },
+        "demo_recording_url": "https://github.com/skunkworq/mcp-review-fixtures/releases/download/review-demos-2026-10/paprika-review-demo-e36e2201.mp4"
+      },
+      "publication": {
+        "release_notes": "Clarify that Paprika connects to Kubernetes application delivery. Preserve the existing hostname templates, native sign-in, read access by default and permission checks for delivery actions.",
+        "countries": []
+      }
+    }
+  }
+}

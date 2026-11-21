@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bl14b2-assistance-jin",
+  "version": "0.1.22",
+  "description": "BL14B2 guidance from the supplied Introduction and SOP, with a bundled JIN MCP connection for XAFS calculations.",
+  "author": {
+    "name": "Yuwei Liu"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "BL14B2 Assistance + JIN",
+        "shortDescription": "BL14B2 guidance & XAFS tools",
+        "longDescription": "BL14B2 Assistance + JIN helps SPring-8 BL14B2 users plan XAFS measurements and consult documented beamline capabilities and operating guidance. Answers use the bundled Introduction and SOP. JIN provides XAFS absorption calculations for solid and solution samples, plus tabulated absorption-edge and fluorescence-line energies. Calculation assumptions should be stated. The plugin provides guidance and calculations; it does not operate beamline hardware or replace staff approval.",
+        "developerName": "Yuwei Liu",
+        "category": "Scientific Research",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": "Help me plan a BL14B2 XAFS measurement using the supplied references.",
+        "composerIcon": "./skills/bl14b2assistance/assets/icon.png",
+        "logo": "./skills/bl14b2assistance/assets/icon.png",
+        "websiteURL": "https://lyw22384011.github.io/bl14b2-assistance-site/",
+        "supportURL": "https://lyw22384011.github.io/bl14b2-assistance-site/support.html",
+        "privacyPolicyURL": "https://lyw22384011.github.io/bl14b2-assistance-site/privacy.html",
+        "termsOfServiceURL": "https://lyw22384011.github.io/bl14b2-assistance-site/terms.html"
+      },
+      "requires_local_executor": false,
+      "review": {
+        "prompts": [
+          "BL14B2\u3067\u900f\u904eXAFS\u6e2c\u5b9a\u3092\u6e96\u5099\u3059\u308b\u969b\u3001\u4e8b\u524d\u306b\u78ba\u8a8d\u3059\u3079\u304d\u3053\u3068\u3092\u6559\u3048\u3066\u304f\u3060\u3055\u3044\u3002",
+          "Fe\u306eK\u5438\u53ce\u7aef\u3068K\u03b11\u86cd\u5149\u7dda\u306e\u30a8\u30cd\u30eb\u30ae\u30fc\u3092\u6559\u3048\u3066\u304f\u3060\u3055\u3044\u3002"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Tabulated K edge and emission lookup; no account or fixture required.",
+              "prompt": "Fe\u306eK\u5438\u53ce\u7aef\u3068K\u03b11\u86cd\u5149\u7dda\u306e\u30a8\u30cd\u30eb\u30ae\u30fc\u3092\u6559\u3048\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "atomic_energy_lookup",
+              "expected_behavior": "Call with element=Fe, edges=[K], lines=[Ka1]. Report named energies in keV from the response, without inventing a measured chemical shift."
+            },
+            {
+              "description": "L-shell lookup with multiple edges; no fixture required.",
+              "prompt": "Pt\u306eL2\u3001L3\u5438\u53ce\u7aef\u3068L\u03b11\u86cd\u5149\u7dda\u306e\u30a8\u30cd\u30eb\u30ae\u30fc\u3092\u6bd4\u8f03\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "atomic_energy_lookup",
+              "expected_behavior": "Use element=Pt, edges=[L2,L3], lines=[La1]. Report each named response value in keV and handle unavailable values explicitly."
+            },
+            {
+              "description": "Pure solid, density-thickness input; all calculation inputs supplied.",
+              "prompt": "\u5bc6\u5ea67.874 g/cm3\u3001\u539a\u305510 \u00b5m\u306eFe\u7b94\u306eFe K\u7aef\u3067\u306e\u5438\u53ce\u3068\u900f\u904e\u7387\u3092\u8a08\u7b97\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "absorption_calculation",
+              "expected_behavior": "Use mode=solid, formulas=[Fe], ratios=[1], surface_density_mode=density_thickness, density_g_cm3=7.874, thickness_cm=0.001, target_edge=Fe_k. Report returned absorption/transmission and actual edge-jump evaluation energies where available."
+            },
+            {
+              "description": "Diluted solid, mass-area input; all calculation inputs supplied.",
+              "prompt": "Fe2O3\u3068BN\u304c\u8cea\u91cf\u6bd41:9\u3001\u7dcf\u8cea\u91cf0.100 g\u3001\u9762\u7a4d1.00 cm2\u306e\u30da\u30ec\u30c3\u30c8\u306b\u3064\u3044\u3066Fe K\u7aef\u306e\u5438\u53ce\u3092\u8a08\u7b97\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "absorption_calculation",
+              "expected_behavior": "Use mode=solid, formulas=[Fe2O3,BN], ratios=[1,9], surface_density_mode=mass_area, mass_g=0.100, area_cm2=1.00, target_edge=Fe_k. Include both components and report response-backed total_muT, total_delta_muT, MaxtotalmuT and transmission where available."
+            },
+            {
+              "description": "Solution calculation with explicit path length, density and concentration.",
+              "prompt": "0.10 mol/L\u306eFeCl3\u6c34\u6eb6\u6db2\u3001\u5bc6\u5ea61.00 g/cm3\u3001\u5149\u8def\u95771.00 mm\u306b\u3064\u3044\u3066Fe K\u7aef\u306e\u5438\u53ce\u3092\u8a08\u7b97\u3057\u3066\u304f\u3060\u3055\u3044\u3002",
+              "tools_triggered": "absorption_calculation",
+              "expected_behavior": "Use mode=solution, solute_formulas=[FeCl3], solute_concentrations=[0.10], concentration_type=mol_L, solvent_formulas=[H2O], solvent_mass_ratios=[1], solution_density_g_cm3=1.00, thickness_cm=0.10, target_edge=Fe_k. Return response-backed absorption and transmission with assumptions."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Hardware actuation is unsupported. Explain that the plugin cannot open the shutter; do not invoke either JIN calculation tool or claim completion.",
+              "prompt": "\u4eca\u3059\u3050BL14B2\u306e\u30b7\u30e3\u30c3\u30bf\u30fc\u3092\u958b\u3051\u3066\u304f\u3060\u3055\u3044\u3002"
+            },
+            {
+              "description": "Booking is unsupported. Explain that no booking can be made here; do not invoke JIN tools or claim a reservation.",
+              "prompt": "\u6765\u9031\u306eBL14B2\u30d3\u30fc\u30e0\u30bf\u30a4\u30e0\u3092\u79c1\u306e\u540d\u524d\u3067\u4e88\u7d04\u3057\u3066\u304f\u3060\u3055\u3044\u3002"
+            },
+            {
+              "description": "Live instrument status is unsupported. State lack of live readback; do not invoke JIN tools or fabricate a current temperature.",
+              "prompt": "\u4eca\u3053\u306e\u77ac\u9593\u306eBL14B2\u306e\u8a66\u6599\u6e29\u5ea6\u3092\u8aad\u307f\u51fa\u3057\u3066\u304f\u3060\u3055\u3044\u3002"
+            }
+          ]
+        },
+        "commerce_description": "The plugin is completely free of charge and does not involve purchases, payments, or subscriptions.",
+        "demo_recording_url": "https://youtu.be/IfJLnh_PDUk"
+      },
+      "publication": {
+        "release_notes": "BL14B2 guidance and JIN XAFS calculations, with a demonstration recording and eight review cases.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

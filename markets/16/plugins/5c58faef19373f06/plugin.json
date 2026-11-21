@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "collibra-mcp",
+  "version": "2.0.2",
+  "description": "Collibra's MCP server connects AI assistants to your enterprise data intelligence platform. Discover and search data assets and business glossary terms using natural language, explore upstream and downstream technical lineage, retrieve semantic context for tables and columns, and manage data classifications. Create, edit, and enrich assets of any type, work with data contracts, and trace business terms back to their underlying physical data. Governance-aware and built for data stewards, analysts, and engineers alike.",
+  "author": {
+    "name": "Collibra Belgium BV",
+    "url": "https://www.collibra.com/"
+  },
+  "homepage": "https://www.collibra.com/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Collibra",
+        "shortDescription": "Context and control for AI",
+        "longDescription": "Collibra's MCP server connects AI assistants to your enterprise data intelligence platform. Discover and search data assets and business glossary terms using natural language, explore upstream and downstream technical lineage, retrieve semantic context for tables and columns, and manage data classifications. Create, edit, and enrich assets of any type, work with data contracts, and trace business terms back to their underlying physical data. Governance-aware and built for data stewards, analysts, and engineers alike.",
+        "developerName": "Collibra Belgium BV",
+        "category": "Data & Analytics",
+        "websiteURL": "https://www.collibra.com/",
+        "supportURL": "https://www.collibra.com/customer-success/support",
+        "privacyPolicyURL": "https://www.collibra.com/legal/documents/collibra-privacy-policy",
+        "termsOfServiceURL": "https://www.collibra.com/legal/documents/collibra-data-processing-addendum",
+        "defaultPrompt": [
+          "Find customer data assets in Collibra.",
+          "Show downstream dependencies for a table in Collibra.",
+          "List my Collibra data quality jobs."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "prompts": [
+          "Find Customer360 assets in Collibra and show the details of Customer 360 in SAC BI Accelerate.",
+          "Show up to five Collibra asset types whose name contains Business Term.",
+          "For TPC_CUSTOMER, catalog asset 01a0a5d2-b658-7638-97e7-7faa0e13e1e5, show the first five downstream lineage relations.",
+          "List the first three Collibra data quality jobs and show their tables and job types.",
+          "What is the Collibra user UUID for the username Admin? Do not change any assignments."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find and inspect catalog metadata. Setup: the reviewer tenant contains the Customer 360 asset in SAC BI Accelerate, catalog UUID 019a5f2b-39f1-713f-87ba-9d1c2770f7a4. No write permission is required.",
+              "prompt": "Find Customer360 assets in Collibra and show the details of Customer 360 in SAC BI Accelerate.",
+              "tools_triggered": "search_asset_keyword, get_asset_details",
+              "expected_behavior": "Search with query Customer360 and resourceTypeFilters containing Asset, then get_asset_details for the matching returned UUID. Report the returned name, domain, type, status, relationships and Collibra link. Do not describe the Candidate asset as certified or invent missing attribute values."
+            },
+            {
+              "description": "Filter the asset-type catalog by name. Setup: the standard Business Term type is available to the reviewer account.",
+              "prompt": "Show up to five Collibra asset types whose name contains Business Term.",
+              "tools_triggered": "list_asset_types",
+              "expected_behavior": "Call list_asset_types with name Business Term and limit 5. Return at most five types, with names and IDs grounded in the response. The standard Business Term has publicId BusinessTerm and product GLOSSARY. Explain truncation if resultsTruncated is true."
+            },
+            {
+              "description": "Resolve catalog identity before traversing technical lineage. Setup: TPC_CUSTOMER with catalog UUID 01a0a5d2-b658-7638-97e7-7faa0e13e1e5 is present and has downstream lineage in the reviewer tenant.",
+              "prompt": "For TPC_CUSTOMER, catalog asset 01a0a5d2-b658-7638-97e7-7faa0e13e1e5, show the first five downstream lineage relations.",
+              "tools_triggered": "search_lineage_entities, get_lineage_downstream",
+              "expected_behavior": "Resolve the supplied catalog UUID using search_lineage_entities.dgcId, then pass the returned technical lineage ID to get_lineage_downstream.entityId with limit 5. Never pass a catalog UUID directly as entityId. Summarize only returned relations, resolving names through get_lineage_entity if needed. State when further pages exist and do not claim this is a complete impact report."
+            },
+            {
+              "description": "List data-quality job definitions with bounded pagination. Setup: the reviewer tenant has data-quality access and at least three visible jobs.",
+              "prompt": "List the first three Collibra data quality jobs and show their tables and job types.",
+              "tools_triggered": "dq_search_jobs",
+              "expected_behavior": "Call dq_search_jobs with page 1 and page_size 3. Return at most three job definitions with jobName, tableName and jobType as supplied by the response, and distinguish the page count from total. Do not start, cancel, change or delete jobs."
+            },
+            {
+              "description": "Exercise the newly available user identity lookup. Setup: the reviewer tenant has an enabled test directory user with username Admin. This is a directory lookup, not a request to use administrator credentials.",
+              "prompt": "What is the Collibra user UUID for the username Admin? Do not change any assignments.",
+              "tools_triggered": "get_user_id_by_name",
+              "expected_behavior": "Call get_user_id_by_name with name Admin. Show the returned userId, username and fullName, without changing assignments. If the user is ambiguous or unavailable, explain the returned failure and ask for a more specific identifier; do not invent a UUID."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Calendar scheduling is unsupported. Explain this limitation; do not invoke any Collibra tools or claim a meeting was booked.",
+              "prompt": "Book a meeting with the data governance team to review this asset."
+            },
+            {
+              "description": "Querying underlying warehouse rows for a sales chart is unsupported. Explain the metadata-access boundary; do not invoke Collibra tools or fabricate revenue data or a completed database query.",
+              "prompt": "Query our warehouse sales rows and generate a chart of quarterly revenue by product line."
+            },
+            {
+              "description": "Open web search is unsupported by this MCP server. Explain that limit; do not invoke Collibra tools or claim they searched the public web.",
+              "prompt": "Search the public web for the latest data governance regulations."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/10fbdeicKsg7mpB86V3SdI4fTameh_nOn/view?resourcekey",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "The Collibra Model Context Protocol (MCP) server enables AI/ML developers, business users and LLMs to access and engage with governed metadata and business context information in the Collibra Platform. This offering additionally simplifies the integration of Collibra with agents that are built on LLMs and connected to other agents in complex workflows. \n\nThe MCP server provides a standardized access layer that addresses common challenges including inconsistent or low-quality context retrieval for LLMs, fragmented integration workflows, and lack of standardized communication among information sources."
+      }
+    }
+  }
+}

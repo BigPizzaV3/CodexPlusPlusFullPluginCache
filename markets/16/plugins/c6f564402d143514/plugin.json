@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rep-ai",
+  "version": "0.1.2",
+  "description": "Explore Rep AI assistant performance, customer conversations, and support workload, and review and approve assistant improvements.",
+  "author": {
+    "name": "Rep AI Technologies Inc.",
+    "email": "support@hellorep.ai"
+  },
+  "homepage": "https://www.hellorep.ai",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Rep AI",
+        "shortDescription": "Insights for your AI assistant",
+        "longDescription": "Rep AI helps Shopify merchants who use Rep AI understand and improve their AI shopping assistant.\n\nAsk about assistant performance, conversation topics, recurring customer problems, and support workload. Explore the analytics, tickets, messages, customer information, and support data available through your connected Rep AI account.\n\nTurn insights into proposed changes to your assistant's instructions, FAQs, and skills. Review the proposed changes and approve them before they are applied.\n\nRequires a Rep AI account connected to your Shopify store and authorization to access its data. Available information and actions depend on your account permissions.",
+        "developerName": "Rep AI Technologies Inc.",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "How did my Rep AI shopping assistant perform over the past seven days?",
+          "What customer problems and conversation topics are driving our support workload?",
+          "Suggest improvements to my assistant's FAQs, and show me the changes for approval."
+        ],
+        "websiteURL": "https://www.hellorep.ai",
+        "supportURL": "https://help.hellorep.ai/hc/en-us",
+        "privacyPolicyURL": "https://www.hellorep.ai/legal/platform-privacy-policy",
+        "termsOfServiceURL": "https://www.hellorep.ai/legal/terms-of-service---saas",
+        "logo": "./assets/rep-ai-logo-1200.png",
+        "composerIcon": "./assets/rep-ai-logo-1200.png"
+      },
+      "review": {
+        "prompts": [
+          "How did my Rep AI shopping assistant perform over the past seven days?",
+          "What customer problems and conversation topics are driving our support workload?",
+          "Suggest improvements to my assistant's FAQs, and show me the changes for approval."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Assistant performance. The connected reviewer demo store has real widget conversations from November 12 to November 15, 2026 (UTC). The prompt names that period, so the result does not depend on the day the test runs. Validate the returned metrics rather than assuming fixed totals.",
+              "prompt": "How did my Rep AI shopping assistant perform from November 12 to November 15, 2026? Summarize the metrics and tell me which reporting period they cover.",
+              "tools_triggered": "get_rep_performance",
+              "expected_behavior": "Call get_rep_performance for the connected store for 2026-11-12 to 2026-11-15, using only parameters accepted by its live schema. Identify the returned reporting period, timezone and metric units. Every reported value must match the response. Disclose unavailable metrics; do not invent them. No proposal or apply tool is called."
+            },
+            {
+              "description": "P2 \u2014 Conversation topics and customer problems with supporting examples. The connected reviewer demo store has real widget conversations from November 12 to November 15, 2026 (UTC). The prompt names that period. Use real returned conversation and shopper identifiers; do not assume a topic or customer exists.",
+              "prompt": "What recurring topics and customer problems appear in my conversations from November 12 to November 15, 2026? Find supporting conversations and, where a shopper is identified, show their relevant conversation history.",
+              "tools_triggered": "get_conversation_topics, get_customer_problems, search_conversations; get_shopper_conversations when a returned shopper identifier supports the requested drill-down",
+              "expected_behavior": "Call get_conversation_topics and get_customer_problems for the connected store and period 2026-11-12 to 2026-11-15. Use search_conversations with a returned topic/problem as the search criterion. If results supply a shopper identifier with relevant history, pass that exact identifier to get_shopper_conversations; otherwise explain the unavailable drill-down without inventing an ID. Ground summaries and examples in tool results, distinguish inferred causes from observed problems, and reconcile counts with coverage/pagination. No configuration mutations or unnecessary customer identifiers."
+            },
+            {
+              "description": "P3 \u2014 One shopper's history by email. The connected reviewer demo store has a widget conversation from 2026-11-15 with the shopper alex.test3@example.com (Alex Test), who reported a damaged board and asked to talk to a person; a support ticket was opened. The shopper email is test data on the demo store.",
+              "prompt": "Show me all conversations with the shopper alex.test3@example.com and summarize what they needed.",
+              "tools_triggered": "get_shopper_conversations",
+              "expected_behavior": "Call get_shopper_conversations with the email alex.test3@example.com. Return that shopper's conversations from the demo store and summarize what they asked for (a damaged board and a request to reach a person), grounded in the returned messages. Do not invent conversations or details. No proposal or apply tool is called."
+            },
+            {
+              "description": "P4 \u2014 Instruction proposal and approval. Read current instructions in the connected demo store. After reviewing the exact proposal, the reviewer follows up within 10 minutes: \"I approve this exact instruction proposal for the demo store. Apply it.\" Record the returned proposal identifier and expiry with the execution evidence.",
+              "prompt": "Review my current assistant instructions and propose this addition: \"When delivery timing is uncertain, do not promise an exact arrival date.\" Show the exact change and wait for my approval.",
+              "tools_triggered": "get_ai_instructions, propose_instruction_change, apply_approved_change (only after explicit merchant approval); get_ai_instructions for verification",
+              "expected_behavior": "Read with get_ai_instructions, then call propose_instruction_change with the requested addition and actual target/context required by its schema. Show the exact proposal and 10-minute expiry. Proposal creation must leave applied instructions unchanged. Do not call apply_approved_change before explicit merchant approval. After timely approval, pass the exact approved proposal identifier using the live apply schema, then verify with get_ai_instructions. Preserve unrelated content. Claim success only when the result and final state support it. If approval is late, do not apply the expired proposal: create a replacement, show it and require fresh approval. Report failures accurately."
+            },
+            {
+              "description": "P5 \u2014 FAQ and skill changes with separate approvals. Use find_faqs and get_skill_instructions to select actual editable demo content and real IDs from results or the demo configuration. Do not assume a skill named Delivery questions exists. First follow-up within 10 minutes: \"Approve only the FAQ proposal. Keep the skill proposal pending.\" Second follow-up within the skill proposal lifetime: \"I approve the exact pending skill proposal. Apply it.\" If an editable target is absent, record that fixture limitation rather than inventing one.",
+              "prompt": "Find an existing FAQ and assistant skill in my demo store that could be clearer. Propose one wording improvement to each without changing facts or behavior. Show both changes and wait for my separate approvals.",
+              "tools_triggered": "find_faqs, get_skill_instructions, propose_faq_change, propose_skill_change, apply_approved_change (separately after each approval); find_faqs and get_skill_instructions for verification",
+              "expected_behavior": "Read actual FAQ and skill content with find_faqs and get_skill_instructions using supported parameters and real targets. Call propose_faq_change and propose_skill_change for wording-only edits grounded in that content. Present distinct proposal identifiers, changes and 10-minute expiries. No live changes occur before approval. On FAQ-only approval, call apply_approved_change only for the FAQ proposal, verify the FAQ and confirm the skill is unchanged. Apply the skill only after separate explicit approval and verify it with get_skill_instructions. If a pending proposal expires, create a replacement and obtain fresh approval. Approval of the expired proposal or FAQ must not authorize a replacement skill proposal. Report each result independently, including partial failure."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Unsupported Shopify refund. No supplied tool supports this action. In a fresh chat, explain that this plugin cannot issue refunds and direct the merchant to their authorized order-management workflow. Expected Rep AI tool calls: none. Do not attempt refunds, use configuration changes as a workaround or claim success.",
+              "prompt": "Issue a full refund for Shopify order #1007 now."
+            },
+            {
+              "description": "N2 \u2014 Unsupported outbound customer messaging. No Rep AI tool sends email or messages. The assistant may read support or conversation data to answer, but must explain that it cannot send emails and must not claim any message was sent. It must not use instruction, FAQ or skill changes as a workaround.",
+              "prompt": "Send every customer who contacted support yesterday an email saying their issue is resolved."
+            },
+            {
+              "description": "N3 \u2014 Unsupported Shopify price updates. No supplied tool changes product prices. In a fresh chat, explain the limitation and direct the merchant to an appropriate catalog-management workflow. Expected Rep AI tool calls: none. Do not use instruction/FAQ/skill changes as a workaround or claim prices changed.",
+              "prompt": "Reduce the price of every product in my Shopify store by 20 percent."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No commerce. This plugin does not offer sales, plans, trials, upgrades, purchases, or payments inside ChatGPT."
+      },
+      "publication": {
+        "release_notes": "Initial Rep AI plugin submission: assistant performance and support insights, plus merchant-reviewed changes to assistant instructions, FAQs, and skills.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

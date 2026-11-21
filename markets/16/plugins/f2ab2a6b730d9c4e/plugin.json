@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vetengage",
+  "version": "1.0.1",
+  "description": "Read clinic records, schedules, availability, and practice metrics from VetEngage.",
+  "author": {
+    "name": "VetEngage",
+    "url": "https://vetengage.com/"
+  },
+  "homepage": "https://vetengage.com/",
+  "keywords": [
+    "veterinary",
+    "clinic",
+    "appointments",
+    "practice analytics"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "VetEngage",
+        "shortDescription": "Clinic records and insights",
+        "longDescription": "Connect your VetEngage account to look up clients and pets, review appointment calendars and open appointment times, read available PIMS records, and summarize practice metrics across the offices you can access. Designed for veterinary clinic staff and practice groups. Sign in with your VetEngage account to connect. Access follows your VetEngage permissions and office scope. The connector is read-only: it cannot book, cancel, send messages, prescribe, or edit records. Data availability and freshness depend on your practice-system integration; tool responses identify their sources and limitations.",
+        "developerName": "VetEngage",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Which VetEngage offices can I access?",
+          "Show tomorrow\u2019s appointments at my first assigned office.",
+          "How many online bookings were completed at my offices in the last seven calendar days, including today?"
+        ],
+        "websiteURL": "https://vetengage.com/",
+        "supportURL": "https://vetengage.com/platform-terms-of-service",
+        "privacyPolicyURL": "https://vetengage.com/privacy-policy",
+        "termsOfServiceURL": "https://vetengage.com/platform-terms-of-service",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "logoDark": "./assets/icon-dark.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "brandColor": "#009967",
+        "brandColorDark": "#009967"
+      },
+      "review": {
+        "prompts": [
+          "Which VetEngage offices can I access?",
+          "Show tomorrow\u2019s appointments at my first assigned office.",
+          "How many online bookings were completed at my offices in the last seven calendar days, including today?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identify the authenticated staff account and office scope. Setup: dedicated demo tenant with at least one assigned office. No prior conversation context.",
+              "prompt": "Which VetEngage offices can I access?",
+              "tools_triggered": "whoami",
+              "expected_behavior": "Call whoami with no arguments. Name only the offices and roles returned for the authenticated account. Do not invent office IDs or claim access to other tenants."
+            },
+            {
+              "description": "Read the current office overview. Setup: reviewer account has at least one assigned demo office and permissions for its dashboard sections. Missing or denied sections must be identified explicitly.",
+              "prompt": "Give me today\u2019s overview for my first assigned office.",
+              "tools_triggered": "whoami, office_overview",
+              "expected_behavior": "Call whoami to resolve the first assigned office ID, then office_overview with location_ids containing that ID. Summarize returned sections and their basis in office-local time. Do not represent unavailable or permission-denied sections as zero, and do not invent missing data."
+            },
+            {
+              "description": "Read the calendar in office-local time. Setup: reviewer account has an assigned demo office, Calendar Schedule view, and a supported PIMS calendar. An empty schedule is a valid result.",
+              "prompt": "Show tomorrow\u2019s appointments at my first assigned office.",
+              "tools_triggered": "whoami, pims_appointments",
+              "expected_behavior": "Use the first assigned office from whoami and its timezone. Call pims_appointments with location_ids containing that office ID, start_date and end_date equal to tomorrow in that timezone, and include_cancelled=false. Summarize returned times, patients and providers; respect truncation and source caveats and do not infer absent details."
+            },
+            {
+              "description": "Discover a real bookable service and check availability without booking. Setup: reviewer account can read booking services and availability at an assigned demo office. No specific service name or available slot is assumed.",
+              "prompt": "Find the next available appointment for a bookable service at my first assigned office within the next seven days. Do not book anything.",
+              "tools_triggered": "whoami, find_appointment_slots",
+              "expected_behavior": "Resolve the first assigned office with whoami. Call find_appointment_slots without service_id and with that office in location_ids to discover bookable services. If several require a user choice, ask for clarification. For the selected returned service ID, call find_appointment_slots with that service_id, the authorized office ID, start_date=today and end_date=today+6 in office-local dates. Offer only returned openings. If no services or slots exist, say so. Never claim an appointment was booked or reserved."
+            },
+            {
+              "description": "Read a dashboard metric with explicit definition and scope. Setup: demo account has Dashboard Online Booking view and accessible online booking analytics. Zero is a valid result.",
+              "prompt": "How many online bookings were completed at my offices in the last seven calendar days, including today?",
+              "tools_triggered": "whoami, metric",
+              "expected_behavior": "Resolve authorized office IDs with whoami. Call metric with name=\"online_bookings_completed\", location_ids restricted to those offices, start_date=today-6 and end_date=today. Report returned total and office breakdown, quote the basis and explain the count is by booking date, not appointment date. If unavailable or denied, explain that instead of estimating."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported booking write. Explain this connector is read-only and direct the user to the VetEngage booking flow. Do not invoke any tool for this write request or claim a booking was made.",
+              "prompt": "Book an appointment for my pet tomorrow at 10 AM."
+            },
+            {
+              "description": "Unsupported outbound message. Explain this connector cannot send SMS and direct the user to the dashboard. Do not invoke tools or claim a message was sent.",
+              "prompt": "Text every client on tomorrow\u2019s schedule to remind them of their appointment."
+            },
+            {
+              "description": "Unsupported clinical write. Explain this connector cannot prescribe or change medical records. Do not invoke tools, prescribe a medication, or claim a record was changed.",
+              "prompt": "Add a new amoxicillin prescription to my pet\u2019s medical record."
+            }
+          ]
+        },
+        "commerce_description": "A paid VetEngage subscription is required and is purchased through the VetEngage sales team. This read-only connector has no purchase, checkout or payment-processing tools.",
+        "commerce": false
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Refined the public listing description for the initial VetEngage staff connector release."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

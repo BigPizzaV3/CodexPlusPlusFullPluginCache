@@ -1,0 +1,157 @@
+<a href="https://www.ultralytics.com"><img src="https://raw.githubusercontent.com/ultralytics/assets/main/logo/Ultralytics_Logotype_Original.svg" width="320" alt="Ultralytics logo"></a>
+
+[English](README.md) | [简体中文](README.zh-CN.md)
+
+# 🧠 Ultralytics Agent Skills
+
+Agent skills for [Ultralytics Platform](https://platform.ultralytics.com), the [`ultralytics`](https://github.com/ultralytics/ultralytics) Python package, and the `yolo` CLI. They teach AI coding agents (Claude Code, Codex, Cursor, and any agent that reads the [Agent Skills format](https://agentskills.io)) the full computer-vision lifecycle: data/annotation → training → tuning → inference/tracking → export/deployment.
+
+[![CI](https://github.com/ultralytics/skills/actions/workflows/ci.yml/badge.svg)](https://github.com/ultralytics/skills/actions/workflows/ci.yml) [![Ultralytics Actions](https://github.com/ultralytics/skills/actions/workflows/format.yml/badge.svg)](https://github.com/ultralytics/skills/actions/workflows/format.yml)
+
+[![Ultralytics Discord](https://img.shields.io/discord/1089800235347353640?logo=discord&logoColor=white&label=Discord&color=blue)](https://discord.com/invite/ultralytics) [![Ultralytics Forums](https://img.shields.io/discourse/users?server=https%3A%2F%2Fcommunity.ultralytics.com&logo=discourse&label=Forums&color=blue)](https://community.ultralytics.com) [![Ultralytics Reddit](https://img.shields.io/reddit/subreddit-subscribers/ultralytics?style=flat&logo=reddit&logoColor=white&label=Reddit&color=blue)](https://www.reddit.com/r/ultralytics/)
+
+## 🧩 Skills
+
+| Skill                                              | Use it for                                                                                                                       |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`yolo`](skills/yolo/SKILL.md)                     | Platform and local lifecycle overview, core CLI/Python grammar, routing to the other skills                                      |
+| [`yolo-models`](skills/yolo-models/SKILL.md)       | Choosing family/size/task variant: YOLO26/11/v8, YOLO-World, YOLOE, SAM, RT-DETR; exact weight names                             |
+| [`yolo-datasets`](skills/yolo-datasets/SKILL.md)   | Platform upload/annotation, data.yaml, formats, converters, splitting, validation                                                |
+| [`yolo-training`](skills/yolo-training/SKILL.md)   | Platform cloud/remote training, local train/val, arguments, results, troubleshooting                                             |
+| [`yolo-tuning`](skills/yolo-tuning/SKILL.md)       | Platform experiment comparison, improvement playbook, `model.tune()`, Ray Tune                                                   |
+| [`yolo-inference`](skills/yolo-inference/SKILL.md) | Platform Predict/endpoints, local predict, Results API, tracking, Solutions                                                      |
+| [`yolo-export`](skills/yolo-export/SKILL.md)       | Platform/local ONNX/TensorRT/CoreML/Core AI/OpenVINO/LiteRT/NPU export, quantization, benchmarking                               |
+| [`platform-cli`](skills/platform-cli/SKILL.md)     | Scripting Platform with `ul cloud`: resources, dataset inspection, cloud training, model analysis, exports, deployments, billing |
+
+Each skill is a `SKILL.md` of procedures, decision tables, and gotchas, with Codex and ChatGPT presentation metadata in `agents/openai.yaml`. Version-volatile catalogs (weight names, argument tables, export formats) live in companion files beside it. Package facts are grounded against `ultralytics` v8.4.208; Platform flows are grounded against the current [Platform documentation](https://docs.ultralytics.com/platform).
+
+## 📦 Install
+
+Install the `ultralytics` package, including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml), in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/).
+
+[![PyPI - Version](https://img.shields.io/pypi/v/ultralytics?logo=pypi&logoColor=white)](https://pypi.org/project/ultralytics/) [![Ultralytics Downloads](https://static.pepy.tech/badge/ultralytics)](https://clickpy.clickhouse.com/dashboard/ultralytics) [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ultralytics?logo=python&logoColor=gold)](https://pypi.org/project/ultralytics/)
+
+```bash
+pip install ultralytics
+```
+
+On Python 3.11+ this also installs the `ul` CLI used by the `platform-cli` skill; it ships in the [`ultralytics-platform`](https://pypi.org/project/ultralytics-platform/) dependency, which can also be installed on its own.
+
+For alternative installation methods, including [Conda](https://anaconda.org/conda-forge/ultralytics), [Docker](https://hub.docker.com/r/ultralytics/ultralytics), and building from source via Git, please consult the [Quickstart Guide](https://docs.ultralytics.com/quickstart).
+
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/ultralytics?logo=condaforge)](https://anaconda.org/conda-forge/ultralytics) [![Docker Image Version](https://img.shields.io/docker/v/ultralytics/ultralytics?sort=semver&logo=docker)](https://hub.docker.com/r/ultralytics/ultralytics) [![Ultralytics Docker Pulls](https://img.shields.io/docker/pulls/ultralytics/ultralytics?logo=docker)](https://hub.docker.com/r/ultralytics/ultralytics)
+
+### Claude Code
+
+```bash
+claude plugin marketplace add ultralytics/skills
+claude plugin install yolo@ultralytics
+```
+
+<details>
+<summary>Develop from a local clone</summary>
+
+```bash
+git clone https://github.com/ultralytics/skills
+claude plugin marketplace add ./skills
+claude plugin install yolo@ultralytics
+```
+
+</details>
+
+<details>
+<summary>Try it without installing anything</summary>
+
+Launch a session with the plugin loaded from the repo directory, leaving your installed plugins untouched:
+
+```bash
+git clone https://github.com/ultralytics/skills && cd skills
+claude --plugin-dir .
+```
+
+</details>
+
+### Codex
+
+```bash
+codex plugin marketplace add ultralytics/skills
+codex plugin add yolo@ultralytics
+```
+
+Restart Codex to use the installed skills.
+
+<details>
+<summary>Develop from a local clone</summary>
+
+```bash
+git clone https://github.com/ultralytics/skills && cd skills
+codex plugin marketplace add .
+codex plugin add yolo@ultralytics
+```
+
+Restart Codex after edits. To pull new versions of the GitHub source, run `codex plugin marketplace upgrade ultralytics`, then `codex plugin add yolo@ultralytics`.
+
+</details>
+
+### Other agents (Cursor, Gemini CLI, ...)
+
+```bash
+npx skills add ultralytics/skills
+```
+
+<details>
+<summary>Single skills, global install, manual copy</summary>
+
+```bash
+npx skills add ultralytics/skills --skill yolo-training # one skill only
+npx skills add ultralytics/skills -g                    # global (~/.claude/skills/) instead of ./.claude/skills/
+```
+
+Or simply copy (or symlink) the folders under `skills/` into your agent's skills directory.
+
+</details>
+
+## 🛠️ Design notes
+
+- Skills are divided by lifecycle stage and user intent, not by model family.
+- Frontmatter is portable: `name` + `description` only.
+- Each lifecycle skill covers both the Platform UI and the local Python/CLI path where applicable.
+- Every skill defers to the installed version at runtime: `yolo checks` (version), `yolo cfg` (valid arguments), and error messages beat any table in these files. The Platform CLI skill defers to `ul version`, `ul cloud <resource> <operation> --help`, and the live `/openapi.json`.
+
+## 🔒 Data and network access
+
+The plugin contains only instructions; nothing runs when it loads. The commands it suggests can download packages, weights, datasets, and the public Platform API schema, and `ul cloud` commands upload the files you pass them to [Ultralytics Platform](https://platform.ultralytics.com) with your API key. The `ultralytics` package also sends anonymous usage analytics; turn them off with `yolo settings sync=False`.
+
+## 💡 Contribute
+
+Ultralytics thrives on community collaboration, and we deeply value your contributions! Please see our [Contributing Guide](https://docs.ultralytics.com/help/contributing) for details on how to get involved. We also invite you to share your feedback through our [Survey](https://www.ultralytics.com/survey?utm_source=github&utm_medium=social&utm_campaign=Survey). A huge 🙏 thank you to all our contributors!
+
+[![Ultralytics open-source contributors](https://raw.githubusercontent.com/ultralytics/assets/main/im/image-contributors.png)](https://github.com/ultralytics/ultralytics/graphs/contributors)
+
+## 📄 License
+
+Ultralytics offers two licensing options to accommodate diverse needs:
+
+- **AGPL-3.0 License**: Ideal for students, researchers, and enthusiasts passionate about open collaboration and knowledge sharing. This [OSI-approved](https://opensource.org/license/agpl-3.0) open-source license promotes transparency and community involvement. See the [LICENSE](LICENSE) file for details.
+- **Enterprise License**: Designed for commercial applications, this license permits the seamless integration of Ultralytics software and AI models into commercial products and services, bypassing the copyleft requirements of AGPL-3.0. For commercial use cases, please inquire about an [Ultralytics Enterprise License](https://www.ultralytics.com/license).
+
+## 📮 Contact
+
+For bug reports or feature suggestions related to these skills, please use [GitHub Issues](https://github.com/ultralytics/skills/issues). For general questions, discussions, and community support, join our [Discord](https://discord.com/invite/ultralytics) server!
+
+<br>
+<div align="center">
+  <a href="https://github.com/ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-github.png" width="3%" alt="Ultralytics GitHub"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.linkedin.com/company/ultralytics/"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-linkedin.png" width="3%" alt="Ultralytics LinkedIn"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://twitter.com/ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-twitter.png" width="3%" alt="Ultralytics Twitter"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.youtube.com/ultralytics?sub_confirmation=1"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-youtube.png" width="3%" alt="Ultralytics YouTube"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.tiktok.com/@ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-tiktok.png" width="3%" alt="Ultralytics TikTok"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://www.ultralytics.com/bilibili"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-bilibili.png" width="3%" alt="Ultralytics BiliBili"></a>
+  <img src="https://github.com/ultralytics/assets/raw/main/social/logo-transparent.png" width="3%" alt="space">
+  <a href="https://discord.com/invite/ultralytics"><img src="https://github.com/ultralytics/assets/raw/main/social/logo-social-discord.png" width="3%" alt="Ultralytics Discord"></a>
+</div>

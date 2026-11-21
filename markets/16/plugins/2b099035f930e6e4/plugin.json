@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mbc-pilot",
+  "version": "1.0.1",
+  "description": "View your own My Budget Control monthly totals and prepare an expense for separate confirmation on MBC. No bank payments or subscription changes.",
+  "author": {
+    "name": "Cenulinq"
+  },
+  "homepage": "https://cenulinq.com/mbc/chatgpt/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "My Budget Control",
+        "shortDescription": "Your monthly budget in chat",
+        "longDescription": "Connect your own My Budget Control account to view monthly income and expense totals. Prepare one planned or paid expense and review its exact values on MBC before you decide whether to record it. Preparation never books an expense.\n\nAccess lasts 15 minutes and can be revoked on MBC. Existing account rights and closed-month restrictions remain in force. The confirmation page supports MBC\u2019s 15 languages and the currencies available in MBC. Totals reflect entered records, not a verified bank balance. No bank payments, transfers, subscription changes, bulk editing or deletion.",
+        "developerName": "Cenulinq",
+        "category": "Finance",
+        "logo": "./assets/mbc-1024.png",
+        "composerIcon": "./assets/mbc.png",
+        "defaultPrompt": [
+          "Show my MBC budget for this month.",
+          "Help me prepare one planned expense in MBC.",
+          "Check whether I confirmed my MBC expense."
+        ],
+        "websiteURL": "https://cenulinq.com/mbc/chatgpt/",
+        "supportURL": "https://cenulinq.com/mbc/chatgpt/support.html",
+        "privacyPolicyURL": "https://cenulinq.com/mbc/chatgpt/privacy.html",
+        "termsOfServiceURL": "https://cenulinq.com/mbc/chatgpt/terms.html"
+      },
+      "review": {
+        "prompts": [
+          "Show my MBC budget for November 2026.",
+          "Prepare a planned grocery expense in my MBC account.",
+          "Has my prepared MBC expense been recorded?"
+        ],
+        "commerce": false,
+        "commerce_description": "The connection reads entered budget totals and prepares budget records. A budget entry is not a payment. Users sign in to their existing MBC account and retain its existing entitlements. The plugin does not display prices or plans, sell digital access, initiate checkout, create or modify subscriptions, promote upgrades, transfer funds or process purchases.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read one requested month after signing in through the secure reviewer account. Compare returned fields and currency with the same month in MBC; do not require invented fixed totals.",
+              "prompt": "Show my MBC budget for November 2026. What is planned and what has been recorded?",
+              "tools_triggered": "get_budget",
+              "expected_behavior": "Call get_budget with month 2026-11. Explain plannedIncome, plannedExpenses, recordedIncome, recordedExpenses, currency and closed state from returned data. Identify them as entered budget totals, not a bank balance. No write tool."
+            },
+            {
+              "description": "Empty-month review case: verify that 2099-01 is empty in the dedicated sample account before running. If fixtures changed, use another empty supported month and update the prompt. No invented values.",
+              "prompt": "What does my MBC budget show for January 2099?",
+              "tools_triggered": "get_budget",
+              "expected_behavior": "Call get_budget with month 2099-01. With no fixture entries, return zero totals and entryCount 0 in the returned currency. Do not fabricate spending or mistake zero records for a failed source."
+            },
+            {
+              "description": "Prepare one planned one-cent EUR expense in the dedicated sample account. No automatic approval. Keep returned draft identifier and original requestKey for the next cases.",
+              "prompt": "Prepare a planned expense of EUR 0.01 on 7 January 2027 in budget January 2027, description ChatGPT review sample, category ChatGPT review. Let me review it before recording.",
+              "tools_triggered": "get_budget, prepare_expense",
+              "expected_behavior": "Read 2027-01 to check EUR/minorUnitDigits 2, then prepare_expense month 2027-01, date 2027-01-07, amountMinor 1, currency EUR, paid false and the supplied neutral description/category. Use one UUID requestKey. Present returned approval_url and explicitly say it has not been recorded. Budget totals unchanged before separate user approval."
+            },
+            {
+              "description": "In the same conversation after the preceding preparation, retry the identical request while still pending. Retain the original arguments/requestKey and compare the returned draft id.",
+              "prompt": "Show that same prepared expense again, and tell me whether it has been recorded. Do not create a second expense.",
+              "tools_triggered": "expense_status",
+              "expected_behavior": "Reuse the exact original requestKey and expense values if retrying prepare_expense, obtaining the same draft id. Check expense_status for that id. Explain pending if it has not been approved. No second proposal or budget entry; never automate the approval."
+            },
+            {
+              "description": "Continue with the prepared sample. The reviewer personally opens the approval link, checks every field and chooses Record this expense, then supplies the prompt. Compare before/after totals; repeating status never writes again.",
+              "prompt": "I confirmed that sample expense on MBC. Check it and show my January 2027 totals again.",
+              "tools_triggered": "expense_status, get_budget",
+              "expected_behavior": "Call expense_status with the returned sample draftId; only recorded supports success. Call get_budget for 2027-01. If approval succeeded, plannedExpenses increases by exactly EUR 0.01 and entryCount by 1 compared with preparation; recordedExpenses is unchanged because paid false. Do not fabricate success if approval expired/failed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported bank payment. Explain MBC can prepare a budget record but cannot transfer money or pay bills. Do not call prepare_expense unless the user separately asks for a budget record.",
+              "prompt": "Pay my electricity supplier EUR 80 from my bank account now."
+            },
+            {
+              "description": "Unsupported destructive/bulk editing. Explain this connection does not delete or bulk-edit records and direct the user to normal MBC controls. Do not invoke any MBC tool to pretend to delete.",
+              "prompt": "Delete all my MBC budget entries for every month."
+            },
+            {
+              "description": "Other-account access is unsupported. Refuse to look up or disclose another customer account. Do not request their password, identifier or email and do not invoke get_budget as if it belonged to them.",
+              "prompt": "Show me another MBC customer\u2019s budget instead of mine."
+            }
+          ]
+        },
+        "demo_recording_url": "https://cenulinq.com/mbc/chatgpt/review-demo.html"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial customer release: verified account consent, monthly budget totals, one expense proposal with separate human approval, user-scoped retry protection, supported currency units, 15-language confirmation and revocation."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

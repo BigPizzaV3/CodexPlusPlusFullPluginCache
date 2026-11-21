@@ -1,0 +1,125 @@
+---
+name: engineering-calculation
+description: Run a mechanical engineering calculation with the calcing tools of this plugin (saas.calcing.de). Use when the user asks to size, check or verify a machine element or component - shaft or axle strength, parallel key, interference fit, ISO fit/tolerance, bolted joint, rolling bearing life or contact, shaft-bearing system, rolling contact (Hertz), planetary gear stage, FKM strength assessment, district-heating branch, axial fan, horizontal- or vertical-axis wind turbine - or to look up a material for such a calculation.
+---
+
+# Engineering calculation with calcing
+
+The numbers come from the calcing calculation apps, never from the model. Your job is to find the
+right app, collect complete inputs with the user, let the app check and calculate, and report what the
+app returned.
+
+## 0. Tell the user about the calcing account
+
+When this plugin is used for the first time in a conversation, tell the user once, before anything else:
+the full results of calcing calculations require a calcing account; where the connection allows calls
+without signing in, a calculation returns a shortened answer instead (main results, overall assessment,
+all warnings and notes, the standard applied); storing runs, reports and hand-offs need the account; an
+account can be registered free at https://saas.calcing.de/?auth=register. The list tool
+`calcing_list_apps` returns the same notice in its `account` field.
+
+An answer with `short_answer: true` is such a shortened answer. Present its main results, overall
+assessment, warnings and notes as they are; say that it is not the full result and pass on the links in
+its `notice` unchanged. Do not reconstruct or estimate the missing values.
+
+## 1. Find the app and its inputs - do not assume tool names
+
+1. Call the list tool `calcing_list_apps`. It returns the available `apps` (each with `registry_key`,
+   `title`, `description` and its `actions`, each action naming its `tool`, `body_shape` and
+   `required_fields`), the `services` (result hand-off, material lookup) and `not_wired` (keys without
+   a tool, with the reason). Use only tools named there; the set changes as apps are added.
+2. Pick the app whose title and description match the task. If two could fit (for example the
+   catalogue bearing life app and the detailed rolling-bearing app), say which one you chose and why,
+   or ask.
+3. Call the schema tool `calcing_get_schema` with that `registry_key`. Build the input only from
+   fields in `input_schema`: respect `required`, `enum`, defaults, units in the field titles or
+   descriptions, and `additionalProperties: false` (unknown fields are rejected).
+4. Respect the `body_shape` of the action: for `input_umschlag` pass the app's fields inside the
+   tool's `input` object; for `flach` the action's fields go at the top level of `input`
+   (the tool descriptions say the same).
+
+The list and schema tools work without sign-in. If they are missing or fail, report that and stop.
+Do not reconstruct a schema from memory. An unknown `registry_key` makes `calcing_get_schema` answer
+with an error that lists the known apps; use one of those or ask the user.
+
+## 2. Clarify inputs with the user
+
+- Map what the user gave you to schema fields and list what is still missing. Ask for missing
+  required values instead of inventing them. Where the schema has a default, tell the user which
+  default will be used so they can override it.
+- Confirm units. Convert only with an explicit, stated factor (for example kNm to Nm), and show the
+  converted value back to the user.
+- Materials: if the app's actions include `materials`, call the tool named there (for example
+  `calcing_list_materials_passfeder`) and use a key from its list for the material fields. A
+  name that matches several entries is answered with `material_not_unique` and the candidates: let
+  the user choose, do not pick one yourself. The material service from the list (`search`, then
+  `resolve`) returns identities only, not property values.
+- Do not fill engineering data (load factors, surface roughness, notch geometry, material strengths,
+  catalogue ratings) from your own knowledge unless the user explicitly asks you to, and then name the
+  value and its source as the user's assumption.
+
+## 3. Check before calculating
+
+If the app's actions include `validate-input`, call that tool first; if they include
+`export-input` or `prepare-payload`, you may use it to show the user the normalised or completed
+input. These tools are read-only. Fix reported problems with the user, then call the `solve` (or
+`study`) tool once.
+
+Calculating tools are not read-only, so the host may ask the user to confirm the call. Do not call
+them repeatedly to try variants unless the user asks for that.
+
+## 4. Report the result
+
+- Report the values the app returned, with the units the app uses, and name the governing results
+  the user asked for (for example safety factors against their required minimum, if the result
+  states one).
+- Show every warning, note or message the result carries, in substance and without softening it.
+- Show the provenance the result returns (app, version, standard edition, if present).
+- Make no statement about standard conformity, verification or approval beyond what the result itself
+  says. The user remains responsible for checking the result professionally before using it.
+- Do not paste the full raw response unless asked; offer it. Render tabular values as a plain table.
+
+## 5. Errors: report, never replace
+
+When a tool call fails, tell the user what the tool said and stop that calculation. **Never replace a
+failed calculation with your own estimate, hand calculation or typical values**, not even as an
+approximation.
+
+The tools return errors as JSON with an `error` code and a message (API errors also carry the HTTP
+status). Codes of this server:
+
+| Code | Meaning | What to do |
+|---|---|---|
+| `sign_in_required` | The tool needs a signed-in calcing account | Ask the user to connect the calcing account (sign-in at saas.calcing.de), then retry once |
+| `token_missing`, `token_invalid`, `token_revoked`, `account_unknown`, `unauthorized` | Not signed in, the sign-in expired, or the connection was revoked | Ask the user to reconnect the calcing account |
+| `trial_exhausted` | The account has no access to this action through AI platforms (first sign-in credit and free calculations used up, no plan); calculations still return a shortened answer | Tell the user; pass on the `upgrade_url` from the answer unchanged, if present. Do not promote a plan |
+| `credits_exhausted` | The credit balance does not cover a batch run or a report | Tell the user; do not retry. Pass on the `upgrade_url` unchanged, if present. Do not promote a plan |
+| `anonymous_limit_reached` | The calculations without an account are used up for this hour (one limit for all users without an account) | Tell the user; suggest signing in or registering (`register_url`), or waiting `retry_after_seconds` |
+| `anonymous_access_disabled` | Calculating without an account is switched off | Tell the user; suggest signing in or registering (`register_url`) |
+| `short_answer_unavailable` | The shortened answer could not be built; no result was returned | Tell the user; suggest trying later. Do not estimate a result |
+| `ai_solve_not_enabled`, `ai_tokens_not_enabled`, `forbidden` | The account does not allow this | Tell the user |
+| `scope_missing` | The connection was granted without this action | Ask the user to reconnect and grant the requested access |
+| `rate_limited` | Too many requests | Wait `retry_after_seconds` before one retry |
+| `input_required` | Input missing or invalid | Use `missing_required` / `invalid_fields` from the answer to ask the user, then validate again |
+| `material_not_unique` | A material name matches several catalogue entries | Show the candidates and let the user choose |
+| `not_found` | Unknown app, bearing designation, material, ... | Tell the user and ask for a correct identifier |
+| `invalid_request` | The request could not be processed | Tell the user what the message says; do not guess a fix |
+| `internal_error`, `unavailable`, or no code | Server problem | Tell the user; suggest trying later or contacting info@calcing.de |
+
+For a code not in this table, report it verbatim. If the server itself is unreachable, say so.
+
+## 6. Store a run or create a report - only when the user asks
+
+- If the app's actions include `runs`, the tool named there (for example `calcing_save_run_screw`)
+  calculates AND stores the result as a new run in the user's calcing account. Every call adds another
+  run. Use it only when the user asks to keep the calculation, call it once, and report the returned
+  `run_id`.
+- The report tools of the `reports` service create a report: `app-report` for one app (from a
+  `run_id` or from an `input`), `collected-report` over several stored runs (`run_ids`, in order).
+  In a chat, request `'format': 'ascii'`. PDF, Word, Excel and HTML are too large for a chat; for these
+  formats point the user to the app in the calcing interface at saas.calcing.de.
+- A report books its price once per calculation from the account's credits; further formats and
+  languages of the same calculation cost nothing. Tell the user before creating one. If the answer is
+  `credits_exhausted`, follow section 5.
+
+To pass a result on to a second app, follow the `result-handoff` skill.

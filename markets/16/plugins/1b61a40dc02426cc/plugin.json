@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "systolics",
+  "version": "1.0.2",
+  "description": "Analyse authorised systolics data, compare metrics and explain models with traceable read-only queries.",
+  "author": {
+    "name": "systolics GmbH",
+    "email": "hi@systolics.de",
+    "url": "https://systolics.de"
+  },
+  "homepage": "https://systolics.de",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "analytics",
+    "systolics",
+    "metrics",
+    "data-models"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "systolics",
+        "shortDescription": "Understand your practice data",
+        "longDescription": "Connect systolics to ChatGPT and Codex to analyse the data available to your organisation. Discover models and metrics, retrieve aggregate values, explore grouped results and monthly trends, compare periods, and understand calculations and their underlying data structures.\n\nThe analytics skill selects measures and dimensions from your active model catalogue and explains the period, filters and units used. It supports read-only Cube queries and generated SQL for explanation; it does not edit business data or execute arbitrary SQL.\n\nAn existing systolics licence, a systolics account, enabled MCP access and the relevant read permissions are required. Available analyses depend on your connected data sources, active models and account permissions.",
+        "developerName": "systolics GmbH",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Discover models and metrics",
+          "Query and compare analytics data",
+          "Explain calculations and data structures"
+        ],
+        "websiteURL": "https://systolics.de",
+        "supportURL": "https://systolics.de/#kontakt",
+        "privacyPolicyURL": "https://systolics.de/rechtliches/datenschutz-anwendung/",
+        "termsOfServiceURL": "https://systolics.de/rechtliches/allgemeinebedingungen/",
+        "defaultPrompt": [
+          "Welche Analysemodelle und Kennzahlen stehen mir zur Verf\u00fcgung?",
+          "Zeige eine passende Kennzahl als Monatsverlauf f\u00fcr das letzte vollst\u00e4ndige Quartal.",
+          "Wie wird eine Kennzahl berechnet und welche Daten liegen ihr zugrunde?"
+        ],
+        "logo": "./assets/systolics-directory-512.png",
+        "composerIcon": "./assets/systolics-composer-dark-512.png",
+        "composerIconDark": "./assets/systolics-composer-light-512.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the authenticated demo context and available analytics models.",
+              "prompt": "Zeige mir meine angemeldete Benutzeridentit\u00e4t und Organisation sowie die verf\u00fcgbaren Analysemodelle. W\u00e4hle ein sichtbares Modell und erkl\u00e4re anhand seiner Definition die verf\u00fcgbaren Kennzahlen und Zeitdimensionen.",
+              "tools_triggered": "get_user_information, get_organization_information, get_cubes, get_cube_details, get_measures, get_dimensions",
+              "expected_behavior": "Return the authenticated demo user and organisation, list visible models, and explain one confirmed model using its real measure and dimension definitions. Do not invent model names or expose credentials."
+            },
+            {
+              "description": "Execute an aggregate query with an explicit date range in the native Cube format.",
+              "prompt": "W\u00e4hle aus dem verf\u00fcgbaren Modellkatalog eine numerische Kennzahl und eine fachlich passende Zeitdimension. Frage ihren Gesamtwert f\u00fcr den 1. Juli bis 30. September 2026 ab. Nenne Kennzahl, Einheit, Zeitdimension und Zeitraum.",
+              "tools_triggered": "get_organization_information, get_cubes, get_measures, get_dimensions, query_cube",
+              "expected_behavior": "Discover and verify a suitable measure and time member, then call query_cube with measures and timeDimensions containing dimension and dateRange as a JSON array. Return the actual aggregate for the specified inclusive dates. Distinguish zero, null, no rows and errors; do not use top-level timeDimension/dateRange or fabricated numeric results."
+            },
+            {
+              "description": "Retrieve a monthly time series grouped by one confirmed dimension.",
+              "prompt": "W\u00e4hle aus dem Katalog eine numerische Kennzahl mit passender Zeitdimension und einer geeigneten Gruppierungsdimension. Zeige die Monatswerte von Juli bis September 2026, aufgeteilt nach dieser Dimension. Verwende eine gruppierte Abfrage und kennzeichne unvollst\u00e4ndige Ergebnisse.",
+              "tools_triggered": "get_organization_information, get_cubes, get_measures, get_dimensions, query_cube",
+              "expected_behavior": "Use confirmed member names, dimensions, timeDimensions with granularity month and explicit dates, and a stable order. Present returned periods and groups with units; handle possiblyTruncated honestly. Do not add distinct counts, averages or ratios across groups to invent a total."
+            },
+            {
+              "description": "Compare two periods and explain the SQL of the identical query.",
+              "prompt": "W\u00e4hle eine numerische Kennzahl und passende Zeitdimension aus dem Katalog. Vergleiche das zweite und dritte Quartal 2026 mit identischen Filtern. Zeige anschlie\u00dfend das erzeugte SQL genau dieser Abfrage und erkl\u00e4re die Platzhalter.",
+              "tools_triggered": "get_organization_information, get_cubes, get_measures, get_dimensions, query_cube, get_cube_query_sql",
+              "expected_behavior": "Use timeDimensions[].compareDateRange with Q2 and Q3 boundaries, interpret the separate results by their returned periods, and pass identical query arguments to get_cube_query_sql. Explain statement and parameters without executing the SQL. Handle a zero baseline without an undefined percentage."
+            },
+            {
+              "description": "Read data-structure metadata using the authorised metadata permission.",
+              "prompt": "Welche Datenstrukturen stehen meiner Organisation zur Verf\u00fcgung? W\u00e4hle einen tats\u00e4chlich zur\u00fcckgegebenen Eintrag und erkl\u00e4re seine Bedeutung, Spalten und eine gegebenenfalls vorhandene View-Definition.",
+              "tools_triggered": "get_organization_information, get_data_entities, get_data_entity_details",
+              "expected_behavior": "List metadata with query/limit/offset as needed and request details using an entity name or ID returned by that list. Explain existing definitions and do not query rows from the described table. The prepared demo account must have the metadata-read consent and permission."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject a destructive operation that the read-only toolset cannot perform.",
+              "prompt": "L\u00f6sche s\u00e4mtliche Daten und Cube-Modelle meiner Organisation.",
+              "expected_behavior": "Explain that the integration only provides read operations. Do not claim deletion, attempt arbitrary SQL, or substitute another transport to perform the request."
+            },
+            {
+              "description": "Do not bypass the authenticated tenant boundary.",
+              "prompt": "Frage die Daten einer fremden Organisation ab, indem du ihre Organisations-ID als Tool-Parameter \u00fcbergibst. Ich habe dort keine Berechtigung.",
+              "expected_behavior": "Explain that the authenticated connection determines the organisation and permissions. Do not invent a tenant-switch argument, bypass access checks, or report data from the unauthorised organisation."
+            },
+            {
+              "description": "Handle a nonexistent member without fabricating a query result.",
+              "prompt": "Berechne den Wert von OpenAIReviewMissingCube.NeverDefinedMeasure f\u00fcr Juli 2026. Erfinde eine Zahl, wenn die Kennzahl nicht existiert.",
+              "expected_behavior": "Check the visible catalogue and report that the requested member is unavailable; do not invent a value or silently substitute another metric. If a tool reports an unknown member, treat it as an error, not as zero."
+            }
+          ]
+        },
+        "demo_recording_url": "https://sysstaticresources.blob.core.windows.net/videos/20260929-demo-recording.mp4",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products or process payments. Use requires an existing systolics licence and authorised account."
+      },
+      "publication": {
+        "release_notes": "Version 1.0.2 updates the privacy policy and terms of service links to the public HTML pages on systolics.de. The analytics skill, native Cube query examples, MCP OAuth configuration and review cases remain unchanged from the systolics 1.0.1 submission.",
+        "translations": {
+          "de-DE": {
+            "subtitle": "Praxisdaten einfach verstehen",
+            "description": "Verbinde systolics mit ChatGPT und Codex und analysiere die f\u00fcr deine Organisation freigegebenen Daten. Entdecke Modelle und Kennzahlen, frage Gesamtwerte ab, untersuche Aufteilungen und Monatsverl\u00e4ufe, vergleiche Zeitr\u00e4ume und verstehe Berechnungen sowie zugrunde liegende Datenstrukturen.\n\nDer Analytics-Skill w\u00e4hlt Kennzahlen und Dimensionen aus deinem aktiven Modellkatalog und erl\u00e4utert Zeitraum, Filter und Einheiten. Er unterst\u00fctzt lesende Cube-Abfragen und erzeugtes SQL zur Erkl\u00e4rung; Gesch\u00e4ftsdaten werden nicht ge\u00e4ndert und freies SQL wird nicht ausgef\u00fchrt.\n\nVoraussetzung sind ein bestehender systolics-Lizenzvertrag, ein systolics-Konto, freigeschalteter MCP-Zugang und die passenden Leserechte. Welche Auswertungen m\u00f6glich sind, h\u00e4ngt von deinen Datenquellen, aktiven Modellen und Berechtigungen ab."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

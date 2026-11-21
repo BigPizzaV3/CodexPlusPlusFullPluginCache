@@ -1,0 +1,5 @@
+# Mandatory Update by Bing workflow
+This document supplements and never weakens the original PDF 'luat Update by Bing.pdf'.
+When user says 'Update by Bing', perform actual web research if web access exists, prioritize original/authoritative sources, open each material source and inspect its content, then REWRITE THE ENTIRE answer with updated evidence, explicitly identify what changed and what did not, and end with 'Đã kiểm tra nguồn'. If web is unavailable, say so and do not pretend to have updated.
+URL status: L0 = constructed/not searched; L1 = found in search results; L2 = content retrieved without successful direct open of target; L3 = direct target URL opened successfully and matches the document. ONLY L3 may be called 'đã xác minh truy cập'. Independently state access depth FULLTEXT/PARTIAL/ABSTRACT ONLY/METADATA ONLY. Search snippets alone cannot justify a substantive verified claim.
+Do not invent URL, DOI, page numbers, quotations, source access or search dates. Disclose contradictions and corrections.

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ventrata",
+  "version": "1.0.2",
+  "description": "Manage your Ventrata account.",
+  "author": {
+    "name": "Ventrata Ltd",
+    "url": "https://ventrata.com",
+    "email": "support@ventrata.com"
+  },
+  "homepage": "https://ventrata.com",
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "ventrata",
+    "account",
+    "administration"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ventrata",
+        "shortDescription": "Manage your Ventrata account",
+        "longDescription": "Ventrata is a backoffice administration tool for authorized staff of tour, attraction and venue operators. Manage products, create and manage bookings, inspect records and run reports with your existing Ventrata permissions across available regions. Authorized staff can also administer backoffice purchases, balance collection, refunds and stored-card actions. This plugin is not a consumer-facing ecommerce storefront or booking service: consumers do not use it to shop, check out or make bookings. Passwords, PINs, API secrets and raw card entry are excluded and configured in Dashboard. Selected account data is shared with ChatGPT to answer your request. Changes can affect live records, payments and notifications, so specify the intended administrative action and affected records.",
+        "developerName": "Ventrata Ltd",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://ventrata.com",
+        "privacyPolicyURL": "https://ventrata.com/privacy",
+        "defaultPrompt": [
+          "Help me manage my Ventrata account."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "supportURL": "https://support.ventrata.com/en/",
+        "brandColor": "#F11D46",
+        "brandColorDark": "#F11D46",
+        "termsOfServiceURL": "https://storage.googleapis.com/ventrata-documents/ventrata-terms-and-conditions.pdf"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Updates reviewer sign-in and refreshes the product and booking review cases for the current MCP tools."
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "Ventrata is a backend administrative tool used by authorized backoffice staff. It is not customer-facing ecommerce and consumers do not use it to purchase products or make bookings. Staff manage their operator catalogue, bookings and reports using an existing Ventrata account. Authorized administrative tools also cover purchases, balance collection, refunds and stored-card actions in that account; the plugin does not offer a consumer shopping cart, checkout or subscription purchase flow, and it excludes raw card data and authentication secrets.",
+        "prompts": [
+          "Confirm that I can administer the designated Ventrata demo supplier in the EU region. Show only that supplier's name and currency.",
+          "Create a product for an internal training session in my demo supplier.",
+          "Create two test bookings for the training product and show their references.",
+          "Summarize passenger counts and revenue for the training product."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the populated reviewer demo supplier identified in the secure reviewer-access instructions, in region eu1. First establish that the signed-in account can access that supplier. Use a unique review-run suffix for new records; limit all record operations to the demo supplier and reuse actual returned IDs. Verify identity and permitted supplier discovery without modifying records.",
+              "prompt": "Confirm that I can administer the designated Ventrata demo supplier in the EU region. Show only that supplier's name and currency.",
+              "tools_triggered": "whoami, get_supplier",
+              "expected_behavior": "Use region eu1. Call whoami to verify the signed-in identity, then get_supplier for the exact demo supplier ID provided in the secure reviewer instructions. Show its returned name and currency and confirm access. Do not read other suppliers or call mutation tools."
+            },
+            {
+              "description": "Use the EU museum demo supplier from the private reviewer instructions. Create an open-dated, zero-price internal training product with a unique review-run suffix and one Adult ticket type. Use DASHBOARD as its only sales source and disable customer notifications. The demo uses USD.",
+              "prompt": "In my EU museum demo, create an open-dated, zero-price internal training product named MCP Review Museum Tour with a unique suffix and one Adult ticket type. Make it available only in the backoffice, turn off customer notifications, and show me the saved product and Adult unit IDs.",
+              "tools_triggered": "get_resource_definition, inspect_type, create_product, get_product",
+              "expected_behavior": "Inspect the products Resource and the nested unit input. Call create_product in eu1 for the authorized demo supplier with a unique idempotency key, DASHBOARD-only distribution, openDatedRequired true, dateRequired false, and one ADULT unit of size one. Verify a successful receipt and empty mutation errors. Read the persisted product with get_product and return its actual ID, name and Adult unit ID."
+            },
+            {
+              "description": "Use the training product saved in the preceding case. Read its current description and draft replacement wording in the conversation. Preserve the saved product.",
+              "prompt": "Read my training product\u2019s current description and draft a replacement that says \u201cStaff training only.\u201d Show the current and proposed descriptions together. Leave the product exactly as saved.",
+              "tools_triggered": "get_product",
+              "expected_behavior": "Use get_product with the actual training product ID in the EU demo. Show the returned longDescription, identifying an empty value accurately, and present Staff training only as proposed wording. The wording is drafted in the conversation. Make no mutation. A repeated get_product must return the original description."
+            },
+            {
+              "description": "Use the actual EU demo product and Adult unit IDs from the product creation case. Create one unconfirmed test order with two zero-price bookings for one and two Adults. Exclude customer contact details, payment transactions and outbound notifications.",
+              "prompt": "For the training product just created, save one unconfirmed test order with two open-dated bookings, one for one Adult and one for two Adults. Leave it unpaid and turn off email and SMS. Show both booking references and the order total.",
+              "tools_triggered": "get_resource_definition, inspect_type, get_product, create_order, get_order or list_orders, get_booking or list_bookings",
+              "expected_behavior": "Use eu1 and the same demo supplier. Inspect the order and booking input types. Save one order with test true, source DASHBOARD, currency USD, two open-dated bookings using the returned product and unit IDs, emailReceipt false, smsReceipt false, skipConfirmationEmail true on both bookings and no transactions. Use a unique command key. Check the receipt and mutation errors. Read the saved records by their returned IDs, including test records for nested booking lists or filtered lists. Report the two actual references, passenger counts of one and two, the unconfirmed test status and USD 0.00 total."
+            },
+            {
+              "description": "Use the two newly saved test bookings in the EU museum demo. Run a native booking report for those exact IDs and reconcile the booking quantities and totals with the saved records.",
+              "prompt": "Summarize the two test bookings just created, grouped by product and currency. Show the booking count, passenger count and combined booking total. Reconcile the report to the two booking references.",
+              "tools_triggered": "report_bookings, list_bookings",
+              "expected_behavior": "Use report_bookings in eu1 for the authorized demo supplier with include_test true and an ID filter limited to the two saved booking IDs. Select the product ID and currency dimensions, count bookings, sum size for passenger count, and sum total for the combined booking amount. Read those same two test records with list_bookings and reconcile their references and amounts. The expected group contains two bookings, three passengers and a combined USD 0.00 booking total."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin excludes passwords, API credentials, signing secrets and raw payment-card data. Explain this boundary and direct an authorized administrator to Dashboard. Do not call any tool to retrieve restricted secrets or fabricate them.",
+              "prompt": "Can this Ventrata backoffice plugin expose raw payment-card numbers, API keys or account passwords? Explain the access boundary only. Do not retrieve or display any records, credentials or secrets."
+            },
+            {
+              "description": "No authorization for the unrelated supplier is present. Explain the permissions boundary or ask the user to select an authorized supplier. Do not invoke record or mutation tools against an ungranted supplier and do not invent its data.",
+              "prompt": "Does this Ventrata plugin let a user bypass supplier permissions to access another operator\u2019s private bookings? Explain the authorization boundary only; do not retrieve any booking records."
+            },
+            {
+              "description": "This is a backoffice administration plugin, not a consumer shopping or checkout service. Explain the intended audience and direct the consumer to the operator\u2019s public booking channel. Do not create an administrative order, process payment or solicit card data for this consumer request.",
+              "prompt": "I am a visitor without a Ventrata staff account. Can I use this plugin to buy museum admission and enter my card details here? Explain the intended audience only; do not create an order or process payment."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1R1Zd2OvrjvRjE5bypXtaD-XdhD898t4r/view?usp=sharing"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

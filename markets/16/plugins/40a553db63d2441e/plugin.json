@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "simmer",
+  "version": "0.3.1",
+  "description": "Save recipes and photos from ChatGPT to your private Simmer recipe book.",
+  "author": {
+    "name": "Matthew Edwards",
+    "url": "https://recipes.juno-web.co.uk/about"
+  },
+  "homepage": "https://recipes.juno-web.co.uk/about",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Simmer",
+        "shortDescription": "From ChatGPT to your kitchen.",
+        "longDescription": "Review a recipe in ChatGPT, request changes, then ask to save it to your own Simmer recipe book. Sign in with your Simmer email and approve access to that account. Find saved recipes by title and upload, add or replace recipe photos on request. Recipes and Simmer-hosted photos require the owning account to access them. Open your recipe link to adjust servings and follow cooking steps in Simmer. The plugin can save recipes and change images; it cannot edit recipe text, ingredients or steps, or delete recipes. Generated-image transfer depends on ChatGPT providing a supported file; you can attach the image yourself if needed. An internet connection and access to the Simmer plugin in ChatGPT are required.",
+        "developerName": "Matthew Edwards",
+        "category": "Other",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://recipes.juno-web.co.uk/about",
+        "supportURL": "https://recipes.juno-web.co.uk/support",
+        "privacyPolicyURL": "https://recipes.juno-web.co.uk/privacy",
+        "termsOfServiceURL": "https://recipes.juno-web.co.uk/terms",
+        "brandColor": "#355039",
+        "composerIcon": "./assets/simmer-icon.png",
+        "logo": "./assets/simmer-icon.png",
+        "defaultPrompt": [
+          "Create a quick vegetarian dinner for four. Show me the recipe before saving it to Simmer."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://recipes.juno-web.co.uk/review-assets/887be65b61b340088ea396c2d7661117/simmer-review-walkthrough-v0.3.0.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check the connected private recipe book and photo permissions",
+              "prompt": "Use checkSimmerConnection for my reviewer Simmer connection and tell me its email and whether image permissions are ready.",
+              "tools_triggered": "checkSimmerConnection",
+              "expected_behavior": "Reports connected=true for reviewer@simmer.invalid. With the full review permissions approved, imageToolsReady=true and imageStatus=ready. Does not save or change any recipe. If a different book is connected, stop and select the reviewer connection before continuing."
+            },
+            {
+              "description": "Save a reviewed tomato pasta recipe to the connected book",
+              "prompt": "Save the tomato pasta recipe we just reviewed as \"Reviewer test pasta\" to my Simmer recipe book.",
+              "tools_triggered": "saveRecipeToSimmer",
+              "expected_behavior": "After the recipe preview and this explicit save request, returns a successful tool receipt and a real Simmer recipe link. Opening the link while signed into the reviewer account shows the reviewed title, two servings, ingredients and steps. Does not claim a save before receiving the receipt; an identical retry may return already_saved with the same link."
+            },
+            {
+              "description": "Find the existing reviewer recipe by its title",
+              "prompt": "Find \"Reviewer test pasta\" in my reviewer Simmer recipe book and give me its link. Do not change it.",
+              "tools_triggered": "findRecipes",
+              "expected_behavior": "Returns the existing matching recipe and its real link from the connected reviewer book. Does not create or edit a recipe. If several titles match, lists the matches or asks the user to choose rather than inventing an ID."
+            },
+            {
+              "description": "Attach a supplied food photo to an existing recipe",
+              "prompt": "Add this attached photo to \"Reviewer test pasta\" in my reviewer Simmer recipe book.",
+              "tools_triggered": "findRecipes, uploadRecipeImage, updateRecipe",
+              "expected_behavior": "Finds the intended recipe, uploads the actual attached file and uses the returned Simmer-hosted image URL to update that same recipe. Uses the current image as expectedImage when known. The existing recipe link shows the new photo; title, servings, ingredients and cooking steps are preserved. Does not create a duplicate recipe or expose the photo to another book.",
+              "file_attachment_urls": [
+                "https://recipes.juno-web.co.uk/images/tomato-pasta.jpg"
+              ]
+            },
+            {
+              "description": "Replace an existing recipe photo with a second supplied photo",
+              "prompt": "Replace the photo on \"Reviewer test pasta\" in my reviewer Simmer recipe book with this attached photo.",
+              "tools_triggered": "findRecipes, uploadRecipeImage, updateRecipe",
+              "expected_behavior": "Resolves the existing recipe, uploads the second actual attachment and updates only its image, using expectedImage when known. The same recipe link displays the replacement photo without a new recipe or changes to its text, servings or steps. If the image changed concurrently, asks the user to check before overwriting.",
+              "file_attachment_urls": [
+                "https://recipes.juno-web.co.uk/images/pasta-final.jpg"
+              ]
+            }
+          ],
+          "negative": [
+            {
+              "description": "Preview-only recipe request must not write data",
+              "prompt": "Suggest a vegetarian dinner for two. Show me the recipe here, but do not save anything to Simmer or upload any images.",
+              "tools_triggered": "None",
+              "expected_behavior": "Provides a recipe in the conversation without calling saveRecipeToSimmer, uploadRecipeImage or updateRecipe. No new recipe or photo is created. A suggestion alone is not permission to write."
+            },
+            {
+              "description": "Do not invent a recipe ID or create a substitute when the title is absent",
+              "prompt": "Add this attached photo to my recipe named \"Missing review recipe 74b8e1\". If it is not in my Simmer book, stop; do not create it.",
+              "tools_triggered": "findRecipes",
+              "expected_behavior": "Lookup returns no match in the connected reviewer book. Explains that the recipe was not found and asks for the correct title or link. Does not guess an ID, create a replacement recipe, upload the unused photo or update a different recipe.",
+              "file_attachment_urls": [
+                "https://recipes.juno-web.co.uk/images/tomato-pasta.jpg"
+              ]
+            },
+            {
+              "description": "A recipe-deletion request is outside the plugin capabilities",
+              "prompt": "Delete \"Reviewer test pasta\" from Simmer.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explains that this connection cannot delete recipes and directs the user to the Simmer website to manage it. Does not call saveRecipeToSimmer or updateRecipe as a substitute, remove the image or claim deletion. The recipe and image remain unchanged."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Simmer 0.3.1 corrects the directory category to the supported Other value. It retains the 0.3.0 functionality: private, account-scoped recipe books with email-code sign-in, per-user ChatGPT OAuth connections and scoped recipe lookup, photo upload and image-only updates. It includes public support/privacy/terms pages and isolated reviewer access. Approval gives pending feedback and account switching stays within the OAuth routes. Recipes and hosted uploads require the owning account. The plugin cannot edit recipe text or delete recipes. Generated-image transfer requires a supported file attachment. The linked 0.3.0 walkthrough demonstrates the unchanged functionality."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

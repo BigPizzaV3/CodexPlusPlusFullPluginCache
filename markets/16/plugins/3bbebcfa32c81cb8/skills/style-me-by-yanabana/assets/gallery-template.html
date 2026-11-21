@@ -1,0 +1,201 @@
+<div id="__GALLERY_ID__">
+  <div data-style-groups></div>
+  <fieldset class="price-group">
+    <legend>Price preference</legend>
+    <div class="viz-controls" data-tiers></div>
+  </fieldset>
+  <p class="text-small" data-budget hidden></p>
+  <p class="text-small" aria-live="polite" data-summary></p>
+  <div class="viz-row">
+    <button type="button" class="btn btn-primary" data-continue disabled>Continue</button>
+  </div>
+  <p class="text-destructive" role="alert" data-error hidden></p>
+  <div data-reply-panel hidden>
+    <label class="form-label" for="__GALLERY_ID__-reply">Reply in chat</label>
+    <textarea id="__GALLERY_ID__-reply" class="form-control" rows="4" readonly></textarea>
+  </div>
+  <script type="application/json" data-config>__GALLERY_CONFIG__</script>
+</div>
+<style>
+  #__GALLERY_ID__ { color: var(--foreground); }
+  #__GALLERY_ID__ fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+  #__GALLERY_ID__ legend { margin-bottom: 10px; font-weight: 500; }
+  #__GALLERY_ID__ figure { margin: 0; min-width: 0; }
+  #__GALLERY_ID__ .style-photo { display: block; width: 100%; aspect-ratio: 2 / 3; height: auto; object-fit: cover; object-position: center; }
+  #__GALLERY_ID__ figcaption { margin-top: 8px; }
+  #__GALLERY_ID__ .style-caption { margin: 6px 0 0; }
+  #__GALLERY_ID__ [data-reply-panel] { margin-top: 12px; }
+</style>
+<script>
+(() => {
+  const root = document.getElementById("__GALLERY_ID__");
+  if (!root) return;
+  const config = JSON.parse(root.querySelector("[data-config]").textContent);
+  const styleGroups = root.querySelector("[data-style-groups]");
+  const tierGroup = root.querySelector("[data-tiers]");
+  const summary = root.querySelector("[data-summary]");
+  const budget = root.querySelector("[data-budget]");
+  const continueButton = root.querySelector("[data-continue]");
+  const error = root.querySelector("[data-error]");
+  const replyPanel = root.querySelector("[data-reply-panel]");
+  const reply = root.querySelector("textarea");
+  const tierNames = ["Accessible", "Premium", "Luxury", "Mix it up"];
+  const tierDescriptions = ["Keep the spend down.", "Contemporary brands and considered upgrades.", "Designer collections and statement pieces.", "Accessible staples with selected splurges."];
+  const validStyles = new Set(config.styles.map(style => style.id));
+  let selected = new Set(config.selected);
+  let tier = config.tier;
+  let budgetContext = config.budgetContext;
+  let pending = false;
+  let imageFailed = false;
+
+  function restore(snapshot) {
+    const state = snapshot && snapshot.privateContent;
+    if (!state || state.galleryId !== root.id || state.schemaVersion !== 2) return;
+    if (Array.isArray(state.styleIds)) selected = new Set(state.styleIds.filter(id => validStyles.has(id)));
+    if (state.tier === null || tierNames.includes(state.tier)) tier = state.tier;
+  }
+
+  function selectionText() {
+    const styles = config.styles.filter(style => selected.has(style.id));
+    const labels = styles.map(style => `${style.id} ${style.name}`).join(" + ");
+    const clothing = [...new Set(styles.map(style => style.category))].join(" and ");
+    const sentences = [`For Style Me, use ${clothing} and ${labels}.`];
+    if (config.qa) sentences.unshift("Synthetic QA fixture for Style Me. These choices are test data, not personal preferences; do not save them as memory.");
+    if (tier) sentences.push(`Price preference: ${tier}.`);
+    if (budgetContext) sentences.push(`Keep my existing budget: ${budgetContext}.`);
+    sentences.push("Reuse any answers or photo already available in this chat; ask only for missing details needed for this outfit.");
+    return sentences.join(" ");
+  }
+
+  function renderState() {
+    root.querySelectorAll("input[data-style]").forEach(input => { input.checked = selected.has(input.dataset.style); });
+    root.querySelectorAll("input[data-tier]").forEach(input => { input.checked = input.dataset.tier === tier; });
+    const names = config.styles.filter(style => selected.has(style.id)).map(style => `${style.label} ${style.name}`);
+    summary.textContent = names.length ? `${names.join(" + ")} · ${tier || (budgetContext ? "Existing budget" : "Choose a price preference")}` : "Choose one or more styles to blend.";
+    budget.hidden = !budgetContext;
+    budget.textContent = budgetContext ? `Existing budget: ${budgetContext}` : "";
+    continueButton.disabled = imageFailed || pending || selected.size === 0 || (!tier && !budgetContext);
+    if (!replyPanel.hidden) reply.value = selectionText();
+  }
+
+  function persist() {
+    const api = window.openai;
+    if (!api || typeof api.setWidgetState !== "function") return;
+    const styles = config.styles.filter(style => selected.has(style.id));
+    const privateContent = {
+      schemaVersion: 2,
+      galleryId: root.id,
+      category: config.category,
+      styleIds: styles.map(style => style.id),
+      styleNames: styles.map(style => style.name),
+      tier,
+      budgetContext
+    };
+    try { Promise.resolve(api.setWidgetState({modelContent: null, privateContent})).catch(() => {}); } catch (_) {}
+  }
+
+  function changed() {
+    if (!imageFailed) error.hidden = true;
+    renderState();
+    persist();
+  }
+
+  const categories = config.category === "both" ? ["womenswear", "menswear"] : [config.category];
+  categories.forEach(category => {
+    const fieldset = document.createElement("fieldset");
+    const legend = document.createElement("legend");
+    legend.textContent = `${category === "womenswear" ? "Womenswear" : "Menswear"} style inspiration`;
+    fieldset.appendChild(legend);
+    const grid = document.createElement("div");
+    grid.className = "viz-grid";
+    config.styles.filter(style => style.category === category).forEach(style => {
+      const figure = document.createElement("figure");
+      const photo = document.createElement("img");
+      photo.className = "style-photo";
+      photo.src = style.image;
+      photo.alt = `${style.name}: ${style.caption}`;
+      photo.addEventListener("error", () => {
+        imageFailed = true;
+        error.textContent = "A style photo could not display. The visual choice is incomplete.";
+        error.hidden = false;
+        renderState();
+      });
+      const caption = document.createElement("figcaption");
+      const label = document.createElement("label");
+      label.className = "form-check";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "form-check-input";
+      checkbox.dataset.style = style.id;
+      checkbox.id = `${root.id}-${style.id}`;
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) selected.add(style.id); else selected.delete(style.id);
+        changed();
+      });
+      const labelText = document.createElement("span");
+      labelText.className = "form-check-label";
+      labelText.textContent = `${style.label}. ${style.name}`;
+      label.append(checkbox, labelText);
+      const description = document.createElement("p");
+      description.className = "text-small style-caption";
+      description.textContent = style.caption;
+      caption.append(label, description);
+      figure.append(photo, caption);
+      grid.appendChild(figure);
+    });
+    fieldset.appendChild(grid);
+    styleGroups.appendChild(fieldset);
+  });
+
+  tierNames.forEach((name, index) => {
+    const label = document.createElement("label");
+    label.className = "form-check";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = `${root.id}-tier`;
+    radio.className = "form-check-input";
+    radio.dataset.tier = name;
+    const labelText = document.createElement("span");
+    labelText.className = "form-check-label";
+    labelText.textContent = `${name}: ${tierDescriptions[index]}`;
+    radio.addEventListener("change", () => { if (radio.checked) { tier = name; changed(); } });
+    label.append(radio, labelText);
+    tierGroup.appendChild(label);
+  });
+
+  continueButton.addEventListener("click", async () => {
+    if (imageFailed || pending || selected.size === 0 || (!tier && !budgetContext)) return;
+    error.hidden = true;
+    reply.value = selectionText();
+    const api = window.openai;
+    if (!api || typeof api.sendFollowUpMessage !== "function") {
+      replyPanel.hidden = false;
+      reply.focus();
+      reply.select();
+      return;
+    }
+    pending = true;
+    renderState();
+    try {
+      await api.sendFollowUpMessage({prompt: reply.value, title: "Continue with these style choices"});
+    } catch (_) {
+      error.textContent = "The selection was not sent. You can reply with the text below.";
+      error.hidden = false;
+      replyPanel.hidden = false;
+    } finally {
+      pending = false;
+      renderState();
+    }
+  });
+
+  restore(window.openai && window.openai.widgetState);
+  renderState();
+  window.addEventListener("openai:set_globals", event => {
+    const globals = event.detail && event.detail.globals;
+    if (globals && Object.prototype.hasOwnProperty.call(globals, "widgetState")) {
+      restore(globals.widgetState);
+      renderState();
+    }
+  });
+})();
+</script>

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6aecd153d5608191a3a1a073107d8461",
+  "version": "1.0.0",
+  "description": "Manage Forminit forms and review submissions from a connected Forminit account.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Forminit Form Backend",
+        "shortDescription": "Form backend for sites & apps",
+        "longDescription": "Collect form submissions and file uploads, send notifications and automate what happens next without building your own backend. Forminit connects to your custom forms through a form API, giving you full control over design and user experience.\n\nBuild your form on any website or app, then let Forminit handle the submissions. Use it for contact forms, lead capture, applications, registrations, surveys and customer feedback.\n\nWith Forminit connected, you can:\n\u2022 Create and connect forms: create a form backend and get integration guidance for your website or app.\n\u2022 Review submissions: find messages, summarise enquiries and access submitted fields, team notes and file links.\n\u2022 Organise enquiries: mark submissions as read, star important messages, update statuses and add notes.\n\u2022 Understand results: count and compare submissions over time, by country, device or browser.\n\u2022 Troubleshoot issues: investigate failed notifications, integration deliveries, spam blocks and workflow failures.\n\u2022 Manage forms: update settings, control allowed domains and adjust submission retention.\n\nSign in securely with your Forminit account; no API key is required. Access follows your approved permissions, workspace role and plan limits, and you can revoke it at any time. Editing workflows, managing API keys and exporting submissions to CSV are done in the Forminit dashboard.",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Create a contact form with file uploads and help me connect it to my website.",
+          "Summarise the latest enquiries from my contact form.",
+          "How many submissions did my signup form receive last week?"
+        ],
+        "websiteURL": "https://forminit.com/docs/mcp/",
+        "supportURL": "https://forminit.com/contact/",
+        "privacyPolicyURL": "https://forminit.com/privacy-policy/",
+        "termsOfServiceURL": "https://forminit.com/terms-conditions/",
+        "logo": "./assets/forminit.png",
+        "composerIcon": "./assets/forminit.png",
+        "developerName": "Forminit"
+      },
+      "review": {
+        "prompts": [
+          "Create a personal Forminit form called Property Valuation Contact and show me how to connect my React contact form to it.",
+          "Show me the latest submission in my Property Valuation Requests form, mark it as read and add the note \"Contact the owner to arrange a valuation.\"",
+          "How many submissions does my Property Valuation Requests form have?",
+          "Check my Property Viewing Requests form for delivery or workflow problems in the last 30 days.",
+          "Move the latest submission from Jamie Lee in my Property Viewing Requests form to trash, then empty that form's trash.",
+          "Create a new Forminit API key for my backend and paste it here.",
+          "Export every submission from my Property Valuation Requests form into one CSV file.",
+          "Add an email notification to my Property Valuation Requests form's workflow and publish it."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a form and get React setup steps. Needs the reviewer account on a paid plan with at least one free form slot and no form named Property Valuation Contact. No code project is needed. To repeat the case, first delete the Property Valuation Contact form in the Forminit dashboard.",
+              "prompt": "Create a personal Forminit form called Property Valuation Contact and show me how to connect my React contact form to it.",
+              "tools_triggered": "forminit_create_form, forminit_get_integration_guide",
+              "expected_behavior": "Calls forminit_create_form once with name Property Valuation Contact, auth_mode public (or omitted, which defaults to public) and no workspace_id. Then calls forminit_get_integration_guide with stack react and the returned form id. Reports the new form id and submission endpoint, and explains the React setup from the returned guide, including the field naming and submitting with the new form id. Does not claim that code was edited or that a submission was sent. If the name is already taken, reports the error and does not retry with the same name."
+            },
+            {
+              "description": "Read, mark and annotate one submission. The Property Valuation Requests form holds three inbox submissions; the newest is from Alex Morgan with the message Valuation request for a three-bedroom flat. ChatGPT may ask to allow the Forminit changes; choose Allow. Repeating the case adds one more identical note, which is expected. To restore the starting state, mark that submission unread in the dashboard.",
+              "prompt": "Show me the latest submission in my Property Valuation Requests form, mark it as read and add the note \"Contact the owner to arrange a valuation.\"",
+              "tools_triggered": "forminit_list_forms, forminit_list_submissions, forminit_get_submission, forminit_update_submissions, forminit_add_submission_note",
+              "expected_behavior": "Finds Property Valuation Requests with forminit_list_forms, calls forminit_list_submissions for it with limit 1 and no filters, then forminit_get_submission with the returned id. Shows Alex Morgan's submitted values, including the message Valuation request for a three-bedroom flat. Calls forminit_update_submissions with only that submission id and read true, then forminit_add_submission_note once with the same form and submission ids and the note Contact the owner to arrange a valuation. Confirms both changes. The dashboard then shows the submission as read with the note."
+            },
+            {
+              "description": "Count a form's inbox. Property Valuation Requests holds exactly three inbox submissions, from Alex Morgan, Sam Patel and Riley Chen. Read state and notes do not change the count, so this case can run before or after the others.",
+              "prompt": "How many submissions does my Property Valuation Requests form have?",
+              "tools_triggered": "forminit_list_forms, forminit_list_submissions",
+              "expected_behavior": "Finds the form with forminit_list_forms, then calls forminit_list_submissions for it without filters and reports 3 from the response's total field (forminit_get_submission_stats covering all time gives the same 3), stating that this is the inbox count. Does not count the returned page or page through results. If total is missing, says an exact count is unavailable instead of estimating one."
+            },
+            {
+              "description": "Find one form's delivery and workflow problems. The reviewer account's notification address previously bounced permanently, so Forminit blocks the email notifications of Property Viewing Requests and its workflow runs complete with errors. The seeded Jamie Lee submissions produced these entries; at least one submission must reach the form within the 30 days before the review, so send a new one if the seeded entries are older.",
+              "prompt": "Check my Property Viewing Requests form for delivery or workflow problems in the last 30 days.",
+              "tools_triggered": "forminit_list_forms, forminit_get_form_activity",
+              "expected_behavior": "Gets the form id from forminit_list_forms (or from forminit_check_forms with days 30), then calls forminit_get_form_activity for Property Viewing Requests with days 30. Reports that its email notifications could not be sent because the recipient address previously bounced permanently, and that its workflow runs completed with errors, matching the returned entries. Explains that the recipient address or mailbox must be fixed before these emails can be delivered. Does not claim to fix, retry or resend anything."
+            },
+            {
+              "description": "Trash a named submission, then permanently empty the trash with confirmation. Property Viewing Requests starts with an empty trash and three inbox submissions from Jamie Lee, so the case can be repeated three times; each run deletes one. ChatGPT may ask to allow the Forminit changes; choose Allow. When the assistant asks you to confirm the permanent deletion, confirm it, for example by replying: Yes, permanently delete it.",
+              "prompt": "Move the latest submission from Jamie Lee in my Property Viewing Requests form to trash, then empty that form's trash.",
+              "tools_triggered": "forminit_list_forms, forminit_list_submissions, forminit_trash_submissions, forminit_empty_trash",
+              "expected_behavior": "Finds the form, calls forminit_list_submissions with query Jamie Lee and limit 1, and calls forminit_trash_submissions with only that submission id. Then calls forminit_empty_trash without confirm, reports a trash count of 1, warns that deletion is permanent and includes any files, and asks for confirmation without claiming anything was deleted. After the reviewer confirms, calls forminit_empty_trash again with confirm true and expected_count 1 and reports one submission permanently deleted. If the count changed, shows the new count and asks again."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No API key tool exists. The assistant explains that API keys are created in the Forminit dashboard and must be kept in a server-side environment variable, never in client-side code. It does not call Forminit tools, ask the user to paste a key, or invent one.",
+              "prompt": "Create a new Forminit API key for my backend and paste it here."
+            },
+            {
+              "description": "No bulk export tool exists. The assistant explains that a full CSV export is available from the Forminit dashboard. It may look up the form, but it does not page through forminit_list_submissions to build a CSV and does not claim an export was created.",
+              "prompt": "Export every submission from my Property Valuation Requests form into one CSV file."
+            },
+            {
+              "description": "No workflow editing tool exists. The assistant explains that it cannot add or publish workflow steps and directs the user to the form's Workflow page in the Forminit dashboard. It does not call forminit_update_form or another tool to simulate the change, send an email, or claim the workflow was published.",
+              "prompt": "Add an email notification to my Property Valuation Requests form's workflow and publish it."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin supports no purchases and processes no payments.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=b-F_R2ltTh0"
+      },
+      "publication": {
+        "release_notes": "Initial public release. Connect a Forminit account to manage forms, review and triage submissions, see submission trends, and get integration guidance.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Forminit",
+    "url": "https://forminit.com/"
+  },
+  "homepage": "https://forminit.com/"
+}

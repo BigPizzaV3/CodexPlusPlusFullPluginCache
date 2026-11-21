@@ -1,0 +1,12 @@
+# Design specification
+- Visual direction / personality:
+- Source URLs and observed principles:
+- Typography scale and fallbacks:
+- Color roles and contrast evidence:
+- Grid, density and responsive/adaptive rules:
+- Navigation, component states and motion:
+- Platform-native conventions:
+- Loading, empty, error, success, permission, offline:
+- Accessibility and reduced-motion requirements:
+- Asset provenance / licensing:
+- Visual comparison results or NOT RUN reason:

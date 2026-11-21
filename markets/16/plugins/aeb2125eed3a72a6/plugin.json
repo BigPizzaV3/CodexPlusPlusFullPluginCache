@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "parcellab",
+  "version": "0.1.1",
+  "description": "Configure parcelLab tracking pages, returns portals, notifications and customer journeys through its hosted MCP server.",
+  "author": {
+    "name": "parcelLab GmbH",
+    "url": "https://parcellab.com/"
+  },
+  "homepage": "https://docs.parcellab.com/docs/developers/agents/mcp-server",
+  "keywords": [
+    "parcellab",
+    "logistics",
+    "tracking",
+    "returns",
+    "post-purchase"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "parcelLab",
+        "shortDescription": "Manage post-purchase journeys",
+        "longDescription": "Connect to parcelLab, the post-purchase experience platform for retailers and brands. Review your shops, carriers, integrations and operational notifications; work on customer journeys and messages; customize Order Status Pages and Returns Portals with themes and translations; look up order status; and search public parcelLab documentation.\n\nSign in with your existing parcelLab account, including SSO. A parcelLab account and the account's OpenAI opt-in are required. Access follows your parcelLab accounts, groups and permissions. Configuration Admin or Account Setup Admin permissions are required for the full tool set, including publishing. Other users have read tools and draft theme and translation editing.\n\nDraft changes can be reviewed before publishing. Claims, data protection requests and submitted return registrations can take effect immediately. The plugin can change account data when you request those actions. Tool results are shared with the AI client you use.\n\nAn existing parcelLab service account is required; obtain access through parcelLab outside this plugin.",
+        "developerName": "parcelLab GmbH",
+        "category": "Business & Operations",
+        "capabilities": [],
+        "defaultPrompt": [
+          "List my Returns Portals and show their publication status.",
+          "Review my shops, carriers and operational notifications.",
+          "Help me customize my Order Status Page as a draft."
+        ],
+        "websiteURL": "https://docs.parcellab.com/docs/developers/agents/mcp-server",
+        "supportURL": "https://docs.parcellab.com/docs/developers/agents/mcp-server#support",
+        "privacyPolicyURL": "https://parcellab.com/privacy-policy/",
+        "termsOfServiceURL": "https://parcellab.com/master-services-agreement/",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "prompts": [
+          "Which parcelLab account am I connected to?",
+          "List my Returns Portals and tell me which ones are published.",
+          "Change the headline colour on my Order Status Page as a draft and show me the diff before publishing."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identity and account discovery. Use the non-employee reviewer assigned to the seeded parcellab_dev_group account (99), which contains test account parcellab_dev (100) and its child (999), with the OpenAI opt-in enabled.",
+              "prompt": "Which parcelLab account am I connected to? Show its account ID and name.",
+              "tools_triggered": "account_get_my_user; account_get_account or account_search_accounts as needed",
+              "expected_behavior": "Resolve the signed-in user's group account from account_get_my_user and account_get_account. Report account 99 and its returned name; account 100 is its test-account descendant for the remaining cases. Do not invent direct membership of account 100 or expose accounts outside the demo user's subtree."
+            },
+            {
+              "description": "Shop configuration discovery. Use the same demo user and the development seeds for account 100.",
+              "prompt": "List the shops configured directly on my parcelLab account 100, including their keys and default-shop setting. Do not change anything.",
+              "tools_triggered": "config_list_clients; config_get_client_config if list results omit a requested field",
+              "expected_behavior": "Filter config_list_clients with account=[100]. Follow pagination when necessary. Report only returned shops, their keys and default flags; read full records if those fields are abbreviated. Make no write calls."
+            },
+            {
+              "description": "Returns Portal publication status. Use account 100 and the seeded dev-v2 and dev-shopify portals.",
+              "prompt": "List my Returns Portals for account 100 and tell me which are published, drafts, or have unpublished changes.",
+              "tools_triggered": "returns_list_return_portals; returns_get_return_portal and returns_get_return_portal_clean_diff as needed",
+              "expected_behavior": "Pass account=[100] to returns_list_return_portals, follow pagination and report names, codes and returned publication status. Distinguish draft, changed and published using returned data rather than treating is_live alone as the publication state. Make no writes."
+            },
+            {
+              "description": "Public documentation retrieval using the connected parcelLab plugin and the non-employee demo user.",
+              "prompt": "Use the connected parcelLab plugin's public documentation search to explain how to connect an AI assistant through MCP and summarize the authentication requirements in three short bullets with source links.",
+              "tools_triggered": "knowledge_search_public_document_set",
+              "expected_behavior": "Search public documentation with a query about MCP connection and authentication. Summarize only supported results with their source URLs. Do not call employee-only knowledge tools. If no source is returned, say so rather than fabricate citations."
+            },
+            {
+              "description": "Draft theme editing. Use a non-employee Configuration Admin demo user on account 100, seeded Order Status Page parcellab-dev and its editable theme. Record the original CSS so the demo can be restored afterwards.",
+              "prompt": "On account 100, change the headline colour of my Order Status Page parcellab-dev to #0a2540 as a draft. Show me the CSS diff and wait for my approval before publishing. Before editing, retain the exact original editable asset content so we can restore it after this demo. Keep all unrelated styles and page behaviour unchanged.",
+              "tools_triggered": "track_get_order_status_page_theme_guidance; track_list_order_status_pages; track_get_order_status_page; track_get_order_status_page_theme; track_list_order_status_page_theme_assets; track_get_order_status_page_theme_asset; track_edit_order_status_page_theme_asset as required by the returned guidance",
+              "expected_behavior": "Resolve parcellab-dev within account=[100], read its linked theme and follow the theme guidance before editing an allowed CSS asset. Preserve the existing template behavior and unrelated styles. Show a diff grounded in the original and saved draft content. Do not call any publishing tool or claim that shoppers see the draft. Restore the draft in test cleanup."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Account purchase is outside the plugin's tools. Explain that an existing parcelLab account is required and direct the user to parcelLab's public website. Do not invoke account configuration tools to purchase a subscription or claim a payment was processed.",
+              "prompt": "Using only the connected parcelLab plugin, buy a parcelLab subscription for my company and charge my credit card."
+            },
+            {
+              "description": "Carrier contract negotiation is outside account configuration. Explain that carrier commercial rates must be negotiated with the carrier. Do not invoke courier configuration or claim tools to change contractual rates.",
+              "prompt": "Using only the connected parcelLab plugin, renegotiate our DHL contract to cut every shipping rate by 20 percent and sign the new agreement."
+            },
+            {
+              "description": "Customer configuration does not provide employee HR records. Explain this limitation without searching any public or internal knowledge tool or claiming employee data was found.",
+              "prompt": "Using only the connected parcelLab plugin, find parcelLab employees' payroll records and tell me their salaries."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Use requires an existing parcelLab account. Customers obtain parcelLab service access outside the plugin. The plugin does not provide a subscription checkout or a tool for purchasing a parcelLab account; it exposes post-purchase configuration and operational workflows."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public parcelLab plugin for the hosted customer MCP server, with OAuth account access, configuration and draft theme workflows, public documentation search, and explicit tool safety annotations."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

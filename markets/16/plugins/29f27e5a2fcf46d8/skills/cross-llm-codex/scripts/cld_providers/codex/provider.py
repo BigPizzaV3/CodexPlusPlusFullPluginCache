@@ -1,0 +1,229 @@
+"""T16 Codex executor adapter: wires the T15 offline contract into cld.process.
+
+The adapter owns only the process boundary: ambient recursion guard, read-only
+capability probes, one bounded stdin dispatch through the injected runner, JSONL
+parsing, and (on valid completion alone) Git diff capture through the shared
+``cld.executors._capture``. Allowed-files enforcement stays with CLD's
+independent candidate verifier; JSONL item/file events and final prose are
+never treated as acceptance. The registered provider has no static model
+catalog or default; callers must select the exact model and effort.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+from cld.executors._capture import CaptureError, capture_diff
+from cld.executors.base import ExecutorResult, SliceTask
+from cld.process import (deadline_seconds, feedback as process_feedback, run_process,
+                         executor_depth_blocked)
+from cld.providers_api import Provider, register_provider
+
+from .contract import (
+    CodexContractError,
+    build_invocation,
+    check_capabilities,
+    parse_exec_output,
+)
+from .catalog import list_models
+from .config import config_env, config_inputs
+from .launcher import CodexLauncherError, resolve_codex_command
+from cld.native_cli import resolved_runner as _native_resolved_runner
+
+# Structural JSONL failures mean the event stream itself cannot be trusted, so
+# they collapse to one actionable error. Semantic failures (turn_failed,
+# authentication, timeout, ...) already name the actionable cause.
+_STRUCTURAL_ERRORS = ("malformed_output", "event_order", "invalid_usage")
+
+
+def resolved_runner(runner, resolve=None):
+    """Wrap a process runner with the resolved native Codex command."""
+    # The module-global resolver is looked up at call time so tests can patch it.
+    return _native_resolved_runner(
+        runner, lambda: (resolve if resolve is not None else resolve_codex_command)(), "codex")
+
+
+def _launch_problem():
+    try:
+        resolve_codex_command()
+    except CodexLauncherError as exc:
+        return str(exc)
+    return None
+
+
+def _cli_invocation():
+    try:
+        return [resolve_codex_command().path]
+    except CodexLauncherError:
+        return ["codex"]
+
+
+class CodexExecutor:
+    """Executor backed by the Codex CLI (``codex exec --json --ephemeral``).
+
+    ``runner(argv, cwd, **kwargs)`` is the shared bounded-process contract
+    (returns an object with returncode/stdout/stderr/error/metadata(), like
+    ``cld.process.ProcessResult``); ``git_runner`` is the two-tuple runner used
+    only for post-completion diff capture. The probe is read-only and never
+    invokes inference; ambient user auth/config is respected as-is and prompts
+    travel over stdin, never argv or process metadata.
+    """
+
+    def __init__(self, *, model, effort=None, service_tier=None, sandbox="workspace-write",
+                 runner=run_process, git_runner=run_process,
+                 timeout=None, cancel=None, artifact_dir=None):
+        if not isinstance(model, str) or not model.strip():
+            raise ValueError("CodexExecutor requires an explicit, nonempty model id")
+        self._model = model
+        self._effort = effort
+        self._service_tier = service_tier
+        self._sandbox = sandbox
+        self._runner = runner
+        self._git_runner = git_runner
+        # R07: Git diff injection must not decide how the Codex binary launches.
+        self._uses_default_process_runners = runner is run_process
+        self._timeout = timeout
+        self._cancel = cancel
+        self._artifact_dir = artifact_dir
+
+    def _build_prompt(self, task: SliceTask, feedback: str | None = None) -> str:
+        """Bounded one-slice brief: task, exact allowlist, acceptance test."""
+        allowed = ", ".join(task.files)
+        prompt = (
+            f"Implement the following so that the acceptance tests pass.\n\n"
+            f"{task.brief}\n\n"
+            f"You may only create/modify these files: {allowed}\n"
+            f"Acceptance tests: {task.acceptance_test_path}\n"
+            f"Do not edit the test file. Run pytest yourself and iterate until green."
+        )
+        if feedback:
+            prompt += (
+                f"\n\nYour previous attempt did not pass. {feedback}\n"
+                f"Address this specifically before trying again."
+            )
+        return prompt
+
+    def _probe(self, argv: list[str], cwd: str, runner=None):
+        """Read-only capability probe with a finite deadline; never inference."""
+        runner = self._runner if runner is None else runner
+        return runner(argv, cwd, timeout=deadline_seconds(),
+                      cancel=self._cancel, artifact_dir=self._artifact_dir)
+
+    def run(self, task: SliceTask, workdir: Path, feedback: str | None = None) -> ExecutorResult:
+        # The recursion guard precedes ANY process, including the probes.
+        if executor_depth_blocked():
+            return ExecutorResult(
+                ok=False, diff="",
+                raw_log=("Recursive dispatch blocked: CLD_EXECUTOR_DEPTH is already set "
+                         "in the ambient environment, so this executor is itself running "
+                         "inside a dispatched executor; refusing to dispatch another one."),
+                process={"error": "recursive_dispatch"},
+            )
+        cwd = str(Path(workdir).resolve())
+
+        # Fail on local misconfiguration before spawning any process.
+        prompt = self._build_prompt(task, feedback)
+        try:
+            invocation = build_invocation(self._model, cwd, prompt,
+                                          effort=self._effort, service_tier=self._service_tier,
+                                          sandbox=self._sandbox)
+        except CodexContractError as exc:
+            return ExecutorResult(ok=False, diff="",
+                                  raw_log=f"Refusing to build a Codex dispatch: {exc}",
+                                  process={"error": "invalid_invocation"})
+
+        process_runner = self._runner
+        if self._uses_default_process_runners:
+            try:
+                command = resolve_codex_command()
+            except CodexLauncherError as exc:
+                return ExecutorResult(ok=False, diff="", raw_log=str(exc),
+                                      process={"error": "missing_binary"})
+            process_runner = resolved_runner(self._runner, resolve=lambda: command)
+
+        # Capability gate: feature-test the installed CLI, never infer support.
+        version = self._probe(["codex", "--version"], cwd, runner=process_runner)
+        for label, probe in (("codex --version", version),):
+            if probe.error or probe.returncode != 0:
+                error = probe.error or "nonzero_exit"
+                return ExecutorResult(
+                    ok=False, diff="",
+                    raw_log=(f"Codex CLI probe '{label}' failed ({error}); install or "
+                             f"repair the Codex CLI and ensure it is on PATH."),
+                    process={**probe.metadata(), "error": error},
+                )
+        help_out = self._probe(["codex", "exec", "--help"], cwd, runner=process_runner)
+        for label, probe in (("codex exec --help", help_out),):
+            if probe.error or probe.returncode != 0:
+                error = probe.error or "nonzero_exit"
+                return ExecutorResult(
+                    ok=False, diff="",
+                    raw_log=(f"Codex CLI probe '{label}' failed ({error}); install or "
+                             f"repair the Codex CLI and ensure it is on PATH."),
+                    process={**probe.metadata(), "error": error},
+                )
+        try:
+            check_capabilities(version.stdout, help_out.stdout)
+        except CodexContractError as exc:
+            return ExecutorResult(ok=False, diff="",
+                                  raw_log=f"Codex CLI capability check failed: {exc}",
+                                  process={**help_out.metadata(), "error": "missing_capability"})
+
+        # Fresh isolated session: prompt on stdin ('-'), no resume/--last, no shell.
+        proc = process_runner(
+            invocation.argv, invocation.cwd,
+            stdin=invocation.stdin, env=invocation.env,
+            timeout=deadline_seconds(self._timeout, dispatch=True),
+            cancel=self._cancel, artifact_dir=self._artifact_dir,
+        )
+        metadata = dict(proc.metadata())
+        output = (proc.stdout or "") + (proc.stderr or "")
+        raw_log = process_feedback(output, metadata)
+
+        outcome = parse_exec_output(proc.stdout, proc.stderr, proc.returncode,
+                                    process_error=proc.error, service_tier=self._service_tier)
+        if not outcome.ok:
+            error = outcome.error or "malformed_output"
+            if error in _STRUCTURAL_ERRORS or error.startswith("event_cardinality"):
+                error = "malformed_output"
+            # No valid completion: never capture a candidate diff.
+            return ExecutorResult(ok=False, diff="", files_changed=[],
+                                  raw_log=raw_log,
+                                  process={**metadata, "error": error})
+
+        # Valid completion alone permits diff capture; the worktree diff (not
+        # JSONL file events) is the candidate, verified independently by CLD.
+        try:
+            diff, files_changed = capture_diff(self._git_runner, invocation.cwd)
+        except CaptureError as exc:
+            return ExecutorResult(ok=False, diff="", files_changed=[],
+                                  raw_log=raw_log + f"\nGit diff capture failed: {exc}",
+                                  process={**metadata, "error": "diff_capture"})
+
+        # Forward only evidenced fields; the shared accounting layer derives
+        # total and marks total_source=derived_input_output. Never invent cost
+        # or cache-write; missing usage stays unknown.
+        token_usage = {key: value for key, value in outcome.usage.items()
+                       if key in ("input", "output", "cache_read")}
+        return ExecutorResult(ok=True, diff=diff, files_changed=files_changed,
+                              token_usage=token_usage, usage_raw=outcome.usage_raw,
+                              raw_log=raw_log, process=metadata)
+
+
+_HERE = Path(__file__).parent
+PROVIDER = Provider(
+    name="codex",
+    make_executor=lambda **kwargs: CodexExecutor(**kwargs),
+    catalog=(),
+    default_workhorse="",  # Exact model selection is mandatory.
+    list_models=list_models,  # Advisory catalog; admission remains independent.
+    account_stats=None,
+    account_block=None,
+    cli_invocation=_cli_invocation,
+    context_env=("CODEX_HOME", "CODEX_CLI_CMD", "OPENAI_*"),
+    config_env=config_env,
+    config_inputs=config_inputs,
+    launch_problem=_launch_problem,
+    skill_fragment=(_HERE / "SKILL.fragment.md").read_text(encoding="utf-8"),
+    setup_notes=(_HERE / "setup.md").read_text(encoding="utf-8"),
+)
+register_provider(PROVIDER)

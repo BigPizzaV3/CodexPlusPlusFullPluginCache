@@ -1,0 +1,5 @@
+# Primary evidence and corpus provenance
+Prioritize primary corpus data, original linguistic research, historical texts and original lexicographic entries; use secondary grammars and reviews for context. For every material claim, record author/title/year/identifier when verified, source URL, access level, corpus and query, and what was actually observed.
+Corpus methods: document source (e.g. Frantext, ORFEO, ESLO, Corpus de Français Parlé Parisien, Gallica), sampling, time, register, search string, normalization and denominator. No invented token counts or concordance excerpts. Explain sampling bias and limited generalizability.
+Bibliographic levels: VERIFIED_FULLTEXT; VERIFIED_PARTIAL; ABSTRACT_ONLY; METADATA_ONLY; NOT_VERIFIED. A directly opened abstract page may be URL L3 but remains ABSTRACT_ONLY. Never claim to have read fulltext from an abstract.
+Relevant resources to consult when accessible: CNRTL https://www.cnrtl.fr/ ; Académie française https://www.dictionnaire-academie.fr/ ; Persée https://www.persee.fr/ ; HAL https://hal.science/ . These are resource homepages, not proof that any individual claim has been verified.
