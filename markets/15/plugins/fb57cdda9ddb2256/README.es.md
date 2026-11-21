@@ -1,0 +1,3 @@
+# FCC AI ured, 3.1.0
+
+Abre https://forevercard.club/fcc-ai/. Cuando se publique el complemento FCC, instálalo en ChatGPT e inicia sesión con tu propia cuenta FCC. Revisa personalmente el acceso solicitado. Escribe: Ayúdame a configurar mi asistente FCC. Leerá tu contexto permitido y preparará el primer resumen privado. Vuelve a tu oficina FCC y comprueba el resumen guardado. La página indica cuándo la publicación sigue en preparación. Adjuntar este ZIP a una conversación no es una instalación compatible. Sigues necesitando tu propio acceso FCC PRO y los permisos personales necesarios. Los cambios posteriores de tu estilo esperan tu revisión en FCC.

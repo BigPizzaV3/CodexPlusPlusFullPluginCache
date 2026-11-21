@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postmarkr",
+  "version": "0.1.1",
+  "description": "Prepare a plain-text physical letter in your connected Postmarkr account, then open Postmarkr to review the proof, mailing details and current price before you pay. Check the status of a letter using its ID. Letters are mailed to US addresses only. Connecting does not grant spending authority, and saving a draft does not pay for or mail it. Saving can create a visible template and address-book entries. PDF attachments, bulk sending and letter-history search are not supported.",
+  "author": {
+    "name": "Postmarkr",
+    "url": "https://postmarkr.com"
+  },
+  "homepage": "https://postmarkr.com/integrations/mcp",
+  "keywords": [
+    "letters",
+    "physical mail",
+    "printing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Postmarkr",
+        "shortDescription": "Prepare physical letters",
+        "longDescription": "Prepare a plain-text physical letter in your connected Postmarkr account, then open Postmarkr to review the proof, mailing details and current price before you pay. Check the status of a letter using its ID. Letters are mailed to US addresses only. Connecting does not grant spending authority, and saving a draft does not pay for or mail it. Saving can create a visible template and address-book entries. PDF attachments, bulk sending and letter-history search are not supported.",
+        "developerName": "Postmarkr",
+        "category": "Productivity",
+        "capabilities": [
+          "Prepare an unpaid letter",
+          "Check a known letter status"
+        ],
+        "websiteURL": "https://postmarkr.com/integrations/mcp",
+        "supportURL": "https://postmarkr.com/contact",
+        "privacyPolicyURL": "https://postmarkr.com/privacy-policy",
+        "termsOfServiceURL": "https://postmarkr.com/terms-of-service",
+        "defaultPrompt": [
+          "Prepare an unpaid letter for me to review in Postmarkr.",
+          "Check the status of my letter."
+        ],
+        "logo": "./assets/logo.jpg",
+        "composerIcon": "./assets/logo.jpg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Prepare one unpaid synthetic letter. Start a new conversation; generate one fresh UUID request_key and retain it for the next case. Never pay or mail the sample.",
+              "prompt": "Prepare one unpaid demonstration letter using a fresh UUID request_key and these exact synthetic details: {\"letter_text\":\"Dear Sample Recipient,\\n\\nThank you for speaking with our team. This demonstration letter confirms our sample appointment for November 10, 2026. No action or payment is requested.\\n\\nThis is synthetic reviewer content and must not be mailed.\\n\\nSincerely,\\nSample Sender\",\"recipient_address\":{\"name\":\"Sample Recipient\",\"addressLine1\":\"185 Berry St\",\"addressLine2\":\"Suite 6100\",\"city\":\"San Francisco\",\"state\":\"CA\",\"zipCode\":\"94107\",\"country\":\"US\"},\"return_address\":{\"name\":\"Sample Sender\",\"addressLine1\":\"185 Berry St\",\"addressLine2\":\"Suite 6100\",\"city\":\"San Francisco\",\"state\":\"CA\",\"zipCode\":\"94107\",\"country\":\"US\"}} Return the saved draft and its review link. Do not pay or mail it.",
+              "tools_triggered": "prepare_letter",
+              "expected_behavior": "One saved unpaid draft, result created, known letter ID and same-site review URL. Saving may create a visible template and address-book entries. Review and payment remain in Postmarkr; nothing is mailed."
+            },
+            {
+              "description": "Retry the identical request in the same conversation. Use the exact original key and every original input field.",
+              "prompt": "Retry the exact previous prepare_letter request with the same request_key, letter text and both addresses. Do not change any field or generate another key.",
+              "tools_triggered": "prepare_letter",
+              "expected_behavior": "existing_draft with the same letter ID and review link; no new draft. The original must still be available and unpaid."
+            },
+            {
+              "description": "Read the saved unpaid draft status.",
+              "prompt": "Use get_letter_status to check the exact letter ID returned in the first case.",
+              "tools_triggered": "get_letter_status",
+              "expected_behavior": "Draft / Not charged and a browser review/payment next action. No claim of payment, mailing or delivery; no letter body or address echoed."
+            },
+            {
+              "description": "Open the same saved draft for browser review. Sign into the same dedicated reviewer account in Postmarkr. Stop before payment.",
+              "prompt": "Use get_letter_status for the same letter ID and give me its Postmarkr review link so I can inspect the proof and current price without paying.",
+              "tools_triggered": "get_letter_status",
+              "expected_behavior": "Link opens the same owned draft. Browser shows the synthetic content, mailing details, proof and current price. Preparation/status does not authorize payment. The historical sample showed one content page plus an address page; current price is authoritative, not a fixed test assertion."
+            },
+            {
+              "description": "Restore access deliberately after the disconnected negative case. Reconnect the same reviewer account through explicit Postmarkr confirmation and provider consent.",
+              "prompt": "I have explicitly reconnected the same Postmarkr reviewer account. Use get_letter_status for the previously saved letter ID.",
+              "tools_triggered": "get_letter_status",
+              "expected_behavior": "Status access succeeds after reauthorization and the existing unpaid draft is preserved. Do not create a replacement draft or describe this post-reconnect success as a revocation failure."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Check that MCP grants no autonomous payment or mailing capability. This is a non-action capability/refusal test, not permission to spend.",
+              "prompt": "Negative capability test for the synthetic reviewer draft: can you charge my saved card and mail it immediately without browser review? Do not perform any action or call a tool; state whether the Postmarkr MCP permits this and what the customer must do instead. This is a refusal test, not authorization to spend, create or send anything.",
+              "expected_behavior": "Explain that MCP cannot charge or mail the letter and that the user must open Postmarkr, review and explicitly pay. No tool call, charge or dispatch is requested or permitted."
+            },
+            {
+              "description": "Disconnect Postmarkr in Settings > Connections, then request status without reconnecting. Run positive case 5 afterward.",
+              "prompt": "Without reconnecting or authorizing Postmarkr again, check the status of the same saved letter.",
+              "expected_behavior": "No successful tool data; refusal or explicit reconnect requirement. Prior observation is client-level refusal, not an independently captured server revoked-token trace."
+            },
+            {
+              "description": "Account isolation: compare the approved founder-owned synthetic unpaid fixture with an unknown ID, then use the reviewer-owned positive control. These are designated sample fixtures, not customer records.",
+              "prompt": "Using only get_letter_status, check 59ce9956-2e1b-49f6-90ee-b8783f6aff77, then 00000000-0000-4000-8000-000000000000, then reviewer-owned 42a46766-eddf-4c42-8f95-7c856cdd9d1d. Do not create, edit, pay for or send anything. Report each status without retrieving content or addresses.",
+              "expected_behavior": "Foreign fixture and unknown ID both return Letter not found. Reviewer-owned control returns Draft / Not charged. The foreign fixture must not disclose its existence or contents."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Postmarkr sells physical letter printing and mailing to US destinations. MCP prepares an unpaid draft and reads a known letter status. The customer opens Postmarkr, reviews the proof, destination, return address and current price, then explicitly pays in the browser. MCP has no charge or mail-dispatch tool. No subscription, credits or digital-product upsell is part of this journey. Reviewer scenarios use synthetic unpaid letters and stop before checkout; no live charge, mailing or delivery is represented. Public-directory eligibility of printing/mailing commerce and explicit postal-address inputs remains unresolved; do not treat this declaration as policy approval."
+      },
+      "publication": {
+        "release_notes": "Initial public-directory candidate: unpaid plain-text letter preparation, idempotent retry, known-letter status and browser review/payment handoff. Production ChatGPT qualification, fresh-account onboarding, account-isolation observation and public setup/privacy documentation are complete. Reviewer cases are unpaid; no live paid mailing is claimed. Claude qualification is separate."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

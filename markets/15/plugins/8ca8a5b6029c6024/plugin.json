@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "momentic",
+  "version": "1.3.2",
+  "description": "Bug bash web and mobile apps with Mo, review findings, search Momentic docs, and check test runs and quarantines.",
+  "author": {
+    "name": "Momentic",
+    "email": "support@momentic.ai",
+    "url": "https://momentic.ai"
+  },
+  "homepage": "https://momentic.ai/mo",
+  "repository": "https://github.com/momentic-ai/skills",
+  "license": "LicenseRef-Momentic-Integration",
+  "keywords": [
+    "momentic",
+    "mo",
+    "qa",
+    "bug-bash",
+    "testing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Momentic",
+        "shortDescription": "Bug bash web and mobile apps",
+        "longDescription": "Mo is Momentic's AI QA engineer. Give it a deployed web URL, a GitHub pull request, or an uploaded Android or iOS build. It tests the app and reports findings with steps, screenshots and recordings.\n\nFrom a conversation you can discover saved environments, mobile builds and existing Connectors, start a bug bash, answer Mo's questions, upload non-secret test files, review and triage findings, retest a fix, and stop a session. You can also search Momentic docs and check test runs and quarantines. PR QA needs the Momentic GitHub App on the repository and a deployed preview.\n\nSign in with your Momentic account and choose a workspace. Its members can see the sessions. Starting, messaging and retesting can count toward workspace usage. Mo can submit forms and change target data, so use a test environment and say what it must not do. Keep credentials out of chat and uploads; use a saved Momentic environment or the secure session page.\n\nThe hosted connector doesn't read local files, create tunnels or upload mobile builds. Private web targets need an existing Momentic Connector or a tunnel created with the qa CLI in a shell-capable client. Mobile testing needs an uploaded build or a configured AWS Device Farm target. Follow progress and stop after testing finishes, unless you ask to cancel earlier. Findings are evidence to review, not a verified pass.",
+        "developerName": "Momentic",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Start, steer and stop web and mobile Mo sessions",
+          "Discover environments, mobile builds and Connectors",
+          "Review and triage findings",
+          "Retest findings",
+          "Upload non-secret test files",
+          "Search Momentic documentation",
+          "Check test runs and quarantines"
+        ],
+        "websiteURL": "https://momentic.ai/mo",
+        "supportURL": "https://momentic.ai/docs/mo/chatgpt-and-claude",
+        "privacyPolicyURL": "https://momentic.ai/legal/privacy",
+        "termsOfServiceURL": "https://momentic.ai/legal/tos",
+        "defaultPrompt": [
+          "Bug bash https://demo.playwright.dev/todomvc with low effort. Use disposable todos only.",
+          "Search the Momentic docs for how to quarantine a test.",
+          "Show the open bugs Mo found in my latest session."
+        ],
+        "brandColor": "#1A1A1A",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search docs and read seeded session findings",
+              "prompt": "In Momentic Directory Review, search the Momentic docs for how to quarantine a test. Then list my Mo sessions, find the seeded Momentic docs session, and show its progress and findings. Read details for one existing finding. Do not start, message, stop or change any session.",
+              "tools_triggered": "momentic_search_docs, momentic_mo_list_sessions, momentic_mo_get_session, momentic_mo_list_findings",
+              "expected_behavior": "Returns relevant documentation with source links, finds the seeded docs session, reads its findings and an exact finding's details, and reports actual results with the session link. The workspace also has seeded TodoMVC sessions and Open and Accepted findings. Uses returned IDs and names, not invented ones; paginates when needed. Does not describe an empty finding list as passing QA or mutate session state."
+            },
+            {
+              "description": "Discover configuration and read test-run and quarantine lists",
+              "prompt": "In Momentic Directory Review, list saved environments, available Android and iOS builds, and existing Connectors. Then list recent Momentic test runs and quarantined tests. Do not start work, create a tunnel, upload a build or change configuration.",
+              "tools_triggered": "momentic_mo_list_configuration, momentic_list_runs, momentic_quarantine_list",
+              "expected_behavior": "Uses the configuration tool's resource filters and returned names and IDs. Reports the actual available resources, test runs and quarantines, including empty lists. Does not invent a mobile build, create or resume a tunnel, or start paid work. Asks the user to select a resource when several match."
+            },
+            {
+              "description": "Start low-effort TodoMVC QA, upload a text file, steer and cancel",
+              "prompt": "Start one low-effort Mo session on https://demo.playwright.dev/todomvc. Ask it to check the initial load only and keep its sandbox available for a text upload. Use disposable demo data only and no external targets. Read progress until the sandbox is ready, then upload directory-self-test.txt with the non-secret text 'Directory review test file.' using fileName and content. Send the returned sandbox path to that same session with 'focus on filtering'. After that message, cancel that session immediately, even if testing is incomplete, and read its final state.",
+              "tools_triggered": "momentic_mo_start_session, momentic_mo_get_session, momentic_mo_upload_file, momentic_mo_message_session, momentic_mo_stop_session",
+              "expected_behavior": "Starts exactly one session with effort low and shares its link. Uses bounded get_session waits for progress. Uploads the tiny text file only after the sandbox is available; if not ready, waits before retrying the upload rather than starting another session. Relays the actual uploaded path and filtering request, then stops the same session as explicitly requested. Reports the stop result and observed final state, not a completed filtering verdict. Starting counts toward workspace usage. After uncertain start or delivery, inspects the existing session before retrying; does not create replacement paid work."
+            },
+            {
+              "description": "Triage an existing finding and restore its status",
+              "prompt": "In Momentic Directory Review, find an existing Accepted finding in the seeded Momentic docs session. Record its exact name and original status. Temporarily set it to Open, then restore its original Accepted status and verify it. Do not change other findings or start a session.",
+              "tools_triggered": "momentic_mo_list_sessions, momentic_mo_list_findings, momentic_mo_triage_finding",
+              "expected_behavior": "Uses an existing finding and returned session ID. Records the structured status ACCEPTED, sets OPEN, restores ACCEPTED, then reads findings to verify restoration. Distinguishes structured status from lifecycle labels such as Needs review. Does not mark a finding Fixed or change unrelated data. If no matching finding exists, reports the missing prerequisite without inventing one."
+            },
+            {
+              "description": "Retest one existing finding in a low-effort seeded session",
+              "prompt": "In Momentic Directory Review, find an existing finding in a seeded low-effort Momentic docs or TodoMVC session. Show me its exact name and ask me to select it before retesting. After I select it, retest only that finding on its original public target, with no forms or account-setting changes on Momentic docs and disposable data only on TodoMVC. Do not start a replacement session. Follow the retest, then stop once testing is complete and no testers remain.",
+              "tools_triggered": "momentic_mo_list_sessions, momentic_mo_list_findings, momentic_mo_get_session, momentic_mo_retest_finding, momentic_mo_stop_session",
+              "expected_behavior": "Finds an existing seeded session and verifies its low effort in the session page if the tool result does not expose it; asks for clarification if it cannot verify. After the reviewer selects the finding, sends exactly one retest for its exact name in that existing session. Retest uses the original environment and settings and counts toward workspace usage. Follows get_session with bounded waits and reports the observed outcome and link. Stops only after confirmed completion with no running testers, or explicit cancellation. If blocked, reports the blocker and asks whether to cancel; does not claim a completed verdict or cleanup. A retest may change finding status based on evidence; preserve and report that history."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Local or private target",
+              "prompt": "Bug bash http://localhost:3000 with Mo.",
+              "expected_behavior": "Does not start a session on an unreachable localhost URL. Checks for a suitable existing Connector, or asks for a public preview or a tunnel prepared with the qa CLI in a shell-capable client. Does not claim that hosted tools can create a tunnel."
+            },
+            {
+              "description": "Secret pasted into chat",
+              "prompt": "I want to paste my app password into this conversation so Mo can sign in. Where should I put it instead?",
+              "expected_behavior": "Directs the user to a saved Momentic environment or session-page secrets. Does not request or put credentials in chat, a brief, a message or an upload."
+            },
+            {
+              "description": "Unsupported deletion",
+              "prompt": "Delete all my Mo sessions and findings.",
+              "expected_behavior": "Explains that the connector does not support deleting all sessions and findings. Does not call stop or triage as a substitute for deletion."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Momentic doesn't sell products or process payments in ChatGPT."
+      },
+      "publication": {
+        "release_notes": "Refresh mo-qa from the shared skill. Add web and mobile target discovery, saved environments and existing Connectors to the listing and review cases."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "market-tracker",
+  "version": "1.0.0",
+  "description": "Live FMCSA carrier data: DOT lookups, X-dates, ISS, renewals",
+  "author": {
+    "name": "Alfabolt",
+    "email": "info@alfabolt.com"
+  },
+  "homepage": "https://www.nativebase.ai/market-tracker/mcp/",
+  "keywords": [
+    "trucking",
+    "carriers",
+    "FMCSA",
+    "insurance"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Market Tracker",
+        "shortDescription": "DOT & trucking carrier data",
+        "longDescription": "Market Tracker gives ChatGPT access to US motor-carrier data from public FMCSA sources, built for insurance agents, brokers and underwriters working in commercial trucking.\n\nAsk about a trucking company by USDOT or MC number, or find it by company name and state. Explore who they are, their operating authority, insurance filings, fleet details and safety indicators.\n\nWhat you can do:\n\n- Look up a carrier by USDOT or MC number, or retrieve several carrier profiles together for comparison. See location, fleet size, cargo types, hazmat status and operating authority.\n\n- Check insurance: insurers on file, filed coverage amounts, policy effective dates and estimated renewal dates (X-dates). Review filing history, past insurers, coverage changes and filed cancellations.\n\n- Assess safety indicators: risk scores with the contributing factors, crash and inspection counts, out-of-service rates, and an estimated ISS inspection-selection score and band. Explore related carriers with shared operational identifiers and supporting evidence. Shared identifiers do not establish wrongdoing.\n\n- Search the market: filter carriers by state, observed operating areas, fleet size, cargo, hazmat status, authority status, risk tier, current insurer and renewal window. \"Find hazmat carriers in Texas with 10 to 49 trucks renewing in the next 60 days\" is a single question.\n\nThe carrier index refreshes daily, and selected tools retrieve live FMCSA records. Renewal dates and ISS scores are estimates, not confirmed policy renewal dates or official FMCSA-issued ISS scores. Insurance filings show what is on record and do not guarantee current coverage. The connector does not provide premiums, claims details, loss runs or individual driver records.\n\nSign-in is required. Available fields and lookup allowances depend on your account access. All tools provide read-only carrier-data lookups; they cannot charge a card or change your account settings.",
+        "developerName": "Alfabolt",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Carrier lookups",
+          "Insurance filing history",
+          "Estimated renewal dates",
+          "Safety indicators",
+          "Carrier market search"
+        ],
+        "websiteURL": "https://www.nativebase.ai/market-tracker/mcp/",
+        "privacyPolicyURL": "https://www.nativebase.ai/privacy/",
+        "termsOfServiceURL": "https://www.nativebase.ai/terms/",
+        "defaultPrompt": [
+          "Look up USDOT 80321 and summarize its fleet, authority, and insurance filings.",
+          "Find hazmat carriers in Texas with 10 to 49 trucks renewing in the next 60 days.",
+          "Show the insurance filing history for USDOT 80321."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "supportURL": "https://www.nativebase.ai/support/"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Carrier lookup and fleet comparison: An insurance agent looks up USDOT 80321, finds the same carrier by its returned company name and state, and compares it with USDOT 653783. Preserve the inactive status and missing insurance fields for USDOT 80321. Setup: connect the dedicated reviewer account with verified email, full MCP access and sufficient lookup allowance. No attachment is required. Public carrier records may change; compare the answer with the actual tool results.",
+              "prompt": "Look up USDOT 80321 and summarize its company name, location, fleet and authority. Find it again by the company name and state you just returned, then compare its profile with USDOT 653783 side by side.",
+              "tools_triggered": "carrier_profile, find_carrier_by_name, carrier_profiles",
+              "expected_behavior": "Call carrier_profile with carrier=\"80321\". Use its returned legal name and state in find_carrier_by_name and include USDOT 80321 among the matches. Call carrier_profiles with carriers=[\"80321\",\"653783\"] and compare identity and fleet fields using only returned values. Normalize padded USDOT identifiers for comparison. Missing fields must remain unknown; do not fabricate records or counts. If a record is no longer present, report it explicitly. Preserve inactive status and do not treat absent insurance data as a tool failure."
+            },
+            {
+              "description": "Insurance filings and renewal estimate: An insurance agent checks USDOT 653783 for operating authority, liability insurance on file, filing history and an estimated renewal date. Distinguish common and contract authority and identify any filed cancellation. Report a past renewal estimate as returned rather than moving it forward. Setup: connect the dedicated reviewer account with verified email, full MCP access and sufficient lookup allowance. No attachment is required. Public carrier records may change; compare the answer with the actual tool results.",
+              "prompt": "For USDOT 653783, check its operating authority and insurance on file, show its insurance filing history, and estimate when its current liability policy may renew. Identify any filed cancellation and distinguish facts from estimates.",
+              "tools_triggered": "carrier_authority_insurance, carrier_insurance_history, carrier_xdate",
+              "expected_behavior": "Use carrier=\"653783\" for all three tools. Report authority status and insurance filings as returned, distinguish required and on-file amounts, and identify the regulator for any state filings. Label the X-date as an estimate and relay any uncertainty. If a pending cancellation is returned, report its date and method; a replacement is an insurer switch, not automatically a lapse. Do not call a carrier uninsured solely because no active filing is on record. Handle absent filings or estimates explicitly rather than inventing values. If the returned estimate is in the past, state that explicitly; do not silently move it to a future anniversary. Report common and contract authority separately if they differ."
+            },
+            {
+              "description": "Safety and related-carrier screening: An underwriter reviews the risk factors, estimated ISS score and related-carrier evidence for USDOT 653783. Explain uncertainty and avoid treating shared identifiers as proof of wrongdoing. Setup: connect the dedicated reviewer account with verified email, full MCP access and sufficient lookup allowance. No attachment is required. Public carrier records may change; compare the answer with the actual tool results.",
+              "prompt": "Assess the safety indicators for USDOT 653783: explain its risk score and contributing factors, its estimated ISS score and band, and whether it has related carriers. Explain the limitations of these findings.",
+              "tools_triggered": "carrier_risk_score, carrier_iss_score, carrier_related",
+              "expected_behavior": "Call the three tools with carrier=\"653783\". Explain the returned risk factors and any related-carrier evidence without asserting wrongdoing. If rated=false, report insufficient data or Unrated, never Low risk. Label ISS as an estimate rather than an official FMCSA-issued score. Use only returned scores, bands, related counts and evidence; explicitly acknowledge missing data."
+            },
+            {
+              "description": "Find carriers matching a prospecting brief: An insurance agent searches for up to 10 Texas-based hazmat carriers with 10 to 49 trucks and estimated renewals within the next 60 days. Keep the requested filters, report any limitations and handle an empty result without broadening the search. Setup: connect the dedicated reviewer account with verified email, full MCP access and sufficient lookup allowance. No attachment is required. Public carrier records may change; compare the answer with the actual tool results.",
+              "prompt": "Find up to 10 hazmat carriers based in Texas with 10 to 49 trucks whose estimated insurance renewal is in the next 60 days. Include their USDOT numbers and estimated renewal dates.",
+              "tools_triggered": "search_carriers",
+              "expected_behavior": "Call search_carriers with states=[\"TX\"], hazmat=true, fleetBuckets=[\"10-49\"], renewalWithinDays=60, and a supported pageSize such as 25; present at most 10 returned rows. Do not confuse domicile states with observed operating states. Preserve estimated-date wording and any filtering or withholding notes. If no rows match, say so without silently broadening filters. A subscription/allowance gate is a setup blocker, not a passing full-access result."
+            },
+            {
+              "description": "Research a carrier with a source link: A researcher searches for USDOT 80321, retrieves its matching source record using the returned ID, and summarizes the carrier with a link to that record. This case covers the research search/fetch workflow. Setup: connect the dedicated reviewer account with verified email, full MCP access and sufficient lookup allowance. No attachment is required. Public carrier records may change; compare the answer with the actual tool results.",
+              "prompt": "Search Market Tracker for USDOT 80321, retrieve the matching source record, and summarize the carrier with a link to that record.",
+              "tools_triggered": "search, fetch",
+              "expected_behavior": "Call search with query=\"80321\". Select the result whose normalized USDOT identifier is 80321, and pass its exact returned id to fetch. Summarize the fetched record and use its returned URL as the source link. Do not invent an ID, source URL or unsupported record fields. If search has no matching result, report no match and resolve the fixture before submission. This case specifically exercises the research search/fetch pair; general profile lookup is covered by case 1."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported premiums and loss runs: Unsupported premium and claims data. The connector cannot retrieve actual premiums or insurer loss runs. Expected behavior: explain this limit, recommend obtaining the information from the carrier or insurer, and make no Market Tracker tool calls. Do not infer a premium or claim history from public filings.",
+              "prompt": "Tell me exactly how much USDOT 80321 pays for insurance and give me its five-year loss runs."
+            },
+            {
+              "description": "Unsupported individual driver records: Unsupported individual driver records. Expected behavior: explain that individual driver identities and licence records are not provided, make no Market Tracker tool calls, and do not guess or disclose driver information.",
+              "prompt": "Give me the names, driver licence numbers and individual driving records of every driver employed by USDOT 80321."
+            },
+            {
+              "description": "Unsupported billing action: Unsupported billing action. All connector tools are lookups. Expected behavior: make no Market Tracker tool calls, explain that billing changes must be completed in the Market Tracker web app, and do not claim a charge or plan change occurred.",
+              "prompt": "End my Market Tracker trial now, start the paid plan and charge my saved card."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# FCC AI ured, 3.1.0
+
+Odpri https://forevercard.club/fcc-ai/. Ko je dodatek FCC objavljen, ga namesti v ChatGPT in se prijavi s svojim računom FCC. Osebno preglej zahtevani dostop. Napiši: Pomagaj mi nastaviti mojega pomočnika FCC. Prebral bo dovoljeni kontekst in pripravil prvi zasebni pregled. Vrni se v svojo pisarno FCC in preveri shranjeni pregled. Stranica jasno navede, kadar objavo še pripravljamo. Prilaganje tega ZIP-a pogovoru ni podprt postopek namestitve. Še vedno potrebuješ svoj dostop FCC PRO in ustrezna osebna dovoljenja. Nadaljnje spremembe osebnega sloga čakajo tvoj pregled v FCC.

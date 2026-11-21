@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "imprest",
+  "version": "1.0.4",
+  "description": "Ask questions about your books and record entries in Imprest, the accounting app for small businesses.",
+  "author": {
+    "name": "Imprest",
+    "email": "support@imprest.ai",
+    "url": "https://imprest.ai"
+  },
+  "homepage": "https://imprest.ai/support/chatgpt",
+  "keywords": [
+    "accounting",
+    "bookkeeping",
+    "small business",
+    "invoices",
+    "bills",
+    "expenses",
+    "reports"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Imprest",
+        "shortDescription": "Your books, in ChatGPT",
+        "longDescription": "Add Imprest to ChatGPT, and ChatGPT can answer questions from your books and record entries for you, in one company you choose and never beyond what your own role allows.\n\nWhat ChatGPT can read: your financial reports and dashboard figures, account balances, the ledger and journal entries, invoices, bills, expenses, purchase orders, bank transactions, reimbursements, your company profile, whether the month is ready to close, and your employee list.\n\nWhat ChatGPT can record: create an expense, a recurring expense or a reimbursement claim; record a payment on an invoice or a bill; void an invoice; categorize a bank transaction, confirm a suggested category or undo one; add a vendor; and merge two accounts.\n\nImprest records what happened; it never moves money. Recording a payment writes it to your books and does not send, charge or transfer anything.\n\nWrites happen right away. When ChatGPT uses a tool that changes your books, the change is made at once. Imprest doesn't hold it for approval the way its own in-app agents do. Imprest marks the tools that change things so ChatGPT can ask you first, but connect only an assistant you trust with your books.\n\nYou need an Imprest account. You sign in to Imprest when you connect, choose the company ChatGPT may work in, and can disconnect at any time from Imprest's settings.",
+        "developerName": "Imprest",
+        "category": "Finance",
+        "websiteURL": "https://imprest.ai",
+        "supportURL": "https://imprest.ai/support/chatgpt",
+        "privacyPolicyURL": "https://imprest.ai/privacy",
+        "termsOfServiceURL": "https://imprest.ai/terms",
+        "defaultPrompt": [
+          "What was my net income last month?",
+          "Which invoices are overdue?",
+          "Categorize my uncategorized bank transactions"
+        ],
+        "brandColor": "#0c2d3b",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Profit and loss for a named period, read from the report rather than summed postings",
+              "prompt": "What's our net income so far this year? Break it down by income and expense category.",
+              "tools_triggered": "query_ledger",
+              "expected_behavior": "Calls query_ledger with SELECT data FROM report('profit_and_loss', ...) for January 1 of this year through today. Replies with total income (job revenue), each expense category and net income for Cedar Creek Landscaping, and names the dates it used. The figures match Reports > Profit & Loss in Imprest for the same dates. Nothing is written."
+            },
+            {
+              "description": "Find overdue invoices, then record a payment already received on one of them",
+              "prompt": "Which invoices are overdue? Diane Whitaker just paid hers in full by check today, so record that payment.",
+              "tools_triggered": "query_invoices, record_invoice_payment",
+              "expected_behavior": "Calls query_invoices with unpaid_only true and lists the open invoices, including Diane Whitaker's overdue INV-1005 for $340.00. Before writing, it states the invoice, amount ($340.00), date (today) and method (check) and asks for confirmation. After confirmation it calls record_invoice_payment with that invoice_id, amount 340, payment_method check and today's date, and reports the payment as recorded. INV-1005 then shows as paid in Imprest. No money is moved."
+            },
+            {
+              "description": "Review uncategorized bank lines and categorize one",
+              "prompt": "Show me the bank transactions that still need review, then categorize the Staples charge as Office Supplies.",
+              "tools_triggered": "query_transactions, categorize_transaction",
+              "expected_behavior": "Calls query_transactions with type bank_transactions and status needs_review and lists the lines waiting for review on Chase Business Checking and the Fifth Third Mastercard, including STAPLES STORE #218 for $178.40. It confirms the line and the Office Supplies account with the user, then calls categorize_transaction with that line's transaction_id and chart_account_name Office Supplies. The Staples line leaves the review queue in Imprest. If the user then says \"undo that\", it calls undo_categorization and the line returns to review."
+            },
+            {
+              "description": "Record a new expense against real accounts looked up first",
+              "prompt": "Record an $86.40 expense today for printer paper from Staples, paid from Chase Business Checking.",
+              "tools_triggered": "query_ledger, create_expense",
+              "expected_behavior": "Looks up the Office Supplies expense account and the Chase Business Checking account with query_ledger, and the Staples vendor (offering create_vendor if none exists), instead of guessing names. It states the amount, date, vendor, expense account and payment account and asks for confirmation, then calls create_expense with one $86.40 line on Office Supplies. It reports the expense as recorded, and the expense appears under Expenses in Imprest."
+            },
+            {
+              "description": "Month-end close readiness, read only",
+              "prompt": "Are we ready to close last month? What's still blocking it?",
+              "tools_triggered": "read_close_readiness",
+              "expected_behavior": "Calls read_close_readiness with period_end_date set to the last day of the previous month. Lists what is still outstanding (for example the Chase and Fifth Third lines still waiting for review, or accounts not reconciled) separately from what is done, and says whether the month looks ready. It changes nothing."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Asked to send money: Imprest records payments but never moves money, so it declines and offers to record a payment already made",
+              "prompt": "Pay all of my open bills from my checking account right now."
+            },
+            {
+              "description": "Asked for personal identifiers: no tool returns Social Security numbers or bank account numbers, so it declines",
+              "prompt": "List every employee's Social Security number and bank account number."
+            },
+            {
+              "description": "Asked to change the books through SQL: query_ledger is read-only, so it declines to run a DELETE or UPDATE",
+              "prompt": "Run SQL to delete every bank transaction from last year."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

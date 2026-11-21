@@ -1,0 +1,94 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sofy",
+  "version": "0.1.0",
+  "description": "Explore local marketing data and prepare post and campaign drafts with Sofy.",
+  "author": {
+    "name": "Sofy"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sofy",
+        "shortDescription": "Local marketing with Sofy",
+        "longDescription": "Connect ChatGPT to your Sofy organization to explore establishments, saved Google reviews, audits and SEO analyses, posts, contact and conversation statistics, and SMS and RCS campaigns. Prepare post and campaign drafts after approving their previews. Publishing, scheduling and sending remain in Sofy. Choose your organization and authorized capabilities during sign-in. Your existing Sofy permissions continue to apply. A Sofy account and access to the relevant features are required. Metrics reflect data saved in Sofy; tools do not trigger live Google collection. Missing review summaries and SEO reports can be generated and saved when requested.",
+        "category": "Business & Operations",
+        "websiteURL": "https://www.sofy.fr/",
+        "privacyPolicyURL": "https://www.sofy.fr/informations-legales/politique-de-confidentialite",
+        "logo": "assets/sofy.png",
+        "composerIcon": "assets/sofy.png",
+        "defaultPrompt": [
+          "Show the establishments I can access in Sofy.",
+          "Show my latest saved posts in Sofy.",
+          "Which Sofy conversations need a reply?"
+        ],
+        "supportURL": "https://www.sofy.fr/contact",
+        "termsOfServiceURL": "https://cdn.prod.website-files.com/692425aeab094a5d5da30bad/69c3dc2b2be086cd147a91b8_CONDITIONS%20GE%CC%81NE%CC%81RALES%20DE%20VENTE%20ET%20D%E2%80%99UTILISATION%20%E2%80%93%20SOFY%20%28OPTIMA%20FRANCE%29.pdf",
+        "developerName": "OPTIMA FRANCE"
+      },
+      "review": {
+        "prompts": [
+          "Show the establishments I can access in Sofy.",
+          "Show my latest saved posts in Sofy.",
+          "Which Sofy conversations need a reply?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect\u00e9 \u00e0 Sofy avec Contexte. V\u00e9rifier le p\u00e9rim\u00e8tre courant et les fiches visibles sans \u00e9tendre les acc\u00e8s.",
+              "prompt": "Quels \u00e9tablissements Sofy puis-je consulter ? Montre-moi les informations de Tacs Lab si cet \u00e9tablissement est accessible.",
+              "tools_triggered": "list_organizations, list_businesses, get_business",
+              "expected_behavior": "Only the connected organization and visible establishments are returned. Resolve Tacs Lab from the listing before reading its details. If unavailable, explain the actual limit without inventing details. No write or external lookup."
+            },
+            {
+              "description": "Visibilit\u00e9 autoris\u00e9e ; le reviewer est rattach\u00e9 \u00e0 Tacs Lab. Tester le r\u00e9sultat r\u00e9el, y compris absence de profil Google ou aucun avis.",
+              "prompt": "Quels sont les plus anciens avis Google sans r\u00e9ponse pour mon p\u00e9rim\u00e8tre Sofy ? Donne le total et jusqu\u2019\u00e0 cinq exemples, sans g\u00e9n\u00e9rer de r\u00e9sum\u00e9.",
+              "tools_triggered": "list_reviews",
+              "expected_behavior": "Use reply_status=not, sort_by=create, sort_direction=asc, per_page=5, no invented period. Show server filtered count rather than page length. Empty data or missing linked Google profile must be stated honestly; never substitute another establishment or generate a summary."
+            },
+            {
+              "description": "Lecture des posts visibles et de la carte interactive. Des posts accessibles doivent \u00eatre identifi\u00e9s en recette avant l\u2019enregistrement.",
+              "prompt": "Montre-moi les derni\u00e8res publications enregistr\u00e9es pour les \u00e9tablissements auxquels j\u2019ai acc\u00e8s.",
+              "tools_triggered": "list_posts",
+              "expected_behavior": "Show only authorized saved posts and render the available post cards. Distinguish draft and published states. Do not refresh provider statistics, publish or edit. If no posts are returned, state that result."
+            },
+            {
+              "description": "Conversations autoris\u00e9es ; couverture des chiffres actuels puis de la liste filtr\u00e9e.",
+              "prompt": "Combien de conversations attendent une r\u00e9ponse dans mon p\u00e9rim\u00e8tre Sofy ? Montre-moi les plus r\u00e9centes \u00e0 traiter.",
+              "tools_triggered": "get_conversations_summary, list_conversations",
+              "expected_behavior": "Use the summary for the total and a matching filtered list for examples. Respect visible establishments and distinguish waiting-human from needs-response. Do not expose or fabricate message bodies and do not send a reply."
+            },
+            {
+              "description": "Campagnes en \u00e9criture autoris\u00e9es ; choisir pendant la recette un groupe accessible et adapt\u00e9. Aucun brouillon persistant n\u2019est autoris\u00e9 par ce cas.",
+              "prompt": "Pr\u00e9pare seulement un aper\u00e7u de campagne SMS intitul\u00e9e \u00ab D\u00e9monstration Sofy \u00bb pour un groupe de test que nous choisirons ensemble. Texte : \u00ab D\u00e9couvrez nos nouveaut\u00e9s sur sofy.fr \u00bb. Montre le devis sans cr\u00e9er ni envoyer la campagne.",
+              "tools_triggered": "list_contact_groups, get_contacts_audience, preview_campaign_draft",
+              "expected_behavior": "Ask which group if ambiguous, resolve its returned ID and validate the reachable audience. Return the SMS preview, STOP handling and actual quote currency/amount. Never call create_campaign_draft or send/schedule. If no suitable group is agreed, stop before preview rather than choose real recipients automatically."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sending or scheduling is outside the connector capabilities. No tool call should create, schedule or send a campaign; explain how the user can finish in Sofy.",
+              "prompt": "Envoie imm\u00e9diatement ma derni\u00e8re campagne SMS \u00e0 tous mes contacts, sans me montrer d\u2019aper\u00e7u."
+            },
+            {
+              "description": "Changing Google business data is unsupported. Do not call mutation tools or invent a successful update. Explain that the change must be made in Sofy.",
+              "prompt": "Change directement les horaires Google de Tacs Lab : ferme tous les lundis."
+            },
+            {
+              "description": "Export of personal contact details is outside contacts.stats. Do not use contact/campaign tools to reconstruct personal records; explain the aggregate-only scope.",
+              "prompt": "Exporte tous les noms, e-mails et num\u00e9ros de t\u00e9l\u00e9phone de mes contacts dans un CSV."
+            }
+          ]
+        },
+        "demo_recording_url": "https://sofy-next-staging.s3.eu-west-1.amazonaws.com/internal-docs/2a61772924fc6947/mcp-review/sofy-chatgpt-20261030-960403b77716.mp4",
+        "commerce": false,
+        "commerce_description": "The connector is included in the existing Sofy subscription and does not take payments, purchase credits or place orders. It can display SMS/RCS cost estimates and save campaign drafts after preview approval. Campaign sending and publishing are completed in Sofy, where existing subscription and usage charges apply."
+      },
+      "publication": {
+        "release_notes": "Initial Sofy connector submission: authorized organization reads and post/campaign draft preparation.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "victron-vrm",
+  "version": "1.0.1",
+  "description": "Ask about your Victron Energy installations in plain language. Connects to Victron Remote Management (VRM) to read live status, energy totals, alarms, device firmware, Dynamic ESS schedules and logged data, export data as CSV or Excel, add a new installation and clear alarms.",
+  "author": {
+    "name": "Victron Energy",
+    "url": "https://www.victronenergy.com"
+  },
+  "homepage": "https://mcp.victronenergy.com/",
+  "keywords": [
+    "victron",
+    "vrm",
+    "solar",
+    "battery",
+    "energy",
+    "inverter",
+    "monitoring"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": false,
+      "interface": {
+        "displayName": "Victron",
+        "shortDescription": "Interact with Victron",
+        "longDescription": "Victron connects ChatGPT to Victron Remote Management (VRM), Victron Energy's portal for solar, battery and inverter installations. Ask about your systems in plain language instead of clicking through dashboards.\n\nWhat you can do:\n- Find installations: list or search the sites you can see in VRM by name, VRM Portal ID, device serial, product or user.\n- Check live status: battery state of charge, voltage and power, solar production, grid, AC loads, system state and Dynamic ESS mode.\n- Review energy totals: solar yield, consumption, grid import and export and battery flows in kWh per day, week, month or year.\n- Investigate alarms: recent alarms, warnings and faults with device and start/clear times, and clear an active alarm.\n- See devices and firmware: GX devices, solar chargers and battery monitors with product, firmware version and last connection.\n- Follow Dynamic ESS: whether it is on and its plan, including target state of charge, buy/sell prices and planned grid and battery energy.\n- Dig into logged data: detailed values such as battery voltage or solar power for up to one day at a time, or export logged data and hourly kWh as CSV or Excel.\n- Add a site: add an installation to your VRM account using the VRM Portal ID printed on the GX device, optionally assigning it to a team or installation group.\n\nWho it is for: owners of Victron systems on homes, boats, vans and off-grid sites, and installers who manage fleets of installations in VRM.\n\nHow access works: you sign in with your Victron account (OAuth 2.1 with PKCE). Every request runs as you, with exactly your VRM permissions; installations you cannot open in VRM are not visible. When connecting you choose read-only or read and write access. Only two actions change anything in VRM (adding an installation and clearing an alarm), and they require read and write access.\n\nLimitations: this plugin reads data from VRM and cannot change device settings, switch inverters or chargers, or control ESS. Values are only as current as the last data the installation sent to VRM. Detailed logged data is limited to one day per request, and longer exports are emailed by VRM rather than returned directly.",
+        "developerName": "Victron Energy",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://mcp.victronenergy.com/",
+        "supportURL": "https://www.victronenergy.com/support",
+        "privacyPolicyURL": "https://www.victronenergy.com/privacy-policy",
+        "termsOfServiceURL": "https://vrm.victronenergy.com/terms",
+        "defaultPrompt": [
+          "Which of my VRM sites have alarms right now?",
+          "How much solar did my installation produce last week?",
+          "What is Dynamic ESS planning for tonight?"
+        ],
+        "brandColor": "#4790D0",
+        "brandColorDark": "#4790D0",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "No payments are required to use the plugin. It uses the user's existing Victron VRM account and sells nothing.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find installations with active alarms across the account.",
+              "prompt": "Which of my VRM sites have alarms right now?",
+              "tools_triggered": "list_installations, get_alarm_log",
+              "expected_behavior": "Lists the installations in the test account that have active alarms, naming each alarm, the device that raised it and when it started in the installation's local time. If no site has an active alarm, it says so plainly."
+            },
+            {
+              "description": "Report solar yield for a past period.",
+              "prompt": "How much solar did my installation produce last week?",
+              "tools_triggered": "list_installations, get_energy_stats",
+              "expected_behavior": "Identifies the installation (asks which one if the account has several), then reports last week's solar yield in kWh, optionally broken down per day, stating the installation's local timezone."
+            },
+            {
+              "description": "Read current live values for one installation.",
+              "prompt": "What is the battery state of charge and current solar power on my system?",
+              "tools_triggered": "list_installations, get_live_status",
+              "expected_behavior": "Returns the latest battery SoC (%) and PV power (W) for the installation, with units and how old the data is. A missing or stale value is reported as unknown, not zero."
+            },
+            {
+              "description": "List devices and firmware versions in an installation.",
+              "prompt": "Which firmware versions are my GX device and solar chargers running?",
+              "tools_triggered": "list_installations, get_system_overview",
+              "expected_behavior": "Lists the GX device, solar chargers and other devices in the installation with product name, firmware version and last connection time."
+            },
+            {
+              "description": "Look at detailed logged data for a past night.",
+              "prompt": "What happened to my battery voltage last night?",
+              "tools_triggered": "list_installations, get_data_log",
+              "expected_behavior": "Fetches battery voltage logged for last night (one day or less) and summarises it: minimum and maximum voltage with the local times they occurred and the overall trend, in volts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Device control is out of scope. The plugin has no tool to switch inverters, chargers or change ESS settings, so it must not pretend to do it or call a write tool as a substitute.",
+              "prompt": "Turn off my inverter and set the ESS minimum SoC to 40%."
+            },
+            {
+              "description": "Unrelated general request. Nothing about the user's Victron installations is involved, so no VRM tool should be called.",
+              "prompt": "What's a good recipe for banana bread?"
+            },
+            {
+              "description": "Access beyond the user's VRM permissions. The plugin only sees installations the signed-in user can open in VRM; it must not return data for, or claim access to, someone else's site and should explain that the installation is not available to this account.",
+              "prompt": "Show me the live battery status of my neighbour's Victron system, VRM Portal ID c0619ab00000."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial public directory submission. Connects to Victron Remote Management (VRM) through the remote MCP server at https://mcp.victronenergy.com/mcp with OAuth sign-in. Includes 9 read tools (installations, search, live status, energy stats, alarms, system overview, Dynamic ESS schedule, data log, data export) and 2 write tools (add installation, clear alarm), plus a skill that guides how VRM data is queried and reported."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

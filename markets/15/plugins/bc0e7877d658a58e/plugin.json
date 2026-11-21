@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "riderly-rental-discovery",
+  "version": "0.1.2",
+  "description": "Compare motorbike and scooter rentals from local shops and book your ride on Riderly.",
+  "author": {
+    "name": "Riderly",
+    "url": "https://riderly.com/"
+  },
+  "homepage": "https://riderly.com/",
+  "keywords": [
+    "motorcycle",
+    "scooter",
+    "motorbike",
+    "rentals",
+    "travel"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Riderly Motorbike Rentals",
+        "shortDescription": "Compare motorbike rentals",
+        "longDescription": "Make the trip unforgettable on two wheels. Riderly connects you with local motorbike and scooter rental shops, so you can find the right bike for your destination and travel dates. Get live availability with daily prices and an estimated total in your preferred supported currency. Compare scooters, motorcycles, and quads side by side, check shop ratings from verified reviews, and see what each rental includes before you commit: licence category, minimum rider age and experience, security deposit, mileage, and whether you can cross borders, when provided. Found your ride? Open it on Riderly to complete your booking and payment. No Riderly account is needed to search, and search and listing details are anonymous and read-only. The plugin does not create, change, or cancel bookings, process payments in chat, or search motorcycle tours. Prices are estimates. Final price, availability, and booking terms are confirmed on Riderly before you pay.",
+        "developerName": "Riderly",
+        "category": "Travel",
+        "capabilities": [
+          "Search motorbike rentals",
+          "Read rental details"
+        ],
+        "websiteURL": "https://riderly.com/",
+        "supportURL": "https://riderly.com/contact-us/",
+        "privacyPolicyURL": "https://riderly.com/privacy-policy/",
+        "termsOfServiceURL": "https://riderly.com/terms-of-service/",
+        "defaultPrompt": [
+          "Find scooter rentals in Lisbon, Portugal for my travel dates.",
+          "Find motorcycle rentals in Barcelona, Spain and show prices in GBP.",
+          "Help me compare rental prices, security deposits, and licence requirements."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Core scooter search. Use an anonymous connection with no prior conversation. Dates must remain future dates when reviewed. Inventory is live; exact models and prices are not fixed.",
+              "prompt": "Find a scooter in Lisbon, Portugal from July 10, 2027 to July 14, 2027, with prices in EUR.",
+              "tools_triggered": "search_motorbike_rentals",
+              "expected_behavior": "Call search_motorbike_rentals with destination=Lisbon, country_code=PT, start_date=2027-07-10, end_date=2027-07-14, currency=EUR, and bike_type=Scooter. Present only returned listings, as a short list or table with bike name, location, shop rating, daily price, estimated total with its currency, and the Riderly link. If inventory is empty, explain that no rentals were returned and offer different dates or destinations without inventing availability."
+            },
+            {
+              "description": "Motorcycle filter and requested currency. Use an anonymous connection with no prior conversation. Dates must remain future dates when reviewed.",
+              "prompt": "Show motorcycles in Barcelona, Spain from August 5, 2027 to August 10, 2027, with prices in GBP.",
+              "tools_triggered": "search_motorbike_rentals",
+              "expected_behavior": "Call search_motorbike_rentals with destination=Barcelona, country_code=ES, start_date=2027-08-05, end_date=2027-08-10, currency=GBP, and bike_type=Motorcycle. Report returned prices as GBP and identify estimated totals as estimates. Do not relabel EUR amounts as GBP or invent conversion rates. If no results are returned, report that outcome truthfully."
+            },
+            {
+              "description": "Minimum supported radius and result limit. Use an anonymous connection with no prior conversation. Dates must remain future dates when reviewed.",
+              "prompt": "Find a scooter within 5 km of Rome, Italy from September 12, 2027 to September 15, 2027. Show at most one option in EUR.",
+              "tools_triggered": "search_motorbike_rentals",
+              "expected_behavior": "Call search_motorbike_rentals with destination=Rome, country_code=IT, start_date=2027-09-12, end_date=2027-09-15, currency=EUR, bike_type=Scooter, radius=5, and limit=1. Present at most one returned listing and its Riderly link, or a truthful empty-results explanation. Do not claim a precise pickup distance unless it is returned by the server."
+            },
+            {
+              "description": "Search followed by listing details. Use an anonymous connection with no prior conversation. Requires at least one Lisbon result for these dates to exercise details. If unavailable, mark the details portion blocked and update future dates to a range with inventory before review.",
+              "prompt": "Find rentals in Lisbon, Portugal from July 10, 2027 to July 14, 2027 in EUR. For the first result, explain the deposit, licence, minimum rider age and experience, mileage, and border-crossing conditions, and give me its Riderly link.",
+              "tools_triggered": "search_motorbike_rentals, get_motorbike_rental_details",
+              "expected_behavior": "Search with destination=Lisbon, country_code=PT, start_date=2027-07-10, end_date=2027-07-14, and currency=EUR. If a result exists, call get_motorbike_rental_details with that returned listing_id and the same dates and currency. Explain only conditions returned for that listing, explicitly identifying missing values as unavailable. Preserve its riderly_url, including attribution parameters. If search is empty, do not fabricate an ID or call details; if details are unavailable, report that and offer a new search."
+            },
+            {
+              "description": "Supported search with an unmatched destination. Use an anonymous connection with no prior conversation. Confirm the rental catalog has no destination named Atlantis in Portugal before execution; revise this fixture if that changes.",
+              "prompt": "Find motorbike rentals in Atlantis, Portugal from October 1, 2027 to October 8, 2027 in EUR.",
+              "tools_triggered": "search_motorbike_rentals",
+              "expected_behavior": "Call search_motorbike_rentals with destination=Atlantis, country_code=PT, start_date=2027-10-01, end_date=2027-10-08, and currency=EUR. Explain the returned no-location or empty-results message and ask for another supported city or province. Do not silently substitute a destination, fabricate listings, or call get_motorbike_rental_details without a returned listing."
+            }
+          ],
+          "negative": [
+            {
+              "description": "In-chat reservation and payment are unsupported. With no prior conversation or listing, explain that booking and payment happen on Riderly. Do not call either rental tool solely to attempt this action, collect payment credentials, or claim a reservation or charge succeeded.",
+              "prompt": "Reserve a scooter for me now and charge my credit card here in chat."
+            },
+            {
+              "description": "Existing booking management is unsupported. Explain that the plugin cannot cancel or refund bookings and direct the user to Riderly booking management or support. Neither search_motorbike_rentals nor get_motorbike_rental_details should be invoked to cancel or refund a booking.",
+              "prompt": "Cancel my existing Riderly booking and refund the payment."
+            },
+            {
+              "description": "Tours are outside this rental plugin's scope. Explain that it searches rental listings and cannot search guided motorcycle tours. Do not call either rental tool or present rental results as tour availability.",
+              "prompt": "Find and book a guided motorcycle tour of Portugal."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users discover motorbike rentals and inspect listings in chat, then follow a returned Riderly link to book and pay on Riderly. MCP tools are anonymous and read-only and do not create reservations or process payments in chat."
+      },
+      "publication": {
+        "release_notes": "Rename the listing to Riderly Motorbike Rentals and refresh its descriptions. Search results are now returned as text for the assistant to present as a list or table; the results widget is no longer used."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

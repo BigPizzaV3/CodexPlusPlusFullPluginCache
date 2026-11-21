@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "justqrs",
+  "version": "1.0.1",
+  "description": "Make QR codes, create dynamic QR codes you can repoint after printing, and read scan analytics.",
+  "author": {
+    "name": "Votivigy LLC",
+    "email": "jason@votivigy.com",
+    "url": "https://justqrs.com"
+  },
+  "homepage": "https://justqrs.com",
+  "keywords": [
+    "qr code",
+    "qr codes",
+    "dynamic qr code",
+    "qr analytics",
+    "marketing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "JustQRs",
+        "shortDescription": "QR codes you can edit & track",
+        "longDescription": "JustQRs makes QR codes from a conversation. Ask for a QR code for a link, Wi-Fi network, contact card, phone number, SMS, email or plain text, with your choice of colors and dot styles, and get back the image, with a shareable link when the encoded content fits the link length limit.\n\nWith an active JustQRs subscription or trial you can also save codes to your account and create dynamic QR codes: the printed code points at a short link whose destination you can change later, so changing the destination does not require reprinting. Dynamic redirects require an active subscription or trial. You can rename, restyle, repoint or delete saved codes, download them as PNG or SVG, and read scan analytics \u2014 totals, a daily trend, and breakdowns by country, city, device, operating system and browser.\n\nThis plugin connection requires signing in to JustQRs. JustQRs only reads and changes the QR codes in the JustQRs account you connect. It does not scan or decode QR code images, make barcodes, or take payments.",
+        "developerName": "Votivigy LLC",
+        "category": "Productivity",
+        "capabilities": [
+          "Make QR code images",
+          "Create dynamic QR codes",
+          "Change where a printed QR code goes",
+          "Read QR code scan analytics"
+        ],
+        "websiteURL": "https://justqrs.com",
+        "supportURL": "https://justqrs.com/docs",
+        "privacyPolicyURL": "https://justqrs.com/privacy",
+        "termsOfServiceURL": "https://justqrs.com/terms",
+        "defaultPrompt": [
+          "Make a QR code for my website that I can print on flyers.",
+          "Create a dynamic QR code for my menu that I can update later.",
+          "How many scans did my QR codes get this month?"
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup: connect the packaged account endpoint with a dedicated test account. Render a static URL without saving a code. No paid entitlement is needed for rendering.",
+              "prompt": "Make a QR code for https://example.com/menu that I can print on table tents.",
+              "tools_triggered": "make_qr_code_image",
+              "expected_behavior": "Call make_qr_code_image with content={kind:\"url\",url:\"https://example.com/menu\"} and PNG format (explicit or default). Show the returned image and image link; the encoded payload must be https://example.com/menu. Do not call create_qr_code or claim tracking or later destination editing for this static code."
+            },
+            {
+              "description": "Setup: a dedicated test account with an active trial or subscription and two saved dynamic URL codes named Spring Flyer and Trade Show Booth. Seed these fixtures before review; they are not created by this package. Scan counts may be zero.",
+              "prompt": "List my QR codes and how many times each has been scanned.",
+              "tools_triggered": "list_qr_codes",
+              "expected_behavior": "Call list_qr_codes with no arguments. Show the returned codes including Spring Flyer and Trade Show Booth, with names and scan counts matching the response. Do not invent counts, codes, or a time range for these lifetime counts."
+            },
+            {
+              "description": "Setup: a dedicated test account with an active trial or subscription, spare dynamic-code capacity, and no existing code named Review Test. Run before the destination-update case. This case creates one persistent test code.",
+              "prompt": "Create a dynamic QR code called Review Test that points to https://example.com/review, and show me the image.",
+              "tools_triggered": "create_qr_code, get_qr_code_image",
+              "expected_behavior": "Call create_qr_code with name=\"Review Test\", mode=\"dynamic\", and content={kind:\"url\",url:\"https://example.com/review\"}. Call get_qr_code_image with the qrId returned by create_qr_code, using PNG format. Show the returned image and report the saved destination. Retain the returned qrId and short-link payload for the update case; do not claim success if creation fails."
+            },
+            {
+              "description": "Setup: first run the create-dynamic-code case in the same dedicated account, leaving exactly one Review Test code. Retain its qrId and short-link payload. This case changes its destination.",
+              "prompt": "Change my Review Test QR code to go to https://example.com/updated instead.",
+              "tools_triggered": "list_qr_codes, update_qr_code",
+              "expected_behavior": "Call list_qr_codes to resolve Review Test; if the name is ambiguous, clarify instead of choosing. Call update_qr_code with that qrId and content={kind:\"url\",url:\"https://example.com/updated\"}. Verify the response has the new destination and the same qrId and short-link payload. Report that the existing printed code now resolves to the new destination; do not create a replacement code."
+            },
+            {
+              "description": "Setup: an active trial or subscription and exactly one saved dynamic code named Spring Flyer. Its analytics may be zero; use the actual returned data, with no assumed country or scan totals.",
+              "prompt": "How many scans did my Spring Flyer QR code get in the last 30 days, and from which countries?",
+              "tools_triggered": "list_qr_codes, get_qr_code_stats",
+              "expected_behavior": "Call list_qr_codes to identify Spring Flyer, then get_qr_code_stats with its qrId and days=\"30\". Report rangeScans as the last-30-days total (not lifetime totalScans), and the country breakdown from breakdowns.country. Match returned values exactly; explain zero scans or an empty country breakdown without inventing data."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Explain that JustQRs cannot decode existing QR images. Do not call any JustQRs tool, generate a replacement QR code, or claim to have decoded an image.",
+              "prompt": "Can JustQRs scan a photo of an existing QR code and tell me what link it contains?"
+            },
+            {
+              "description": "Explain that JustQRs generates QR codes, not UPC product barcodes. Do not call any JustQRs tool or substitute a QR code without a new user request.",
+              "prompt": "Make a UPC barcode for my product with number 012345678905."
+            },
+            {
+              "description": "Explain that JustQRs cannot charge customers or issue payment receipts. Do not call any JustQRs tool or claim a payment or receipt was created.",
+              "prompt": "Charge my customer $25 and send them a receipt."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Users register an account and purchase any JustQRs subscription on https://justqrs.com. Saved codes, dynamic codes and analytics require an active subscription or trial. Registration and payments happen on the website, outside ChatGPT; the MCP tools cannot purchase products, start checkout, charge customers or issue receipts.",
+        "prompts": [
+          "Make a QR code for my website that I can print on flyers.",
+          "Create a dynamic QR code for my menu that I can update later.",
+          "How many scans did my QR codes get this month?"
+        ]
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Clarified sign-in, trial and dynamic-redirect requirements, image-link limits, and reproducible review cases for QR creation, updates and analytics."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

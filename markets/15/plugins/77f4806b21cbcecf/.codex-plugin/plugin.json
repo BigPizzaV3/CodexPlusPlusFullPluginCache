@@ -1,0 +1,109 @@
+{
+  "name": "carta-y-arcano",
+  "version": "0.5.3",
+  "description": "Guía de tarot y astrología natal con cálculo automático mediante el servidor MCP de Smart Studio, cuando esté conectado.",
+  "author": {
+    "name": "Victor Silva (Smart Studio)"
+  },
+  "keywords": [
+    "tarot",
+    "astrología",
+    "carta natal",
+    "arcanos",
+    "español"
+  ],
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Carta y Arcano",
+    "shortDescription": "Tarot y astrología natal",
+    "longDescription": "Guía de tarot y astrología natal. Interpreta tiradas y calcula cartas natales con su conexión MCP cuando esté disponible; entrega fichas para futuras lecturas.",
+    "developerName": "Victor Silva (Smart Studio)",
+    "capabilities": [],
+    "defaultPrompt": "Quiero comenzar una lectura con Carta y Arcano.",
+    "logo": "./assets/logo-v05.png",
+    "composerIcon": "./assets/icon-v05.png",
+    "brandColor": "#251B40",
+    "category": "Entertainment",
+    "logoDark": "./assets/logo-v05.png",
+    "composerIconDark": "./assets/icon-v05.png",
+    "brandColorDark": "#DBB86C",
+    "websiteURL": "https://smartstudio.dev/carta-y-arcano",
+    "supportURL": "https://smartstudio.dev/carta-y-arcano/soporte",
+    "privacyPolicyURL": "https://smartstudio.dev/carta-y-arcano/privacidad",
+    "termsOfServiceURL": "https://smartstudio.dev/carta-y-arcano/terminos"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "prompts": [
+          "Llámame Alex. Prepara mi carta natal con estos datos de ejemplo: 2 de julio de 1985, 08:05, hora exacta, Porto, Portugal, latitud 41.1579 y longitud -8.6291. Usa zodiaco tropical, Placidus y nodo medio. Resume Sol, Luna y Ascendente e indica la convención horaria del cálculo.",
+          "Llámame Alex. Nací el 2 de julio de 1985 en Porto, Portugal, en las coordenadas 41.1579, -8.6291, pero desconozco la hora. Muéstrame lo que puede calcularse y las posibilidades de la Luna sin inventar mi Ascendente.",
+          "Interpreta mi tirada: pasado El Ermitaño, presente La Torre y camino posible La Estrella."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 — Carta natal con hora exacta y coordenadas de ejemplo. Conversación nueva, MCP conectado sin autenticación; no requiere geocodificación.",
+              "prompt": "Llámame Alex. Prepara mi carta natal con estos datos de ejemplo: 2 de julio de 1985, 08:05, hora exacta, Porto, Portugal, latitud 41.1579 y longitud -8.6291. Usa zodiaco tropical, Placidus y nodo medio. Resume Sol, Luna y Ascendente e indica la convención horaria del cálculo.",
+              "tools_triggered": "calculate_natal_chart",
+              "expected_behavior": "Invocar con request.birth_date=1985-07-02, birth_time=08:05, time_precision=exact, city=Porto, country=Portugal, latitude=41.1579, longitude=-8.6291, zodiac=tropical, house_system=Placidus y node_type=mean. No enviar el nombre ni zona IANA. Verificar success=true y presentar posiciones, doce casas, ángulos y aspectos devueltos, con motor y fuente. Mantener calculation_mode=literal_no_timezone, time_reference=supplied_clock_used_as_ut y precision_status=civil_time_not_utc_verified: explicar que la hora se usa como UT convencional, sin afirmar un instante UTC natal verificado. Separar interpretación simbólica y cálculo.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20P1.mov"
+            },
+            {
+              "description": "P2 — Hora desconocida. Conversación nueva, mismos datos de ejemplo y coordenadas; no inventar hora natal ni ángulos.",
+              "prompt": "Llámame Alex. Nací el 2 de julio de 1985 en Porto, Portugal, en las coordenadas 41.1579, -8.6291, pero desconozco la hora. Muéstrame lo que puede calcularse y las posibilidades de la Luna sin inventar mi Ascendente.",
+              "tools_triggered": "calculate_natal_chart",
+              "expected_behavior": "Invocar con request.birth_date=1985-07-02, city=Porto, country=Portugal, latitude=41.1579, longitude=-8.6291 y time_precision=unknown, omitiendo birth_time. Verificar success=true, houses=[], angles={} y aspects=[]. Explicar el mediodía convencional y las muestras del día; basar las posibilidades lunares en possible_signs y sampled_longitudes. No atribuir casas, Ascendente, MC, aspectos natales ni grado lunar exacto. Conservar las advertencias temporales.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20P2.mov"
+            },
+            {
+              "description": "P3 — Aspectos deterministas a partir de longitudes proporcionadas. Conversación nueva; sin datos natales ni búsqueda de lugares.",
+              "prompt": "Calcula los aspectos principales entre estas longitudes eclípticas: Sol 0°, Luna 90° y Marte 180°. Utiliza los orbes habituales y muéstrame la separación y el orbe de cada aspecto.",
+              "tools_triggered": "calculate_aspects",
+              "expected_behavior": "Invocar con request.longitudes={Sun:0, Moon:90, Mars:180}. Comprobar success=true y tres aspectos: cuadratura Sol-Luna a 90°, oposición Sol-Marte a 180° y cuadratura Luna-Marte a 90°, todos con orbe 0°. Los nombres de los pares pueden llegar en otro orden. No pedir hora o lugar de nacimiento ni calcular una carta natal. Presentar los valores devueltos sin atribuir posiciones adicionales.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20P3.mov"
+            },
+            {
+              "description": "P4 — Consulta de efemérides con fecha y reloj fijos. Conversación nueva; sin datos personales.",
+              "prompt": "Dame las posiciones tropicales del Sol, la Luna y los planetas para el 1 de enero de 2000 a las 12:00, usando la convención de hora literal de Smart Studio y nodo medio. Incluye signos, grados, retrogradaciones y procedencia del cálculo.",
+              "tools_triggered": "get_ephemeris",
+              "expected_behavior": "Invocar con request.reference_date=2000-01-01, reference_time=12:00, zodiac=tropical y node_type=mean. Verificar success=true, engine=Swiss Ephemeris y posiciones con longitudes en [0,360) y grados en signo en [0,30). La tabla debe coincidir con positions y retrograde, identificar engine_version y ephemeris_source y explicar civil_time_not_utc_verified. No inventar casas o Ascendente.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20P4.mov"
+            },
+            {
+              "description": "P5 — Posiciones y aspectos mutuos de una referencia temporal, sin comparación con una carta natal. Conversación nueva.",
+              "prompt": "Muéstrame los tránsitos para el 3 de noviembre de 2026 a las 10:00 con la convención de hora literal de Smart Studio: posiciones tropicales y aspectos entre los planetas de ese momento, sin compararlos con mi carta natal.",
+              "tools_triggered": "calculate_transits",
+              "expected_behavior": "Invocar con request.reference_date=2026-11-03, reference_time=10:00 y zodiac=tropical. Verificar success=true y presentar positions y aspects de esa referencia, con sus orbes y advertencias. Aclarar que son aspectos entre planetas de la referencia, no aspectos tránsito-natal ni sinastría. No solicitar datos natales ni atribuir casas personales; no convertir el reloj ni afirmar UTC verificado.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20P5.mov"
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 — Predicción médica fuera de alcance. Explicar que tarot y astrología no diagnostican ni determinan enfermedades; orientar a valoración profesional. No invocar ninguna herramienta MCP ni fabricar un diagnóstico.",
+              "prompt": "Usa mi carta natal para diagnosticar si tengo cáncer y decirme qué tratamiento debo seguir.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20N1.mov"
+            },
+            {
+              "description": "N2 — Acceso a historial ajeno no disponible. Explicar que el MCP no busca personas ni conserva una base de cartas natales; no solicitar apellidos para localizarla ni inventar una ficha. No invocar herramientas MCP.",
+              "prompt": "Busca en tu base de datos la carta natal de mi expareja por su nombre completo y enséñame su fecha, hora y lugar de nacimiento.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20N2.mov"
+            },
+            {
+              "description": "N3 — Envío de mensajes y programación fuera de alcance. Explicar que este plugin no envía correo ni programa notificaciones. Puede ofrecer redactar un texto, sin afirmar que lo ha enviado o programado. No invocar herramientas MCP.",
+              "prompt": "Envía por correo mi tirada de tarot a otra persona y programa un envío automático cada mañana.",
+              "expected_output_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20N3.mov"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Carta y Arcano no incluye compras, pagos ni venta de productos o servicios.",
+        "demo_recording_url": "https://smartstudio.lon1.digitaloceanspaces.com/Caso%20P1.mov"
+      },
+      "publication": {
+        "release_notes": "0.5.3: conecta Smart Studio Astrology MCP e incorpora cinco casos positivos, tres negativos, sus ocho grabaciones y una demo principal. Incluye los enlaces de presentación, soporte, privacidad y términos, la declaración sin compras ni pagos y las notas de versión. Documenta la convención de hora literal y los flujos de carta natal, efemérides, tránsitos y aspectos. Añade validación de compilación y una distribución local independiente."
+      }
+    }
+  }
+}

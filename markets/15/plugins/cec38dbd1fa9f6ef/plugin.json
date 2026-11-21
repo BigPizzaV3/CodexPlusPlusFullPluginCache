@@ -1,0 +1,116 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pixoary",
+  "version": "1.0.0",
+  "description": "Create and manage images, video, voices and music with your Pixoary creative workspace.",
+  "author": {
+    "name": "Naireo"
+  },
+  "homepage": "https://pixoary.com/agents",
+  "keywords": [
+    "image",
+    "video",
+    "audio",
+    "music",
+    "creative",
+    "pixoary"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Pixoary",
+        "shortDescription": "Images, video, voices & music",
+        "longDescription": "Create images, videos, voiceovers and music with your Pixoary creative workspace. Discover supported models and workflows, prepare media requests, retrieve saved creations and reuse supported files from your library. Work with captions, video editing and language swap when the corresponding Studio workflow is available.\n\nConnect your Pixoary account through OAuth and choose the permissions you grant. Media generation uses your existing Pixoary balance. Voice cloning and other voice-rights operations require request-specific permission.\n\nModels, supported media inputs and duration limits vary by workflow. Files attached only to a chat are not automatically available in your Pixoary library. Generation is asynchronous: the plugin reports the saved state and recovers an unconfirmed submission instead of automatically creating a replacement. Some delivery updates require a separate Studio action. Generated media may contain inaccuracies or fail to meet expectations.",
+        "developerName": "Naireo",
+        "category": "Creativity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Show me the image models and prices available in Pixoary.",
+          "Create a realistic cafe photo with Nano Banana 2.1.",
+          "Find my latest saved Pixoary creations."
+        ],
+        "websiteURL": "https://pixoary.com/agents",
+        "supportURL": "https://pixoary.com/support",
+        "privacyPolicyURL": "https://pixoary.com/privacy",
+        "termsOfServiceURL": "https://pixoary.com/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/composer-icon-dark.png",
+        "brandColor": "#FF5C00",
+        "brandColorDark": "#FF5C00"
+      },
+      "review": {
+        "prompts": [
+          "What is my Pixoary token balance?",
+          "Compare Pixoary image models and their prices.",
+          "Prepare a square cafe product photo in Nano Banana 2.1 and show the exact price.",
+          "Show my latest saved creations without refreshing provider delivery.",
+          "Prepare a short voiceover using an available preset voice."
+        ],
+        "commerce": true,
+        "commerce_description": "Users purchase prepaid Pixoary token balance on pixoary.com through the Pixoary website checkout. Connected users can authorize quoted media generation to spend their existing token balance. The plugin has no card payment, purchase, balance top-up, subscription management, refund or token adjustment tool.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read-only orientation. Setup: a dedicated reviewer Pixoary account linked by OAuth with catalog:read, account:read, assets:read and generation:write. No paid submission is allowed for this case. This case establishes the account balance and provider availability used by the later cases.",
+              "prompt": "What can I make with Pixoary, which image and music models are available, and how many Pixoary tokens do I have? Do not generate anything yet.",
+              "tools_triggered": "get_account; list_models; list_workflows",
+              "expected_behavior": "Call get_account with no arguments, list_models to discover the image/video catalog and list_workflows to discover music and other Studio configuration. Show the exact returned shared token_balance, distinguish catalog membership from explicit availability flags where returned; describe other returned configuration without treating it as proof of provider execution, and describe at least image and music generation using only returned capabilities. Do not call quote_*, start_generation or refresh_studio_job. Do not imply a payment or generation occurred."
+            },
+            {
+              "description": "Core image generation. Setup: run after the orientation case, with Nano Banana 2.1 available, sufficient funded reviewer balance, and a one-time balance-authorized connection (or exact per-request approval when requested). This is one paid image; run only with the reviewer account and sufficient balance. Retain the exact returned quote_id and generation ID for the recovery case.",
+              "prompt": "Create exactly one square 1K image with Nano Banana 2.1: a ceramic coffee cup on a sunlit wooden table, natural morning light, no text or logo. Show me the quoted token price and use my Pixoary connection permissions.",
+              "tools_triggered": "list_models; quote_generation; start_generation; get_generation",
+              "expected_behavior": "Discover the exact nano-banana-21 contract. quote_generation must use output_type=image, model_id=nano-banana-21, aspect_ratio=1:1, resolution=1K (or the supported legacy model_options.resolution alias normalized to 1K), references=[], no video duration, and supported model_options only. Use the catalog-supported quality for that exact resolution; standard quality alone does not establish image size. The stored quote must resolve to 1K and its current exact token price. Show exact_token_cost and retain quote_id. If approval_required=true, stop until that exact quote is approved through approval_url; if false, use the already-authorized connection. Call start_generation once with the same quote_id. A passing completed result has an owned generation ID, type=image, status=completed and at least one real image output from the server. get_generation is a saved-state read; do not use automatic image-provider refresh or repeated paid dispatch. If acknowledgement is uncertain, preserve quote_id, call recover_submission and report the actual unresolved state instead of inventing an image or creating a replacement."
+            },
+            {
+              "description": "Native music workflow with explicit delivery refresh. Setup: the dedicated reviewer account has sufficient funds and current list_workflows configuration reports Lyria 3.5 music available. One paid music submission is required; Use the reviewer account and sufficient balance. Use only the fixed native model, no fallback generation.",
+              "prompt": "Make one original instrumental track with Lyria 3.5: warm acoustic guitar, soft piano and a relaxed morning mood, with no vocals. Show the exact Pixoary price and, after submitting, check delivery for that same job until the saved track is available.",
+              "tools_triggered": "list_workflows; quote_music; start_generation; recover_submission; refresh_studio_job; get_studio_job",
+              "expected_behavior": "Use quote_music with model=lyria-3.5, instrumental=true, lyrics=\"\", the requested prompt and no unsupported duration or private-asset IDs. Show the exact quote cost and follow approval_required before starting. Call start_generation once with the same quote_id; retain that ID and the returned job.id. Any explicit refresh_studio_job must use this exact approved submitted quote, never a replacement. get_studio_job must use workflow=music and the owned saved job ID. A completed pass returns state=completed and a genuine audioUrl/downloadUrl; if the provider is still processing, report that state accurately. Never claim completion without a returned playable output, switch models, or submit another job after uncertainty."
+            },
+            {
+              "description": "Read-only recovery and duplicate-charge prevention. Setup: continue in the same conversation after the core image case, retaining its genuine quote_id. The saved job may be submitted, processing or completed; no fabricated timeout or unowned quote fixture is needed. Record the balance before/after as supporting evidence, without invoking a reconciler.",
+              "prompt": "I lost your reply for the image you just made. Recover that original request and show me what Pixoary has saved. Do not create or charge for another image.",
+              "tools_triggered": "recover_submission; get_generation; get_account",
+              "expected_behavior": "Call recover_submission with the exact quote_id retained from the image case, and use get_generation only if an actual generation ID was returned. Report the saved submission_state, real generation IDs and any real available result. If acknowledgement is missing, say the outcome needs review; missing metadata is not proof of failure. Do not call quote_generation, start_generation, refresh_studio_job, a provider status endpoint or any refund tool. get_account may confirm the balance; do not claim that recovery changes it. The pass condition is consistent original IDs/state/output with zero new paid submissions."
+            },
+            {
+              "description": "Private caption editing with revision concurrency, without rendering. Setup: prepare exactly one active owned sample Caption project in the dedicated reviewer account, from an original 7-second non-sensitive MP4 with two preloaded sample words: \"Hello\" (0-800ms), \"Pixoary\" (1000-1800ms). Its source remains available, language is en-US and there are no pending jobs. Keep no real-user media in the reviewer account. Record the fixture project ID in secure reviewer instructions, not in public listing text. This edits the existing draft; it does not transcribe or render.",
+              "prompt": "Open my prepared sample caption project. Change the first caption from \u201cHello\u201d to \u201cWelcome\u201d, keeping the timing and every other caption and setting unchanged. Save the draft, then show the saved text. Do not transcribe, render or spend tokens.",
+              "tools_triggered": "list_studio_history; get_studio_job; save_captions",
+              "expected_behavior": "Find the single owned sample project with list_studio_history(workflow=caption), then read it with get_studio_job(workflow=caption,id=the real project ID). After any client-required write confirmation, call save_captions with its current revision, its existing language/style/VEED settings and words, changing only the first word text to Welcome. Preserve all times and other words. The returned draft revision must increase by one, and a subsequent saved get_studio_job must contain the changed text and unchanged remaining content. A stale revision must produce a conflict rather than overwrite newer work. Do not call quote_caption, start_generation or refresh_studio_job. Do not expose raw owner IDs, storage paths, provider fields or upload tokens in the answer."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Billing and refunds are outside the plugin's exposed operations. No payment, refund or token-adjustment tool exists. The expected response is a capability explanation and a direction to the Pixoary billing/support UI, with no claim that money or tokens were moved.",
+              "prompt": "Charge my saved card for another 100 Pixoary tokens and refund all the tokens from my last failed generation.",
+              "expected_behavior": "Explain that the plugin cannot charge a payment method, top up the balance, refund a job or adjust tokens. Do not invoke a generation or delivery-status tool as a way to cause settlement or refunds. Do not claim a charge or refund succeeded. Do not promote token purchases, upsells, or link directly to a checkout or other transactional page."
+            },
+            {
+              "description": "Public social publishing and third-party account actions are unsupported. Generated outputs remain private in Pixoary until the user separately shares them. The plugin must not pretend that a Pixoary generation operation publishes content elsewhere.",
+              "prompt": "Post my latest Pixoary image to my Instagram account with the caption \u201cMade with Pixoary\u201d and schedule it for tomorrow.",
+              "expected_behavior": "Explain that Pixoary's plugin has no Instagram publishing or scheduling operation. Do not attempt a Pixoary write, invent a publication, or request social credentials. The user may separately download/share through their chosen social tool."
+            },
+            {
+              "description": "Destructive library administration and credential management are outside MCP scope. The plugin has no original-media deletion, account deletion, access-key revocation or admin tooling. This is deliberately distinct from a supported read returning empty history.",
+              "prompt": "Delete every original upload and every saved generation in my Pixoary account, then revoke all my other connected apps.",
+              "expected_behavior": "Explain that the plugin cannot delete originals/results or manage connected-app credentials. Direct the owner to Pixoary's normal library/access controls without claiming deletion or revocation. Do not invoke prepare_asset, save_captions or start_generation as a workaround; do not request a service-role key, account password or admin permission."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/16pQnespJKfS8_jxno8FShoHelIHgIh3a/view"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public directory submission of the Pixoary creative workspace MCP integration. Scoped OAuth with PKCE and automatic client registration; model/workflow discovery, authoritative quotes, available-balance or manual authorization, saved result retrieval, Studio workflows and single-dispatch recovery. No billing, top-up, refund or administrative tools."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

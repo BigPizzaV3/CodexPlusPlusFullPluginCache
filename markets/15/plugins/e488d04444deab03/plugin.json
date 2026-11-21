@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "movmais",
+  "version": "1.0.1",
+  "description": "Mov+ connects ChatGPT to your Mov+ workspace: sales analytics, customers, products and price tables, orders, technical assistance, finance, CRM and projects. Read-only by default; writes only when you enable them during authorization.",
+  "author": {
+    "name": "movmais",
+    "url": "https://www.movmais.com"
+  },
+  "homepage": "https://www.movmais.com",
+  "keywords": [
+    "sales",
+    "analytics",
+    "erp",
+    "crm",
+    "orders",
+    "customers",
+    "brasil"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "movmais",
+        "shortDescription": "AI for sales and operations",
+        "longDescription": "Mov+ is a multi-tenant business platform for Brazilian companies: sales analytics over the company's ERP, customers, products and price tables, sales orders, technical assistance, finance, CRM, projects and boards.\n\nThis app connects ChatGPT to YOUR Mov+ workspace so you can ask questions in plain language and get answers computed by Mov+ itself (the same numbers as the Mov+ screens), instead of guessing from exports.\n\nWhat you can do:\n- Sales analytics: sales for a period, over time, by customer, product, representative, state, city and portfolio; the sales ranking.\n- Customers: search customers, open a customer record, list customers who stopped buying (base active in the last 12 months by default), customers with overdue invoices, a customer PDF.\n- Products and prices: search the catalog, see a product, get the price for a specific customer, current commercial rules.\n- Orders: search orders, order details, a PDF or spreadsheet of an order, and create a DRAFT that repeats a previous order. Creating or editing a draft never touches your ERP. Sending an order is a separate, explicit step; only companies that turned on direct sending in Mov+ have the order forwarded to the ERP (as an unconfirmed order). Mov+ never confirms, invoices or deletes anything in your ERP.\n- Technical assistance: search claims, indicators, media and the claim PDF.\n- Finance, CRM, projects, boards, documents and files: list and summarize; create records when writes are enabled.\n- Alerts and daily tips: create alerts, summaries and daily tips and manage the notifications you receive.\n\nHow access works:\n- You sign in to Mov+ with your own account and choose the workspace and the modules to share. Authorization uses OAuth 2.1 with PKCE; there are no API keys to copy.\n- The app can only see what YOUR Mov+ user is allowed to see (permissions, branch and sales-scope rules are the same as in the Mov+ screens).\n- Write tools are OFF by default. They appear only if you turn on writes in the authorization screen. Every write is recorded in the Mov+ audit log.\n- You can revoke access at any time in Mov+ (Settings > MCP) and the connection stops immediately.\n\nRequirements: an active Mov+ account with a workspace, and the permission to manage MCP credentials (settings.actions.manage_mcp) to authorize the connection.\n\nMov+ is available in Portuguese (Brazil). Amounts are in Brazilian reais.",
+        "developerName": "movmais",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Sales analytics by period, customer, product and representative",
+          "Customer search and customers who stopped buying",
+          "Product search and customer-specific prices",
+          "Order search, order PDF and draft orders",
+          "Technical assistance claims and indicators",
+          "Finance, CRM, projects and boards (writes optional)"
+        ],
+        "websiteURL": "https://www.movmais.com",
+        "supportURL": "https://app.movmais.com/suporte",
+        "privacyPolicyURL": "https://app.movmais.com/privacidade",
+        "termsOfServiceURL": "https://app.movmais.com/termos",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png",
+        "defaultPrompt": [
+          "Quais foram as vendas deste m\u00eas?",
+          "Mostre os clientes sem comprar h\u00e1 60 dias",
+          "Crie um rascunho repetindo o \u00faltimo pedido do cliente X"
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Sales summary for the current month (read-only analytics).",
+              "prompt": "Quais foram as vendas deste m\u00eas?",
+              "tools_triggered": "analytics.vendas_resumo",
+              "expected_behavior": "ChatGPT calls analytics.vendas_resumo for the current month and answers with the total sales in reais. No data is created or changed."
+            },
+            {
+              "description": "Customers who stopped buying, with the 60-day filter.",
+              "prompt": "Mostre os clientes sem comprar h\u00e1 60 dias, dos que mais compram para os que menos compram",
+              "tools_triggered": "analytics.clientes_parados",
+              "expected_behavior": "ChatGPT calls analytics.clientes_parados with at least 60 days without buying and lists the customers ordered by 12-month sales, highest first."
+            },
+            {
+              "description": "Sales ranking by representative.",
+              "prompt": "Qual \u00e9 o ranking de vendas por representante neste trimestre?",
+              "tools_triggered": "analytics.ranking_vendas",
+              "expected_behavior": "ChatGPT calls analytics.ranking_vendas for the quarter and lists the representatives ordered by sales, in reais."
+            },
+            {
+              "description": "Find a customer and a product, then get the customer-specific price (chained read tools).",
+              "prompt": "Busque o cliente Adega Ip\u00ea e o produto Iogurte natural 170g e diga o pre\u00e7o desse produto para esse cliente",
+              "tools_triggered": "clientes.buscar_clientes, produtos.buscar_produtos, produtos.preco_para_cliente",
+              "expected_behavior": "ChatGPT finds the customer and the product with the two search tools, then calls produtos.preco_para_cliente and reports the price of that product for that customer."
+            },
+            {
+              "description": "Write with authorization: create a DRAFT order that repeats a previous order. The reviewer must turn on the \"Deixar o agente gravar\" (allow the agent to write) switch on the Mov+ authorization screen when connecting; without it no write tool is offered (see notes for the reviewer).",
+              "prompt": "Crie um rascunho repetindo o \u00faltimo pedido do cliente Adega Ip\u00ea",
+              "tools_triggered": "pedidos.buscar_pedidos, pedidos.replicar_pedido",
+              "expected_behavior": "ChatGPT finds the customer's latest order with pedidos.buscar_pedidos, then calls pedidos.replicar_pedido, which creates a new draft order (nothing is sent) and returns its code."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Write requested while the connection was authorized WITHOUT writes: no write tool is offered, so the assistant must say it cannot create the record and must not pretend it did.",
+              "prompt": "Crie um lan\u00e7amento de despesa de R$ 500 chamado Material de escrit\u00f3rio"
+            },
+            {
+              "description": "Data from another company: the connection is bound to the one workspace chosen at authorization and no tool accepts another workspace, so the assistant cannot read it and must say so.",
+              "prompt": "Mostre as vendas do m\u00eas da empresa concorrente Acme Ltda, que usa outro workspace do Mov+"
+            },
+            {
+              "description": "Destructive action the app does not offer: there is no tool to delete financial records or orders, so the assistant must decline and not invent a workaround.",
+              "prompt": "Apague todos os lan\u00e7amentos financeiros do m\u00eas passado"
+            }
+          ]
+        },
+        "demo_recording_url": "https://app.movmais.com/demo/conector-movmais-final.mp4",
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "First release: sales analytics, customers, products and prices, orders (draft), technical assistance, finance, CRM, projects. OAuth 2.1 with PKCE; writes off by default.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "IA para vendas e opera\u00e7\u00e3o",
+            "description": "O Mov+ \u00e9 uma plataforma para empresas brasileiras: an\u00e1lises de venda sobre o ERP, clientes, produtos e tabelas de pre\u00e7o, pedidos, assist\u00eancia t\u00e9cnica, financeiro, CRM e projetos.\n\nEste app conecta o ChatGPT ao SEU workspace do Mov+: voc\u00ea pergunta em linguagem natural e recebe n\u00fameros calculados pelo pr\u00f3prio Mov+ (os mesmos das telas).\n\nO que d\u00e1 para fazer:\n- An\u00e1lise de vendas por per\u00edodo, cliente, produto, representante, estado, cidade e carteira; ranking de vendas.\n- Clientes: buscar, ver a ficha, listar quem parou de comprar, quem tem t\u00edtulo vencido.\n- Produtos e pre\u00e7os: cat\u00e1logo, pre\u00e7o para um cliente, regras comerciais vigentes.\n- Pedidos: buscar, detalhar, PDF ou planilha e criar um RASCUNHO repetindo um pedido anterior. Criar ou editar um rascunho nunca toca o seu ERP. Enviar o pedido \u00e9 outro passo, expl\u00edcito; s\u00f3 as empresas que ligaram o envio direto no Mov+ t\u00eam o pedido encaminhado ao ERP (como pedido n\u00e3o confirmado). O Mov+ nunca confirma, fatura nem exclui nada no seu ERP.\n- Assist\u00eancia t\u00e9cnica, financeiro, CRM, projetos, boards, documentos e arquivos.\n\nComo funciona o acesso: voc\u00ea entra com a sua conta do Mov+, escolhe o workspace e os m\u00f3dulos (OAuth 2.1 com PKCE, sem chave para copiar). O app s\u00f3 v\u00ea o que o SEU usu\u00e1rio pode ver. A escrita nasce DESLIGADA e s\u00f3 existe se voc\u00ea lig\u00e1-la na tela de autoriza\u00e7\u00e3o; toda grava\u00e7\u00e3o fica na auditoria. Voc\u00ea revoga quando quiser em Configura\u00e7\u00f5es > MCP.\n\nPr\u00e9-requisito: conta ativa no Mov+ com workspace e permiss\u00e3o para gerenciar credenciais MCP."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

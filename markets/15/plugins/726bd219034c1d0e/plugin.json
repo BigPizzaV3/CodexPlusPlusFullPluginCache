@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "scoregeek",
+  "version": "1.0.0",
+  "description": "Keep board game scores and build custom score sheets through conversation.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ScoreGeek",
+        "shortDescription": "Board game scoring by chat",
+        "longDescription": "ScoreGeek helps you keep score at the board game table.\n\nFind a board game and its available score sheets, set up a game with named players, and enter scores for several players at once. Describe what you counted and ScoreGeek calculates the totals using the selected sheet. Check the current game, its scoring lines, and each player\u2019s score.\n\nCreate custom score sheets with scoring formulas, rounds, factions and expansion modules. Check a draft against worked examples before saving it, copy an existing sheet to adapt it, and try a sheet in a test game. Open games and sheets in ScoreGeek to see the results.\n\nConnect your ScoreGeek account to use your own games and sheets. Available actions depend on your account permissions and the game\u2019s state.  Hosting a game allows editing of everyone's scores, whereas joining a hosted game allows editing of your own score.",
+        "category": "Entertainment",
+        "defaultPrompt": [
+          "Find the official score sheet for 7 Wonders.",
+          "Show the current game and each player\u2019s score.",
+          "Help me create a custom board game score sheet."
+        ],
+        "websiteURL": "https://www.scoregeek.app",
+        "supportURL": "https://www.scoregeek.app/contact",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "capabilities": [],
+        "developerName": "Rebrand Software, LLC",
+        "privacyPolicyURL": "https://scoregeek.app/privacy",
+        "termsOfServiceURL": "https://scoregeek.app/terms"
+      },
+      "review": {
+        "prompts": [
+          "Find 7 Wonders and tell me which official score sheet and expansions are available.",
+          "Show me how the official 7 Wonders score sheet handles coins and science.",
+          "Start a 7 Wonders game for me using the official sheet.  Add Alice and Bob as temporary players",
+          "I have 12 military points and 14 coins",
+          "What are the current scores?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find a game and inspect its available sheets. Setup: signed-in reviewer account; no active game required.",
+              "prompt": "Find 7 Wonders and tell me which official score sheet and expansions are available.",
+              "tools_triggered": "search_games, get_game",
+              "expected_behavior": "Call search_games with query \"7 Wonders\", select the base game rather than Duel or an expansion, and pass its returned game_id to get_game. Report official sheets and expansion names from the returned data. Do not start a game."
+            },
+            {
+              "description": "Inspect a full official sheet. Setup: discover the base 7 Wonders game and official sheet first.",
+              "prompt": "Show me how the official 7 Wonders score sheet handles coins and science.",
+              "tools_triggered": "search_games, get_game, get_sheet",
+              "expected_behavior": "Resolve the base game and its official sheet_id, then call get_sheet. Explain the coin and science fields from their returned configurations, without inventing formulas or changing the sheet."
+            },
+            {
+              "description": "Create a base-game lobby using the official 7 Wonders sheet. Setup: use a dedicated reviewer account with the required access and no real game in progress. Alice and Bob are temporary guest players, not registered accounts. Do not enable expansions.",
+              "prompt": "Start a 7 Wonders game for me using the official sheet.  Add Alice and Bob as temporary players",
+              "tools_triggered": "search_games, get_game, start_game",
+              "expected_behavior": "Resolve the base 7 Wonders game and its official Base Game sheet. Call start_game with the returned game_id and sheet_id, players [\"me\", \"Alice\", \"Bob\"], and no expansions (omit expansions or pass []). Alice and Bob are temporary guests; do not substitute registered players with matching names. Report the returned lobby/session and explain that the reviewer must start the game manually in ScoreGeek. Do not claim gameplay has started or write any scores. Retain this session for cases 4 and 5."
+            },
+            {
+              "description": "Enter two scoring rows for the signed-in player in the game created in case 3. Manual setup: open that lobby in ScoreGeek, confirm the official Base Game sheet, no expansions, and the three seats (reviewer, Alice and Bob). Complete any required lobby selections and use the app\u2019s start control to start the game. Proceed to its scoring screen and verify score entry is available before sending the prompt. Keep other scoring rows at zero. Do not create a separate test game or use try_sheet.",
+              "prompt": "I have 12 military points and 14 coins",
+              "tools_triggered": "get_current_game, set_scores",
+              "expected_behavior": "Read get_current_game for the session from case 3 and identify the signed-in player and actual scoring fields. Call set_scores on that same session with player \"me\", field \"military\", value 12 and player \"me\", field \"treasury\", value 14. These are entered amounts, not increments: do not use add, and do not preconvert 14 coins to 4 before writing Treasury. Verify the app shows Military as 12 and Treasury as 14 coins, contributing 4 points because the official sheet divides coins by 3 and rounds down. Report the server-calculated total (16 when all other scoring rows are zero). Alice, Bob and other scoring rows remain unchanged."
+            },
+            {
+              "description": "Retrieve scores without writing. Setup: continue the same started base-game session from cases 3 and 4, with the reviewer\u2019s Military set to 12 and Treasury to 14 coins. No expansions are enabled.",
+              "prompt": "What are the current scores?",
+              "tools_triggered": "get_scores",
+              "expected_behavior": "Call get_scores for the same session used in cases 3 and 4. Report each returned player\u2019s total and scoring breakdown from the response. For the reviewer, distinguish Military\u2019s 12 points from Treasury\u2019s 14 coins worth 4 points; the total is 16 if other scoring rows are zero. Report Alice and Bob\u2019s actual returned totals rather than assuming values. Preserve all scores and invoke no write tools."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchases are unsupported. Explain that the connection cannot purchase games; do not call ScoreGeek tools or claim an order was placed.",
+              "prompt": "Buy a copy of 7 Wonders and ship it to my house."
+            },
+            {
+              "description": "Account deletion is unsupported. Explain how to seek account deletion in ScoreGeek settings or support without claiming completion. Do not call delete_sheet or other tools as a substitute.",
+              "prompt": "Delete my ScoreGeek account and all its data."
+            },
+            {
+              "description": "External BoardGameGeek collection edits are unsupported by this MCP. Explain the limit; do not use ScoreGeek tools to simulate the change or claim success.",
+              "prompt": "Remove 7 Wonders from my BoardGameGeek collection."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/f11c1367dc8c47438d57f0d6b66a226e"
+      },
+      "publication": {
+        "release_notes": "Find board games and score sheets, set up games, enter scores through conversation, and build and test custom score sheets.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Rebrand Software, LLC"
+  }
+}

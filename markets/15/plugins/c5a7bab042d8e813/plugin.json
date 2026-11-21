@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-69d9214e90608191bb223a7610dab4ab",
+  "version": "1.2.1",
+  "description": "IcePanel is a collaborative diagramming and modelling tool for software architecture. With IcePanel's MCP, bring your software architecture designs into ChatGPT and Codex.\n\nSome cool things you can do with IcePanel's MCP:\n- Understand the systems you're building and data flows\n- Create model objects and keep them in sync with code\n- Manage architecture decision records and ensure they align with what gets built in reality\n- Create and update diagrams to keep things in sync",
+  "keywords": [
+    "icepanel",
+    "architecture",
+    "c4",
+    "diagrams",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "IcePanel",
+        "shortDescription": "Design software architecture",
+        "longDescription": "IcePanel is a collaborative diagramming and modelling tool for software architecture. With IcePanel's MCP, bring your software architecture designs into ChatGPT and Codex.\n\nSome cool things you can do with IcePanel's MCP:\n- Understand the systems you're building and data flows\n- Create model objects and keep them in sync with code\n- Manage architecture decision records and ensure they align with what gets built in reality\n- Create and update diagrams to keep things in sync",
+        "capabilities": [],
+        "defaultPrompt": [
+          "Show the architecture models available in my IcePanel landscape.",
+          "Explain the dependencies of a system in my IcePanel landscape.",
+          "Compare my architecture with its decision records."
+        ],
+        "developerName": "IcePanel Technologies Inc.",
+        "category": "Developer Tools",
+        "websiteURL": "https://icepanel.io/",
+        "privacyPolicyURL": "https://docs.google.com/document/d/1dsvVWhD7fVx4Rr7nj9sOWUwLRxVvN0fh/edit",
+        "termsOfServiceURL": "https://docs.google.com/document/d/1lDdXZqBkGL7bKhIl-pSwW6H_Y4CDHMR4/edit",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "supportURL": "https://icepanel.io"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Explore a diagram, flows, and landscape metadata",
+              "prompt": "Here\u2019s an IcePanel diagram: <paste diagram URL>. Tell me what objects and connections are on it, export it as an image, and list the flows in the landscape. Show the first flow as a Mermaid sequence diagram. Then search the landscape for \u201c<misspelled system name, e.g. Paymnt>\u201d and list that system\u2019s connections, technologies, tags and owning team.",
+              "tools_triggered": "parseLink, getDiagramDetails (detailed + image), getDiagramContent, listFlows, getFlowDetails (mermaid), landscapeSearch, getModelObjectDetails, listConnections, listTags, listTeams, listDomains",
+              "expected_behavior": "- The URL resolves to the right diagram, and the objects and connections match the UI exactly.\n- The PNG export renders.\n- The Mermaid output is valid and matches the flow\u2019s steps.\n- The fuzzy search finds the system despite the typo.\n- No IDs or names are made up. Anything Claude says must be traceable to a tool result."
+            },
+            {
+              "description": "Create model objects and connections with parent validation",
+              "prompt": "In IcePanel, create:\n- An actor \u201cMCPTEST Customer\u201d.\n- A system \u201cMCPTEST Order Platform\u201d, tagged with any existing tag and owned by <existing team name>.\n- Inside the system: an app \u201cMCPTEST Storefront\u201d (React), an app \u201cMCPTEST Orders API\u201d (Node.js), and a store \u201cMCPTEST Orders DB\u201d (PostgreSQL).\n- Inside Orders API: a component \u201cMCPTEST Payment Handler\u201d.\nAdd these connections:\n- Customer \u2192 Storefront, \u201cPlaces orders\u201d\n- Storefront \u2192 Orders API, \u201cREST/HTTPS\u201d (HTTPS technology)\n- Orders API \u2194 Orders DB, \u201cReads/writes\u201d (bidirectional)\nAlso put a component called \u201cMCPTEST Logger\u201d directly under the system.",
+              "tools_triggered": "listDomains, listTechnologies, listTags, listTeams, createModelObject (all six types), createConnection",
+              "expected_behavior": "- All six valid objects exist in the Model view with the correct parents. The test also exercises a group, so ask Claude to add a \u201cMCPTEST Group\u201d if you want that type covered too.\n- Technologies, the tag and the team are attached using real catalog IDs.\n- The three connections exist with the correct direction.\n- Negative check: the \u201cLogger\u201d request breaks the parent rule (a system can only contain apps and stores). Claude should refuse it or suggest putting Logger inside an app, not silently create something wrong."
+            },
+            {
+              "description": "Create and update app and component diagrams",
+              "prompt": "Create an app diagram for MCPTEST Order Platform showing the Customer, both apps and the DB with their connections, laid out left to right with no overlaps. Then create a component diagram for MCPTEST Orders API showing Payment Handler. On the app diagram, move Orders DB directly below Orders API and make all connection lines square. Then remove Orders DB from the app diagram only. Finally, try adding Payment Handler to the landscape\u2019s context diagram.",
+              "tools_triggered": "createDiagram (system \u2192 app diagram, app \u2192 component diagram), addDiagramObjects, addDiagramConnections, getDiagramContent, updateDiagramObjects, updateDiagramConnections, removeDiagramObjects, getDiagramDetails (image)",
+              "expected_behavior": "- Both diagrams get the correct type.\n- Drawing the connections reuses the existing model connections. listConnections on Orders API should still return 2, not more.\n- Nothing overlaps, and the final export matches the requested layout.\n- After Orders DB is removed from the diagram, it still exists in the model.\n- Negative check: adding a component to a context diagram is rejected."
+            },
+            {
+              "description": "Create an ADR and preserve related links",
+              "prompt": "Write an ADR \u201cMCPTEST Use PostgreSQL for Orders DB\u201d with Context, Decision and Consequences sections, as a draft. Then mark it accepted and link it to the MCPTEST Order Platform app diagram. After that, also add a link to [https://www.postgresql.org/docs/](https://www.postgresql.org/docs/).",
+              "tools_triggered": "createADR, listADRs (filtered by status), getADRDetails, updateADR (status, related items)",
+              "expected_behavior": "- The ADR\u2019s markdown renders correctly in IcePanel, and the status shows as accepted.\n- Key check: after the second update, both the diagram link and the URL link are present. relatedItems replaces the whole list, so Claude has to re-send the existing diagram link or it gets wiped."
+            },
+            {
+              "description": "Replace a storefront, filter statuses, and clean up test objects",
+              "prompt": "We\u2019re replacing the storefront. Rename MCPTEST Storefront to \u201cMCPTEST Legacy Storefront\u201d and mark it deprecated. Add one more tag to it without losing its existing tag or technology. Create a future-status app \u201cMCPTEST Storefront v2\u201d (Next.js) with the same incoming and outgoing connections as the legacy one, also in future status. List all deprecated and all future objects in the system. Then clean up: remove everything prefixed MCPTEST.",
+              "tools_triggered": "updateModelObject (name, status, $add on tags), createModelObject with status, createConnection with status, updateConnection (status), listModelObjects (status and parent filters), listConnections (status filter)",
+              "expected_behavior": "- The rename shows up on the TC3 diagram.\n- $add keeps the existing tag and technology.\n- The status filters return exactly the right objects.\n- Cleanup sets status to removed on every MCPTEST object and connection; no hard deletes should happen. Afterwards, listModelObjects filtered to live objects under the system returns nothing.\n- Claude says plainly that it can\u2019t delete the two diagrams or the ADR, so you remove those by hand."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Writing an ADR with no IcePanel destination",
+              "prompt": "Write an architecture decision record for choosing Kafka over SQS for our event bus. Include context, options considered, decision and consequences.",
+              "expected_behavior": "Draft the ADR in the chat or as a document. Call no IcePanel tools, including read calls such as listADRs: no icepanel_* calls at all. The user has not specified an IcePanel destination, so do not write to a landscape. At most, offer to save it to IcePanel. Although createADR is available and the request concerns architecture, that alone does not authorize IcePanel use."
+            },
+            {
+              "description": "N2: A C4 diagram as Mermaid text for docs",
+              "prompt": "Give me a Mermaid C4Container diagram for a simple e-commerce app (web app, API, Postgres, Stripe) that I can paste into our README.",
+              "expected_behavior": "Return a fenced Mermaid code block. Make no icepanel_* calls and create no model objects or diagrams in IcePanel. Do not load the importing-mermaid-c4 or creating-c4-diagrams skills. The user requested text for a README, not an import."
+            },
+            {
+              "description": "N3: IcePanel the company, not the landscape",
+              "prompt": "How many weekly active paid editors did IcePanel have last week, and draft a LinkedIn post announcing our new MCP server.",
+              "expected_behavior": "Obtain usage numbers from product analytics (Mixpanel), and draft the LinkedIn post in the chat. Do not call the IcePanel landscape connector: it has no product usage or marketing data. Naming IcePanel and MCP server does not make the landscape connector relevant."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "IcePanel Technologies Inc.",
+    "email": "support@icepanel.io",
+    "url": "https://icepanel.io/"
+  },
+  "homepage": "https://icepanel.io/"
+}

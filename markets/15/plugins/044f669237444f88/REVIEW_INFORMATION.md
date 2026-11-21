@@ -1,0 +1,1 @@
+Review requires an actual accessible video walkthrough URL. Record the five positive cases and show the MCP tools working. Add review.demo_recording_url to the manifest when the video is hosted. No reviewer credentials required because the server uses no authentication.

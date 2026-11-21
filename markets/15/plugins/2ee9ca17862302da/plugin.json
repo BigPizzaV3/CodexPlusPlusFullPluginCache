@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "native-mcp-fresh-draft",
+  "version": "1.0.5",
+  "description": "Native helps you plan social content, create and edit drafts in your brand\u2019s voice, use your brand library, generate images, and review posts and Meta ad creatives. Read your publishing calendar, connection readiness and available performance data. With the required connected accounts and your explicit request, Native can schedule, publish or remove social posts and manage Meta campaigns, budgets and ad delivery. Draft generation does not publish content or start ad delivery. Actions that publish, email reviewers, delete content, disconnect channels or start ad spend require clear authorization; recurring ads activity is available only when explicitly enabled. An eligible Native account is required, and publishing and advertising require their respective account connections.",
+  "author": {
+    "name": "Native"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Native",
+        "longDescription": "Native helps you plan social content, create and edit drafts in your brand\u2019s voice, use your brand library, generate images, and review posts and Meta ad creatives. Read your publishing calendar, connection readiness and available performance data. With the required connected accounts and your explicit request, Native can schedule, publish or remove social posts and manage Meta campaigns, budgets and ad delivery. Draft generation does not publish content or start ad delivery. Actions that publish, email reviewers, delete content, disconnect channels or start ad spend require clear authorization; recurring ads activity is available only when explicitly enabled. An eligible Native account is required, and publishing and advertising require their respective account connections.",
+        "developerName": "Native",
+        "category": "Business & Operations",
+        "websiteURL": "https://native.no",
+        "supportURL": "https://native.no/contact",
+        "privacyPolicyURL": "https://native.no/privacy-policy",
+        "termsOfServiceURL": "https://native.no/terms-and-conditions",
+        "shortDescription": "Plan social content and ads",
+        "logo": "assets/native-icon.png",
+        "composerIcon": "assets/native-icon.png",
+        "defaultPrompt": [
+          "Summarize my brand voice and publishing readiness.",
+          "Show this month\u2019s content calendar for my brand.",
+          "Help me create a social post draft for my brand."
+        ]
+      },
+      "review": {
+        "prompts": [
+          "In workspace shopify-review, summarize the voice of the native-demo brand. Can it publish a social post today? Please only check.",
+          "What was on the November 2026 social content calendar for native-demo in workspace shopify-review? Give me the dates, titles and statuses you find.",
+          "In workspace shopify-review, show me three existing images from the native-demo brand library so I can choose one. Give me the filenames and links. Leave the choice to me.",
+          "In workspace shopify-review, create one LinkedIn draft for native-demo with the exact caption \u201cTest copy for Native review.\u201d Then change that draft\u2019s caption to \u201cRevised copy for Native review.\u201d Show me the saved caption and whether it is scheduled or published. Keep it as a draft.",
+          "In workspace shopify-review, list up to five Meta ad drafts for native-demo. For the first one, show me its headline and call to action, and tell me whether it\u2019s live. Leave the ads as they are."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated sample account and its shopify-review workspace. The native-demo brand has saved voice settings and no connected publishing channel.",
+              "prompt": "In workspace shopify-review, summarize the voice of the native-demo brand. Can it publish a social post today? Please only check.",
+              "tools_triggered": "get_workspaces, list_brands, get_brand_voice, get_profile",
+              "expected_behavior": "Selects the specified workspace and brand, summarizes the saved voice, and reports canPublish and any blockers from the profile. With the current sample data it explains that a publishing channel must be connected. It leaves channels and posts untouched."
+            },
+            {
+              "description": "November 2026 contains sample calendar posts. The fixed window makes this case repeatable after the month ends.",
+              "prompt": "What was on the November 2026 social content calendar for native-demo in workspace shopify-review? Give me the dates, titles and statuses you find.",
+              "tools_triggered": "get_workspaces and list_brands as needed, then get_calendar with brands scoped to the resolved brand and startMonth and endMonth both set to 2026-11. Follow nextCursor if present.",
+              "expected_behavior": "Lists the returned entries in the conversation. Dates, titles and statuses match the scoped result. It distinguishes drafts from published content, includes only the requested month and brand, and leaves the calendar untouched."
+            },
+            {
+              "description": "The sample brand has existing library images. This tests whether ChatGPT can offer real choices directly in the conversation.",
+              "prompt": "In workspace shopify-review, show me three existing images from the native-demo brand library so I can choose one. Give me the filenames and links. Leave the choice to me.",
+              "tools_triggered": "get_workspaces and list_brands as needed, then list_brand_images with the resolved brandId and limit=3",
+              "expected_behavior": "Returns up to three distinct library entries with their actual filenames and image links in the conversation. The entries belong to the selected brand. It waits for the user to choose and leaves the library and posts untouched."
+            },
+            {
+              "description": "Run against the dedicated demo brand. This case creates one disposable, undated draft and edits that same draft.",
+              "prompt": "In workspace shopify-review, create one LinkedIn draft for native-demo with the exact caption \u201cTest copy for Native review.\u201d Then change that draft\u2019s caption to \u201cRevised copy for Native review.\u201d Show me the saved caption and whether it is scheduled or published. Keep it as a draft.",
+              "tools_triggered": "get_workspaces and list_brands as needed, create_draft with the literal caption and LINKEDIN, update_post with the returned id and revised text, then view_post and get_post_status on that same id",
+              "expected_behavior": "Creates one draft and reports the revised caption from its persisted state. Its status is draft, its scheduled time is empty, and it has no published URL. No generation, scheduling, publishing, review-sharing or advertising action occurs."
+            },
+            {
+              "description": "The sample brand has saved Meta ad drafts. Read one existing creative and verify its deployment state and effective call to action.",
+              "prompt": "In workspace shopify-review, list up to five Meta ad drafts for native-demo. For the first one, show me its headline and call to action, and tell me whether it\u2019s live. Leave the ads as they are.",
+              "tools_triggered": "get_workspaces and list_brands as needed, list_ads with status=draft and limit=5, then get_ad_preview with the selected creativeId and the same brandId",
+              "expected_behavior": "Identifies the first returned creative and reports the headline, effective callToAction and deployedToMeta values from its preview. It does not infer deployment from the presence of artwork or a call to action. It leaves creatives, campaigns and budgets untouched."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Booking a personal meeting is outside the social publishing calendar. No Native tool should run or create a calendar plan.",
+              "prompt": "Book a 30-minute meeting with the design team on my personal calendar for next Tuesday at 3 p.m."
+            },
+            {
+              "description": "The advertising integration handles Meta campaigns. The assistant should explain the Google Search limitation without invoking Native or starting a Meta campaign.",
+              "prompt": "Create a Google Search campaign for our coffee shop targeting the keywords local coffee and fresh pastries."
+            },
+            {
+              "description": "Native's product records support content creation. Changing retail prices and stock in the merchant's Shopify store is outside these tools. No Native tool should run or claim a store change.",
+              "prompt": "In our Shopify storefront, reduce every retail price by half and set every product\u2019s inventory to 100 units."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Updated MCP tool annotations and entitlement messages. Native continues to use its existing sign-in and MCP URL."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

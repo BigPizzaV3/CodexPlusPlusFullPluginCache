@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "itin-com",
+  "version": "1.0.2",
+  "description": "Check whether you need, and are likely eligible for, a U.S. ITIN (IRS Form W-7). General guidance only.",
+  "author": {
+    "name": "ITIN.com",
+    "email": "support@itin.com",
+    "url": "https://itin.com"
+  },
+  "homepage": "https://itin.com",
+  "keywords": [
+    "itin",
+    "irs",
+    "w-7",
+    "tax",
+    "taxpayer identification number"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ITIN.com",
+        "shortDescription": "Check if you need an ITIN",
+        "longDescription": "ITIN.com helps people work out whether they need a U.S. Individual Taxpayer Identification Number (ITIN) and whether they are likely to qualify for one.\n\nIt asks a few yes/no and multiple-choice questions: why the person needs the number, whether they have or can get a Social Security Number, whether they already have an ITIN, and route-specific questions for U.S. company owners, spouses and dependents of U.S. taxpayers, bank or payment-platform requirements, tax-treaty claims and students. It returns a verdict, the likely Form W-7 reason, whether a U.S. federal tax return should go with the application, the typical identity documents, and the questions that are still open.\n\nIt also says clearly when someone does not need an ITIN at all: people who can get an SSN, people who only want to form a U.S. company or get an EIN, and people who only want to build credit history.\n\nWho it is for: non-U.S. residents, owners of U.S. LLCs and corporations, spouses and dependents of U.S. citizens and residents, and anyone a bank or payment platform has asked for an ITIN.\n\nLimitations: this is general guidance, not an IRS determination or legal or tax advice, and the IRS decides every application. It does not prepare or file Form W-7 or tax returns, never asks for personal identifiers such as passport numbers, Social Security Numbers, dates of birth or addresses, and does not sell anything or take payments.",
+        "developerName": "ITIN.com",
+        "category": "Finance",
+        "capabilities": [
+          "Check ITIN eligibility",
+          "Suggest the Form W-7 reason",
+          "List typical documents"
+        ],
+        "websiteURL": "https://itin.com",
+        "supportURL": "https://itin.com/contact-us/",
+        "privacyPolicyURL": "https://itin.com/privacy-policy/",
+        "termsOfServiceURL": "https://itin.com/terms-of-use/",
+        "defaultPrompt": [
+          "Do I need an ITIN to open a Stripe account?",
+          "I own a U.S. LLC but live abroad. Do I need an ITIN?",
+          "My ITIN hasn't been used in years. Is it still valid?"
+        ],
+        "brandColor": "#034A3B",
+        "brandColorDark": "#30CC78",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Non-resident owner of a U.S. LLC",
+              "prompt": "I live in Turkey and own a Wyoming LLC. I can't get an SSN. Do I need an ITIN?",
+              "tools_triggered": "check_itin_eligibility",
+              "expected_behavior": "Calls check_itin_eligibility with goal us_company_owner and ssnStatus not_eligible. Says the person can likely get an ITIN as a U.S. company owner but the IRS will expect a U.S. tax return (such as Form 1040-NR) with the W-7, gives W-7 reason (b), then asks the follow-up questions about the company's EIN, U.S. income and a valid passport. States it is general guidance, not an IRS decision, and asks for no personal identifiers."
+            },
+            {
+              "description": "Payment platform asks for an ITIN",
+              "prompt": "Stripe is asking me for an ITIN to verify my account. I'm not a U.S. resident and can't get an SSN. Can I get one?",
+              "tools_triggered": "check_itin_eligibility",
+              "expected_behavior": "Calls check_itin_eligibility with goal payment_processor_or_bank and ssnStatus not_eligible. Explains that a platform asking for an ITIN is not, by itself, a reason the IRS accepts, and that the person needs a U.S. tax return or a bank exception letter. Asks whether they will file a U.S. tax return and whether a bank has given them a signed letter."
+            },
+            {
+              "description": "Spouse of a U.S. citizen on a joint return",
+              "prompt": "My husband is a U.S. citizen and we will file a joint tax return. I'm not American and can't get an SSN. Can I get an ITIN?",
+              "tools_triggered": "check_itin_eligibility",
+              "expected_behavior": "Calls check_itin_eligibility with goal spouse_or_dependent, ssnStatus not_eligible and includedOnUsFilerReturn yes. Says the person likely qualifies as the spouse of a U.S. citizen or resident, gives W-7 reason (e), and says the tax return that includes them is required with the application."
+            },
+            {
+              "description": "Green card holder is told to use an SSN",
+              "prompt": "I have a green card. Should I apply for an ITIN to file my taxes?",
+              "tools_triggered": "check_itin_eligibility",
+              "expected_behavior": "Calls check_itin_eligibility with ssnStatus has_ssn or eligible_for_ssn. Returns not_eligible and explains that an ITIN is only for people who cannot get a Social Security Number, so the person should use (or apply for) an SSN instead."
+            },
+            {
+              "description": "Forming a company or getting an EIN does not need an ITIN",
+              "prompt": "I want to form a Delaware company and get an EIN. I live in Brazil. Do I need an ITIN first?",
+              "tools_triggered": "check_itin_eligibility",
+              "expected_behavior": "Calls check_itin_eligibility with goal form_company_or_get_ein. Returns itin_not_needed and explains that non-residents can form a U.S. company and get an EIN without an SSN or ITIN."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Preparing and filing the W-7 with personal identifiers is out of scope. The plugin only gives eligibility guidance, so it should not collect the passport number or claim to file anything; it should say it cannot prepare or file the form and point the user to itin.com or a qualified preparer.",
+              "prompt": "Here is my passport number, P12345678, and my date of birth. Fill out my Form W-7 and send it to the IRS for me."
+            },
+            {
+              "description": "Prices and payment are out of scope. The plugin has no pricing, checkout or payment tools, so it should not quote a price or take a payment; it should say it only checks eligibility and point the user to itin.com.",
+              "prompt": "How much does ITIN.com charge for an ITIN application, and can I pay for it here?"
+            },
+            {
+              "description": "Preparing a tax return is out of scope. The plugin only checks ITIN eligibility, so it should not call the tool to fill in a return; it should explain that it cannot prepare tax returns and suggest a qualified tax preparer.",
+              "prompt": "Help me fill in my Form 1040-NR line by line for last year."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin gives eligibility guidance only. It does not sell products, show prices or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial release: guided ITIN eligibility check with the likely Form W-7 reason, tax-return guidance and typical documents."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

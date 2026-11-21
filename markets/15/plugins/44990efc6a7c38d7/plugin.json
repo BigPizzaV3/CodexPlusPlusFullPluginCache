@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "haulforza",
+  "version": "1.1.0",
+  "description": "Check your HaulForza trucking loads, drivers, revenue and driver pay, and create loads or update load status after you confirm.",
+  "author": {
+    "name": "HaulForza LLC",
+    "email": "support@haulforza.com",
+    "url": "https://www.haulforza.com"
+  },
+  "homepage": "https://www.haulforza.com/ai-connector",
+  "repository": "https://github.com/malejandrobp-ui/haulforza-mcp-plugin",
+  "license": "MIT",
+  "keywords": [
+    "trucking",
+    "freight",
+    "dispatch",
+    "loads",
+    "drivers",
+    "fleet",
+    "logistics",
+    "carrier"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "HaulForza",
+        "shortDescription": "Trucking loads, drivers & pay",
+        "longDescription": "HaulForza is a trucking management system for carriers, owner-operators and dispatchers. This plugin connects ChatGPT to your own HaulForza account so you can ask about your operation in plain language.\n\nWhat you can do:\n- See the companies you belong to in HaulForza.\n- List loads by status or pickup date, and open one load to see its broker, stops, rate breakdown and assigned drivers.\n- List your active or inactive drivers.\n- Get a company summary for any period: loads by status, total revenue, driver pay and expenses.\n- Create a new load, or move a load to an operational status such as Dispatched, In Transit or Delivered. ChatGPT shows you the details and asks for your confirmation before it creates or changes anything.\n\nWho it is for: HaulForza customers who run or dispatch trucks and want quick answers about loads, drivers and money without opening the app.\n\nPrivacy and limits: you sign in with your own HaulForza account through OAuth, and ChatGPT only sees what you can already see in HaulForza, under the same role rules. Drivers and viewers cannot create loads. Invoiced, submitted-to-factoring and paid statuses are managed in Accounts Receivable in the HaulForza app and cannot be changed here. The plugin cannot delete loads, drivers or companies. A HaulForza account is required.",
+        "developerName": "HaulForza LLC",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.haulforza.com",
+        "supportURL": "https://www.haulforza.com/support",
+        "privacyPolicyURL": "https://www.haulforza.com/privacy",
+        "termsOfServiceURL": "https://www.haulforza.com/terms",
+        "defaultPrompt": [
+          "Which of my loads are in transit right now?",
+          "Summarize my revenue, driver pay and expenses for this month.",
+          "List my active drivers."
+        ],
+        "brandColor": "#16A34A",
+        "brandColorDark": "#22C55E",
+        "composerIcon": "./assets/icon.png",
+        "composerIconDark": "./assets/icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "onboardingSkill": "./skills/get-started/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List loads for the user's company filtered by status.",
+              "prompt": "Which of my HaulForza loads are delivered?",
+              "tools_triggered": "list_companies, list_loads",
+              "expected_behavior": "Calls list_companies to get the HaulForza Review Co company ID, then list_loads with status delivered. Returns the delivered loads (for example HF-PLAY-0901, Dallas, TX to Houston, TX) with load number, route, pickup and delivery dates and rate exactly as stored. Does not invent loads."
+            },
+            {
+              "description": "Open the full detail of one load by its load number.",
+              "prompt": "Show me the broker, stops and rate for load HF-PLAY-0901.",
+              "tools_triggered": "list_companies, list_loads, get_load",
+              "expected_behavior": "Finds load HF-PLAY-0901 with list_loads, then calls get_load and shows its broker, pickup and delivery stops, rate breakdown and assigned driver(s) as returned by HaulForza."
+            },
+            {
+              "description": "Summarize a company's money and load counts for a period.",
+              "prompt": "What were my revenue, driver pay and expenses in October 2026?",
+              "tools_triggered": "list_companies, company_summary",
+              "expected_behavior": "Calls company_summary with from_date 2026-10-01 and to_date 2026-10-31 and reports load counts by status, total revenue, total driver pay and expenses exactly as returned, in USD."
+            },
+            {
+              "description": "List drivers in the company.",
+              "prompt": "List the active drivers in my company.",
+              "tools_triggered": "list_companies, list_drivers",
+              "expected_behavior": "Calls list_drivers with status active and lists each driver's name and pay type, plus license and medical card expiry dates when present. Does not reveal drivers from other companies."
+            },
+            {
+              "description": "Create a new load after explicit user confirmation.",
+              "prompt": "Create load HF-REVIEW-1001 from Dallas, TX to Houston, TX for $1,800, picking up tomorrow and delivering the day after.",
+              "tools_triggered": "list_companies, create_load",
+              "expected_behavior": "Shows the load it is about to create (company, load number HF-REVIEW-1001, Dallas TX to Houston TX, pickup and delivery dates, $1,800 rate) and asks for confirmation. Only after the user says yes, calls create_load once and confirms the new load with the details HaulForza returned."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Setting a receivables-controlled status (paid) is not allowed through the plugin. Paid, invoiced and submitted-to-factoring are controlled by Accounts Receivable in the HaulForza app, and update_load_status does not accept them. Expected: no status change; the assistant explains that the user must mark the load paid in the HaulForza app.",
+              "prompt": "Mark load HF-PLAY-0901 as paid."
+            },
+            {
+              "description": "Deleting data is not supported. HaulForza exposes no delete tool, and bulk-destructive actions are out of scope. Expected: no tool that changes data is called; the assistant says loads can't be deleted through ChatGPT and suggests cancelling individual loads in the HaulForza app if needed.",
+              "prompt": "Delete all of my loads in HaulForza."
+            },
+            {
+              "description": "Request for data outside the signed-in user's companies. Access is scoped to the user's own HaulForza company memberships under row-level security. Expected: the assistant does not guess company IDs; it explains it can only see companies returned by list_companies and that the other carrier's data is not accessible.",
+              "prompt": "Show me the loads and rates for Acme Freight Lines, a carrier I am not part of."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "HaulForza does not sell products or process payments through ChatGPT. It only reads and updates the user's own trucking records."
+      },
+      "publication": {
+        "release_notes": "HaulForza plugin 1.1.0: adds the tools already available on our MCP server since 1.0.0 \u2014 Truckstop load search (search_loads), read-only lists for trucks, trailers, brokers, expenses, fuel, invoices, factoring, load stops/accessorials/messages/claims, documents, compliance, IFTA mileage, maintenance, ELD connections, telemetry, driver locations, ETAs, permit routes, notifications and company users, plus confirmed actions to open and resolve load claims and change a maintenance work order's status. Access stays scoped to the signed-in user's HaulForza role."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

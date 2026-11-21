@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a0ff4affa0c8191bb7a875b5f55ec11",
+  "version": "2.2.0",
+  "description": "Create or review construction budget proposals, manage them from quote to project execution.",
+  "author": {
+    "name": "Presuo"
+  },
+  "homepage": "https://presuo.com",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/presuo-budgeting/SKILL.md",
+      "publication": {
+        "release_notes": "This release adds construction budget proposals in ChatGPT. Users can shape and save a draft, revise its work sections and items, preview the regular budget with any system defaults, and create it after explicit approval. Existing budget exploration, field progress reporting, comments, and approvals remain available according to Presuo permissions.",
+        "translations": {
+          "es-ES": {
+            "subtitle": "Presupuesto/ejecuci\u00f3n de obras",
+            "description": "Gestiona el ciclo de vida de los presupuestos de construcci\u00f3n, desde su creaci\u00f3n hasta el seguimiento del avance en obra, desde ChatGPT.\n\nPrepara una propuesta de presupuesto con ayuda de ChatGPT. Haz preguntas en lenguaje natural sobre presupuestos existentes, partidas, cantidades, mediciones, costes y actividad del proyecto. Encuentra partidas, consulta desgloses de mediciones, entiende el trabajo pendiente y navega por presupuestos extensos sin tener que buscar en los men\u00fas.\n\nLos miembros del equipo pueden informar de cantidades ejecutadas provisionales y colaborar mediante comentarios y aprobaciones para mantener al d\u00eda el avance del proyecto, tanto desde la oficina como desde la obra.\n\nCrea una cuenta de Presuo, prepara propuestas o sube presupuestos existentes y accede a ellos de forma segura desde ChatGPT."
+          },
+          "fr-FR": {
+            "subtitle": "Budgets et suivi de chantier",
+            "description": "G\u00e9rez le cycle de vie des budgets de construction dans ChatGPT, de leur cr\u00e9ation au suivi de l\u2019avancement sur le chantier.\n\nPr\u00e9parez une proposition de budget avec l\u2019aide de ChatGPT. Posez des questions en langage naturel sur vos budgets, lots de travaux, quantit\u00e9s, m\u00e9tr\u00e9s, co\u00fbts et activit\u00e9 du projet. Retrouvez rapidement des postes, consultez le d\u00e9tail des m\u00e9tr\u00e9s, comprenez le travail restant et parcourez les budgets volumineux sans chercher dans les menus.\n\nLes membres de l\u2019\u00e9quipe peuvent d\u00e9clarer des quantit\u00e9s ex\u00e9cut\u00e9es provisoires et collaborer au moyen de commentaires et de demandes d\u2019approbation pour tenir l\u2019avancement du projet \u00e0 jour, au bureau comme sur le chantier.\n\nCr\u00e9ez votre compte Presuo, pr\u00e9parez de nouvelles propositions ou importez des budgets existants, puis consultez-les en toute s\u00e9curit\u00e9 dans ChatGPT."
+          }
+        }
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Reviewer setup: the signed-in account can access a seeded Demo budget with kitchen-related sections and work items. Navigate from the accessible-budget list to matching sections and work items; this read-only case can be repeated without a reset.",
+              "prompt": "List my available budgets, then show the sections and kitchen-related entries in my Demo budget.",
+              "tools_triggered": "budget.list_accessible, budget.browse, budget.find",
+              "expected_behavior": "Lists only budgets the signed-in user can access. For the selected Demo budget, returns its sections and kitchen-related matches with human-readable titles and references from Presuo."
+            },
+            {
+              "description": "Reviewer setup: Demo budget contains line item 002 and its initially unreported measurement 002-1; restore that measurement's execution record to the fixture baseline before each run. When the assistant shows the exact proposed quantity and asks for confirmation, reply 'Confirm' to complete the report.",
+              "prompt": "In my Demo budget, tell me what remains on budget item 002, then report half of the planned work on measurement 002-1.",
+              "tools_triggered": "budget.list_accessible, budget.find, measurement.list_for_line_item, measurement.report",
+              "expected_behavior": "Shows planned, reported, and remaining quantities from the returned measurements; resolves measurement 002-1 and calculates half of its returned planned quantity. It asks for confirmation before recording the executed quantity and reports success only if Presuo confirms the update."
+            },
+            {
+              "description": "Reviewer setup: the account has no active draft; discard the test draft before repeating this case. Save the supplied complete bathroom scope as a resumable draft without creating a regular budget.",
+              "prompt": "Create a draft proposal for my bathroom renovation. The complete scope is: remove 12 m\u00b2 of old floor tile, waterproof 12 m\u00b2 of floor, and install 12 m\u00b2 of new floor tile. I do not know prices yet. Save this as a resumable draft, and do not create a regular budget.",
+              "tools_triggered": "draftbudget.get, draftbudget.save",
+              "expected_behavior": "Checks for an active draft, then saves the supplied work as a complete draft snapshot. Preserves the three specified work items and their 12 m\u00b2 quantities, leaves prices unknown, and reports the saved draft only after Presuo confirms it. Does not call draftbudget.promote or claim a regular budget was created."
+            },
+            {
+              "description": "Reviewer setup: Demo budget contains Water Line Rerouting and the account can comment on it. When the assistant shows the exact comment and asks for confirmation, reply 'Confirm'. Prior comments may remain between runs; verify the new comment by its returned result.",
+              "prompt": "Inform the team that Water Line Rerouting will start next week, then check what happened recently in my Demo budget.",
+              "tools_triggered": "budget.list_accessible, activity.list, budget.find, comments.create",
+              "expected_behavior": "Summarizes recent budget activity from Presuo, resolves Water Line Rerouting, restates the final comment and asks for confirmation before posting it. Confirms the comment only if Presuo reports success."
+            },
+            {
+              "description": "Reviewer setup: Demo budget contains Custom Kitchen Cabinetry Installation with no pending approval; close or remove an interrupted test approval before rerunning. Reply 'Confirm' after the assistant shows the approval request, then reply 'Confirm' again only after it shows the proposed closure.",
+              "prompt": "Request approval on Custom Kitchen Cabinetry Installation, then mark that approval reached.",
+              "tools_triggered": "budget.find, measurement.list_for_line_item, approvals.request, approvals.list, approvals.close",
+              "expected_behavior": "Resolves the intended line item and asks for confirmation before requesting approval. It verifies the pending approval, then asks for separate confirmation before marking it reached, and reports each action only when confirmed by Presuo."
+            }
+          ],
+          "negative": [
+            {
+              "description": "This is a request for general construction advice, not a question about Presuo budget data. Answer generally without invoking Presuo tools or claiming to analyze the user's budget.",
+              "prompt": "How can I reduce construction costs overall?"
+            },
+            {
+              "description": "Uploading budget files is outside the connected MCP tools. Explain that upload happens on Presuo's website without calling a Presuo tool or claiming an upload.",
+              "prompt": "Upload my existing budget PDF to Presuo directly from this chat."
+            },
+            {
+              "description": "The connected Presuo tools do not finalize a line item or close the budget execution lifecycle. Explain the supported actions without invoking tools or claiming finalization.",
+              "prompt": "Finalize this line item and close the budget execution."
+            }
+          ]
+        }
+      },
+      "interface": {
+        "displayName": "Presuo",
+        "shortDescription": "Construction budget execution",
+        "longDescription": "Manage the lifecycle of construction budgets, from creation to field progress reporting in ChatGPT.\n\nShape a construction budget proposal with the help of ChatGPT. Ask natural-language questions about existing budgets, work packages, quantities, measurements, costs, and project activity. Quickly find items, inspect quantity breakdowns, understand remaining work, and navigate large budgets without digging through menus.\n\nTeam members can report draft executed quantities and collaborate through comments and approvals, keeping project progress current from the office or jobsite.\n\nGet your Presuo account, create new proposals or upload existing budgets, and access them securely in ChatGPT.",
+        "developerName": "RecreaVision",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://presuo.com/en/features/chatgpt",
+        "supportURL": "https://presuo.com/en/support",
+        "privacyPolicyURL": "https://presuo.com/en/legal/privacy-policy",
+        "termsOfServiceURL": "https://presuo.com/en/legal/terms-of-service",
+        "defaultPrompt": [
+          "Create a new proposal for my construction project.",
+          "What is the execution progress on this budget?",
+          "Report site progress on my work sections."
+        ],
+        "brandColor": "#9810FA",
+        "composerIcon": "./assets/presuo-logo.png",
+        "logo": "./assets/presuo-logo.png"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

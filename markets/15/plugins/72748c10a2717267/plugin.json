@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "paperzilla",
+  "version": "2.1.10",
+  "description": "Get a morning research brief from focused feeds of new papers in your field, with source links and reasons to read.",
+  "author": {
+    "name": "Paperzilla",
+    "email": "hello@paperzilla.ai",
+    "url": "https://paperzilla.ai"
+  },
+  "homepage": "https://paperzilla.ai",
+  "license": "Proprietary",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/paperzilla-research-brief/SKILL.md",
+      "interface": {
+        "displayName": "Paperzilla",
+        "shortDescription": "Morning research briefs",
+        "longDescription": "Start your morning with new research worth reading. Paperzilla provides focused feeds of scientific papers in your field. The included Morning Brief skill combines one or more selected feeds into a short reading list, with source links and an explanation of why each paper fits your research interests.\n\n**Make a research brief**\nCheck new feed entries, combine duplicate papers across feeds, and identify the strongest matches to your research question. Each brief states the feeds and time window checked, and whether its judgments use abstracts or paper text. Run a brief on demand. Where ChatGPT supports scheduled tasks with connected tools, you can ask it to arrange a recurring brief for your preferred time and timezone. Paperzilla provides the research data; scheduling depends on ChatGPT's available features and permissions.\n\n**Explore and read**\n- Find public digests about a topic and open their published issues.\n- Search your own project feeds for papers relevant to a question.\n- Read prepared paper Markdown and discuss methods, findings, and limitations.\n- Explicitly upvote, downvote, star, or clear feedback on a paper in your own project feed. A brief never saves ratings automatically.\n\n**Connect Paperzilla**\nSign in to Paperzilla and review the requested permissions. An account is required. Every Paperzilla account can read public digests and existing catalog papers. Personalized feeds require a project, which you create on the Paperzilla website. You can revoke the connection in Connect AI clients.\n\nMarkdown reads do not start processing. If text is missing, you can explicitly request preparation for a paper already in Paperzilla when a source is available. Processing may take time. Project creation, project editing, and importing missing papers are outside this integration.\n\nSee the setup guide at docs.paperzilla.ai/guides/mcp or contact hello@paperzilla.ai for help.",
+        "developerName": "Paperzilla",
+        "category": "Education & Research",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://paperzilla.ai",
+        "supportURL": "https://docs.paperzilla.ai/guides/mcp",
+        "privacyPolicyURL": "https://paperzilla.ai/privacy",
+        "termsOfServiceURL": "https://paperzilla.ai/terms",
+        "defaultPrompt": [
+          "Help me get my first research brief with Paperzilla.",
+          "Find public Paperzilla digests about machine learning and show the latest issue.",
+          "Help me read a paper from Paperzilla, including its methods, findings, and limitations."
+        ],
+        "brandColor": "#5a8f32",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "positive-1 (authenticated reviewer). Setup: The public sample series and issue remain published and visible.",
+              "prompt": "Find public digests about OCD, list the published issues of series d5ef9807-3c10-48de-87f6-5ada0ad71692, and read issue af016642-26c9-4b93-9da3-7ad1555c344f with source links.",
+              "tools_triggered": "public_digests_search, public_digest_issues_list, public_digest_get",
+              "expected_behavior": "Visible published papers with source links; no project setup required. Continue filtered search pages while next_offset is present."
+            },
+            {
+              "description": "positive-2 (authenticated reviewer). Setup: The existing catalog paper has prepared Markdown. Recheck availability on the released candidate.",
+              "prompt": "Look up catalog paper 10.3390/diseases14100386, read its prepared Markdown, and follow the first continuation using the returned revision and next_offset. Do not request generation.",
+              "tools_triggered": "paper_get, paper_markdown_get",
+              "expected_behavior": "Canonical metadata and prepared text, including a consistent continuation page, without generating work."
+            },
+            {
+              "description": "positive-3 (populated reviewer). Setup: The reviewer owns the sample project and it has a nonempty research feed with a disposable feedback fixture. Its connection includes feedback:write. A public series owned by someone else does not qualify.",
+              "prompt": "List my projects, read the full details of my owned project <UNRESOLVED:owned_project_id>, then show the latest papers in its feed. Using the first returned project_paper_id, upvote that feed item twice, change it to a downvote for not_relevant, then star it. Read the feed to verify the saved star, clear that feedback, and read back the cleared result. Change only that owned feed item.",
+              "tools_triggered": "projects_list, projects_get, feed_get, feedback_set, feedback_clear",
+              "expected_behavior": "Only owned projects and feed items. Repeated upvotes are idempotent; each new vote replaces the previous one. The star and subsequent cleared feedback are visible on read-back. Use project_paper_id, not the canonical paper ID."
+            },
+            {
+              "description": "positive-4 (populated reviewer). Setup: The deterministic search phrase matches visible papers in the owned sample project's feed.",
+              "prompt": "Search the feed of my owned project <UNRESOLVED:owned_project_id> for the exact phrase <UNRESOLVED:feed_query>, and continue if another page is available.",
+              "tools_triggered": "feed_search",
+              "expected_behavior": "Server-side search results from the selected owned project and correct continuation when present."
+            },
+            {
+              "description": "positive-5 (authenticated reviewer). Setup: The existing catalog paper is accessible to the reviewer. Prepared Markdown is allowed; an unprepared paper needs an available processing source and no active failure cooldown. Historical jobs alone do not disqualify the fixture. Use a different paper from the prepared-text case.",
+              "prompt": "Check my Paperzilla connection, explicitly request Markdown for catalog paper <UNRESOLVED:generation_paper_reference> twice, then read its status and explain whether it reused prepared text or queued/reused processing.",
+              "tools_triggered": "account_status, paper_markdown_request, paper_markdown_get",
+              "expected_behavior": "Report connection capabilities and actual status. Prepared Markdown returns ready as an idempotent no-op; this does not prove queue deduplication. Otherwise report queued creation or reuse, allowing ready if processing finishes between calls. Repeated requests must not create duplicate work. Do not claim queued processing has completed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "negative-1 (any reviewer). Setup: The plugin is available, but project creation and project editing are outside its supported capabilities.",
+              "prompt": "Create a new Paperzilla project about scientific claim verification and set its research interests for me.",
+              "tools_triggered": "",
+              "expected_behavior": "Do not invoke Paperzilla tools. Explain that creating projects and setting research interests must be done on the Paperzilla website. Do not claim either change succeeded."
+            },
+            {
+              "description": "negative-2 (authenticated reviewer). Setup: The supplied public source URL has been confirmed absent from the Paperzilla catalog. Importing missing papers is unsupported. Do not import it to prepare the fixture.",
+              "prompt": "Import paper <UNRESOLVED:unknown_paper_url> into Paperzilla as a new catalog paper. Do not look up or summarize existing papers.",
+              "tools_triggered": "",
+              "expected_behavior": "Do not invoke Paperzilla tools or fetch the supplied URL. Explain that importing missing catalog papers is unavailable through this integration. Do not claim an import succeeded."
+            },
+            {
+              "description": "negative-3 (any reviewer). Setup: Paperzilla supplies research papers, not weather forecasts. This request does not concern scientific literature.",
+              "prompt": "Prepare a morning brief of tomorrow\u2019s weather in Amsterdam, including the forecast and chance of rain.",
+              "tools_triggered": "",
+              "expected_behavior": "Do not invoke Paperzilla tools. Use an appropriate available host weather capability, or explain that a current forecast cannot be verified. Do not invent a forecast or present research-paper results as weather."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "2.1.10 adds a Set up Paperzilla action after installation and updates the first-brief starter. The skill guides users through connection, topic setup, and preview readiness, then resumes the brief when papers are ready. It checks ongoing tracking for requested recurring delivery."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "wellness-project-chatgpt",
+  "version": "0.1.0",
+  "description": "Read-only access to workout counts, calories and macros, sleep duration and scores, and step counts from a connected Wellness Project account.",
+  "author": {
+    "name": "Wellness Project LLC"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Wellness Project",
+        "shortDescription": "Workouts, macros, sleep, steps",
+        "longDescription": "View basic fitness tracking summaries and charts from your Wellness Project account in ChatGPT. See how many workouts you recorded, your calories and protein/carbohydrate/fat totals, nightly sleep duration and scores, and daily step counts. View simple weekly charts and comparisons using your own records. This connection is read-only: it cannot create, edit, delete, or share records, and it does not provide detailed workout histories or other account data. A Wellness Project account is required. The available data depends on what you have logged or connected in Wellness Project.",
+        "developerName": "Wellness Project LLC",
+        "category": "Data & Analytics",
+        "defaultPrompt": [
+          "How many workouts did I record this month?",
+          "Show my calories and macros for the past week.",
+          "Compare my sleep duration and steps over the last seven days."
+        ],
+        "websiteURL": "https://wellnessproject.ai/",
+        "supportURL": "https://wellnessproject.ai/support",
+        "privacyPolicyURL": "https://wellnessproject.ai/privacy",
+        "termsOfServiceURL": "https://wellnessproject.ai/terms",
+        "logo": "assets/icon.png",
+        "composerIcon": "assets/icon.png"
+      },
+      "review": {
+        "prompts": [
+          "How many workouts did I record this month?",
+          "Show my calories and macros for the past week.",
+          "Show my sleep duration and sleep scores for the last seven days.",
+          "How many steps did I record each day this week?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Count recorded workout sessions in a recent bounded date range; results must be aggregate counts, not session details.",
+              "prompt": "How many workouts did I record in the last seven days?",
+              "tools_triggered": "list_workouts",
+              "expected_behavior": "Calls list_workouts with a recent seven-day date window and aggregate=count, using no other tool. Reports the count from the returned data, including an honest zero when none were recorded; does not expose individual sessions, intensity, heart data, or exercise detail."
+            },
+            {
+              "description": "Workout-count grouping and activity-type filtering within the permitted aggregate-only workflow.",
+              "prompt": "For this month, count my running workouts by day.",
+              "tools_triggered": "list_workouts",
+              "expected_behavior": "Calls list_workouts with the calendar-month range, activity_type restricted to running if recognized by the tool, group_by=day, and forced aggregate=count. Presents only per-day and total workout counts supported by the result, with no underlying workout details."
+            },
+            {
+              "description": "Weekly calories and protein, carbohydrate, and fat totals; empty records must not be fabricated.",
+              "prompt": "Show my calories and macros over the last week, using Wellness Project data.",
+              "tools_triggered": "show_week_macros",
+              "expected_behavior": "Calls show_week_macros. Shows its real weekly chart and a concise account of calorie, protein, carbohydrate, and fat totals or target comparisons only where the tool provides them. Missing days remain missing rather than invented. No food diary, meal detail, or write action is shown."
+            },
+            {
+              "description": "Nightly sleep duration and optional sleep scores for a recent week, with clear missing-data handling.",
+              "prompt": "Show my sleep duration and scores from the past seven days.",
+              "tools_triggered": "show_week_sleep",
+              "expected_behavior": "Calls show_week_sleep and displays the returned weekly sleep chart plus factual duration/score summary for days with observations. Does not infer a diagnosis, reveal more detailed data types, or treat missing nights as zero hours."
+            },
+            {
+              "description": "Daily step counts across a recent week without any other wearable metrics.",
+              "prompt": "How many steps did I record each day over the past week?",
+              "tools_triggered": "show_week_steps",
+              "expected_behavior": "Calls show_week_steps, displays the returned weekly steps chart and only step totals/target comparisons supported by the response. It does not retrieve heart metrics, location, clinical values, or other wearable fields."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Clinical wearable measurements are outside this connection, even though some might exist in the broader Wellness Project product.",
+              "prompt": "Compare my blood pressure, blood glucose, and oxygen saturation for the past month.",
+              "expected_behavior": "Does not call a Wellness Project MCP tool, expose these measurements, or infer them from steps or sleep. Explains that this connection only supports workout counts, macros, sleep duration/scores, and step counts."
+            },
+            {
+              "description": "Injury, symptom, mood, and general personal health context are unavailable on this endpoint.",
+              "prompt": "Read my injury history and mood scores, then tell me why my knee hurts.",
+              "expected_behavior": "Does not call a Wellness Project MCP tool or imply access to injuries, wellbeing scores, symptoms, or personal medical history. States that those records are outside the connection and does not diagnose the complaint."
+            },
+            {
+              "description": "The entire connection is read-only, including ordinary fitness logging and goal changes.",
+              "prompt": "Log my lunch as 600 calories and change my daily step goal to 9,000.",
+              "expected_behavior": "Does not invoke any Wellness Project MCP tool, claim a meal was saved, or claim a goal was changed. Explains that this connection can only read the four supported aggregate categories."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial read-only ChatGPT connection for basic workout counts, weekly calories/macros, sleep duration/scores, and daily steps. The separate MCP endpoint excludes other data categories and all account-changing actions."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

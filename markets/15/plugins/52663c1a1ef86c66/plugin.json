@@ -1,0 +1,94 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "wincloud",
+  "version": "0.1.1",
+  "description": "Ask about your hotel's bookings, pricing, room status and guests in WinCloud, in plain language.",
+  "author": {
+    "name": "RB Software, Inc.",
+    "url": "https://www.rbsgo.com"
+  },
+  "homepage": "https://www.rbsgo.com",
+  "keywords": [
+    "hotel",
+    "hospitality",
+    "reservations",
+    "rates",
+    "inventory",
+    "guest data"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "WinCloud",
+        "shortDescription": "Hotel bookings and room data",
+        "longDescription": "WinCloud brings your hotel's property management data into ChatGPT, so your front office, reservations and revenue teams can get answers in plain language instead of running reports.\n\nAsk about the bookings made, arriving, departing or cancelled over a period, look up a reservation in full by its number or find bookings by the guest's name, check the room types, rate plans and channels you sell, see nightly pricing and restrictions for the dates ahead and how each rate is derived from its master rate, list your rooms and the room features you have set up, find out how many rooms are occupied or vacant today, look up a guest's profile and stay history, and list the hotels in your WinCloud property.\n\nBooking, cancellation and no-show activity by arrival date, with lead time and average daily rate, gives you a practical view for revenue management: how bookings are coming in, how full you are, and how your pricing is set for the dates ahead.\n\nYou need a WinCloud account, and what you can ask about depends on the permissions your administrator has given you. You see only the hotels your account can access.",
+        "developerName": "RB Software, Inc.",
+        "category": "Productivity",
+        "websiteURL": "https://www.rbsgo.com",
+        "supportURL": "https://openapi.wincloudone.com/support-2491760m0",
+        "privacyPolicyURL": "https://openapi.wincloudone.com/privacy-policy-2489026m0",
+        "termsOfServiceURL": "https://openapi.wincloudone.com/terms-of-service-2489032m0",
+        "logo": "./assets/rbs-wincloud.png",
+        "composerIcon": "./assets/rbs-wincloud.png",
+        "defaultPrompt": "List the bookings made this month at my hotel."
+      },
+      "review": {
+        "commerce": false,
+        "demo_recording_url": "https://rbsgo-my.sharepoint.com/:v:/p/shastry/IQBPHTn7UvPjR65_GmshNDmZAdnrGWpTJ7kGy3zXzwFBhHc?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=wuFzf7",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Requires the reviewer account to have access to Grand Hotel, with known booking records, and reservations:read.",
+              "prompt": "List the bookings made between 2026-01-01 and 2026-03-31 at Grand Hotel.",
+              "tools_triggered": "list_companies, search_bookings",
+              "expected_behavior": "Resolves Grand Hotel to its companyId (WS) with list_companies, then calls search_bookings with companyId WS, startDate 2026-01-01, and endDate 2026-03-31. Returns the matching booking rows, says there are more pages when there are, and clearly identifies that the date range is the booking-created date, not arrival dates. Does not return contact details."
+            },
+            {
+              "description": "Requires the reviewer account to have access to Grand Hotel, with an active rate catalogue, a date range with tariff data, and rates:read.",
+              "prompt": "What room and rate plans are available at Grand Hotel? Then show the nightly pricing for the Deluxe room and BAR rate from 2026-02-01 through 2026-02-07.",
+              "tools_triggered": "list_companies, get_rate_plans, search_room_tariffs",
+              "expected_behavior": "Resolves Grand Hotel to its companyId (WS) with list_companies, then calls get_rate_plans to resolve the actual room-type and rate-type IDs (Deluxe Room is DXR, BAR Rate is BAR), then calls search_room_tariffs with those IDs, companyId WS, fromDate 2026-02-01, and toDate 2026-02-07. Reports only pricing values and restrictions present in tool results; does not claim the catalogue call itself returned prices. States that weekend-specific tariffs are not included rather than inventing them."
+            },
+            {
+              "description": "Requires the reviewer account to have access to Grand Hotel, the guest AB Anthonyy, Alfred, and guests:read.",
+              "prompt": "Show the profile of the guest AB Anthonyy, Alfred at Grand Hotel, including what they have spent with us.",
+              "tools_triggered": "list_companies, search_guests, get_guest",
+              "expected_behavior": "Resolves Grand Hotel to its companyId (WS) with list_companies, then calls search_guests with the supplied name and companyId WS, then calls get_guest with the guestId it returns, companyId WS, and insights true. Summarizes only the returned profile: name, nationality, language, preferred status, recorded preferences, stay totals, recent reservations and spend. Does not show an address, email or phone number, because get_guest never returns them."
+            },
+            {
+              "description": "Requires the reviewer account to have access to Grand Hotel, with inventory configured, and inventory:read.",
+              "prompt": "How many rooms are vacant and occupied right now at Grand Hotel?",
+              "tools_triggered": "list_companies, get_inventory",
+              "expected_behavior": "Resolves Grand Hotel to its companyId (WS) with list_companies, then calls get_inventory with companyId WS. Reports the returned current-day room counts and states that this is a snapshot for today, not future availability."
+            },
+            {
+              "description": "Requires the reviewer account to have access to Grand Hotel, the guest AB Anthonyy, Alfred with stays in the first quarter of 2026, and guests:read.",
+              "prompt": "Find the guest AB Anthonyy, Alfred at Grand Hotel, then show their checked-out stays arriving between 2026-01-01 and 2026-03-31.",
+              "tools_triggered": "list_companies, search_guests, get_guest_reservations",
+              "expected_behavior": "Resolves Grand Hotel to its companyId (WS) with list_companies, then calls search_guests with the supplied name and companyId WS, then uses the guestId it returns in get_guest_reservations with status CheckedOut, arrivalFrom 2026-01-01, and arrivalTo 2026-03-31. Says there are more pages when there are. Summarizes only the returned guest, stay and reservation fields. Never shows guest contact details or billing details."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The room features list says which features a hotel has set up, not which rooms have them. Do not present list_room_features or list_rooms output as a per-room answer; explain the limitation.",
+              "prompt": "Which rooms at Grand Hotel have a sea view?"
+            },
+            {
+              "description": "WinCloud's tools never return payment or card details, or a guest's address, email or phone number. Do not invent them or suggest another tool returns them; explain that payment and contact details are not available through WinCloud's tools.",
+              "prompt": "Show the credit card used for reservation 20223 at Grand Hotel, and the guest's phone number and email."
+            },
+            {
+              "description": "WinCloud's tools can't create, change or cancel bookings. Do not claim the reservation was cancelled or call a tool as if it could; explain that the change has to be made in WinCloud itself.",
+              "prompt": "Cancel reservation 20223 at Grand Hotel."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds five read-only tools: get_booking_summary (arrival and departure counts for a date range), get_room_performance (occupancy, ADR, RevPAR and revenue from night-audit figures), get_property_configuration (outlets, room types and interfaces set up), get_outlet_menu (an outlet's menu items and prices) and get_guest (one guest's profile, preferences, stay totals and spend; no contact details or allergies). Existing tools are unchanged.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

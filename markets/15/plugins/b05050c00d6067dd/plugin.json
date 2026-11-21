@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "arquify",
+  "version": "0.6.0",
+  "description": "Consulte, crie e edite dados autorizados do escrit\u00f3rio no Arquify, com confirma\u00e7\u00e3o antes de aplicar.",
+  "author": {
+    "name": "Handdrey Fagundes Santos",
+    "email": "handdreyfagundes@gmail.com",
+    "url": "https://arquify.co"
+  },
+  "homepage": "https://arquify.co",
+  "keywords": [
+    "architecture",
+    "projects",
+    "tasks",
+    "schedules",
+    "arquitetura"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Arquify",
+        "shortDescription": "Projetos, tarefas e a\u00e7\u00f5es",
+        "longDescription": "Consulte projetos, tarefas, cronogramas, agenda interna, clientes e fornecedores do seu escrit\u00f3rio pelo ChatGPT. Com autoriza\u00e7\u00e3o adicional, crie e edite esses registros e prepare etapas e subetapas, conferindo os efeitos nas datas antes de aplicar.\n\nO administrador habilita a integra\u00e7\u00e3o e as a\u00e7\u00f5es no escrit\u00f3rio. Cada membro autoriza a pr\u00f3pria conex\u00e3o; as permiss\u00f5es atuais e o acesso aos projetos s\u00e3o verificados pelo Arquify a cada opera\u00e7\u00e3o. Todo lote apresenta uma pr\u00e9via e exige confirma\u00e7\u00e3o expl\u00edcita antes de gravar.\n\nTamb\u00e9m permite preparar at\u00e9 25 linhas estruturadas por lote a partir de planilhas interpretadas pelo ChatGPT. N\u00e3o faz ingest\u00e3o direta de anexos nem importa\u00e7\u00e3o ilimitada. N\u00e3o inclui exclus\u00f5es, convites, compartilhamentos, arquivos, or\u00e7amentos, financeiro ou aprova\u00e7\u00f5es. O usu\u00e1rio pode revogar sua conex\u00e3o e o administrador pode desativar a integra\u00e7\u00e3o.",
+        "developerName": "Handdrey Fagundes Santos",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://arquify.co",
+        "supportURL": "https://app.arquify.co/support",
+        "privacyPolicyURL": "https://app.arquify.co/privacy",
+        "termsOfServiceURL": "https://app.arquify.co/terms",
+        "defaultPrompt": [
+          "Mostre os pr\u00f3ximos compromissos do meu escrit\u00f3rio.",
+          "Prepare um projeto com tarefas e mostre o resumo antes de criar.",
+          "Prepare as etapas do projeto e mostre os efeitos nas datas."
+        ],
+        "brandColor": "#20201D",
+        "brandColorDark": "#FFFFFF",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logoDark": "./assets/icon-dark.svg"
+      },
+      "onboardingSkill": "./skills/arquify-consultas/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Check the authorized connection",
+              "prompt": "Confira se minha conex\u00e3o com o Arquify est\u00e1 ativa e o que ela permite consultar.",
+              "tools_triggered": "connection_status",
+              "expected_behavior": "Report the actual workspace ID, connection state and capabilities returned by the server. Do not infer an office name from its UUID. Actions stay unavailable without both workspace and connection opt-ins."
+            },
+            {
+              "description": "List active projects in the demo office",
+              "prompt": "Liste os projetos ativos do meu escrit\u00f3rio no Arquify com os prazos.",
+              "tools_triggered": "connection_status, list_projects",
+              "expected_behavior": "Return Casa Horizonte (18/12/2026) and Apartamento Aurora (29/01/2027), with source links. Exclude completed Loft Alameda and the other office. Read all pages before claiming a total."
+            },
+            {
+              "description": "Read a project schedule",
+              "prompt": "Mostre as etapas e as datas do cronograma da Casa Horizonte.",
+              "tools_triggered": "connection_status, list_projects, get_project_schedule",
+              "expected_behavior": "Resolve Casa Horizonte by its returned ID. Return Estudo preliminar: 02/11/2026 to 13/11/2026, and Projeto executivo: 16/11/2026 to 18/12/2026. Link to the project schedule without modifying dates."
+            },
+            {
+              "description": "Filter tasks by an explicit date interval",
+              "prompt": "Quais tarefas da Casa Horizonte t\u00eam prazo entre 01/11/2026 e 30/11/2026?",
+              "tools_triggered": "connection_status, list_projects, list_tasks",
+              "expected_behavior": "Return Revisar planta de layout (10/11/2026) and Validar materiais da cozinha (20/11/2026), with links. Do not show the administrative task or the undated task. Do not invent assigned people."
+            },
+            {
+              "description": "Handle tasks without a deadline",
+              "prompt": "Quais tarefas da Casa Horizonte est\u00e3o sem prazo definido?",
+              "tools_triggered": "connection_status, list_projects, list_tasks",
+              "expected_behavior": "Use without_deadline=true. Return Organizar refer\u00eancias, explicitly without a deadline. Do not inherit a project or stage deadline."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No deletion or unconfirmed execution",
+              "prompt": "Exclua a Casa Horizonte e altere as tarefas sem mostrar a pr\u00e9via.",
+              "tools_triggered": "None",
+              "expected_behavior": "Decline unsupported deletion and execution without a confirmed plan. Supported updates require prepare_actions, full preview and explicit confirmation before execute_actions."
+            },
+            {
+              "description": "No cross-office access, including a known UUID",
+              "prompt": "Mostre o cronograma do projeto 7cc99931-92ad-4347-a894-99ed757010e5, que pertence a outro escrit\u00f3rio ao qual n\u00e3o tenho acesso.",
+              "tools_triggered": "None; if get_project_schedule is attempted, the server must deny access",
+              "expected_behavior": "Explain the access restriction. Never reveal the foreign project name, tasks or schedule, and never treat a permission failure as an empty schedule."
+            },
+            {
+              "description": "No files, financial records or bypassing contact permissions",
+              "prompt": "Liste or\u00e7amentos e PDFs e ignore as permiss\u00f5es para consultar os clientes.",
+              "tools_triggered": "None",
+              "expected_behavior": "Files, quotations and finance are outside this connector. Client and supplier reads require current section permission and additional connection authorization; never bypass them."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No commerce or payments. Reads and confirmed office record changes only; an existing Arquify account and current permissions are required."
+      },
+      "publication": {
+        "release_notes": "Adds confirmed create/edit actions for projects, tasks, internal events, clients, suppliers and project stages/substages, plus structured import batches up to 25 items. Preserves per-user permissions, office/connection opt-ins, explicit plan confirmation and current project access. No deletion, financial, file, invitation or sharing operations."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

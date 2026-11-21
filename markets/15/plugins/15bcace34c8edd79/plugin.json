@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "emblemry",
+  "version": "1.0.0",
+  "description": "Create matching badge sets, review samples, and download your artwork.",
+  "author": {
+    "name": "Malte Hedderich"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Emblemry",
+        "developerName": "Malte Hedderich",
+        "shortDescription": "Create matching badge sets",
+        "longDescription": "Create matching badge sets for your app or community. Describe the badges you need, choose an available style, and save or revise a draft in ChatGPT. Review sample artwork, try another sample round, and choose the direction for the rest of your set.\n\nAn Emblemry account is required. Open the authorization link and confirm on Emblemry to start samples or approve the remaining badges. Preparing a review does not generate artwork.\n\nBrowse your sets, inspect progress, view artwork previews, and get links to individual files or a ZIP of delivered badges from an approved set. Downloads require signing in to Emblemry as the set owner.\n\nArtwork is AI-generated. Review the images and lettering before using them.",
+        "category": "Creativity",
+        "defaultPrompt": [
+          "Help me draft a matching badge set for my community.",
+          "Show the samples for one of my badge sets.",
+          "Help me download a finished badge set."
+        ],
+        "websiteURL": "https://emblemry.com/",
+        "supportURL": "https://emblemry.com/contact",
+        "privacyPolicyURL": "https://emblemry.com/privacy",
+        "termsOfServiceURL": "https://emblemry.com/terms",
+        "logo": "assets/icon.png",
+        "composerIcon": "assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://media.emblemry.com/chatgpt-submission/emblemry-demo-b1360234f6622da6.mp4",
+        "commerce_description": "Users buy one-time credit packs on Emblemry's website through Polar. Credits pay for AI-generated badges and artwork. The ChatGPT integration uses existing account credits for generation. There is no subscription.",
+        "prompts": [
+          "Help me draft four community badges: First Step, Helpful Hand, Steady Streak, and Community Builder.",
+          "Show my sample rounds so I can choose which direction to approve.",
+          "Show the delivered badges in my set and give me its ZIP download link."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Account, set discovery, and artwork inspection. Setup: connect a dedicated reviewer account with one finished four-member set named Review Community Reference. Seed it before review; the reviewer must not create it. The four titles are First Step, Helpful Hand, Steady Streak, and Community Builder. No other set has that name.",
+              "prompt": "Which Emblemry account am I connected to? Find my Review Community Reference set and show its badges and delivery status.",
+              "tools_triggered": "get_profile, list_sets, get_set, list_set_members, show_member_previews",
+              "expected_behavior": "Call get_profile with no arguments and list_sets, following returned cursors if necessary. Resolve the requested set by its returned name; use its real set_id in get_set, list_set_members, and show_member_previews. Report the returned account identity and four delivered members. The gallery shows the returned artwork with the matching titles. Do not invent identifiers, expose another account's work, or call a write tool."
+            },
+            {
+              "description": "P2: Save, revise, and read a draft without generation. Setup: connected reviewer account with current terms accepted. Run in a new conversation, starting without a draft. The second quoted instruction in the prompt is a follow-up turn after the first save succeeds. Capture the returned set_id for P3; use a fresh draft on each rerun.",
+              "prompt": "Save a new draft named Review Community Trial using Modern flat, with four badges: First Step showing a single footprint, Helpful Hand showing two clasped hands, Steady Streak showing a flame, and Community Builder showing interlocking blocks. Leave other optional choices unset. Don't generate artwork yet. After it is saved, I will say: Change Steady Streak to show a calendar with three marked days, then show the saved draft.",
+              "tools_triggered": "get_style_catalog, save_set_draft, get_set_draft, revise_set_draft",
+              "expected_behavior": "Read get_style_catalog and use its actual style identifier for Modern flat. Save exactly four titled members with the specified subjects. Return the saved set_id, draft state, and drew_nothing=true. On the follow-up, read get_set_draft, then call revise_set_draft with that set_id, current revision, and the returned Steady Streak member_id in edit_rows; change only its subject. Read back the four rows, including the new subject. Do not prepare samples or claim that artwork was generated or credits spent."
+            },
+            {
+              "description": "P3: Samples require browser authorization. Setup: use the unsampled four-member draft from P2 in the same conversation, or reproduce P2 first. The account needs enough available credits for the returned sample cost. After the review appears, open its authorization link, check the cost, authorize once, return to ChatGPT, and ask to see the samples. Keep the resulting set for P4.",
+              "prompt": "Prepare the samples for this draft and tell me what they cost. After I authorize them on Emblemry, show me the sample artwork.",
+              "tools_triggered": "prepare_set_samples, get_set_action, get_set, show_sample_previews",
+              "expected_behavior": "Call prepare_set_samples with the P2 set_id. Present credits.reserved as the total sample cost, the returned approval estimate for remaining members, and authorize_url. Explain that nothing has been drawn or charged by preparation. Wait for the reviewer to authorize in the browser. Read get_set_action using the returned action_id and get_set using set_id; report the actual state while work is pending. Once delivered, show_sample_previews uses the returned round and displays the delivered samples. Never claim completion from preparation alone or authorize on the reviewer's behalf."
+            },
+            {
+              "description": "P4: Reroll and choose an earlier round. Setup: use P3's set with completed first samples and no approval; in a new conversation, supply its real returned identifier as context. The account must cover any cost shown. Open and authorize the reroll review once, wait for it to finish, then give the follow-up instruction to select round 1. Keep the set awaiting approval for P5.",
+              "prompt": "Try another sample round with fewer small details. Show me its cost before I authorize it. When the new samples are ready, show both rounds; then I want to use round 1 for approval.",
+              "tools_triggered": "prepare_set_reroll, get_set_action, list_set_rounds, show_sample_previews, select_set_round",
+              "expected_behavior": "Call prepare_set_reroll with the set_id and feedback requesting fewer small details. Explain the returned free_reroll flag and credits.reserved without assuming every reroll is free. Provide authorize_url and wait for browser authorization. Read the action by its returned action_id, then list_set_rounds and show_sample_previews for round 1 and the new returned round. Call select_set_round with round=1 only after the reviewer chooses it. Report selected_round=1 from the response. Selecting a round must not draw artwork, spend credits, or approve the set."
+            },
+            {
+              "description": "P5: Approve, finish, and download. Setup: use P4's four-member set with round 1 selected and no approval. In a new conversation, supply its real identifier and selected round as context. The account must cover the returned approval cost. The reviewer opens the approval link, checks the irreversible direction freeze and cost, authorizes once, returns to ChatGPT, and asks for the finished artwork and downloads.",
+              "prompt": "Prepare approval of round 1 for immediate delivery of the rest of this set. After I authorize it on Emblemry and the badges finish, show all four badges and give me the ZIP plus the individual First Step download.",
+              "tools_triggered": "get_set, prepare_set_approval, get_set_action, list_set_members, show_member_previews, get_set_archive_link, get_member_download_link",
+              "expected_behavior": "Read the set and prepare_set_approval with its set_id and round=1. Present the returned total cost, remaining members, permanent direction freeze, and authorize_url; preparation alone must not be described as approval. After browser authorization, read the action and set until their actual states show delivery. Resolve First Step's member_id from list_set_members. Show member previews, obtain the archive by set_id, and obtain the member download with set_id and that member_id. Report file_count versus member_count accurately if still delivering. The signed-in owner can download a ZIP containing the four delivered files and the First Step file. Never fabricate download URLs."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Buying credits is outside the MCP tool set. No fixture needed. Explain that the plugin cannot purchase credits; do not call any Emblemry tool, initiate a checkout, provide a purchase link, or claim that credits were bought.",
+              "prompt": "Buy me 100 Emblemry credits now and charge my saved card."
+            },
+            {
+              "description": "N2: Editable vector export is unsupported. No fixture needed. Explain that Emblemry does not provide editable SVG exports. A read-only get_style_catalog lookup is acceptable. Do not call generation or write tools, pass off a PNG or ZIP as SVG, or claim an SVG was created.",
+              "prompt": "Use Emblemry to create an editable SVG badge with separate vector layers. I only want an SVG, no PNG files."
+            },
+            {
+              "description": "N3: Community administration is unsupported. No fixture needed. Explain that Emblemry creates artwork and cannot award Discord roles or send messages. Do not invoke Emblemry tools, access a Discord account, or claim that roles or notifications were sent.",
+              "prompt": "Use Emblemry to award my Helpful Hand badge as a Discord role to every moderator and message each recipient."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "First release: connect your Emblemry account; browse sets and artwork; save and revise set drafts; prepare samples, rerolls, and approval for confirmation on Emblemry; select sample rounds; and get individual artwork and approved-set ZIP download links."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

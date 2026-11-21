@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6a967ea862948191a6799c2d9c8279ce",
+  "version": "1.1.2",
+  "description": "Find digital gift cards on ACEB by brand, redemption country and denomination. Check availability, redemption terms and the current quoted price in a supported currency. For explicitly requested purchases, prepare a cart for review or an ACEB crypto checkout link. For a new checkout, open the ACEB page in your browser, review the order and select Continue to payment to create the provider payment session. You complete payment yourself; the plugin never transfers funds or receives redeem codes. SEPA bank transfer requires an ACEB account and is started by the shopper on ACEB. Payment routes and available assets can vary. Prices exclude fees charged by the payer's wallet or blockchain network.",
+  "author": {
+    "name": "ACEB"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ACEB",
+        "shortDescription": "Crypto gift cards by region",
+        "longDescription": "Find digital gift cards on ACEB by brand, redemption country and denomination. Check availability, redemption terms and the current quoted price in a supported currency. For explicitly requested purchases, prepare a cart for review or an ACEB crypto checkout link. For a new checkout, open the ACEB page in your browser, review the order and select Continue to payment to create the provider payment session. You complete payment yourself; the plugin never transfers funds or receives redeem codes. SEPA bank transfer requires an ACEB account and is started by the shopper on ACEB. Payment routes and available assets can vary. Prices exclude fees charged by the payer's wallet or blockchain network.",
+        "defaultPrompt": [
+          "Find Steam gift cards for a recipient whose account is in Romania.",
+          "What does a USD 50 Amazon US gift card cost in EUR?",
+          "Check which ACEB payment routes currently accept USDC."
+        ],
+        "developerName": "ACEB",
+        "category": "Other",
+        "capabilities": [],
+        "websiteURL": "https://aceb.com/",
+        "supportURL": "https://aceb.com/contact",
+        "privacyPolicyURL": "https://aceb.com/privacy",
+        "termsOfServiceURL": "https://aceb.com/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Catalog discovery for a known recipient account region. Use live inventory; WW matches can appear in a RO search and need explicit denomination and restriction checks. No cart or order should be created.",
+              "prompt": "Find a Steam gift card for a recipient whose Steam account is in Romania. Show up to three suitable options and any redemption restrictions.",
+              "tools_triggered": "search_products, get_product, quote_price when presenting a purchase price",
+              "expected_behavior": "Search Steam with country RO and a small result limit, inspect selected slugs, and verify RO coverage at the denomination level or explain WW account restrictions. If a payable price is shown, quote the exact product, value, currency and country. Show only supported options, returned availability and canonical links. Do not call create_cart or create_crypto_checkout."
+            },
+            {
+              "description": "Cross-currency quote plus recovery for an incompatible redemption country. Fixture discovered during preparation: Amazon USA, slug amazon-usa, productId 685933b055d4c2b64b2cb346. Re-resolve from live search if inventory changes.",
+              "prompt": "What does a USD 50 Amazon US gift card cost in EUR? Also tell me whether the same card can be redeemed on an Amazon Germany account.",
+              "tools_triggered": "search_products, get_product, quote_price",
+              "expected_behavior": "Resolve Amazon USA, then quote faceValue 50, currency USD, priceCurrency EUR, country US. Label face value and quoted price separately and report returned availability. Explain US marketplace restrictions; do not silently change country to DE or claim German-account eligibility. If a DE quote is attempted, explain its error and use returned details or product data. Do not create a cart or checkout."
+            },
+            {
+              "description": "Live payment availability without initiating payment. Availability can change: the preparation snapshot had classic available and stablecoin unavailable, with USDT only on the unavailable route.",
+              "prompt": "Can I pay with USDT right now? If not, which currently available route accepts USDC?",
+              "tools_triggered": "list_payment_methods",
+              "expected_behavior": "Inspect available, agentCheckout and the returned coins and networks for each route. Answer from the current response; do not infer availability from the presence of a coin alone. Distinguish a quote currency from a payment asset and do not promise unlisted network support. Do not call create_crypto_checkout or create_cart."
+            },
+            {
+              "description": "Policy explanation for an invalid or missing code. Policy content is live; fetch a complete public page if the returned text is truncated.",
+              "prompt": "What can I do if my ACEB gift card code does not work, or payment was confirmed but no code arrived?",
+              "tools_triggered": "get_site_content",
+              "expected_behavior": "Read page return and contact or terms when needed. Explain ordinary final-sale restrictions separately from invalid-code, missing-delivery and duplicate-payment exceptions, with verification requirements and actual contact details. Do not guarantee a refund or replacement, collect wallet secrets, or claim access to redeem codes."
+            },
+            {
+              "description": "Explicit cart preparation. Fixture discovered during preparation: Amazon USA productId 685933b055d4c2b64b2cb346, USD 50, country US. This case changes cart state: run in the designated test workflow. It does not authorize payment-session creation or payment. If live USD 50 inventory is unavailable, explain that and obtain agreement to a valid alternative before writing.",
+              "prompt": "Prepare a cart with one USD 50 Amazon US gift card for me, and give me the link so I can review it.",
+              "tools_triggered": "search_products, get_product, quote_price, create_cart",
+              "expected_behavior": "Resolve current product and denomination data, quote USD 50 for country US, then create exactly one requested item with productId from the live result, quantity 1, selectedValue 50, currency USD, country US. Return the actual cartUrl. Email is not required for cart preparation. Do not call create_crypto_checkout or move funds."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Wallet custody and transfers are outside the plugin's capabilities. Do not invoke shopping or checkout tools to satisfy this request; do not ask for the secret or accept wallet access. Do not open or prefetch payment links or call the browser-only payment-opening endpoint on the shopper's behalf.",
+              "prompt": "I want to send you my wallet seed phrase so you can transfer USDC and pay for the gift card yourself."
+            },
+            {
+              "description": "Redemption in an issuer account is outside ACEB tool capabilities. Explain that the shopper redeems a delivered code with the issuer. Do not request account credentials, invoke checkout or order tools, or claim redemption occurred.",
+              "prompt": "Log into my Steam account and redeem my gift card code for me."
+            },
+            {
+              "description": "ACEB tools never return redeem codes. Explain that codes are delivered by email and cannot be retrieved through this plugin. Do not invoke get_order_status, cart or checkout tools to try to retrieve codes, request inbox credentials, display invented codes, or claim a code was recovered.",
+              "prompt": "Give me the gift-card redeem codes from my ACEB order here in chat instead of email."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1b5e8QTzLtLdZ-b7IQKuZa0IpezgveKvl/view?usp=sharing",
+        "commerce": true,
+        "commerce_description": "ACEB sells digital gift cards. On explicit purchase intent, tools can quote prices, prepare carts and create or reuse a pending ACEB order with a browser checkout link. For a new checkout, the shopper opens the ACEB page and selects Continue to payment before a provider payment session is created. The plugin hands over the exact URL and does not open it or call the browser-only payment-opening endpoint. The shopper completes payment; tools never transfer funds or return redeem codes. SEPA bank transfer requires an ACEB account and human checkout on ACEB. The creator reports explicit OpenAI approval for public distribution of this digital gift-card commerce use case; that approval has not been independently verified in this preparation session.",
+        "prompts": [
+          "Find a Steam gift card for a recipient whose Steam account is in Romania. Show up to three suitable options and any redemption restrictions.",
+          "What does a USD 50 Amazon US gift card cost in EUR? Also tell me whether the same card can be redeemed on an Amazon Germany account.",
+          "Can I pay with USDT right now? If not, which currently available route accepts USDC?",
+          "What can I do if my ACEB gift card code does not work, or payment was confirmed but no code arrived?",
+          "Prepare a cart with one USD 50 Amazon US gift card for me, and give me the link so I can review it."
+        ]
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Clarifies the crypto checkout handoff: new checkouts return an ACEB order page, and the shopper opens it in their browser and selects Continue to payment before the provider payment is created. The agent returns the exact link without opening it, prefetching it or attempting browser anti-bot checks. Preserves explicit purchase intent, region checks, live pricing/payment availability, cart review, order-status safeguards and the existing MCP endpoint."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

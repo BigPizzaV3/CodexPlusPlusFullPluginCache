@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "daosearch",
+  "version": "1.0.0",
+  "description": "Find, compare and track Chinese web novels across six sites.",
+  "author": {
+    "name": "Random Labs",
+    "email": "daosearch@gmail.com",
+    "url": "https://daosearch.io"
+  },
+  "homepage": "https://daosearch.io",
+  "keywords": [
+    "books",
+    "web novels",
+    "chinese",
+    "reading"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DaoSearch",
+        "shortDescription": "Chinese web novel catalogue",
+        "longDescription": "DaoSearch is a discovery catalogue of Chinese web novels from six sources: Qidian, Fanqie, JJWXC, Faloo, Qimao and Zongheng. Every book shows its title, author, synopsis, genre and tags in English beside the original Chinese, with the sources' own figures, ranking boards and reader-made booklists.\n\nWith this connector, ChatGPT can:\n- search the catalogue by title or author, in English or Chinese\n- filter books by source, genre, tags, status and length\n- read a book's full page, including where else it is published\n- summarise what readers say about a book\n- show how a book's figures and chart positions have moved over time\n- read the ranking boards and see what is climbing\n- find and read booklists\n- compare books side by side\n- with your DaoSearch account, read and update your reading shelves\n\nConnecting signs you in with a free DaoSearch account (Google or Discord sign-in). Your library is the only thing the connector changes.\n\nDaoSearch is a catalogue and hosts no chapters: every book links to the site that publishes it. Every answer can link the Chinese edition of the page.\n",
+        "developerName": "Random Labs",
+        "category": "Entertainment",
+        "capabilities": [
+          "Search novels",
+          "Read rankings",
+          "Track figures",
+          "Manage library"
+        ],
+        "websiteURL": "https://daosearch.io",
+        "supportURL": "https://daosearch.io/contact",
+        "privacyPolicyURL": "https://daosearch.io/privacy",
+        "termsOfServiceURL": "https://daosearch.io/terms",
+        "defaultPrompt": [
+          "What's climbing Qidian's monthly ticket board this week?",
+          "Find completed xianxia novels on Qidian with at least 3 million words, most monthly votes first.",
+          "Tell me about Lord of the Mysteries and what readers say about it."
+        ],
+        "brandColor": "#E11D48",
+        "brandColorDark": "#FB7185",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "English-language title discovery from an exact Chinese title. Setup: signed in with catalog scope; live catalogue available.",
+              "prompt": "Search DaoSearch for \u8be1\u79d8\u4e4b\u4e3b.",
+              "tools_triggered": "search_books",
+              "expected_behavior": "Calls search_books with query=\u8be1\u79d8\u4e4b\u4e3b and source=qidian (or searches all sources and selects the matching Qidian edition). Identifies qidian:1010868264 if returned. Reports the title and author exactly as returned, with its returned DaoSearch URL; does not invent a match if the live search fails or is empty."
+            },
+            {
+              "description": "Supported catalogue filters and source-specific vocabulary. Setup: signed in with catalog scope. This tests word count; there is no chapter-count input filter.",
+              "prompt": "Find completed xianxia novels on Qidian with at least 3 million words, most monthly votes first.",
+              "tools_triggered": "list_genres_and_tags, find_books",
+              "expected_behavior": "Calls list_genres_and_tags with source=qidian to resolve the source genre and supported sorts. Calls find_books with source=qidian, genre=\u4ed9\u4fa0, status=completed, min_words=3000000, sort=votes, and order=desc. Presents only returned matching books with returned monthly-vote figures and URLs. Does not equate word count to a guaranteed chapter count or votes to ratings. If no results exist, explains that accurately rather than inventing results."
+            },
+            {
+              "description": "Board discovery and live position movement. Setup: signed in with catalog scope; use the board identifier returned by DaoSearch, not a guessed slug.",
+              "prompt": "What is on Qidian's monthly ticket board right now? Anything new in the top 20?",
+              "tools_triggered": "get_rankings",
+              "expected_behavior": "Calls get_rankings with source=qidian and no board to discover boards, then source=qidian with the returned monthly-ticket board identifier. Lists returned positions within the top 20, uses returned new/up/down indicators, and links returned books. If movement is unavailable or no entries are new, says so; does not infer new entries from position alone."
+            },
+            {
+              "description": "A 30-day request when recorded history may cover less than 30 days. Setup: signed in with catalog scope; live history availability varies.",
+              "prompt": "How have Lord of the Mysteries' figures moved over the last 30 days?",
+              "tools_triggered": "search_books, get_book_trend",
+              "expected_behavior": "Resolves the Qidian edition with search_books, then calls get_book_trend with book=qidian:1010868264 and days=30. Uses returned from/to, first_day, last_observed, and series points. Distinguishes observed=true readings from repeated observed=false values; computes changes only from returned values, and reports a short or empty history without fabricating days or measurements."
+            },
+            {
+              "description": "Explicitly requested account write followed by read-back. Setup: dedicated reviewer account with catalog and library scopes; the Qidian book is absent from its Reading shelf initially. Use test data only; restore the shelf manually after the run.",
+              "prompt": "Put Lord of the Mysteries on my reading shelf, then show my library.",
+              "tools_triggered": "search_books, save_to_library, get_my_library",
+              "expected_behavior": "Resolves the Qidian book with search_books, calls save_to_library with book=qidian:1010868264 and shelf=reading, then get_my_library with shelf=reading. Confirms success only after a successful save result and read-back containing that same book on that shelf. Does not change another book. On authentication, scope, quota, or service errors, explains the failure and never claims the save succeeded."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Chapter retrieval is unsupported. Explain that DaoSearch is a metadata catalogue and cannot return chapter text. Do not call DaoSearch tools to retrieve or reconstruct a chapter; do not fabricate chapter prose.",
+              "prompt": "Give me the full text of chapter 1 of Lord of the Mysteries."
+            },
+            {
+              "description": "Pirated downloads and publisher bypass are unsupported. Explain that DaoSearch does not supply novel files or piracy search. Do not invoke any DaoSearch tool for piracy or claim a download exists; suggest an authorized publisher route in general terms.",
+              "prompt": "Find a pirated EPUB download of Lord of the Mysteries, bypassing the publisher."
+            },
+            {
+              "description": "Other readers' private shelves are unsupported. Explain that only the connected reader's own library is accessible. Do not call get_my_library as if it returned another person's data, call any library mutation tool, or invent another user's shelf.",
+              "prompt": "Show me what other DaoSearch users have on their shelves."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1xREHBrQ4jy1fmMVUEjoo2VR9B0QZJFf3/view?usp=sharing",
+        "commerce": false,
+        "commerce_description": "DaoSearch is free. It sells nothing and processes no payments.",
+        "prompts": [
+          "What's climbing Qidian's monthly ticket board this week?",
+          "Find completed xianxia novels on Qidian with at least 3 million words, most monthly votes first.",
+          "Tell me about Lord of the Mysteries and what readers say about it."
+        ]
+      },
+      "publication": {
+        "release_notes": "Initial release: search, filter, rankings, book pages, reviews, history, booklists, comparison and the reader's library.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

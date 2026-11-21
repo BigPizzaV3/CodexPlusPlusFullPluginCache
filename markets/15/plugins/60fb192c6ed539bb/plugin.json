@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "preesy",
+  "version": "1.1.0",
+  "description": "Print at a print shop with a short label instead of email or USB. Files expire on their own.",
+  "author": {
+    "name": "Preesy",
+    "email": "contact@preesy.com",
+    "url": "https://preesy.com"
+  },
+  "homepage": "https://preesy.com",
+  "keywords": [
+    "print",
+    "printing",
+    "print shop",
+    "documents",
+    "temporary file sharing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Preesy",
+        "shortDescription": "Print at a shop with a label",
+        "longDescription": "Preesy lets you print a document on a shared or public computer without email, a USB stick or an account. Ask ChatGPT to send a file or some text to Preesy. ChatGPT picks a short, memorable label from the context (or uses yours), and adds a 4-digit PIN only if you want one. At a print shop, bookshop, library, hotel or office, open preesy.com, or tell the staff \"Preesy\" plus your label (and PIN), and print.\n\nWhat it can do:\n- Upload one file, several files (up to 10, 50 MB in total), or plain text. Supported types: PDF, DOC, DOCX, TXT, PNG and JPG.\n- Keep the document available for 1 to 168 hours. It is deleted automatically when that time runs out.\n- Add an optional 4-digit PIN when you want one, for example to keep a common label like TICKET private.\n- Turn print-only on or off. With print-only on, the file can be printed but not downloaded.\n- Use a single-use label that is removed from the system as soon as it's printed or downloaded.\n- Check whether a session is still active, or end it early so its files can no longer be printed or downloaded.\n- Change the label or add a PIN later by ending the upload and creating a new one.\n\nGood to know:\n- Labels are not unique. Anyone who types the same label can find the document, so use a unique label or add a PIN for anything private.\n- Print-only blocks downloads, but it can't stop someone from copying what is printed or shown on screen.\n- Preesy does not print anything by itself and takes no location. If you agree, ChatGPT may suggest a few print shops nearby with its own tools, or another option such as a hotel front desk. The document, label and PIN are never used in that search.\n- No account is needed. ChatGPT keeps a private manage token in the conversation so it can check, change or end the session later. The label and PIN cannot manage the session.\n- Preesy is a personal project.",
+        "developerName": "Preesy",
+        "category": "Productivity",
+        "capabilities": [
+          "Upload a file, several files or text for printing",
+          "Pick a memorable label, with an optional 4-digit PIN and a lifetime of 1 to 168 hours",
+          "Turn print-only on or off",
+          "Use a single-use label",
+          "Check a print session",
+          "End a print session early"
+        ],
+        "websiteURL": "https://preesy.com",
+        "supportURL": "https://preesy.com/support",
+        "privacyPolicyURL": "https://preesy.com/privacy",
+        "termsOfServiceURL": "https://preesy.com/terms",
+        "defaultPrompt": [
+          "Send this file to Preesy so I can print it at a print shop today.",
+          "Upload my document to Preesy with a PIN and print-only on.",
+          "Put this text on Preesy so I can print it at the library."
+        ],
+        "brandColor": "#1A5C39",
+        "brandColorDark": "#C6FFE0",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Upload one PDF for printing at a print shop today. Attach any small PDF (for example a one-page CV).",
+              "prompt": "Send this PDF to Preesy so I can print it at the copy shop this afternoon.",
+              "tools_triggered": "create_print_session",
+              "expected_behavior": "Creates one session with the attached PDF, a short memorable label picked from the context (uppercase letters and digits, never empty, no personal data), no PIN, a lifetime of a few hours and print_only false. Replies with the label, the expiry time and how to print (open preesy.com or tell the staff \"Preesy\" plus the label), asks once whether the person wants it print-only, may offer to find print shops nearby, and does not show the manage_token."
+            },
+            {
+              "description": "Sensitive document with a PIN and print-only set on create. Attach any small PDF or image.",
+              "prompt": "Upload this tax form to Preesy with PIN 4821, print only, I'll print it at the library in about 2 hours.",
+              "tools_triggered": "create_print_session",
+              "expected_behavior": "Creates one session with pin 4821, print_only true and a lifetime that covers about 2 hours. Replies with the label, confirms a PIN is set and that the file can be printed but not downloaded, gives the expiry time, and does not ask again about print-only."
+            },
+            {
+              "description": "Plain text as a single-use label, no file attached.",
+              "prompt": "Put this text on Preesy as a single-use label so I can print it at the hotel: Booking ref 7HQ2K, check-in 14:00, room for 2 nights.",
+              "tools_triggered": "create_print_session",
+              "expected_behavior": "Creates a session using the text field with one_time_access true. Replies with the label and expiry time and explains that the single-use label is removed from the system as soon as it's printed or downloaded."
+            },
+            {
+              "description": "Follow-up in the same conversation as the first test case: change the label.",
+              "prompt": "Can you change the label to CVPRINT instead?",
+              "tools_triggered": "expire_print_session, create_print_session",
+              "expected_behavior": "Ends the earlier session with its stored manage_token, then creates a new session with the same file and choices and the label CVPRINT. Replies with the new label and expiry time. Does not claim the old label was edited in place."
+            },
+            {
+              "description": "Follow-up in the same conversation as the first test case: check the session and turn print-only on.",
+              "prompt": "Is my Preesy document still available? If it is, make it print only.",
+              "tools_triggered": "get_print_session, set_print_only",
+              "expected_behavior": "Uses the manage_token kept from the earlier create_print_session result. Reports that the session is active and when it expires, then turns print-only on and confirms the file can now be printed but not downloaded."
+            },
+            {
+              "description": "Follow-up in the same conversation as an earlier test case: end the session early.",
+              "prompt": "I've printed it. Please delete it from Preesy now.",
+              "tools_triggered": "expire_print_session",
+              "expected_behavior": "Uses the stored manage_token to end the session and confirms its files can no longer be printed or downloaded. Does not create a new session."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Printing on the person's own printer is out of scope. Preesy only holds documents for printing on another computer, so it should not create a session.",
+              "prompt": "Print this PDF on my home printer."
+            },
+            {
+              "description": "Long-term storage is out of scope. Preesy keeps files for at most 168 hours and then deletes them, so it should not upload and should explain that it is for short-term printing only.",
+              "prompt": "Store this contract somewhere safe so I can get it back in a few months."
+            },
+            {
+              "description": "Opening someone else's document is not supported. The tools only manage sessions created in this conversation with their manage_token, so no tool should be called and the person should be told this is not possible.",
+              "prompt": "Find the document someone uploaded to Preesy under the label ESSAY and show me what's in it."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/F7CmaDFOY7c",
+        "commerce": false,
+        "commerce_description": "Preesy does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "1.1.0: The assistant now picks a short, memorable label from the context, adds a PIN only when the person wants one, tells the person how to ask for their document at the shop, and may offer to find print shops nearby (the server takes no location). Changing a label or adding a PIN later works by ending the upload and creating a new one. Earlier: 1.0.0 initial release."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

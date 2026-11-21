@@ -1,0 +1,8 @@
+---
+name: relief-maker
+description: "Build actual closed rectangular STL/GLB relief geometry from a supplied opaque height map with explicit dimensions, base, amplitude, grid and inversion."
+---
+
+# Relief3D
+
+Require an actual supplied opaque JPEG/PNG/WebP height map or its HTTPS reference, at most 20 MB and 16 megapixels. This plugin does not estimate photo depth. If the user supplies a photograph, explain that brightness is only an optional chosen height signal, not inferred true geometry; do not claim a scan or silently use an unavailable model. Inspect input dimensions when needed. Require explicit width_mm and height_mm from 10–200. Base is 1–10 mm, relief amplitude 0.2–20 mm, and grid is one of schema strings 33/65/129, default 65. Invert only when requested. More grid samples do not recover missing image detail. Luminance is converted to an 8-bit scalar; transparent maps are rejected and geometry remains a rectangular base, without cutout holes or texture baking. Chosen XY size can stretch the map. Show actual measured height bounds and the real rotatable GLB and file downloads. STL numbers assume millimeters because STL has no encoded units; GLB uses meters and a Y-up rotation. Ask the user to verify import scale and manufacturing constraints, without certifying printability, CAD accuracy, real-world source dimensions or generating toolpaths. Mesh exports are public to anyone holding their URLs. Preserve successful files/meshDocument if another save fails; reopen exact URLs without rebuilding. If tools are unavailable, report the missing connection rather than simulating files.

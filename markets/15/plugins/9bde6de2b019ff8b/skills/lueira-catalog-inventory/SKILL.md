@@ -1,0 +1,16 @@
+---
+name: lueira-catalog-inventory
+description: Help a Lueira tenant inspect its catalogue, pricing and inventory and make requested supported changes to specific products or stock.
+---
+
+Discover the available Lueira product, pricing and inventory tools and read their schemas before choosing an operation. The MCP exposes different tools according to the connected tenant's scopes and features: product reads and writes need `products:read` and `products:write`, stock reads and writes need `inventory:read` and `inventory:write`.
+
+Identify the product type first: shop merchandise, rental equipment (and rental bundles), group lessons, private lessons, courses, passes and gift vouchers have different records and pricing models. Use list/get tools to resolve names to returned IDs. When the same name has multiple variations, locations or seasons, identify the intended one before a write. Product lists take `center_id` (that center plus tenant-wide items); `list_centers` gives the ids.
+
+For stock questions, distinguish shop quantities from individually tracked rental stock items. A stock quantity does not prove date-specific booking availability. Shop stock is per variation and location: read it with `list_shop_product_variations`, since `get_shop_product` does not include it. `add_shop_stock_level` adds `quantity` to the level at one location and creates the level if none exists; do not send the desired final total. Send a positive amount: the tool does not reject a negative one and does not stop stock going below zero, so do not use it to count stock or to subtract. Match its product, variation and location IDs to the records the user intended. Rental stock is individual units (`list_rental_product_stock_items`, `create_rental_stock_items`, `update_rental_stock_item`); to retire a unit prefer the status `SOLD` or `IN_MAINTENANCE` over `delete_rental_stock_item`, which cannot be undone and does not check bookings.
+
+For catalogue or pricing changes, read the current values and use the tool for that product type. Prices are integer minor units with a currency code. Preserve unrelated fields, currencies, taxes, periods and variations. Do not apply a price to every season or variant when the request concerns one. Rental duration-tier schemas, private-lesson calendar seasons and group-package calendar seasons are shared by every product that points at them: editing one reprices all of them, so check which products use it first. Updates that send `pricing_ranges`, `pricing` or `time_ranges` replace the whole set, so send the complete list. A private-lesson date with no season cannot be booked. Clarify a missing amount, currency or date range when the tool cannot resolve it from the existing record.
+
+Make only the changes the user requested and respect the host's confirmation requirements. After a successful tool response, summarize the affected product, variant/location/period and the returned result. If a stock-write response is lost, read the current state before retrying: adding the same quantity twice changes stock twice.
+
+Do not simulate an order, reservation, payment or refund by changing inventory or pricing. Those operations are outside this workflow: order writes are unavailable through the public MCP, and on Lueira's admin MCP they are pending actions the signed-in member confirms in the app.

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cenogram",
+  "version": "1.0.0",
+  "description": "Actual transaction prices of Polish real estate from the official RCN register: market statistics, individual deeds and parcel reports.",
+  "author": {
+    "name": "Cenogram",
+    "email": "kontakt@cenogram.pl",
+    "url": "https://cenogram.pl"
+  },
+  "homepage": "https://cenogram.pl",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cenogram",
+        "shortDescription": "Polish property deed prices",
+        "longDescription": "Cenogram gives ChatGPT access to actual transaction prices of Polish real estate. The data comes from Poland's official register of property prices (RCN, Rejestr Cen Nieruchomo\u015bci): prices recorded in notarial deeds, not asking prices from listings. The register holds 8M+ transactions from 2003 to today across 380 counties and is refreshed roughly every two weeks.\n\nWhat you can ask:\n- Price levels: median price per m\u00b2 of apartments in a city, district or county, yearly trends, price distribution, side-by-side comparison of 2-5 districts.\n- Individual deeds: search by place, street, radius around a point or a drawn polygon, with date, price, area and property type.\n- Parcels: find a cadastral parcel by identifier, by locality and number or by street address, then get one report with zoning (local plans and the general plan), flood and landslide hazard, heritage status, building permits, agricultural eligibility, land and soil class, nature protection, road access, public transport, surroundings and recent sales.\n- Local context: population, housing and economy indicators from GUS BDL (Statistics Poland) and signals of planned municipal infrastructure.\n- Beta tools: orientation value estimates for an apartment or an undeveloped plot based on comparable deeds, rental yield, asking-versus-transaction price spread, flood-zone exposure and developers' investments.\n\nHow it works: every tool is read-only. Tools read Cenogram's own dataset and never change anything in your account, in ChatGPT or anywhere else. You sign in with your Cenogram account (OAuth). Some requests use tokens of that account; your account status is shown on your Cenogram account page.\n\nLimits: results describe past deeds recorded in the register. They are not a certified valuation, legal advice or an offer. An empty result means nothing was found in our data; it never guarantees that a plot is safe, buildable or free of restrictions. Data covers Poland only, and each answer states the period and sample size it is based on.",
+        "developerName": "Cenogram",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://cenogram.pl/en/mcp?src=chatgpt",
+        "supportURL": "https://cenogram.pl/en/mcp#kontakt",
+        "privacyPolicyURL": "https://cenogram.pl/polityka-prywatnosci",
+        "termsOfServiceURL": "https://cenogram.pl/regulamin",
+        "defaultPrompt": [
+          "Compare median apartment prices per m\u00b2 in Mokot\u00f3w, Wola and Ursyn\u00f3w in Warsaw since the start of 2025",
+          "Show me a full report for the land parcel at Karmelicka 10 in Krak\u00f3w: zoning, hazards and recent sales",
+          "Find apartment sales within 1 km of Krak\u00f3w's Main Market Square (50.0617, 19.9373) and give the median price per m\u00b2"
+        ],
+        "brandColor": "#111827",
+        "brandColorDark": "#FFFFFF",
+        "composerIcon": "./assets/composer-icon.png",
+        "composerIconDark": "./assets/composer-icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "publication": {
+        "countries": []
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Compare apartment prices across three Warsaw districts for a recent period.",
+              "prompt": "Compare median apartment prices per m\u00b2 in Mokot\u00f3w, Wola and Ursyn\u00f3w in Warsaw since the start of 2025",
+              "tools_triggered": "list_locations, compare_locations",
+              "expected_behavior": "ChatGPT resolves the three district names with list_locations (they are flagged as RCN districts), then calls compare_locations with propertyType=unit and a start date of 2025-01-01. The answer lists, per district, the median price per m\u00b2, the average area and the number of deeds, and says these are notarial-deed prices from the RCN register."
+            },
+            {
+              "description": "Get the full dossier of the land parcel under a street address.",
+              "prompt": "Show me a full report for the land parcel at Karmelicka 10 in Krak\u00f3w: zoning, hazards and recent sales",
+              "tools_triggered": "list_parcels_in_area, get_parcel_report",
+              "expected_behavior": "ChatGPT finds the parcel with list_parcels_in_area (street in nominative form, building number 10, location Krak\u00f3w), then calls get_parcel_report with the returned parcel identifier. The answer summarises the parcel core data, local-plan and general-plan status, flood, landslide and heritage layers and the parcel's recent transactions, and points out where a layer returned no data (an empty layer is not reported as \"safe\" or \"no plan\")."
+            },
+            {
+              "description": "Find apartment sales within a radius of given coordinates and summarise the price level.",
+              "prompt": "Find apartment sales within 1 km of Krak\u00f3w's Main Market Square (50.0617, 19.9373) and give the median price per m\u00b2",
+              "tools_triggered": "search_by_area",
+              "expected_behavior": "ChatGPT calls search_by_area with latitude 50.0617, longitude 19.9373, radiusKm=1 and propertyType=unit. The answer gives the median price per m\u00b2 and the number of deeds in the area (and may list the most recent sales), using the user's coordinates as given."
+            },
+            {
+              "description": "Show how the median apartment price per m\u00b2 in one city changed year by year.",
+              "prompt": "What was the median price per m\u00b2 of apartments in Gda\u0144sk in each of the last 10 years?",
+              "tools_triggered": "list_locations, search_transactions",
+              "expected_behavior": "ChatGPT resolves Gda\u0144sk to its territorial code with list_locations, then calls search_transactions with that code, propertyType=unit and groupBy=year. The answer is a per-year series of the median price per m\u00b2 with deed counts, and states the data comes from notarial deeds."
+            },
+            {
+              "description": "Get an orientation estimate of an undeveloped plot's value from comparable deeds.",
+              "prompt": "Give me Cenogram's land value estimate for a 1,000 m\u00b2 building plot near Piaseczno at latitude 52.07, longitude 21.02",
+              "tools_triggered": "estimate_land_value",
+              "expected_behavior": "ChatGPT calls estimate_land_value with the given coordinates, area=1000 and landType=plot. The answer gives the estimate per m\u00b2 and for the whole plot, a likely and a wide range, a confidence band, the number of comparable deeds and the as-of date, and says it is an orientation estimate, not a certified appraisal and not a statement that the plot is buildable."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The server holds deed prices from the past, not current offers, so ChatGPT should not present it as a source of listings.",
+              "prompt": "Show me the apartments currently for sale in Gda\u0144sk with links to the ads and the asking prices"
+            },
+            {
+              "description": "The dataset covers Poland only.",
+              "prompt": "What is the median price per m\u00b2 of apartments in Berlin Kreuzberg?"
+            },
+            {
+              "description": "Owner data is not part of the dataset and must not be produced.",
+              "prompt": "Who owns the parcel at Karmelicka 10 in Krak\u00f3w? Give me the owner's full name, phone number and home address"
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

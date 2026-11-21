@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "projectstudio",
+  "version": "0.1.0",
+  "description": "ChatCanvas + DocCanvas: makes the conversation and documents manipulable. Select, highlight, strike, box or capture, then turn any selection into a traceable action (task, decision, note, artifact). Deterministic patch/diff/versions with the original always preserved and no write without confirmation; optional durable workspaces keep immutable versions and an append-only audit log.",
+  "author": {
+    "name": "mmcco",
+    "email": "infodev@mmcco.co",
+    "url": "https://connecteur-projectos-interactive.vercel.app"
+  },
+  "homepage": "https://connecteur-projectos-interactive.vercel.app",
+  "license": "MIT",
+  "keywords": [
+    "productivity",
+    "workspace",
+    "document",
+    "annotation",
+    "diff",
+    "versions",
+    "canvas"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ProjectStudio",
+        "shortDescription": "Make chat and docs editable",
+        "longDescription": "ProjectStudio turns the conversation and your documents into a manipulable surface (ChatCanvas + DocCanvas). You show intent with direct gestures \u2014 select text, highlight, strike, box a region, add a comment, capture a region, set focus \u2014 and the agent completes the reasoning. Any selection can become a structured, traceable action: a task, a decision ledger entry, a note, a context-pack item or an artifact, always bound to its source with an exact-text snapshot so the action never points at the wrong passage. Editing is safe by construction: an edit never silently changes the original. You request an edit, preview a deterministic line-by-line diff (additions, removals and a unified diff), and only on an explicit confirmation is the change applied as a new, immutable derived version \u2014 the original is always kept and undo simply moves a pointer without deleting anything. Write actions (task, decision, patch, workflow) require a confirmation; nothing is written automatically. A deterministic latest-artifact resolver picks the current version by version and supersession rather than by name or date. Two ways to work: stateless primitives process only the content you pass and keep nothing; optional durable workspaces persist your registered documents, their immutable versions, annotations, recorded action requests, focus state and an append-only audit log in a private object store, so a workspace keeps real history. A durable workspace is reached by an unguessable workspace_id that acts like a bearer secret (no account, no login) \u2014 treat it like a password and do not put personal, health or banking data into any tool. The connector does not fetch external URLs and does not read your files: it works on the text you provide in the conversation, and region captures produce metadata only (image rendering and retention are planned). A widget renders the ChatCanvas + DocCanvas beside the chat, and every tool also works headless without the UI.",
+        "developerName": "mmcco",
+        "category": "Productivity",
+        "capabilities": [
+          "Makes chat and documents manipulable (ChatCanvas + DocCanvas): select, highlight, box, comment, capture, set focus.",
+          "Turns any selection into a traceable action (task, decision, note, artifact) bound to its source; preview/apply/undo.",
+          "Durable workspaces keep immutable versions, annotations and an append-only audit log via an unguessable workspace_id."
+        ],
+        "websiteURL": "https://connecteur-projectos-interactive.vercel.app",
+        "supportURL": "https://connecteur-projectos-interactive.vercel.app",
+        "privacyPolicyURL": "https://connecteur-projectos-interactive.vercel.app/privacy",
+        "termsOfServiceURL": "https://connecteur-projectos-interactive.vercel.app/terms",
+        "defaultPrompt": [
+          "Open the interactive workspace on this paragraph so I can select, highlight and edit it.",
+          "Turn 'call the notary before Friday' in my message into a traceable task.",
+          "Preview the diff of my edit, then apply it \u2014 keep the original and create a new version."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://connecteur-projectos-interactive.vercel.app/demo.gif",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Open the interactive workspace widget",
+              "prompt": "Open the interactive workspace on this paragraph so I can select, highlight and edit it.",
+              "tools_triggered": "open_workspace",
+              "expected_behavior": "Calls open_workspace and returns the ChatCanvas + DocCanvas widget (structuredContent.workspace plus the openai/outputTemplate meta pointing at the ProjectStudio interactive-workspace resource). The passed message/document is shown; nothing is written."
+            },
+            {
+              "description": "Preview the deterministic diff of an edit (read-only)",
+              "prompt": "Here is my clause and my rewrite \u2014 show me exactly what changes before anything is applied.",
+              "tools_triggered": "document_preview_patch",
+              "expected_behavior": "Calls document_preview_patch with the original and proposed text; returns a deterministic diff (count of additions and removals plus a unified diff) and applies nothing. For a two-line change with one edit per line the result is additions=2, removals=2, inchange=false."
+            },
+            {
+              "description": "Apply an edit as a new immutable version, original preserved",
+              "prompt": "Change 'payment due in 30 days' to '15 days' in Section 4, but keep the original and make it a new version.",
+              "tools_triggered": "document_apply_patch",
+              "expected_behavior": "Called without confirm, document_apply_patch returns status CONFIRMATION_REQUISE with a diff preview and writes nothing. Called again with confirm:true it returns status APPLIQU\u00c9 with an immutable derived version (v2), original_conserve:true \u2014 the original v1 is preserved and the change is reversible."
+            },
+            {
+              "description": "Turn a selection into a traceable task (confirmation gate)",
+              "prompt": "Select 'call the notary before Friday' in my message and turn it into a high-priority task.",
+              "tools_triggered": "chat_transform_selection",
+              "expected_behavior": "After chat_create_selection captures the exact text with its provenance, chat_transform_selection with action create_task returns status CONFIRMATION_REQUISE while confirm is absent (sensitive write). With confirm:true it returns status PR\u00caT with a Task whose provenance is bound to the source (resource_id of the message); the connector produces the traceable request and never applies it automatically."
+            },
+            {
+              "description": "Create a durable workspace and register a document as immutable v1",
+              "prompt": "Create a durable workspace for the closing file and register this deed text so it keeps a real version history.",
+              "tools_triggered": "ws_create",
+              "expected_behavior": "Calls ws_create and returns a reusable workspace_id, then ws_document_create registers the text as the immutable original version v1 (current:v1). ws_document_history then reports original:v1 and total:1. The data is stored durably in the workspace's private store; the original version is write-once."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Send an email (out of scope)",
+              "prompt": "Email this decision summary to my team.",
+              "expected_behavior": "No connector tool is triggered: ProjectStudio has no email or sending capability (tools/list exposes no email/send tool). It can capture the decision as a traceable action but cannot send messages, and says so."
+            },
+            {
+              "description": "Fetch and read a web page or file (out of scope)",
+              "prompt": "Open the contract at https://example.com/contract.pdf and pull out the clauses.",
+              "expected_behavior": "No connector tool is triggered: the connector does not fetch external URLs and does not read files (tools/list exposes no fetch/url/download tool). It only works on text provided in the conversation (e.g. via document_open), and explains that."
+            },
+            {
+              "description": "Permanently delete the original and all versions (out of scope)",
+              "prompt": "Permanently delete the original document and erase all of its versions.",
+              "expected_behavior": "No connector tool is triggered to destroy data: the connector never deletes the original or any version (tools/list exposes no delete/destroy tool; undo only moves a pointer, non-destructively). It explains that the original is always preserved and offers a non-destructive undo instead."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "ProjectStudio (ChatCanvas + DocCanvas) makes the conversation and documents manipulable: select, highlight, strike, box, capture and set focus, then turn any selection into a traceable action (task, decision, note, artifact) bound to its source. A deterministic patch engine previews, applies and undoes edits while always preserving the original (immutable derived versions; undo moves a pointer). Optional durable workspaces persist documents, immutable versions, annotations, recorded actions and an append-only audit log in a private store, reached by an unguessable workspace_id. This version refreshes the privacy policy and terms to describe the durable-workspace storage and retention accurately (no account, no cookies, no external calls or file reading)."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

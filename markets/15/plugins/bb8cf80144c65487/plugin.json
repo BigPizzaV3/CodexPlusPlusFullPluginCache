@@ -1,0 +1,100 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hypro",
+  "version": "1.0.6",
+  "description": "Plan strength training, review workout history and save routines to Hypro.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hypro",
+        "shortDescription": "Plan strength workouts",
+        "longDescription": "Plan your next strength workout in ChatGPT with Hypro.\n\n\u2022 Build workouts or multi-day plans around your equipment and available time.\n\u2022 Find exercise alternatives or add a custom exercise to your library.\n\u2022 Review recent workouts and see how many sets your plan gives each muscle.\n\u2022 Save routines or plans, then schedule a saved plan in your Hypro calendar.\n\nConnect Hypro and ask \u201cBuild me a 30-minute dumbbell workout.\u201d Review the exercises and sets, then say \u201cSave this routine to Hypro.\u201d",
+        "developerName": "Hypertro AS",
+        "category": "Productivity",
+        "capabilities": [
+          "Workout planning",
+          "Workout history",
+          "Private routines"
+        ],
+        "websiteURL": "https://www.hypro.app",
+        "supportURL": "https://www.hypro.app/support",
+        "privacyPolicyURL": "https://www.hypro.app/privacy",
+        "termsOfServiceURL": "https://www.hypro.app/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "defaultPrompt": [
+          "Build me a 3-day strength plan with 45-minute workouts.",
+          "What should I train today based on my recent workouts?",
+          "Which muscles get the least work in my plan, and what could I change?"
+        ]
+      },
+      "review": {
+        "prompts": [
+          "What units and weekly muscle-volume goal are saved in my Hypro account?",
+          "Find barbell bench press and dumbbell row exercises in Hypro and show their instructions.",
+          "Show my saved Hypro routines, then open the first one so I can review its exercises and sets. Do not change it.",
+          "Review my two most recent completed Hypro workouts and compare the recorded sets and weights. Do not change anything.",
+          "Build me a three-day full-body strength plan for Monday, Wednesday and Friday, with 45-minute sessions using barbells and dumbbells. I have trained for one year and have no current pain or movement restrictions. Use Hypro exercises and my saved weekly muscle-volume goal. Show the complete seven-day week, including rest days, for review. Do not save or schedule it yet."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Linked dedicated reviewer trainee account. Read saved units and weekly volume goal without creating or changing preferences. No sample records required.",
+              "prompt": "What units and weekly muscle-volume goal are saved in my Hypro account?",
+              "tools_triggered": "get_user_preferences",
+              "expected_behavior": "Call get_user_preferences with {}. Report returned units and goal, or explicitly say no saved goal if null. Do not infer a goal or invoke any write tool."
+            },
+            {
+              "description": "Linked dedicated reviewer trainee account. Exercise catalog search only; no account changes.",
+              "prompt": "Find barbell bench press and dumbbell row exercises in Hypro and show their instructions.",
+              "tools_triggered": "search_exercises",
+              "expected_behavior": "Use search_exercises with queries covering barbell bench press and dumbbell row. Show only returned catalog matches and instructions; distinguish missing matches and never invent catalog IDs. Do not create custom exercises."
+            },
+            {
+              "description": "Linked dedicated reviewer trainee account with at least one sample saved routine. Identify its returned ID rather than using an invented fixture ID.",
+              "prompt": "Show my saved Hypro routines, then open the first one so I can review its exercises and sets. Do not change it.",
+              "tools_triggered": "get_user_routines, get_user_routine, render_routine",
+              "expected_behavior": "List owned routines, fetch the selected returned routineId with get_user_routine, and call render_routine for that same ID. Preview must match returned exercise order and prescription, offer existing routine navigation, and make no save/update calls."
+            },
+            {
+              "description": "Linked dedicated reviewer trainee account with two sample completed workouts containing logged sets. No real user data. Follow pagination when needed.",
+              "prompt": "Review my two most recent completed Hypro workouts and compare the recorded sets and weights. Do not change anything.",
+              "tools_triggered": "get_user_workouts, get_user_workout",
+              "expected_behavior": "Read history using get_user_workouts, use returned completion status and dates to select actual completed workouts, and fetch their details with get_user_workout. Compare only recorded values and distinguish planned prescriptions from logs. Never infer completion from a past date or claim progress unsupported by the two workouts. No writes."
+            },
+            {
+              "description": "Multi-turn plan preview, confirmed save and separately confirmed scheduling. Use a dedicated reviewer trainee account with capacity for one additional plan and its routines, at least one sample saved routine and two sample completed workouts for the other cases. Before recording or executing this case, the reviewer selects an empty future calendar week. After the initial preview, send the separate follow-up \"Save this exact plan to my Hypro account.\" After the save succeeds, send \"Schedule this saved plan once, starting on [the selected future date in YYYY-MM-DD format]. Do not replace any existing workouts.\" Replace the bracketed text with the actual selected date. These follow-ups are separate explicit requests; the initial prompt authorizes neither saving nor scheduling.",
+              "prompt": "Build me a three-day full-body strength plan for Monday, Wednesday and Friday, with 45-minute sessions using barbells and dumbbells. I have trained for one year and have no current pain or movement restrictions. Use Hypro exercises and my saved weekly muscle-volume goal. Show the complete seven-day week, including rest days, for review. Do not save or schedule it yet.",
+              "tools_triggered": "get_user_preferences, search_exercises, render_plan, create_plan, get_user_workouts, start_routine_week",
+              "expected_behavior": "Read relevant preferences and search the accessible catalog, then call render_plan with seven explicit training/rest slots, three training days in the requested positions, and returned exercise IDs. Show the proposed week, estimated session times and planned weekly muscle coverage supported by the tool response. Keep names concise and do not add generic exercise notes. The initial prompt must call no write tool. Only after the separate explicit save request, call create_plan with the reviewed document and the unchanged preview saveOperationId as operationId. Report saved success and its returned link only if the tool confirms success. If an account limit blocks saving, explain the returned limit and direct the user to Hypro Premium in the Hypro app for more space; do not retry blindly or continue scheduling an unsaved plan. Only after successful saving and the separate scheduling request naming the selected future date, inspect the relevant schedule with get_user_workouts(view: \"schedule\", startDate/endDate covering that week), following pagination as needed. Call start_routine_week with folderId equal to the saved plan response id, the explicitly confirmed startDate, repeatWeeks: 1, replaceExisting: false, and a new operationId distinct from the save ID. Identical command retries must reuse that command operationId. If the selected week is occupied or the tool refuses, explain the result without replacing existing workouts or claiming success. Successful scheduling must be supported by the tool response and must not be described as starting a live workout or logging completed sets. Preserve the full reviewed prescription, including any warm-up sets, while summary working-set counts exclude warm-ups."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Completed-set logging is unsupported. Explain that this connection cannot record completed sets and direct the user to log in Hypro. Do not call update_scheduled_workout or any write tool as a substitute and do not claim a completed set was saved.",
+              "prompt": "Log a completed bench press set of 8 reps at 80 kg in my Hypro workout right now."
+            },
+            {
+              "description": "Publishing or sharing a public workout plan is outside this integration. Explain that limit without calling create_plan, create_routine or any other write tool, and do not claim a public link was created.",
+              "prompt": "Publish my saved Hypro routine publicly so anyone on the internet can use it."
+            },
+            {
+              "description": "The integration is not a medical diagnosis or treatment service. Explain that it cannot diagnose the injury or prescribe rehabilitation; recommend qualified medical assessment. Do not retrieve account records or create, modify or schedule workouts to fulfill the medical request.",
+              "prompt": "Diagnose the sharp pain in my knee and prescribe a rehabilitation treatment plan in Hypro."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "When Hypro account limits block saving additional exercises, routines or plans, users may be directed to subscribe to Hypro Premium in the Hypro app to unlock more space. This plugin does not process payments."
+      },
+      "publication": {
+        "release_notes": "Increased the rounding on the Hypro icon.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Hypertro AS"
+  }
+}

@@ -1,0 +1,1 @@
+The Inner Mirror 2.0.3. Remote MCP: https://mcp.drcheragshah.com/mcp/inner-mirror. No auth. Five positive and three negative test cases included. IMPORTANT: review.demo_recording_url is still required for final submission. Privacy policy accessibility and automated checks must also pass.

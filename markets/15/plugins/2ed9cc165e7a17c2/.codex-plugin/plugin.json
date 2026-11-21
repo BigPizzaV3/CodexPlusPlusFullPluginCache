@@ -1,0 +1,137 @@
+{
+  "name": "invoice-ledger",
+  "version": "1.0.0",
+  "description": "Supplier invoices to one Excel ledger, with tax by rate and duplicate checks.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://invoice-ledger.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "invoices to excel",
+    "invoice log",
+    "purchase ledger",
+    "vat summary",
+    "duplicate invoices",
+    "invoice register",
+    "xlsx",
+    "csv"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Zovo Invoice Ledger",
+    "shortDescription": "Supplier invoices to a ledger",
+    "longDescription": "Put a batch of supplier invoices into one spreadsheet with net, tax and gross totals. Zovo Invoice Ledger reads invoice PDFs with selectable text, pasted invoice text, or invoice values typed in the chat, and builds one Excel and CSV ledger: supplier, invoice number, invoice and due date, currency, net, tax for each rate, tax total and gross.\n\nEach invoice is checked to the cent: net plus tax must equal the total, and each tax amount must match its rate and taxable base. Invoice numbers that appear twice for the same supplier are flagged, and so are invoices with the same supplier, date and total under different numbers. Values that had to be computed (for example net from a tax-inclusive total) are marked.\n\nThe Excel file has a Ledger sheet, totals By supplier, a By tax rate summary (20%, 19%, 5.5%, 8.25% and so on, with the taxable base), and a Checks sheet listing each issue. Totals are kept per currency; amounts in different currencies are not added together.\n\nReads US and European number formats (1,234.56 and 1.234,56), day/month or month/day dates, and invoice labels in English, German, French, Spanish, Italian and Dutch.\n\nLimitations: reads header totals, not line items; scanned PDFs without selectable text are skipped (type their values instead); up to 20 files, 12 pages per file and 200 invoices at a time; does not convert currencies, file tax returns, or say whether tax can be reclaimed. Download links expire after about an hour.",
+    "developerName": "Zovo",
+    "category": "Finance",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://invoice-ledger.zovo.one",
+    "supportURL": "https://invoice-ledger.zovo.one/support",
+    "privacyPolicyURL": "https://invoice-ledger.zovo.one/privacy",
+    "termsOfServiceURL": "https://invoice-ledger.zovo.one/terms",
+    "defaultPrompt": [
+      "Put these in one ledger: Acme INV-7 2026-10-01 net \u00a3500 VAT 20%; Paper & Co PC-9 2026-10-04 net \u00a380 VAT \u00a316 total \u00a396",
+      "VAT summary by rate: Caf\u00e9 Lumi\u00e8re F-88, 5 Oct 2026, 5.5% on \u20ac100 = \u20ac5.50 and 20% on \u20ac41.67 = \u20ac8.33, total \u20ac155.50",
+      "Check for duplicates: Bright Paper #5531 2026-10-02 net $300 tax $24.75; #5531 again 2026-10-02 same amounts"
+    ],
+    "brandColor": "#2E6B5E",
+    "brandColorDark": "#7CCBB8",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/invoice-ledger/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Ledger from typed invoices with a duplicate and a wrong total",
+              "prompt": "One ledger: Acme INV-1001 2026-10-01 net \u00a31,250 VAT 20%; Acme INV-1001 2026-10-03 net \u00a380 VAT \u00a316; Paper & Co PC-58 2026-10-07 net \u00a3200 VAT 20% total \u00a3245",
+              "tools_triggered": "generate_invoice_ledger",
+              "expected_behavior": "Calls generate_invoice_ledger with 3 invoices in GBP. Totals: net 1530.00, tax 306.00, gross 1841.00. Flags INV-1001 as a duplicate number for Acme and PC-58 because 200.00 + 40.00 = 240.00, not 245.00 (difference 5.00). Excel and CSV links."
+            },
+            {
+              "description": "German invoice text",
+              "prompt": "Ledger from this invoice: Northwind GmbH, Rechnung Nr. RE-2026-81, Rechnungsdatum 15.10.2026, Nettobetrag 1.000,00 EUR, MwSt. 19% 190,00 EUR, Gesamtbetrag 1.190,00 EUR",
+              "tools_triggered": "generate_invoice_ledger",
+              "expected_behavior": "Calls generate_invoice_ledger. One EUR invoice RE-2026-81 dated 2026-10-15 with net 1000.00, tax 190.00 at 19% and gross 1190.00, no issues. Excel and CSV links."
+            },
+            {
+              "description": "VAT summary with two rates on one invoice",
+              "prompt": "VAT by rate: Caf\u00e9 Lumi\u00e8re F-88 2026-10-05 5.5% on \u20ac100 = \u20ac5.50 and 20% on \u20ac41.67 = \u20ac8.33, total \u20ac155.50; Northwind RE-77 2026-10-02 net \u20ac1,000 VAT 19% total \u20ac1,190",
+              "tools_triggered": "generate_invoice_ledger",
+              "expected_behavior": "Calls generate_invoice_ledger with 2 EUR invoices. By tax rate: 20% tax 8.33 on 41.67, 19% tax 190.00 on 1000.00, 5.5% tax 5.50 on 100.00. Totals: tax 203.83, gross 1345.50. No issues."
+            },
+            {
+              "description": "Duplicate check",
+              "prompt": "Check for duplicates: Bright Paper #5531 2026-10-02 net $300 tax $24.75; #5531 again 2026-10-02 same amounts; #5532 2026-10-09 net $120 tax $9.90 total $131",
+              "tools_triggered": "generate_invoice_ledger",
+              "expected_behavior": "Calls generate_invoice_ledger with 3 USD invoices. Flags 5531 as a duplicate number (1 duplicate) and 5532 because 120.00 + 9.90 = 129.90, not 131.00 (difference 1.10). Tax rate 8.25% inferred. Gross total 780.50."
+            },
+            {
+              "description": "Tax-inclusive totals in yen",
+              "prompt": "Ledger for Sakura KK invoices: S-1 dated 2026-10-01 total \u00a511,000 incl. 10% tax, and S-2 dated 2026-10-15 total \u00a55,500 incl. 10% tax",
+              "tools_triggered": "generate_invoice_ledger",
+              "expected_behavior": "Calls generate_invoice_ledger with 2 JPY invoices and tax_rate 10. Net is computed from the totals: 10000 and 5000; totals net 15000, tax 1500, gross 16500 with no decimals. Excel and CSV links."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Making a new invoice is a different job. Expected: the tool is not called; the assistant helps write the invoice or suggests an invoice maker.",
+              "prompt": "Create an invoice for my client Jane Doe for 10 hours of design work at $80 an hour"
+            },
+            {
+              "description": "Currency conversion is out of scope. Expected: the tool is not called.",
+              "prompt": "Convert 500 EUR to USD at today's rate"
+            },
+            {
+              "description": "Sending or paying invoices is out of scope. Expected: the tool is not called; the assistant explains it cannot send or pay invoices.",
+              "prompt": "Email this invoice to my supplier and pay it from my bank account"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://invoice-ledger.zovo.one/demo.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: invoice PDFs, pasted text or rows to one Excel and CSV ledger with tax by rate, totals per supplier, and checks for duplicate numbers and totals that do not add up.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Faktury w jednym arkuszu",
+            "description": "Zbierz faktury od dostawc\u00f3w w jednym arkuszu. Zovo Invoice Ledger odczytuje faktury PDF z zaznaczalnym tekstem, wklejony tekst faktur albo warto\u015bci wpisane w czacie i tworzy jeden rejestr w Excelu i CSV: dostawca, numer faktury, data wystawienia i termin p\u0142atno\u015bci, waluta, netto, podatek dla ka\u017cdej stawki, suma podatku i brutto.\n\nKa\u017cda faktura jest sprawdzana co do grosza: netto plus podatek musi da\u0107 kwot\u0119 brutto, a podatek musi zgadza\u0107 si\u0119 ze stawk\u0105 i podstaw\u0105. Numery faktur powt\u00f3rzone u tego samego dostawcy s\u0105 oznaczane, podobnie jak faktury z tym samym dostawc\u0105, dat\u0105 i kwot\u0105 pod r\u00f3\u017cnymi numerami.\n\nPlik Excel zawiera arkusz Rejestr, sumy wed\u0142ug dostawc\u00f3w, zestawienie wed\u0142ug stawek podatku oraz arkusz Kontrola z list\u0105 problem\u00f3w. Kwoty w r\u00f3\u017cnych walutach nigdy nie s\u0105 sumowane razem.\n\nOgraniczenia: odczytuje sumy z nag\u0142\u00f3wka, nie pozycje faktury; skany bez tekstu s\u0105 pomijane; do 20 plik\u00f3w i 200 faktur naraz; nie przelicza walut i nie sk\u0142ada deklaracji podatkowych. Linki wygasaj\u0105 po oko\u0142o godzinie."
+          },
+          "de-DE": {
+            "subtitle": "Rechnungen in einer Tabelle",
+            "description": "Sammeln Sie Lieferantenrechnungen in einer Tabelle. Zovo Invoice Ledger liest Rechnungs-PDFs mit markierbarem Text, eingef\u00fcgten Rechnungstext oder im Chat genannte Werte und erstellt ein Rechnungsjournal als Excel und CSV: Lieferant, Rechnungsnummer, Rechnungs- und F\u00e4lligkeitsdatum, W\u00e4hrung, Netto, Steuer je Satz, Steuer gesamt und Brutto.\n\nJede Rechnung wird centgenau gepr\u00fcft: Netto plus Steuer muss den Gesamtbetrag ergeben, und jeder Steuerbetrag muss zu Satz und Bemessungsgrundlage passen. Doppelte Rechnungsnummern desselben Lieferanten werden markiert, ebenso Rechnungen mit gleichem Lieferanten, Datum und Betrag unter verschiedenen Nummern.\n\nDie Excel-Datei enth\u00e4lt ein Journal, Summen je Lieferant, eine \u00dcbersicht je Steuersatz und ein Blatt mit allen Pr\u00fcfhinweisen. Betr\u00e4ge in verschiedenen W\u00e4hrungen werden nie addiert.\n\nEinschr\u00e4nkungen: liest Summen aus dem Rechnungskopf, keine Positionen; gescannte PDFs ohne Text werden \u00fcbersprungen; bis zu 20 Dateien und 200 Rechnungen pro Anfrage; keine W\u00e4hrungsumrechnung, keine Steuererkl\u00e4rung. Links laufen nach etwa einer Stunde ab."
+          },
+          "es-ES": {
+            "subtitle": "Facturas en una sola hoja",
+            "description": "Re\u00fane las facturas de proveedores en una sola hoja de c\u00e1lculo. Zovo Invoice Ledger lee facturas PDF con texto seleccionable, texto de facturas pegado o valores escritos en el chat, y crea un libro de facturas en Excel y CSV: proveedor, n\u00famero de factura, fecha de emisi\u00f3n y de vencimiento, moneda, base, impuesto por tipo, total de impuestos y total.\n\nCada factura se comprueba al c\u00e9ntimo: base m\u00e1s impuesto debe dar el total, y cada impuesto debe coincidir con su tipo y su base. Se marcan los n\u00fameros de factura repetidos de un mismo proveedor y las facturas con el mismo proveedor, fecha e importe con n\u00fameros distintos.\n\nEl Excel incluye el libro, totales por proveedor, un resumen por tipo impositivo y una hoja de comprobaciones. Los importes en monedas distintas nunca se suman entre s\u00ed.\n\nLimitaciones: lee los totales de la cabecera, no las l\u00edneas; los PDF escaneados sin texto se omiten; hasta 20 archivos y 200 facturas por vez; no convierte monedas ni presenta declaraciones. Los enlaces caducan en una hora aproximadamente."
+          },
+          "fr-FR": {
+            "subtitle": "Vos factures dans un tableur",
+            "description": "Rassemblez les factures fournisseurs dans un seul tableur. Zovo Invoice Ledger lit les factures PDF au texte s\u00e9lectionnable, le texte de factures coll\u00e9 ou les montants saisis dans la conversation, et produit un journal des factures en Excel et CSV : fournisseur, num\u00e9ro, date de facture et d'\u00e9ch\u00e9ance, devise, HT, TVA par taux, total TVA et TTC.\n\nChaque facture est v\u00e9rifi\u00e9e au centime pr\u00e8s : HT plus TVA doit \u00e9galer le TTC, et chaque montant de TVA doit correspondre \u00e0 son taux et \u00e0 sa base. Les num\u00e9ros en double chez un m\u00eame fournisseur sont signal\u00e9s, ainsi que les factures de m\u00eame fournisseur, date et montant sous des num\u00e9ros diff\u00e9rents.\n\nLe fichier Excel contient le journal, les totaux par fournisseur, un r\u00e9capitulatif par taux de TVA et une feuille de contr\u00f4les. Les montants de devises diff\u00e9rentes ne sont jamais additionn\u00e9s.\n\nLimites : lit les totaux d'en-t\u00eate, pas les lignes ; les PDF scann\u00e9s sans texte sont ignor\u00e9s ; jusqu'\u00e0 20 fichiers et 200 factures \u00e0 la fois ; pas de conversion de devises ni de d\u00e9claration fiscale. Les liens expirent au bout d'environ une heure."
+          },
+          "ja-JP": {
+            "subtitle": "\u8acb\u6c42\u66f8\u30921\u3064\u306e\u8868\u306b",
+            "description": "\u4ed5\u5165\u5148\u306e\u8acb\u6c42\u66f8\u3092\u307e\u3068\u3081\u30661\u3064\u306e\u8868\u306b\u3057\u307e\u3059\u3002Zovo Invoice Ledger \u306f\u3001\u30c6\u30ad\u30b9\u30c8\u3092\u9078\u629e\u3067\u304d\u308b\u8acb\u6c42\u66f8PDF\u3001\u8cbc\u308a\u4ed8\u3051\u305f\u8acb\u6c42\u66f8\u306e\u6587\u5b57\u3001\u307e\u305f\u306f\u30c1\u30e3\u30c3\u30c8\u3067\u5165\u529b\u3057\u305f\u91d1\u984d\u3092\u8aad\u307f\u53d6\u308a\u3001Excel\u3068CSV\u306e\u8acb\u6c42\u66f8\u53f0\u5e33\u3092\u4f5c\u6210\u3057\u307e\u3059\u3002\u4ed5\u5165\u5148\u3001\u8acb\u6c42\u66f8\u756a\u53f7\u3001\u8acb\u6c42\u65e5\u3068\u652f\u6255\u671f\u65e5\u3001\u901a\u8ca8\u3001\u7a0e\u629c\u91d1\u984d\u3001\u7a0e\u7387\u3054\u3068\u306e\u7a0e\u984d\u3001\u7a0e\u984d\u5408\u8a08\u3001\u7a0e\u8fbc\u91d1\u984d\u3092\u8a18\u9332\u3057\u307e\u3059\u3002\n\n\u5404\u8acb\u6c42\u66f8\u306f1\u5186\u5358\u4f4d\u3067\u78ba\u8a8d\u3057\u307e\u3059\u3002\u7a0e\u629c\u91d1\u984d\u3068\u7a0e\u984d\u306e\u5408\u8a08\u304c\u7a0e\u8fbc\u91d1\u984d\u3068\u4e00\u81f4\u3059\u308b\u304b\u3001\u7a0e\u984d\u304c\u7a0e\u7387\u3068\u8ab2\u7a0e\u6a19\u6e96\u306b\u5408\u3063\u3066\u3044\u308b\u304b\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002\u540c\u3058\u4ed5\u5165\u5148\u3067\u756a\u53f7\u304c\u91cd\u8907\u3057\u3066\u3044\u308b\u8acb\u6c42\u66f8\u3084\u3001\u4ed5\u5165\u5148\u30fb\u65e5\u4ed8\u30fb\u91d1\u984d\u304c\u540c\u3058\u3067\u756a\u53f7\u3060\u3051\u9055\u3046\u8acb\u6c42\u66f8\u306b\u306f\u5370\u3092\u4ed8\u3051\u307e\u3059\u3002\n\nExcel\u306b\u306f\u53f0\u5e33\u3001\u4ed5\u5165\u5148\u5225\u306e\u5408\u8a08\u3001\u7a0e\u7387\u5225\u306e\u96c6\u8a08\u3001\u78ba\u8a8d\u4e8b\u9805\u306e\u30b7\u30fc\u30c8\u304c\u542b\u307e\u308c\u307e\u3059\u3002\u7570\u306a\u308b\u901a\u8ca8\u306e\u91d1\u984d\u3092\u5408\u7b97\u3059\u308b\u3053\u3068\u306f\u3042\u308a\u307e\u305b\u3093\u3002\n\n\u5236\u9650\u4e8b\u9805\uff1a\u660e\u7d30\u884c\u3067\u306f\u306a\u304f\u5408\u8a08\u6b04\u3092\u8aad\u307f\u53d6\u308a\u307e\u3059\u3002\u6587\u5b57\u60c5\u5831\u306e\u306a\u3044\u30b9\u30ad\u30e3\u30f3PDF\u306f\u30b9\u30ad\u30c3\u30d7\u3057\u307e\u3059\u3002\u4e00\u5ea6\u306b20\u30d5\u30a1\u30a4\u30eb\u3001200\u4ef6\u307e\u3067\u3002\u901a\u8ca8\u63db\u7b97\u3084\u7a0e\u52d9\u7533\u544a\u306f\u884c\u3044\u307e\u305b\u3093\u3002\u30ea\u30f3\u30af\u306f\u7d041\u6642\u9593\u3067\u5931\u52b9\u3057\u307e\u3059\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "Notas e faturas numa planilha",
+            "description": "Re\u00fana faturas de fornecedores em uma \u00fanica planilha. O Zovo Invoice Ledger l\u00ea faturas em PDF com texto selecion\u00e1vel, texto de faturas colado ou valores digitados no chat e cria um livro de faturas em Excel e CSV: fornecedor, n\u00famero da fatura, data de emiss\u00e3o e de vencimento, moeda, valor l\u00edquido, imposto por al\u00edquota, total de impostos e valor bruto.\n\nCada fatura \u00e9 conferida centavo a centavo: l\u00edquido mais imposto deve dar o total, e cada imposto deve bater com a al\u00edquota e a base. N\u00fameros repetidos de um mesmo fornecedor s\u00e3o sinalizados, assim como faturas com mesmo fornecedor, data e valor sob n\u00fameros diferentes.\n\nO Excel traz o livro, totais por fornecedor, um resumo por al\u00edquota e uma aba de verifica\u00e7\u00f5es. Valores em moedas diferentes nunca s\u00e3o somados.\n\nLimita\u00e7\u00f5es: l\u00ea os totais do cabe\u00e7alho, n\u00e3o os itens; PDFs escaneados sem texto s\u00e3o ignorados; at\u00e9 20 arquivos e 200 faturas por vez; n\u00e3o converte moedas nem entrega declara\u00e7\u00f5es. Os links expiram em cerca de uma hora."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

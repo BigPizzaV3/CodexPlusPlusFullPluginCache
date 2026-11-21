@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "entendre",
+  "version": "1.0.0",
+  "description": "Read and manage accounting data in your Entendre Finance organization.",
+  "author": {
+    "name": "Entendre Finance, Inc.",
+    "url": "https://entendre.ai"
+  },
+  "homepage": "https://entendre.ai",
+  "keywords": [
+    "accounting",
+    "finance",
+    "bookkeeping",
+    "journal entries",
+    "financial reports"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Entendre",
+        "shortDescription": "Accounting for finance teams",
+        "longDescription": "Connect ChatGPT to Entendre\u2019s Unified API and work across your accounting data from a single conversation\u2014browse accounts, query transactions, review balances, classify activity, create journal entries, generate reports, and keep your general ledger in sync without exporting data or switching tools.",
+        "developerName": "Entendre Finance, Inc.",
+        "category": "Finance",
+        "capabilities": [
+          "Read balances and transactions",
+          "Financial reports",
+          "Accounting period close status",
+          "Create and manage journal entries",
+          "Sync journal entries to a general ledger"
+        ],
+        "websiteURL": "https://entendre.ai",
+        "supportURL": "https://entendre.ai/contact/",
+        "privacyPolicyURL": "https://entendre.ai/privacy/",
+        "termsOfServiceURL": "https://entendre.ai/terms/",
+        "defaultPrompt": [
+          "What are my open accounting periods?",
+          "Show me this month's income statement.",
+          "Am I ready to close last month?"
+        ],
+        "brandColor": "#6366F1",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List open accounting periods",
+              "prompt": "What are my open accounting periods?",
+              "tools_triggered": "list_accounting_periods",
+              "expected_behavior": "Uses list_accounting_periods with status=open. Follows returned continuation cursors before claiming a complete list. Presents each returned period and its entity/date range; a failed page is incomplete evidence, not an empty result."
+            },
+            {
+              "description": "Income statement for the current month",
+              "prompt": "Show me this month's income statement.",
+              "tools_triggered": "get_income_statement_report",
+              "expected_behavior": "Uses get_income_statement_report with explicit start_date and end_date for the current UTC month, preserving any established entity scope. Presents returned revenue, expenses and net income with currency and warnings. Does not mix currencies or invent totals. The window selects accounting-period columns, not transaction-level date filtering. Label whole periods accurately and join account balances by account ID without double-counting parent totals."
+            },
+            {
+              "description": "Treasury balances",
+              "prompt": "Show the latest available balances for our sample wallets and bank accounts. Do not refresh them.",
+              "tools_triggered": "get_treasury_balances",
+              "expected_behavior": "Uses get_treasury_balances with basis=live and the resolved sample scope. Reports the returned stored wallet/bank balances and exchange snapshots, their timestamps, currency, unavailable sources and warnings. Keeps token quantities separate and checks context.total_fiat_status before describing a total as complete. Does not call refresh_treasury_balances or imply that this read fetched fresh provider balances."
+            },
+            {
+              "description": "Month-end close readiness",
+              "prompt": "Am I ready to close last month?",
+              "tools_triggered": "list_accounting_periods, get_accounting_period_close_preflight",
+              "expected_behavior": "Resolves the previous UTC month using list_accounting_periods with its canonical start_date and the known fixture entity, then calls get_accounting_period_close_preflight for the returned period id. Reports the actual blockers or readiness. Does not call close_accounting_period or create_revaluation."
+            },
+            {
+              "description": "Create a draft journal entry in a dedicated sample organization. Setup is not yet verified: requires postable sample Cash and Revenue accounts, a known legal entity and an open period for today. USD 1,000 is a proposed test input, not a claimed existing balance or observed result.",
+              "prompt": "In our demo organization, create one draft journal entry for today with memo \"Connector review sample\": debit the sample Cash account USD 1,000 and credit the sample Revenue account USD 1,000. Do not post or sync it.",
+              "tools_triggered": "list_ledger_accounts, create_journal_entry",
+              "expected_behavior": "Resolves unique active sample account ids and the authorized entity. If required context is missing or ambiguous, asks before writing. Follows the existing operation approval rule, calls create_journal_entry once using the supported manual-lines variant, and reports the authoritative draft receipt and USD amounts. Does not call post_journal_entry or sync_journals. Save the created id for approved test cleanup; never repeat an ambiguous write. Send status=draft explicitly, decimal-string amounts, the supplied memo and the verified accounting date/entity. If today has no suitable open period, report the blocker rather than silently changing dates or opening a period."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated general knowledge: answer without invoking Entendre tools.",
+              "prompt": "What is the capital of France?"
+            },
+            {
+              "description": "Investment trading is unsupported: explain the limit. Do not call a mutation or delegate to an agent.",
+              "prompt": "Buy 100 shares of a company for me using our bank account."
+            },
+            {
+              "description": "A bank payment is unsupported: explain the limit. Do not substitute cash-application completion, source mutations or an agent run.",
+              "prompt": "Pay our vendor Acme USD 5,000 from the operating bank account."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/lcBMu-sKV1M"
+      },
+      "publication": {
+        "release_notes": "Initial ChatGPT release with named accounting tools, organization and firm OAuth access, permission checks, and explicit client selection for firm connections."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

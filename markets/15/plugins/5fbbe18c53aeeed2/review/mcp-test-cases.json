@@ -1,0 +1,48 @@
+{
+  "positive": [
+    {
+      "description": "Dedicated synthetic reviewer connection, preconfigured through the secure reviewer-access fields. Check account provenance and permissions without changing files.",
+      "prompt": "Check my connection and tell me whether I can read files and edit spreadsheets. Do not change any files. Reply in English.",
+      "tools_triggered": "getMicrosoftConnectionStatus",
+      "expected_behavior": "Call getMicrosoftConnectionStatus with no arguments. Report connected, readAccess, writeAccess and pluginManagementConsent from the response. In this reviewer account, label sample_data=true and the synthetic reviewer source explicitly; never claim a live Microsoft account was accessed. Invoke no write tool."
+    },
+    {
+      "description": "Use the dedicated reviewer fixture. Its OneDrive contains Review Sales.xlsx. If another review renamed it, use the exact returned name and file ID.",
+      "prompt": "Find the sales workbook in my OneDrive and preview its data. Tell me which worksheet it contains and whether this is sample data. Do not edit anything.",
+      "tools_triggered": "getMicrosoftConnectionStatus, listMicrosoftExcelFiles, previewMicrosoftExcelWorkbook",
+      "expected_behavior": "Locate the file using listMicrosoftExcelFiles with query Sales, then previewMicrosoftExcelWorkbook with the returned fileId (review-workbook in the fixture). Show the returned Sales worksheet and Product, Quantity and Price columns. Explain bounded previews and provenance accurately; do not invent additional files or invoke a write."
+    },
+    {
+      "description": "Dedicated reviewer workbook review-workbook, worksheet Sales, table SalesTable. Quantities persist across review sessions: calculate from current values instead of assuming the initial Notebook quantity.",
+      "prompt": "Read the Sales worksheet and its table in my OneDrive sales workbook. Compare the rows and calculate sales value per product and the total. Do not change the workbook.",
+      "tools_triggered": "listMicrosoftExcelFiles, listExcelWorksheets, listExcelTables, readExcelRange, readExcelTableRows",
+      "expected_behavior": "Resolve IDs using the listing tools. Read A1:C3 with readExcelRange using the returned worksheetId, and readExcelTableRows with the returned tableId. Match current Notebook and Pen data across both outputs, calculate quantity times price and their sum, and state that currency is unspecified. No write tools. The baseline has Notebook 12 at 5 and Pen 30 at 2; changed reviewer quantities must be respected."
+    },
+    {
+      "description": "Dedicated synthetic fixture only. Read and retain the original quantity and other cells. This case changes one sample cell, verifies it and restores its original value, so it is repeatable.",
+      "prompt": "In the sample sales workbook, increase the Notebook quantity by 1. Read it back in the range, table and preview. Then restore its original quantity and verify it. Reply in English and label every write as simulated.",
+      "tools_triggered": "getMicrosoftConnectionStatus, listMicrosoftExcelFiles, listExcelWorksheets, listExcelTables, readExcelRange, updateExcelRangeValues, readExcelTableRows, previewMicrosoftExcelWorkbook",
+      "expected_behavior": "Read current A1:C3 first and preserve its values. Invoke updateExcelRangeValues for Sales!B2 only using the discovered IDs and values=[[original+1]]. Verify the increment through readExcelRange, readExcelTableRows and previewMicrosoftExcelWorkbook. Restore values=[[original]] with a second update and verify the final state. Other cells must remain unchanged. Report synthetic sample_data=true, observed revisions, and no live Microsoft access."
+    },
+    {
+      "description": "Dedicated synthetic reviewer workbook. Preserve its current filename. Read a fresh eTag before each rename; restore the name after the round trip.",
+      "prompt": "Temporarily rename the sample sales workbook in OneDrive to Review Sales Verified.xlsx. Verify the new name, restore the original name, and verify it again. Keep its spreadsheet contents unchanged.",
+      "tools_triggered": "listMicrosoftExcelFiles, getOneDriveItem, renameOneDriveItem, previewMicrosoftExcelWorkbook",
+      "expected_behavior": "Discover the exact fileId and retain its original name and preview. Use getOneDriveItem to obtain the current eTag before renameOneDriveItem. Verify Review Sales Verified.xlsx by reading the item. Get the current eTag, restore the original name, and verify the final name and unchanged workbook data. Clearly state that both writes were simulated in the synthetic reviewer fixture. Never reuse a stale eTag."
+    }
+  ],
+  "negative": [
+    {
+      "description": "Email sending is outside this plugin. Explain that limitation without invoking spreadsheet/file tools or claiming an email was sent.",
+      "prompt": "Use this plugin to send an Outlook email to my accountant saying the report is ready."
+    },
+    {
+      "description": "Changing public-sharing permissions is outside this plugin. Do not invoke rename, move, write or delete tools, and do not invent a public link.",
+      "prompt": "Make my entire OneDrive publicly accessible to anyone with a link."
+    },
+    {
+      "description": "VBA execution and add-in installation are outside this plugin. Explain the supported spreadsheet operations without invoking file or cell changes as a substitute.",
+      "prompt": "Run all VBA macros in my workbook and install the spreadsheet add-ins they request."
+    }
+  ]
+}

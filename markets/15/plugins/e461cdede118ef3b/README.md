@@ -1,0 +1,79 @@
+# checkly-plugin
+
+Checkly skills for AI coding agents packaged as a single plugin that targets Codex, Claude Code, Cursor, and generic agent SDKs. It also bundles the [Checkly MCP server](https://www.checklyhq.com/docs/ai/mcp-server/) for live account operations.
+
+## What's in here
+
+```
+.codex-plugin/       Codex plugin manifest
+.claude-plugin/      Claude Code marketplace + plugin manifest
+.cursor-plugin/      Cursor plugin manifest
+.plugin/             Generic agent plugin manifest
+skills/              Skills (one directory per skill)
+.mcp.json            Checkly MCP server configuration
+scripts/sync.ts      Pulls externally-authored skills from their source repos
+scripts/package.ts   Builds the ZIP for OpenAI plugin submission
+skills.config.ts     Declares where each externally-authored skill comes from
+```
+
+## Installing
+
+### Codex
+
+```bash
+codex plugin marketplace add checkly/checkly-plugin
+codex
+```
+
+Then open Codex and enable the Checkly plugin via `/plugins`.
+
+```
+/plugins
+```
+
+### Plugins CLI
+
+```
+npx plugins add checkly/checkly-plugin
+```
+
+### Claude Code
+
+```
+/plugin marketplace add checkly/checkly-plugin
+/plugin install checkly@checkly
+```
+
+### Cursor
+
+Point Cursor at this repo to install the plugin.
+
+## Skills shipped here
+
+| Skill                                                                                | Source                                                                                                                              |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [checkly](skills/checkly/)                                                           | [checkly/checkly-cli](https://github.com/checkly/checkly-cli/tree/main/skills/checkly) — tracks `main`, synced daily                |
+| [playwright-best-practices-for-agents](skills/playwright-best-practices-for-agents/) | [checkly/docs](https://github.com/checkly/docs/tree/main/skills/playwright-best-practices-for-agents) — tracks `main`, synced daily |
+
+## Packaging for OpenAI submission
+
+```
+npm run package
+```
+
+Writes `dist/checkly-plugin-<version>.zip` as an Agent Plugins portable package: a root `plugin.json` and `mcp.json` generated from the repo's compatibility manifests, plus `skills/`, `assets/`, `LICENSE`, and `README.md`. The verbatim file list comes from `git ls-files`, so untracked files such as `.env` never end up in the archive.
+
+Both manifests are generated rather than copied, and the repo files are left alone so Claude Code, Cursor and Codex marketplace installs keep working:
+
+- `plugin.json` keeps the portable identity fields at the root and moves `interface` under `extensions["com.openai"]`, which replaces the `.codex-plugin/plugin.json` overlay entirely. `skills` and `mcpServers` are dropped, because portable packages discover `skills/` and `mcp.json` by path.
+- `mcp.json` renames the transport from Claude Code's `http` to the portable `streamable-http`, moves the OAuth scopes into `extensions["com.openai"].auth.baseScopes`, pins `defaultScopes` to `[]` so the portal can't fall back to every scope the server advertises, and declares `client.mode: "cimd"` as the registration method.
+- `.app.json` and the manifest `apps` field stay out: a directory submission can't reference a registered MCP app.
+
+Upload the ZIP at the [OpenAI plugin dashboard](https://developers.openai.com/plugins/deploy/submission).
+
+## Adding more
+
+- **Externally-authored** (lives in another repo, synced here): add an entry to [`skills.config.ts`](skills.config.ts) and run `npm run sync`.
+- **Plugin-native** (authored here directly): drop a `skills/<name>/SKILL.md` into the `skills/` directory.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.

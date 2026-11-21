@@ -1,0 +1,91 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "phonestamp-assistant",
+  "version": "0.1.4",
+  "description": "Connect to your PhoneStamp portal from ChatGPT.",
+  "author": {
+    "name": "PhoneStamp",
+    "url": "https://phonestamp.com"
+  },
+  "homepage": "https://phonestamp.com",
+  "license": "Proprietary",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PhoneStamp Assistant",
+        "shortDescription": "Access your PhoneStamp portal",
+        "longDescription": "Connect your PhoneStamp account to use the portal tools available to you in ChatGPT. Available information and actions depend on your account permissions and the connected Portal MCP server.",
+        "developerName": "PhoneStamp",
+        "category": "Productivity",
+        "capabilities": [],
+        "websiteURL": "https://phonestamp.com",
+        "supportURL": "https://phonestamp.com/da-dk/kontakt/",
+        "defaultPrompt": [
+          "Check my PhoneStamp connection."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png",
+        "privacyPolicyURL": "https://phonestamp.com/da-dk/vilkaar/privatliv/",
+        "termsOfServiceURL": "https://phonestamp.com/da-dk/vilkaar/handelsbetingelser/"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Verify the connected identity and discover accessible apps. Prerequisite: connect using the dedicated review account provided securely in the dashboard; it must have access to the disposable demo app whose unique name is openaidemo.",
+              "prompt": "Check my PhoneStamp connection and tell me which account is signed in. List the apps I can access and identify the app whose unique name is openaidemo. Do not make changes.",
+              "tools_triggered": "mcp_ping, apps_list_apps",
+              "expected_behavior": "mcp_ping succeeds with pong=true, the connected user and a server time. apps_list_apps returns the apps accessible to that user, including openaidemo, with its id, name, label and tenant. The response identifies the matching app using returned data and makes no write calls."
+            },
+            {
+              "description": "Inspect the website stylesheet and its markup contract. Prerequisite: openaidemo has the website and custom CSS features enabled and the review account has website read permission. This case does not require another case to have run.",
+              "prompt": "Find the PhoneStamp app whose unique name is openaidemo. Read its current website CSS and markup reference. Report the markup version, whether the CSS is the default and any version warning. Explain which design properties and cookie banner rules must be preserved. Do not save anything.",
+              "tools_triggered": "apps_list_apps, sites_get_css, sites_get_markup_reference",
+              "expected_behavior": "Resolve openaidemo through apps_list_apps and pass its returned integer id to the website tools. Return the actual markup_version, is_default and warning from sites_get_css and explain the applicable var(--ps-*) design properties and ps-cookie* rules from the reference. Do not invent a warning or make write calls."
+            },
+            {
+              "description": "Inspect the rendered home page and obtain the portal preview link. Prerequisite: openaidemo has an enabled website with a home page; the review account has website read permission and can open its preview in a browser signed in to PhoneStamp.",
+              "prompt": "For the PhoneStamp app whose unique name is openaidemo, inspect the website home page at /. Briefly describe the structure returned by the HTML tool and give me its portal preview link. Do not change the website.",
+              "tools_triggered": "apps_list_apps, sites_get_html, sites_get_preview_url",
+              "expected_behavior": "Resolve openaidemo and call sites_get_html with its id and path=/, then sites_get_preview_url with the same id. Summarize the actual returned HTML and return the exact preview URL. Explain that opening the preview requires a browser signed in to the portal. Make no write calls and do not claim to have visually inspected a browser preview from HTML alone."
+            },
+            {
+              "description": "Apply and verify a small CSS change on the disposable review app. Prerequisite: openaidemo contains sample data, its website and custom CSS features are enabled, and the review account has website read and CSS change permissions. The change takes effect immediately. Approve the tool confirmation when prompted. Run only on openaidemo.",
+              "prompt": "I authorize a live CSS change only to the disposable PhoneStamp demo app whose unique name is openaidemo. Find that app and read its current CSS, markup reference and home page HTML. Preserve the complete existing stylesheet, its design properties and cookie banner rules. Append /* OpenAI review outline */ followed by .ps-main { outline: 2px solid #6750a4; outline-offset: -2px; } and save the full stylesheet. Read it back to verify the rule and give me the preview link. Stop without saving if openaidemo cannot be uniquely identified.",
+              "tools_triggered": "apps_list_apps, sites_get_css, sites_get_markup_reference, sites_get_html, sites_update_css, sites_get_preview_url",
+              "expected_behavior": "Use only the discovered openaidemo id. Read the current full CSS and reference, render /, append the specified rule without removing existing content, and call sites_update_css with the full stylesheet. After success, call sites_get_css again and verify that the marker and rule are saved and is_default=false. Return the preview URL. If confirmation is required, wait for approval. Do not claim visual success without opening the preview, and do not write to any other app."
+            },
+            {
+              "description": "Reset the disposable demo website to its default stylesheet and verify the result. Prerequisites: the same feature flags and permissions as the CSS update case. This deliberately removes all custom CSS on openaidemo and takes effect immediately. Run after case 4 to demonstrate cleanup; it also works independently if the demo already uses default CSS. Approve the tool confirmation when prompted.",
+              "prompt": "I authorize resetting only the disposable PhoneStamp app whose unique name is openaidemo to its default website CSS. I understand this removes all of that demo website's custom CSS immediately. Find the app, read its current CSS, clear the custom CSS, then read it again to verify the default is active and give me the preview link. Stop without changing anything if openaidemo cannot be uniquely identified.",
+              "tools_triggered": "apps_list_apps, sites_get_css, sites_clear_css, sites_get_preview_url",
+              "expected_behavior": "Use only the discovered openaidemo id. Read its CSS, call sites_clear_css, and read the CSS again. The clear result and final sites_get_css result report is_default=true. The final CSS is the server-provided default, and the review outline from case 4 is absent. Return the preview URL. Wait for any required confirmation and do not modify other apps."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported PhoneStamp push messaging. The Portal toolset in this release contains app discovery and website CSS tools, with no tool for sending member notifications.",
+              "prompt": "Send a promotional push notification to every member of my PhoneStamp loyalty app right now.",
+              "expected_behavior": "Do not invoke PhoneStamp tools: none can send notifications. Explain that this connection cannot send the message, and do not claim it was sent. It may offer to draft text without calling the plugin."
+            },
+            {
+              "description": "Unsupported billing and account deletion. None of the exposed Portal tools can cancel a subscription, issue a refund or delete an account.",
+              "prompt": "Cancel my paid PhoneStamp subscription, refund the last invoice and delete my account.",
+              "expected_behavior": "Do not invoke PhoneStamp tools or repurpose website CSS actions for this request. Explain that this connection cannot perform the requested billing and account actions and direct the user to PhoneStamp support. Do not claim any action was completed."
+            },
+            {
+              "description": "General writing request that does not require PhoneStamp data or an action in the portal.",
+              "prompt": "Write a short, friendly birthday greeting for my colleague.",
+              "expected_behavior": "Answer the writing request directly without invoking any PhoneStamp tool, accessing account data or asking the user to connect PhoneStamp."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Add five positive and three negative MCP review cases for the openaidemo app."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "repository": "https://github.com/phonestamp/phonestamp_assistant"
+}

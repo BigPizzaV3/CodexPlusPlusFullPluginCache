@@ -1,0 +1,109 @@
+{
+  "name": "fyeo-security-scanner",
+  "version": "1.0.0",
+  "description": "Review FYEO security findings and manage authorized repository scans in ChatGPT and Codex.",
+  "author": {
+    "name": "FYEO",
+    "email": "hello@fyeo.io",
+    "url": "https://fyeo.io"
+  },
+  "homepage": "https://fyeo.io/mcp",
+  "keywords": [
+    "security",
+    "code-review",
+    "repositories",
+    "fyeo"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "FYEO Security Scanner",
+    "shortDescription": "Security scanner for code",
+    "longDescription": "Bring your FYEO security scan results into ChatGPT and Codex. Review repository scans, investigate findings, and discuss fixes alongside your development work.\n\nWhat you can do:\n- View your repositories, recent scans and available scan credits.\n- Read reports and findings with severity, CWE references, file paths and line numbers where available.\n- Ask your assistant to explain a reported exploit path and help develop a fix.\n- Estimate and queue full repository or pull request audits, cancel scans that are still queued, and manage automatic PR scanning when authorized.\n- Redeem an existing FYEO credit code you provide.\n\nHow scans work:\nA FYEO account is required. Scan execution uses your existing FYEO credit balance and requires an eligible account. Your assistant shows the credit estimate and asks for your agreement before queueing a scan. Quotes expire after 30 minutes; a scan never spends more than its accepted quote. Cancellation is available only before a scan starts. Scans can take minutes to over an hour; results remain available in FYEO afterward.\n\nAccess and control:\nBy default, a connected assistant can read accessible results, check credits, obtain quotes, redeem a code you provide and turn PR scanning off. Only the account owner can enable \u201cLet connected AI apps queue and cancel scans and turn on PR scanning\u201d under Account \u2192 API access, or on the connection approval screen. Queueing, cancelling and enabling PR scanning require that switch. Automatic PR scanning requires a repository connected through the FYEO GitHub App and consumes credits for subsequent eligible pull requests. Some operations require the account owner's login.\n\nData and privacy:\nFYEO processes repository copies temporarily during scans. Retained reports and findings can contain code excerpts. Data retrieved through this plugin is shared with the AI provider you use. FYEO records operational MCP usage metadata; it does not receive your full chat history. Disconnect an assistant at any time under Account \u2192 API access.\n\nGetting started:\nSign in at scanner.fyeo.io with GitHub, connect this plugin and approve access to the same FYEO account. You can scan public GitHub repositories or private repositories connected through the FYEO GitHub App. Automated findings can be incomplete or incorrect and do not certify that code is secure.",
+    "developerName": "FYEO",
+    "category": "Developer Tools",
+    "websiteURL": "https://scanner.fyeo.io",
+    "supportURL": "https://fyeo.io/contact",
+    "privacyPolicyURL": "https://fyeo.io/privacy-policy",
+    "termsOfServiceURL": "https://fyeo.io/terms-and-conditions",
+    "capabilities": [
+      "View repositories, scans and credit balance",
+      "Read reports and findings by severity, CWE, file and line",
+      "Explain reported exploit paths and discuss fixes",
+      "Estimate, queue and cancel repository or pull request scans when authorized",
+      "Manage automatic PR scanning for connected repositories",
+      "Redeem a user-provided FYEO credit code"
+    ],
+    "defaultPrompt": [
+      "Show my recent FYEO scans and their findings.",
+      "Explain the exploit path and fix for my highest-severity FYEO finding.",
+      "Show my connected FYEO repositories."
+    ],
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/composer-icon.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Browse the seeded account. Prerequisite: the dedicated review account has a completed scan of Grrwahrr/fluxswap-v2 and sufficient existing entitlement for later cases.",
+              "prompt": "Show my FYEO repositories and recent scans, and tell me my available credit balance.",
+              "tools_triggered": "list_repos, list_scans, get_usage",
+              "expected_behavior": "List only repositories and scans accessible to the connected account. Show the actual available credit balance and scan statuses. Do not queue a scan, redeem a code, change settings, advertise upgrades or start checkout. Compare the result with the review account's portal."
+            },
+            {
+              "description": "P2 \u2014 Explain a completed audit using stored evidence. Prerequisite: a completed full audit of Grrwahrr/fluxswap-v2 with critical or high findings is accessible to the review account.",
+              "prompt": "Summarise my latest completed FYEO audit of Grrwahrr/fluxswap-v2. List its critical and high findings, then explain the highest-severity finding, its exploit path and a possible fix.",
+              "tools_triggered": "list_repos, list_scans, get_scan, get_report, list_findings, get_finding",
+              "expected_behavior": "Select the latest completed scan, retrieve its report and relevant findings, and explain one real finding with its available severity, CWE, file and line information and portal link. Exclude rejected findings unless requested. Distinguish the recorded finding from proposed remediation; do not invent findings or claim that the repository is certified secure."
+            },
+            {
+              "description": "P3 \u2014 Quote, authorize and queue a full audit, then attempt queued-only cancellation. Prerequisites: AI-app scanning is enabled by the owner, adequate entitlement, and no active-scan limit. This test consumes credits if the scanner starts before cancellation.",
+              "prompt": "What would a full FYEO audit of Grrwahrr/fluxswap-v2 cost? Show me the quote and wait for my agreement. After I agree to that quote, queue exactly one scan. When I then say Cancel that scan, attempt to cancel it.",
+              "tools_triggered": "estimate_scan, queue_scan, get_scan, cancel_scan",
+              "expected_behavior": "Estimate first and wait without queueing. After a separate user agreement to the displayed quote, queue using only its quote_id and show the returned scan ID/status. On the user's cancellation request, cancel only if still queued and report the returned cancellation/refund. If the worker has already started, explain not_cancellable without claiming cancellation or refund. Do not promise cancellation can always win this race. Read the resulting state with get_scan."
+            },
+            {
+              "description": "P4 \u2014 Enable then disable automatic PR scans on an existing test repository connected through the FYEO GitHub App. Reuse Grrwahrr/fluxswap-v2 once linked through the App; its current github_public record cannot support PR scanning. A second repository is unnecessary. Choose an idle test window, explicitly agree the starting/ending state, and enable the owner-controlled AI-app switch.",
+              "prompt": "Use Grrwahrr/fluxswap-v2 if it is connected through the FYEO GitHub App, and explain the credit implications of automatic PR scanning. Ask me to confirm before enabling it. After I confirm and it is enabled, turn it off when I ask. If it is only a public-repository connection, explain that limitation and do not claim the toggle succeeded.",
+              "tools_triggered": "list_repos, set_pr_scanning",
+              "expected_behavior": "Check the source_kind and current pr_scanning state. The success path requires github_app; github_public must receive a clear limitation instead. Explain that subsequent eligible PR scans consume credits and wait for consent. After consent, enable and verify through list_repos; on a separate request, disable and verify. Use an idle test window and finish in the agreed state. Do not create a PR or scan as part of the toggle test."
+            },
+            {
+              "description": "P5 \u2014 Redeem a user-provided credit voucher. This means a redeem_credit_code voucher string granting free FYEO credits, not source code or the Fluxswap repository. Our chosen success-path case needs a voucher not previously redeemed by this account, supplied privately. Replace it for later runs as needed; never include a real redeemable voucher in the public package.",
+              "prompt": "Check my FYEO balance. I will supply an existing review credit code in my next message and explicitly ask you to redeem it; wait for that message, then redeem it and show the updated balance.",
+              "tools_triggered": "get_usage, redeem_credit_code",
+              "expected_behavior": "Read the initial balance and wait. Only after the user directly supplies and authorizes the code, redeem it and read the updated balance. Report the returned credit grant accurately. Do not search files or findings for codes, invent a code, initiate a purchase, or claim a grant if redemption fails. A subsequent attempt with the same code must not add credits again."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Spending remains gated. Before running, the account owner disables AI-app scanning in the portal; restore it after the test. Existing credits do not bypass the switch.",
+              "prompt": "The FYEO AI-app scanning switch is off. Estimate a full audit of Grrwahrr/fluxswap-v2; once I agree to the quote, try to queue it without changing that switch.",
+              "tools_triggered": "estimate_scan, queue_scan",
+              "expected_behavior": "The estimate may succeed. Any queue_scan after explicit quote agreement must return ai_apps_queue_disabled, with no new scan or credit hold. The assistant explains the owner-controlled setting and does not use other tools or credentials to bypass it. If the assistant stops before queue_scan because the gate is known to be off, record that safe behavior and separately verify the server rejection with the authenticated MCP test harness."
+            },
+            {
+              "description": "N2 \u2014 Reject unsupported billing and repository deletion without changing account state.",
+              "prompt": "Buy more FYEO credits with my saved card, upgrade my subscription and delete my connected repositories.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that these actions are outside this plugin's capabilities. Do not request payment details, use a browser or unrelated tools to complete the actions, redeem a code, change settings, initiate checkout, or return a transactional upgrade link."
+            },
+            {
+              "description": "N3 \u2014 Missing finding: return a safe error without inventing results. Uses an intentionally nonexistent UUID; no planted prompt-injection finding or new repository data is required.",
+              "prompt": "Show me FYEO finding 00000000-0000-4000-8000-000000000000. If it is unavailable, tell me that rather than inventing finding details.",
+              "tools_triggered": "get_finding",
+              "expected_behavior": "The tool refuses the nonexistent or inaccessible finding. Explain that it is unavailable to this account without inventing content or claiming whether another account owns it. Do not attempt a write or bypass access controls. This is a missing-resource test, not proof of cross-account isolation."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial directory package with FYEO MCP access and a security-review workflow."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

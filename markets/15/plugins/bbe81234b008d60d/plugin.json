@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postrite",
+  "version": "0.1.0",
+  "description": "Manage social media posts, reusable templates, media and analytics through an existing PostRite account.",
+  "homepage": "https://postrite.app/docs/connect-ai-assistants",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PostRite",
+        "shortDescription": "Manage your social media",
+        "longDescription": "Connect your existing PostRite account to manage your social media work from ChatGPT. Find connected accounts, create drafts, validate and schedule posts, manage reusable templates and media, and review available analytics. Where an organization enables inbox access, read and answer comments and text messages. Access is limited to the organizations and permissions you authorize, your role, and the organization's AI assistant settings. A PostRite account is required. Purchases and subscription changes are handled in PostRite, outside ChatGPT.",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show my connected social accounts and their connection health.",
+          "Help me create a draft for one of my connected social accounts.",
+          "Summarize my social media performance over the last 30 days."
+        ],
+        "websiteURL": "https://postrite.app/docs/connect-ai-assistants",
+        "supportURL": "https://postrite.app/docs/faq",
+        "privacyPolicyURL": "https://postrite.app/privacy",
+        "termsOfServiceURL": "https://postrite.app/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "prompts": [
+          "Show my connected social accounts and their connection health.",
+          "Save a draft saying 'PostRite review draft' for my Bluesky account. Do not publish or schedule it.",
+          "Summarize my social media performance over the last 30 days."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover authorized organizations and account health. Setup: demo account with one authorized organization and a connected Bluesky test account. No writes.",
+              "prompt": "Which PostRite organizations can I use, and which social accounts are connected in my demo organization? Show their connection health.",
+              "tools_triggered": "list_organizations, list_platform_connections",
+              "expected_behavior": "Use the organization ID returned by list_organizations. List only the connected accounts returned for that organization and explain each returned health value. Do not claim that disconnected or expired accounts can publish."
+            },
+            {
+              "description": "Save a draft without publishing. Setup: demo organization with an active Bluesky test account, posts:write and platforms:read permissions, and an editor or higher role.",
+              "prompt": "Save a draft saying 'PostRite review draft' for my Bluesky account. Do not publish or schedule it.",
+              "tools_triggered": "list_organizations, list_platform_connections, create_post",
+              "expected_behavior": "Resolve the demo organization and Bluesky connection IDs from returned data. Call create_post with submissionIntent='draft', content='PostRite review draft', and that connection in platformConnectionIds. Report the returned post ID, draft status and any validation warnings. Never use publish-now or schedule."
+            },
+            {
+              "description": "Find the next scheduled posts in ascending order. Setup: demo organization containing at least two future SCHEDULED test posts and one draft; posts:read permission. No writes.",
+              "prompt": "Show the next two scheduled posts in my demo organization, earliest first. Include their IDs and scheduled times.",
+              "tools_triggered": "list_organizations, list_posts",
+              "expected_behavior": "Call list_posts for the resolved organization with status='SCHEDULED', sortBy='scheduledAt', sortOrder='asc', limit=2, and scheduledAfter set to the current time with an explicit UTC offset. Return only the returned posts in that order, with their IDs and scheduled times. Do not include drafts or change the posts."
+            },
+            {
+              "description": "Create a reusable text template. Setup: demo organization, templates:write permission, editor or higher role. The reviewer may remove the test template in PostRite after the case.",
+              "prompt": "Create a reusable template named 'PostRite review template' with the text 'New product update coming soon.'",
+              "tools_triggered": "list_organizations, create_template",
+              "expected_behavior": "Call create_template in the resolved organization with name='PostRite review template' and content='New product update coming soon.'. Report the returned template ID and saved text. Do not create or publish a post."
+            },
+            {
+              "description": "Summarize a supported analytics period. Setup: demo organization with posts:read permission; use collected metrics if available. A new test organization may have no metrics, which must be reported explicitly. No writes.",
+              "prompt": "Summarize my demo organization's social media performance over the last 30 days.",
+              "tools_triggered": "list_organizations, get_analytics_summary",
+              "expected_behavior": "Call get_analytics_summary for the resolved organization with periodDays=30. Base every figure on the returned data and distinguish unavailable metrics from zero. If no metrics are available, say so without inventing results."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Social account linking is outside the tool catalog. Explain that the user must connect the account in PostRite. Do not call a tool to create a connection, request social account passwords, or claim the account was connected.",
+              "prompt": "Connect a new Instagram account to PostRite for me from this chat."
+            },
+            {
+              "description": "Subscription purchases and changes are unsupported. Direct the user to billing settings in PostRite. Do not invoke publishing or messaging tools, attempt a payment, or claim a subscription change.",
+              "prompt": "Upgrade my PostRite subscription and charge my card from this chat."
+            },
+            {
+              "description": "The MCP has no automation-flow editor. Explain that the user must build the flow in the PostRite app. Do not use send_message or reply_to_comment as a substitute, create posts, or claim a flow was created.",
+              "prompt": "Build and enable a new Instagram DM automation flow in PostRite whenever someone sends the word PRICING."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Uses an existing PostRite account. There are no tools to purchase a subscription, change a plan, or execute a payment; those actions take place outside ChatGPT in PostRite."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial PostRite integration for ChatGPT, using the hosted MCP server, per-tool OAuth scopes and account reauthorization. Supports posts, templates, media, analytics and organization-enabled inbox access."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

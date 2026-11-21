@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "structengine",
+  "version": "0.1.4",
+  "description": "Structural design checks, STAAD.Pro load combinations, and steel takeoffs.",
+  "author": {
+    "name": "AY",
+    "email": "info@structengine.com",
+    "url": "https://www.structengine.com"
+  },
+  "homepage": "https://www.structengine.com",
+  "keywords": [
+    "structural-engineering",
+    "staad",
+    "material-takeoff"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "StructEngine",
+        "shortDescription": "Structural Design & Takeoff",
+        "longDescription": "Check steel columns, purlins, concrete slabs, and crack widths to Indian Standards and download PDF reports. Generate STAAD.Pro load combinations and export steel takeoffs to Excel. Results are for engineering review.",
+        "developerName": "Ashok Yarrabothula",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.structengine.com",
+        "supportURL": "https://www.structengine.com/contact",
+        "privacyPolicyURL": "https://www.structengine.com/privacy",
+        "termsOfServiceURL": "https://www.structengine.com/terms",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png",
+        "defaultPrompt": [
+          "Export a steel takeoff from my STAAD.Pro model to Excel.",
+          "Create STAAD.Pro load combinations for my load cases.",
+          "Check a concrete slab and generate a PDF report."
+        ]
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "StructEngine provides free calculations, Excel takeoff exports, and PDF design reports in ChatGPT.",
+        "prompts": [
+          "Calculate the supported steel takeoff from this STAAD model and explain the warnings.",
+          "Check an ISMB 350 steel column and show the compressive stress about each axis.",
+          "Check a simply supported concrete slab and explain the support reinforcement and deflection results."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Rolled-section takeoff from self-contained synthetic STAAD text. No account or attachment required.",
+              "prompt": "Calculate the steel takeoff in kg and metric tonnes, and show warnings and exclusions:\nUNIT METER KN\nJOINT COORDINATES\n1 0 0 0; 2 2 0 0\nMEMBER INCIDENCES\n1 1 2\nMEMBER PROPERTY INDIAN\n1 TABLE ST ISMB300\nCONSTANTS\nDENSITY STEEL 7850\nFINISH",
+              "tools_triggered": "calculate_staad_mto",
+              "expected_behavior": "Call calculate_staad_mto with exactly the supplied std_text and no file. Report one ISMB300 section member, a finite positive weight, and kg/metric-tonne totals consistent with structuredContent to three decimal places. Immediately present the automatically returned Excel download without another prompt; if excel_error is present, report that failure without inventing a link. Preserve returned warnings and exclusions; do not claim analysis or certification."
+            },
+            {
+              "description": "Tapered-member plate breakdown and explicit density override, using a synthetic hand-calculated fixture.",
+              "prompt": "Use density 7850 kg/m3 and calculate the plate breakdown and total steel weight:\nSTAAD SPACE\nUNIT METER KN\nJOINT COORDINATES\n1 0 0 0\n2 10 0 0\nMEMBER INCIDENCES\n1 1 2\nUNIT MM KN\nMEMBER PROPERTY\n1 TAPERED 600 10 800 250 16 250 16\nCONSTANTS\nDENSITY STEEL 76.8\nFINISH",
+              "tools_triggered": "calculate_staad_mto",
+              "expected_behavior": "Call calculate_staad_mto with the supplied std_text, density_kg_m3=7850 and no file. Return density_used_kg_m3=7850, PLT 10mm weight 524.380 kg and PLT 16mm weight 628.000 kg, total 1152.380 kg (1.152 metric tonnes), within 0.001. Present the automatic Excel download in the same response; if excel_error is present, report it explicitly. Preserve all warnings and exclusions."
+            },
+            {
+              "description": "Steel column compressive stresses reported independently for each axis.",
+              "prompt": "Check an ISMB 350 E250 column with 3.5 m length about both axes, 500 kN compression, major moment 20 kN-m and minor moment 5 kN-m. Use the default end conditions. Show both compressive stresses in MPa and give me the PDF.",
+              "tools_triggered": "design_steel_column",
+              "expected_behavior": "Report positive axis-specific stresses below 250 MPa, with the minor-axis stress governing. Preserve the design verdict and present the tool-generated PDF link or the returned export error."
+            },
+            {
+              "description": "Simply supported two-way slab with minimum support detailing and a passing deflection check.",
+              "prompt": "Check a 4 m by 5 m simply supported slab, 175 mm thick, with M25 concrete, Fe500 steel, 20 mm cover, T10 short bars, T8 long bars, moderate exposure, 1.5 kN/m\u00b2 superimposed dead load, and 2 kN/m\u00b2 live load. Explain the support steel and deflection check and give me the PDF.",
+              "tools_triggered": "design_concrete_slab",
+              "expected_behavior": "Identify a two-way slab. Label T10 at 300 mm c/c as minimum support detailing. Report the actual span-to-depth ratio of about 27.7 and allowable ratio of about 40.0. Preserve the deflection verdict and present the tool-generated PDF link or the returned export error."
+            },
+            {
+              "description": "Excel export with a project title and the same independent tapered-member fixture; requires the artifact-delivery release gate to be resolved before public testing.",
+              "prompt": "Export an Excel material takeoff named Review Frame using density 7850 kg/m3. Include the warnings and scope limits:\nSTAAD SPACE\nUNIT METER KN\nJOINT COORDINATES\n1 0 0 0\n2 10 0 0\nMEMBER INCIDENCES\n1 1 2\nUNIT MM KN\nMEMBER PROPERTY\n1 TAPERED 600 10 800 250 16 250 16\nCONSTANTS\nDENSITY STEEL 76.8\nFINISH",
+              "tools_triggered": "export_staad_mto_xlsx",
+              "expected_behavior": "Call export_staad_mto_xlsx with the supplied std_text, project_name='Review Frame' and density_kg_m3=7850. Return a working staad-mto.xlsx download and its actual lifetime (currently 15 minutes). Verify workbook rows, units, density, project title, all returned warnings and scope exclusions; summary total is 1.152 metric tonnes within 0.001. Do not claim success on an isError response or a failed download."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported whole-frame structural analysis and safety certification. Explain the supported checks and decline certification.",
+              "prompt": "Run structural analysis on my STAAD frame, calculate its wind-load deflections, and certify that it is safe."
+            },
+            {
+              "description": "Unsupported steel procurement. Explain that the plugin cannot place orders or make payments; invoke neither MTO tool and do not claim an order was placed.",
+              "prompt": "Order ten tonnes of ISMB300 steel for this project and pay the supplier."
+            },
+            {
+              "description": "Unsupported reinforced-concrete beam reinforcement design and certification. Clarify the supported concrete slab design and crack-width checks.",
+              "prompt": "Design the reinforcement for a reinforced-concrete beam to IS 456 and produce a certified design report."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds STAAD.Pro load combinations and design workflows for steel columns, purlins, concrete slabs, and crack width. Corrects the reported column compressive stresses and clarifies slab deflection and support reinforcement results."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

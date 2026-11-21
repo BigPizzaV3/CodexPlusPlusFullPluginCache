@@ -1,0 +1,111 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "titan-ai-tiktok",
+  "version": "1.1.0",
+  "description": "Connect your existing Titan Tools account to read your TikTok Shop sales, profit, products, stock and settings, and search Titan's TikTok Shop training.",
+  "author": {
+    "name": "Titan Investment Group Holdings LLC",
+    "email": "support@titannetwork.com",
+    "url": "https://ai.titannetwork.com/docs/tiktok-tools"
+  },
+  "homepage": "https://ai.titannetwork.com/docs/tiktok-tools",
+  "keywords": [
+    "tiktok",
+    "tiktok shop",
+    "seller",
+    "sales",
+    "profit",
+    "inventory",
+    "titan"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Titan AI TikTok",
+        "shortDescription": "TikTok Shop sales and profit",
+        "longDescription": "Use your existing Titan Tools account to work with your TikTok Shop data and Titan's TikTok Shop training in ChatGPT. List the shops your account can reach, read sales and profit summaries for a shop or per brand, product and SKU, browse the catalogue with stock, price and cost of goods, see where a SKU's units are held warehouse by warehouse, read a shop's VAT and seller fulfilment fee settings, and search Titan's TikTok Shop lessons and the TikTok Shop spaces of the Titan community (post titles and engagement, not post text).\n\nEvery tool only reads. Titan AI TikTok cannot change a product, a price, an order or a setting in TikTok Shop, and it cannot change anything in Titan Tools. It reads only the TikTok Shops your Titan Tools account can reach. Summaries use whole UTC days and, with no dates given, cover the last 30 complete days. Advertising figures are empty, not zero, when advertising data is not connected for a shop. It has no Amazon tools and returns no Amazon data.\n\nTitan Tools and Titan Network are operated by Titan Investment Group Holdings LLC, DBA Titan Network. Titan AI TikTok reads shop data through Titan's own API and searches Titan's own lessons and posts in the Titan community. An existing Titan Tools login is required, and the shop tools need a TikTok Shop that account can reach.",
+        "developerName": "Titan Investment Group Holdings LLC",
+        "category": "Business & Operations",
+        "capabilities": [
+          "List the TikTok Shops your Titan Tools account can reach",
+          "Read sales and profit summaries for a shop, brand, product or SKU",
+          "Browse products and brands with stock, price and cost of goods",
+          "See where a SKU's units are held, warehouse by warehouse",
+          "Read a shop's VAT and seller fulfilment fee settings",
+          "Search Titan's TikTok Shop lessons and community post titles"
+        ],
+        "websiteURL": "https://ai.titannetwork.com/docs/tiktok-tools",
+        "supportURL": "https://ai.titannetwork.com/docs/troubleshooting",
+        "privacyPolicyURL": "https://ai.titannetwork.com/privacy",
+        "termsOfServiceURL": "https://ai.titannetwork.com/terms",
+        "defaultPrompt": [
+          "Which TikTok Shops can you see in my account?",
+          "How did my TikTok Shop do over the last 30 days?",
+          "Which of my TikTok Shop products made the most GMV last month?"
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the linked TikTok Shops without reading sales data",
+              "prompt": "List the TikTok Shops linked to my Titan Tools account. For each shop give its name, country, currency, and whether its Shop API and its Business (ads) API are connected. Do not read any sales figures.",
+              "tools_triggered": "tiktok_list_shops",
+              "expected_behavior": "Returns shopCount and the shops grouped by organization (the organization name and the member's role), each shop with name, shopId, countryCode, currency, timezone and connections.shopApi and connections.businessApi. The reply names the reviewer account's shop and reports the two connection flags exactly as returned; when a shop's connections.businessApi.connected is false the answer also carries adsNote, which says the summary tools return advertising figures as null (not zero) for that shop; the reply then reports that the Business API is not connected and does not claim the ads authorization was removed. No summary or product tool is called, and the reply does not invent a connection state."
+            },
+            {
+              "description": "Read one shop's sales and profit summary for the default window",
+              "prompt": "For my TikTok Shop, summarise sales and profit for the tool's default period, without giving any dates, in the shop's own currency: GMV, orders, units, refunds, fees, cost of goods and the contribution margins. State the exact date range the figures cover.",
+              "tools_triggered": "tiktok_account_summary (tiktok_list_shops may run first)",
+              "expected_behavior": "Returns the shop (name, shopId, countryCode, currency, timezone), the headline figures (gmv, sales, orders, units, customers, aov, grossRevenue, netRevenueChain, refunds, refundCount, refundPct, totalNetRevenue, cogs, cm1, cm1Pct, cm2, cm2Pct, cm3, cm3Pct, tiktokFees, shippingCost, marketing, affiliateCommission, samplesCost, adsSpend, ppcSpend, ppcSpendAuction, ppcClicks, ppcImpressions, tacos, roc2, roc3, skusInScope, skusMissingCogs; a field Titan Tools did not send is absent) and a requested block with currency, startDate, endDate and timezone UTC. With no dates passed, startDate to endDate is the 30 complete UTC days ending yesterday (UTC) and datesDefaulted is true; if the model passes both dates anyway, datesDefaulted is false and the window is the one it passed. The reply states the date range from requested, does not present a cost line as income (refunds, cogs, tiktokFees, shippingCost, marketing, affiliateCommission and samplesCost are cost lines, reported as negative amounts or 0 when there is none, except that tiktokFees can be positive where reimbursements exceed the fees; marketing is null when ads data is unavailable; adsSpend, ppcSpend and ppcSpendAuction are positive when reported), reports a null advertising field as no data rather than zero, and when skusMissingCogs is above 0 says that cogs and the margins understate cost. If nothing was sold the answer carries noResults true and the reply says so. If the model passes an endDate later than yesterday (UTC), the tool answers INVALID_DATE_RANGE and returns no figures (the summary is not read), and the model calls again with no dates. With no currency passed, the figures are in the shop's own currency, which requested.currency names. If the shop reported no currency or one the summaries do not support, the tool answers CURRENCY_REQUIRED or CURRENCY_UNSUPPORTED with a hint and the model calls again with a currency from that hint. If the account reaches more than one shop, a call without shopId answers SHOP_SELECTION_REQUIRED with the choices and the model asks which shop; the reviewer names their shop and the case continues."
+            },
+            {
+              "description": "Rank products by GMV for the default window",
+              "prompt": "Which products in my TikTok Shop made the most GMV in the tool's default period? Do not pass any dates. Show the top 10 with their units, orders and cm3, and say which dates and currency the figures cover.",
+              "tools_triggered": "tiktok_product_summary (tiktok_list_shops or tiktok_account_summary may run first)",
+              "expected_behavior": "Returns up to 10 rows at product (spu) grain sorted by gmv, highest first (the tool defaults: groupBy spu, sortField gmv, sortDirection desc, pageSize 10), each with rowType (group), key (the spu), brand, spu, title and variantCount, plus sku and productCount, which are null at product grain, and the headline figures including gmv, units, orders and cm3; plus total, page, pageSize, totalPages, hasNext, the shop and the requested block (with no dates passed: the 30 complete UTC days ending yesterday UTC, datesDefaulted true). The reply lists the rows in the returned order with their figures and states the date range and currency from requested. With no currency passed, the figures are in the shop's own currency, which requested.currency names. If the shop reported no currency or one the summaries do not support, the tool answers CURRENCY_REQUIRED or CURRENCY_UNSUPPORTED with a hint and the model calls again with a currency from that hint. If the ads data is unavailable for the window (for example, the shop's Business (ads) API is not connected), cm3 (with adsSpend, ppcSpend, marketing and tacos) comes back null, not 0, and the reply says cm3 is not available rather than showing 0. If no row is returned for the window (items is empty), the answer carries noResults true with a hint and the reply says nothing was sold in that window rather than inventing products; rows that come back with gmv 0 and units 0 (refunds or cancellations only) are listed as zero sales. If the account reaches more than one shop, a call without shopId answers SHOP_SELECTION_REQUIRED with the choices and the model asks which shop; the reviewer names their shop and the case continues. The model may also read tiktok_account_summary for the same window: when its ppcSpendAuction is above 0, the reply may add that the product rows count GMV Max ad spend only, so their cm3 leaves Auction spend out. A row with cogs 0 and units above 0 may be flagged as having no cost of goods entered, so its margins read too high. Neither caveat changes a returned figure or the row order."
+            },
+            {
+              "description": "Explain one SKU's stock figure warehouse by warehouse",
+              "prompt": "Pick one SKU from my TikTok Shop catalogue that has stock, then show where its units are held, warehouse by warehouse, with available and committed units. Do not change anything.",
+              "tools_triggered": "tiktok_products, tiktok_inventory_breakdown (tiktok_list_shops may run first)",
+              "expected_behavior": "tiktok_products at its default SKU grain returns leaf rows with key and skuId (the TikTok variant id), sku (the seller SKU label), title, status, stock, price, cogs and grossProfit; the model may sort by stock (sortField stock, sortDirection desc) to find a SKU with stock above 0 (precondition for this case: the reviewer shop holds at least one SKU with stock above 0). The model picks a leaf row whose stock is above 0 and calls tiktok_inventory_breakdown with level sku and key set to that row's skuId, not its seller SKU label. The breakdown returns the shop and rows ordered by available units descending, each with warehouseId, name, type, subType, region, available and committed (name, type, subType and region are null for a TikTok-managed warehouse). The reply names the SKU and lists each warehouse by name, or by warehouseId when the name is null, with its available and committed units. An empty rows list comes with noResults true and a hint; because the chosen SKU showed stock above 0, the model then checks that key is that row's skuId and level is sku and calls again if needed, and it does not report an error. If the retry with the skuId at level sku also returns an empty list, it says that no warehouse holds units for that SKU now. If the account reaches more than one shop, a call without shopId answers SHOP_SELECTION_REQUIRED with the choices and the model asks which shop; the reviewer names their shop and the case continues."
+            },
+            {
+              "description": "Search Titan's TikTok Shop lessons",
+              "prompt": "What does Titan teach about getting a new TikTok Shop product off the ground? Summarise the guidance, name the lessons it comes from, and include a lesson link only where one is returned.",
+              "tools_triggered": "tiktok_lessons (tiktok_list_shops may run first)",
+              "expected_behavior": "Returns up to 5 results by default (maxResults 1 to 10), each with score and, where the lesson record carries them, title, section, space and spaceGroup, a lessonDate where the title carries one, text (the lesson passage; a passage longer than 4000 characters is cut at 4000 and ends with an ellipsis) and url only when a link to the lesson is on record, plus totalResults and, when any candidate carried a date, newestMatchDate and freshnessHint. The reply summarises the passages, attributes them to the returned lesson titles, includes a link only for a result that carried url and does not invent one. tiktok_lessons needs no shop and no shopId, so the answer does not depend on any shop tool. If nothing matched, the answer carries results [] with noResults true and a hint, and the reply says the search ran and found nothing."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refuse a change: no tool can write",
+              "prompt": "Change the cost of goods for one of my TikTok Shop SKUs to 12.50.",
+              "expected_behavior": "Nothing is changed, because no tool in this plugin can write. The model either explains that the plugin only reads and cannot change a cost, a price, a product or a setting, or first asks which SKU is meant and stops there with no change made; it may look the SKU up with tiktok_products and may say the member makes that change in Titan Tools. No tool call reports a change as done."
+            },
+            {
+              "description": "Refuse data from a shop the account does not reach",
+              "prompt": "Show me last month's sales for a TikTok Shop that is not linked to my Titan Tools account.",
+              "expected_behavior": "tiktok_list_shops shows only the shops the linked Titan Tools account reaches, and a shopId outside that list answers SHOP_ACCESS_DENIED with the reachable shops under organizations (NO_SHOPS if the account's list is empty). The model reports that the shop is not available to this account and invents no figures. It may offer the shops the account does reach, but it does not present a reachable shop's figures as figures of the other shop. Nothing is read for the other shop."
+            },
+            {
+              "description": "Out of scope: Amazon data",
+              "prompt": "How did my Amazon store do last month?",
+              "expected_behavior": "The model does not answer this from the plugin: it says it has no Amazon data here (it may say that this plugin reads TikTok Shop data only) and returns no Amazon figures. If it calls a TikTok tool, it does not present the TikTok figures as Amazon results, and it does not invent numbers. It does not tell the member to add or use another plugin or connector."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/dbdffffc4d184ce4aea8388fafed17b5",
+        "commerce": false,
+        "commerce_description": "Titan AI TikTok does not sell products, process payments or initiate subscriptions. Members connect an existing Titan Tools account, and every tool only reads."
+      },
+      "publication": {
+        "release_notes": "Adds the Titan AI TikTok skill, an operating guide for the nine read-only TikTok Shop tools: shop choice, UTC date windows, currency, how to read the sales and profit figures and their empty values, inventory, settings, the lessons and community searches, and what to do for each error. No tool, server or listing change."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

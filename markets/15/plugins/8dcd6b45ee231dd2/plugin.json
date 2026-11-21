@@ -1,0 +1,91 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "myfolder-mcp",
+  "version": "0.1.2",
+  "description": "List folders and retrieve saved patent identifiers from an authenticated WIPS MyFolder account.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "WIPS MyFolder",
+        "shortDescription": "Your saved patent folders",
+        "longDescription": "Browse the patent folders saved in your WINTELIPS MyFolder account. Check how many patents each folder contains, then select a folder to retrieve its saved patent identifiers.\n\nRequires a WINTELIPS account with MyFolder access and a valid MyFolder MCP key with the necessary service permissions. Enter your key and account credentials on the WIPS authorization page when connecting.\n\nThis app provides read-only access to your own folders. It cannot create, edit or delete folders. Patent titles, abstracts and claims can be retrieved through the separate WIPSCLIP app.",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show my patent folders and the number of patents in each.",
+          "Show the patents saved in a folder I choose.",
+          "Show more patents from the same folder."
+        ],
+        "websiteURL": "https://mcphelp.wipsclip.co.kr/",
+        "supportURL": "https://mcphelp.wipsclip.co.kr/#help",
+        "developerName": "WIPS Co., Ltd.",
+        "privacyPolicyURL": "https://www.wintelips.com/service/cts/privacyPolicy.wips",
+        "termsOfServiceURL": "https://www.wintelips.com/service/cts/userAgreement.wips",
+        "logo": "./assets/wips-logo.svg",
+        "composerIcon": "./assets/wips-logo.svg"
+      },
+      "review": {
+        "prompts": [
+          "Show the first two patent IDs in my ChatGPT folder in MyFolder."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List folders accessible to the dedicated review account. Its ChatGPT folder contains 200 public patent identifiers. Use this existing folder for the following cases.",
+              "prompt": "Show my folders in MyFolder and the patent count in each folder.",
+              "tools_triggered": "myfolder_list_folders",
+              "expected_behavior": "Call myfolder_list_folders with no arguments. Report folder names and counts from folders. The ChatGPT fixture has count=200. Include dates only if they are present in the response."
+            },
+            {
+              "description": "Read the first page of the existing ChatGPT folder using a small page size.",
+              "prompt": "Show the first two patent IDs in my ChatGPT folder in MyFolder.",
+              "tools_triggered": "myfolder_get_folder_skeys",
+              "expected_behavior": "Call myfolder_get_folder_skeys(folder_name=ChatGPT, page=1, size=2). The fixture returns skey_count=200, has_more=true and SKEYs 3523372001453 and 3523414001559. Label these as WIPS patent identifiers (SKEYs). Return the identifiers without inventing titles or abstracts."
+            },
+            {
+              "description": "Read a specifically requested second page. Keep the folder contents unchanged during the review so the page order remains reproducible.",
+              "prompt": "Show page 2 of my ChatGPT folder, with two patent IDs per page.",
+              "tools_triggered": "myfolder_get_folder_skeys",
+              "expected_behavior": "Call myfolder_get_folder_skeys(folder_name=ChatGPT, page=2, size=2). The fixture returns SKEYs 3524092001441 and 3524092001445, with skey_count=200 and has_more=true. Return this page rather than the first page."
+            },
+            {
+              "description": "Collect a complete folder using pagination and the has_more completion flag. The existing fixture contains 200 distinct SKEYs.",
+              "prompt": "Collect all patent IDs from my ChatGPT folder, fetching 50 at a time until the last page.",
+              "tools_triggered": "myfolder_get_folder_skeys",
+              "expected_behavior": "Start with folder_name=ChatGPT, page=1, size=50. Increment page while has_more=true. For the fixture, pages 1 through 4 return 200 distinct SKEYs in total; page 4 has has_more=false. Combine the returned IDs without omissions or duplicates and stop at the completion flag."
+            },
+            {
+              "description": "Read a page beyond the end of an existing folder. This checks a valid empty page while retaining the folder's total count.",
+              "prompt": "Show page 101 of my ChatGPT folder, with two patent IDs per page.",
+              "tools_triggered": "myfolder_get_folder_skeys",
+              "expected_behavior": "Call myfolder_get_folder_skeys(folder_name=ChatGPT, page=101, size=2). The fixture returns skeys=[], has_more=false and skey_count=200. Explain that this page contains no records; the folder itself still contains 200 patents."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Folder creation is not supported. Explain that the app can read existing folders but cannot create a folder. Do not invoke read tools as a creation action or claim that the folder was created.",
+              "prompt": "Create a new folder named Review Demo in MyFolder."
+            },
+            {
+              "description": "Deletion is not supported. Explain that the app cannot delete folders or saved patents. Do not invoke read tools as a deletion action or claim that anything was deleted.",
+              "prompt": "Delete my ChatGPT folder and all patents saved in it."
+            },
+            {
+              "description": "Public sharing and email delivery are not supported. Explain the supported read-only scope without generating a sharing link, calling read tools as a sharing action, or claiming to send an email.",
+              "prompt": "Create a public sharing link for my ChatGPT folder and email it to a colleague."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/QWFvZI6SpFk"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Updated the app description and suggested prompts to explain folder browsing and saved patent retrieval more clearly. Suggested prompts no longer assume a specific test folder or page size. No server functionality or authentication changes. Updated the publisher name to WIPS Co., Ltd."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "WIPS Co., Ltd.",
+    "url": "https://www.wipscorp.com/"
+  }
+}

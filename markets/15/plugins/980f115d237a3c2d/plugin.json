@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "relay",
+  "version": "0.1.3",
+  "description": "Share a doc with someone and the context with their agent, guided by one purpose; ask others to relay context back.",
+  "author": {
+    "name": "Neopolis Global, Inc.",
+    "url": "https://relayto.ai"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Relay",
+        "shortDescription": "Share docs with their context",
+        "longDescription": "Relay shares your work with the context behind it. Every relay has a purpose, a doc for people, and context for their agent.\n\nTell your agent:\n\nrelay {what} to {who} for {why}\n\nFor example: \"relay our pilot proposal to Jordan at Northstar for sign-off by Friday.\"\n\n- Purpose: why you're sharing it and what you hope they'll do.\n- Doc: what people see, a PDF or a page you write, or both.\n- Context: what their agent gets, the reasoning, what's decided and what's open, plus your rules (what it may say, what it must check with you, what it must never do).\n\nYour agent prepares the relay from what it already knows and shows you what will go, and to whom. Nothing is shared until you say yes, in the conversation or on a review page. By default Relay emails no one: you get a link to share yourself, or you can ask Relay to email it. Jordan reads the doc and hands the relay to their own agent, in any MCP client, or asks questions right on the page. The recipient\u2019s agent receives your approved context and instructions to send must-ask topics, like price or dates, back to you. Third-party agents may not always follow those instructions.\n\nYou can also ask for context: \"ask Ana to relay me the security review answers for our vendor approval.\"\n\nWith Relay connected, your agent can:\n- Relay: prepare and preview a relay, then send it when you say so, with a PDF attached through a one-time upload link.\n- Track: see who opened it, when, through which agent, and what they asked.\n- Respond: answer questions and counter-proposals, and publish new versions (readers always get the latest you approved).\n- Ask: request context from someone, with a checklist of what you need.\n- Receive: read what was relayed to you, ask the sender questions, send feedback and suggest changes.\n- Control: choose who can read it and for how long, revoke at any time, and restore an earlier version.\n\nYou choose private access for named recipients or access for anyone with the link. Private recipients sign in and accept before their agent can read. Revoking access stops future reads; it cannot recall copies already saved. Each relay uses an open format, relay.context-package.v1 (relayto.ai/schema). Made by Neopolis Global, Inc.",
+        "developerName": "Neopolis Global, Inc.",
+        "category": "Productivity",
+        "websiteURL": "https://relayto.ai",
+        "supportURL": "https://relayto.ai/support",
+        "privacyPolicyURL": "https://relayto.ai/privacy",
+        "termsOfServiceURL": "https://relayto.ai/terms",
+        "defaultPrompt": [
+          "relay our pilot proposal to Jordan for sign-off by Friday",
+          "ask Ana to relay me the security review answers",
+          "what came back on my relays?"
+        ],
+        "brandColor": "#F95C35",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/logo-dark.png"
+      },
+      "onboardingSkill": "./skills/relay/SKILL.md",
+      "review": {
+        "demo_recording_url": "https://www.tella.tv/video/vid_cmw2mp9e6000i02p6gok2fway/embed?title=0&b=0&wt=0",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Prepare and send a new relay after the user says yes. Setup: connect the dedicated test account in ChatGPT. Use only the fictional pilot facts in the prompt; jordan@example.com is a non-deliverable sample address. Say yes when shown the summary, and don't ask Relay to email it. Then repeat with the prompt and say no, or ask to change something, to check that nothing is published without a yes.",
+              "prompt": "Relay our pilot proposal to jordan@example.com for sign-off by Friday. The pilot is 8 weeks, 3 teams, and pricing questions should come back to me.",
+              "tools_triggered": "relay_schema, relay_preview, relay_publish_draft, relay_send",
+              "expected_behavior": "Calls relay_preview and shows the doc and its context, and who will get them, before saving anything, then waits. Calls no write tool before the user says yes. The relay.context-package.v1 package has an eight-week, three-team pilot, Jordan as audience, sign-off as the ask, and pricing in representation.mustAskOwner. After the yes, calls relay_publish_draft and then relay_send without an open sharing option, so the relay stays restricted to Jordan; returns the actual link and states accurately how it opens and whether Relay emailed anyone. If relay_send says the draft changed recently and needs fresh confirmation, shows it again and asks before retrying. If the draft is flagged as trying to steer the reader's agent, relay_send returns the review link instead, and the response says so. Does not invent pricing. If the user says no, nothing is published or sent."
+            },
+            {
+              "description": "Draft a request for context without sending email. Setup: dedicated connected test account. ana@example.com is a fictional, non-deliverable address. Confirm Ana is the vendor security contact when asked. Let ChatGPT propose a checklist and mark unknown vendor facts as unknown. Stop after the request draft and preview; do not say send.",
+              "prompt": "Ask ana@example.com to relay me the security review answers for our vendor approval.",
+              "tools_triggered": "relay_request",
+              "expected_behavior": "Calls relay_request with toName Ana, toEmail ana@example.com, a short about title for security-review answers, intent for vendor approval, and a brief with background and specific needs. The initial call omits send or sets it false. Shows the actual returned requestId/review URL and email preview, says the request is drafted and not sent, and asks whether to review, revise or send. No send:true call or email occurs in this case. Revisions use the same requestId."
+            },
+            {
+              "description": "Track real sample activity. Setup: the dedicated account holds the sent sample relay Tidewell Logistics pilot proposal, with a recorded read and one unanswered question. Use only sample data; this case reads activity and sends no response.",
+              "prompt": "What came back on my relays?",
+              "tools_triggered": "relay_list, relay_status",
+              "expected_behavior": "Calls relay_list and selects the sent sample relay using a returned id or link, then calls relay_status with that exact reference. Reports the returned title, version, recorded reads (who, when and agent where recorded), and the unanswered question from inbox. Distinguishes unknown or absent activity from actual reads, never invents an agent or timestamp, and does not call relay_answer or other write tools. If fixtures are missing, states what is missing instead of claiming the test passed."
+            },
+            {
+              "description": "Read received context while respecting access and sender boundaries. Setup: the dedicated account holds the received sample relay Brightfield onboarding plan, already accepted, with a recognizable opening and pricing on its must-ask list. This record must remain available throughout review.",
+              "prompt": "What has been relayed to me? Read the latest one.",
+              "tools_triggered": "relay_received, relay_get",
+              "expected_behavior": "Calls relay_received, then relay_get with the exact returned relay link. Uses the returned opening and starting points without an unrequested summary, distinguishes approved facts from inferences, and does not invent answers on must-ask topics or send an unsolicited question. If acceptance is still required, provides the returned acceptance link and stops until the person accepts; never claims unread content was retrieved."
+            },
+            {
+              "description": "Discover supported commands. Setup: Relay is connected to the dedicated test account. No sample relay or prior conversation is required.",
+              "prompt": "relay help",
+              "tools_triggered": "relay_help",
+              "expected_behavior": "Calls relay_help with no inputs and explains Relay\u2019s purpose and the supported send, update, track, respond, request-context and receive workflows from the returned text. Explains that draft creation does not approve or share a relay. Does not invent tools, book anything, or change any relay."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Explicit email request, not a Relay workflow. Setup: a fictional Thanksgiving plan is already in the conversation and Jordan is a fictional contact. Must not invoke any Relay tool or create a relay/request. May draft an email or ask for an email address or email-tool access; must not claim an email was sent without an actual authorized send. This test stops before sending.",
+              "prompt": "Email this Thanksgiving plan to Jordan."
+            },
+            {
+              "description": "Unsupported booking related to a shared plan. Setup: Relay is connected to a dedicated sample account; the referenced Thanksgiving plan may be absent. Read-only Relay lookups may locate the plan, but must use returned references, respect access restrictions, and distinguish missing data from retrieved facts. If the plan is missing, the response may ask for its link or details and offer to help with booking outside Relay. It must not call Relay write tools, say Relay booked or paid, collect payment details, charge a deposit, send a message, or claim a reservation or payment. A read-only lookup alone is not a failure of this capability-boundary case.",
+              "prompt": "Use Relay to reserve the campsite in our Thanksgiving plan and pay the deposit."
+            },
+            {
+              "description": "Unsupported recall of an offline copy. Setup: Relay is connected to a dedicated sample account, which may hold no proposal involving Alex; no access to Alex's device or ChatGPT account is provided. Read-only Relay lookups may look for the proposal and inspect ownership/access, using only returned facts and respecting access restrictions. Explain that Relay cannot erase downloaded files or remove another person's ChatGPT history. Must not call relay_delete, relay_revoke, or any other write tool, send a message, or claim copies/history were erased. May explain that revocation blocks future reads without recalling saved copies, or draft text asking Alex to delete their copies. Any actual revocation or message requires a separate explicit request and is outside this test. A read-only ownership lookup alone is not a failure.",
+              "prompt": "Use Relay to erase the proposal PDF Alex already downloaded and remove it from their ChatGPT history."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Relay does not sell products or process payments or purchases.",
+        "prompts": [
+          "relay our pilot proposal to Jordan for sign-off by Friday",
+          "ask Ana to relay me the security review answers",
+          "what came back on my relays?"
+        ]
+      },
+      "publication": {
+        "release_notes": "Prepare, preview and send context-sharing relays with your approval, choose who can open them, request context, track reads and replies, and read received relays. Includes the Relay skill and an OAuth MCP connection. 0.1.3: every tool now sets readOnlyHint, destructiveHint, idempotentHint and openWorldHint explicitly, matched to what the tool does.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

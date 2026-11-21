@@ -1,0 +1,139 @@
+{
+  "name": "invoice-reader",
+  "version": "1.0.0",
+  "description": "Read invoice PDFs into one checked spreadsheet.",
+  "author": {
+    "name": "Zovo",
+    "email": "support@zovo.one",
+    "url": "https://zovo.one"
+  },
+  "homepage": "https://invoice-reader.zovo.one",
+  "license": "Proprietary",
+  "keywords": [
+    "invoice to excel",
+    "invoice pdf to excel",
+    "extract invoice data",
+    "invoice data extraction",
+    "invoice line items",
+    "check invoice math",
+    "invoice total check",
+    "accounts payable",
+    "vat invoice",
+    "invoice to csv"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Zovo Invoice Reader",
+    "shortDescription": "Invoice PDFs to checked sheets",
+    "longDescription": "Zovo Invoice Reader turns invoice PDFs into one spreadsheet and checks the tax, totals and money math of each invoice. Attach up to 20 text-based invoice PDFs. You get an Excel workbook with an Invoices sheet (file, vendor, invoice number, invoice date, due date, currency, subtotal, tax, shipping, reductions, total, amount due, check status) and a Line items sheet (description, quantity, unit cost, amount), plus the same data as CSV files.\n\nThree checks run on each invoice with integer cent math. The lines add up to the subtotal. Subtotal minus reductions plus tax and shipping equals the total. Quantity times unit cost equals each line amount. Each check shows PASS, MISMATCH with the difference, or NOT CHECKABLE when the invoice does not print the value needed. A missing reduction, tax or shipping line counts as 0, and the check says so.\n\nIt reads US (1,234.56) and European (1.234,56) number formats, decided once per file, and dates such as 10/05/2026, 05.10.2026 or 14 October 2026. VAT, GST, HST and sales tax lines are found, and several tax lines are added together. Line items that continue on the next page and descriptions that wrap onto two lines are joined. Possible duplicate invoice numbers across files are flagged.\n\nYou can also type the amounts of an invoice and check its math without a file.\n\nGood for accounts payable, bookkeeping, expense reviews, and month-end close.\n\nLimitations: text-based PDFs only (scanned or photographed invoices are reported, not guessed; run OCR first). Up to 20 files, 10 MB and 20 pages per file. Labels are read in English. The vendor name is a guess from the top of the first page when no From or Vendor label is printed. Generated files are kept for 1 hour, then deleted.",
+    "developerName": "Zovo",
+    "category": "Finance",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://invoice-reader.zovo.one",
+    "supportURL": "https://invoice-reader.zovo.one/support",
+    "privacyPolicyURL": "https://invoice-reader.zovo.one/privacy",
+    "termsOfServiceURL": "https://invoice-reader.zovo.one/terms",
+    "defaultPrompt": [
+      "Read the attached invoice PDFs into one spreadsheet and check their totals",
+      "Check this invoice: 4 x 42.50 = 170.00, 2 x 89.99 = 179.98, subtotal 349.98, tax 28.87, total 378.85",
+      "Pull vendor, invoice number, due date and total from these supplier invoices into Excel"
+    ],
+    "brandColor": "#0F766E",
+    "brandColorDark": "#4FD1C0",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/invoice-reader/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "One US invoice into a checked spreadsheet",
+              "prompt": "Read the attached invoice PDF into a spreadsheet and check its math",
+              "tools_triggered": "read_invoices",
+              "expected_behavior": "Calls read_invoices with the attached inv01-us.pdf. Reports vendor Northwind Office Supply, invoice INV-1001 dated 2026-10-05, subtotal 392.73, tax 32.40, total 425.13 USD, 3 lines, status PASS for all checks. Offers an Excel workbook and a CSV ZIP."
+            },
+            {
+              "description": "Typed invoice amounts that add up",
+              "prompt": "Check this invoice: 4 x 42.50 = 170.00, 2 x 89.99 = 179.98, subtotal 349.98, tax 28.87, total 378.85",
+              "tools_triggered": "check_invoice_math",
+              "expected_behavior": "Calls check_invoice_math with the two lines, subtotal 349.98, tax 28.87 and total 378.85. Overall PASS: the lines add up to 349.98, the computed total is 378.85, and each line equals quantity x unit price."
+            },
+            {
+              "description": "Invoice whose total is wrong",
+              "prompt": "Does the attached catering invoice add up?",
+              "tools_triggered": "read_invoices",
+              "expected_behavior": "Calls read_invoices with the attached inv05-total-mismatch.pdf. Status MISMATCH: the lines add up to the subtotal 505.00, but 505.00 + 25.25 = 530.25 while the total says 540.25, a difference of 10.00."
+            },
+            {
+              "description": "Typed line with a wrong amount",
+              "prompt": "Is this invoice line right: 3 wireless mice at 19.99 each, amount 69.97, subtotal 69.97, total 69.97?",
+              "tools_triggered": "check_invoice_math",
+              "expected_behavior": "Calls check_invoice_math with qty 3, unit_price 19.99, amount 69.97, subtotal 69.97 and total 69.97. Overall MISMATCH: 3 x 19.99 = 59.97, printed 69.97, a difference of 10.00. The lines-sum and totals checks pass."
+            },
+            {
+              "description": "Two invoices in different currencies",
+              "prompt": "Put the two attached invoices into one Excel file with their line items",
+              "tools_triggered": "read_invoices",
+              "expected_behavior": "Calls read_invoices with inv02-eu.pdf and inv07-multipage.pdf. Reports 2 invoices, both PASS: Bergmann Software GmbH total 4253.73 EUR read from the European format, and Midwest Fastener Supply total 8130.86 USD with 46 lines across 2 pages. Offers one Excel workbook and a CSV ZIP."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Making a new invoice is out of scope. Expected: no tool call; the assistant helps without this app.",
+              "prompt": "Create an invoice for my client for 10 hours of design work at $80 an hour"
+            },
+            {
+              "description": "Paying an invoice is out of scope. Expected: no tool call; the assistant explains it does not pay bills.",
+              "prompt": "Pay this invoice from my bank account today"
+            },
+            {
+              "description": "A question about tax law needs no file reading. Expected: no tool call; a general answer.",
+              "prompt": "What VAT rate applies to software sold to customers in Germany?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://invoice-reader.zovo.one/widget-preview"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: read 1 to 20 text-based invoice PDFs into an Excel workbook (Invoices and Line items) and CSV files, with three arithmetic checks per invoice and a math check for typed amounts.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Faktury PDF do Excela",
+            "description": "Zovo Invoice Reader zamienia faktury PDF w jeden arkusz i sprawdza rachunki ka\u017cdej faktury. Do\u0142\u0105cz do 20 faktur PDF z tekstem. Dostajesz skoroszyt Excel z arkuszem Faktury (plik, sprzedawca, numer faktury, data wystawienia, termin p\u0142atno\u015bci, waluta, suma netto, podatek, wysy\u0142ka, rabat, suma, kwota do zap\u0142aty, wynik kontroli) i arkuszem Pozycje (opis, ilo\u015b\u0107, cena jednostkowa, kwota) oraz te same dane w plikach CSV.\n\nTrzy kontrole liczone w ca\u0142ych groszach: pozycje sumuj\u0105 si\u0119 do sumy netto; suma netto minus rabat plus podatek i wysy\u0142ka daje sum\u0119; ilo\u015b\u0107 razy cena daje kwot\u0119 pozycji. Wynik to PASS, MISMATCH z r\u00f3\u017cnic\u0105 albo NOT CHECKABLE, gdy na fakturze brakuje warto\u015bci.\n\nOgraniczenia: tylko PDF z tekstem (skany s\u0105 zg\u0142aszane, nie zgadywane), do 20 plik\u00f3w, 10 MB i 20 stron na plik, etykiety po angielsku. Pliki wynikowe s\u0105 przechowywane 1 godzin\u0119, potem usuwane."
+          },
+          "de-DE": {
+            "subtitle": "Rechnungs-PDFs nach Excel",
+            "description": "Zovo Invoice Reader macht aus Rechnungs-PDFs eine Tabelle und pr\u00fcft die Rechnung jeder Rechnung. H\u00e4ngen Sie bis zu 20 textbasierte Rechnungs-PDFs an. Sie erhalten eine Excel-Arbeitsmappe mit dem Blatt Rechnungen (Datei, Lieferant, Rechnungsnummer, Rechnungsdatum, F\u00e4lligkeit, W\u00e4hrung, Zwischensumme, Steuer, Versand, Rabatt, Gesamt, offener Betrag, Pr\u00fcfstatus) und dem Blatt Positionen (Beschreibung, Menge, Einzelpreis, Betrag) sowie dieselben Daten als CSV.\n\nDrei Pr\u00fcfungen in ganzen Cent: Die Positionen ergeben die Zwischensumme; Zwischensumme minus Rabatt plus Steuer und Versand ergibt die Gesamtsumme; Menge mal Einzelpreis ergibt den Positionsbetrag. Ergebnis: PASS, MISMATCH mit Differenz oder NOT CHECKABLE, wenn ein Wert fehlt.\n\nEinschr\u00e4nkungen: nur PDFs mit Text (Scans werden gemeldet, nicht geraten), bis 20 Dateien, 10 MB und 20 Seiten pro Datei, Beschriftungen auf Englisch. Erzeugte Dateien werden 1 Stunde gespeichert und dann gel\u00f6scht."
+          },
+          "es-ES": {
+            "subtitle": "Facturas PDF a Excel",
+            "description": "Zovo Invoice Reader convierte facturas PDF en una hoja de c\u00e1lculo y revisa las cuentas de cada factura. Adjunta hasta 20 facturas PDF con texto. Obtienes un libro de Excel con la hoja Facturas (archivo, proveedor, n\u00famero, fecha, vencimiento, moneda, subtotal, impuesto, env\u00edo, descuento, total, importe pendiente, estado de la revisi\u00f3n) y la hoja L\u00edneas (descripci\u00f3n, cantidad, precio unitario, importe), adem\u00e1s de los mismos datos en CSV.\n\nTres comprobaciones en c\u00e9ntimos enteros: las l\u00edneas suman el subtotal; subtotal menos descuento m\u00e1s impuesto y env\u00edo da el total; cantidad por precio da el importe de cada l\u00ednea. Resultado: PASS, MISMATCH con la diferencia o NOT CHECKABLE si falta un valor.\n\nLimitaciones: solo PDF con texto (los escaneos se indican, no se adivinan), hasta 20 archivos, 10 MB y 20 p\u00e1ginas por archivo, etiquetas en ingl\u00e9s. Los archivos generados se guardan 1 hora y luego se eliminan."
+          },
+          "fr-FR": {
+            "subtitle": "Factures PDF vers Excel",
+            "description": "Zovo Invoice Reader transforme des factures PDF en un tableur et v\u00e9rifie les calculs de chaque facture. Joignez jusqu'\u00e0 20 factures PDF avec du texte. Vous obtenez un classeur Excel avec une feuille Factures (fichier, fournisseur, num\u00e9ro, date, \u00e9ch\u00e9ance, devise, sous-total, taxe, livraison, remise, total, montant d\u00fb, statut du contr\u00f4le) et une feuille Lignes (description, quantit\u00e9, prix unitaire, montant), ainsi que les m\u00eames donn\u00e9es en CSV.\n\nTrois contr\u00f4les en centimes entiers : les lignes donnent le sous-total ; sous-total moins remise plus taxe et livraison donne le total ; quantit\u00e9 fois prix unitaire donne le montant de la ligne. R\u00e9sultat : PASS, MISMATCH avec l'\u00e9cart, ou NOT CHECKABLE s'il manque une valeur.\n\nLimites : PDF avec texte uniquement (les scans sont signal\u00e9s, pas devin\u00e9s), jusqu'\u00e0 20 fichiers, 10 Mo et 20 pages par fichier, libell\u00e9s en anglais. Les fichiers g\u00e9n\u00e9r\u00e9s sont conserv\u00e9s 1 heure, puis supprim\u00e9s."
+          },
+          "ja-JP": {
+            "subtitle": "\u8acb\u6c42\u66f8PDF\u3092Excel\u306b",
+            "description": "Zovo Invoice Reader \u306f\u8acb\u6c42\u66f8PDF\u30921\u3064\u306e\u8868\u306b\u307e\u3068\u3081\u3001\u5404\u8acb\u6c42\u66f8\u306e\u8a08\u7b97\u3092\u78ba\u8a8d\u3057\u307e\u3059\u3002\u30c6\u30ad\u30b9\u30c8\u3092\u542b\u3080\u8acb\u6c42\u66f8PDF\u3092\u6700\u592720\u4ef6\u6dfb\u4ed8\u3067\u304d\u307e\u3059\u3002\u8acb\u6c42\u66f8\u30b7\u30fc\u30c8\uff08\u30d5\u30a1\u30a4\u30eb\u3001\u53d6\u5f15\u5148\u3001\u8acb\u6c42\u66f8\u756a\u53f7\u3001\u8acb\u6c42\u65e5\u3001\u652f\u6255\u671f\u65e5\u3001\u901a\u8ca8\u3001\u5c0f\u8a08\u3001\u7a0e\u3001\u9001\u6599\u3001\u5024\u5f15\u304d\u3001\u5408\u8a08\u3001\u8acb\u6c42\u984d\u3001\u78ba\u8a8d\u7d50\u679c\uff09\u3068\u660e\u7d30\u30b7\u30fc\u30c8\uff08\u5185\u5bb9\u3001\u6570\u91cf\u3001\u5358\u4fa1\u3001\u91d1\u984d\uff09\u3092\u6301\u3064Excel\u30d6\u30c3\u30af\u3068\u3001\u540c\u3058\u5185\u5bb9\u306eCSV\u30d5\u30a1\u30a4\u30eb\u3092\u4f5c\u6210\u3057\u307e\u3059\u3002\n\n\u78ba\u8a8d\u306f\u30bb\u30f3\u30c8\u5358\u4f4d\u306e\u6574\u6570\u8a08\u7b97\u30673\u3064\u884c\u3044\u307e\u3059\u3002\u660e\u7d30\u306e\u5408\u8a08\u304c\u5c0f\u8a08\u3068\u4e00\u81f4\u3059\u308b\u304b\u3001\u5c0f\u8a08\u2212\u5024\u5f15\u304d\uff0b\u7a0e\uff0b\u9001\u6599\u304c\u5408\u8a08\u3068\u4e00\u81f4\u3059\u308b\u304b\u3001\u6570\u91cf\u00d7\u5358\u4fa1\u304c\u5404\u660e\u7d30\u306e\u91d1\u984d\u3068\u4e00\u81f4\u3059\u308b\u304b\u3002\u7d50\u679c\u306f PASS\u3001\u5dee\u984d\u4ed8\u304d\u306e MISMATCH\u3001\u5024\u304c\u7121\u3044\u5834\u5408\u306e NOT CHECKABLE \u3067\u3059\u3002\n\n\u5236\u9650\u4e8b\u9805\uff1a\u30c6\u30ad\u30b9\u30c8PDF\u306e\u307f\uff08\u30b9\u30ad\u30e3\u30f3\u306f\u5831\u544a\u306e\u307f\u3067\u63a8\u6e2c\u3057\u307e\u305b\u3093\uff09\u3001\u6700\u592720\u30d5\u30a1\u30a4\u30eb\u30011\u30d5\u30a1\u30a4\u30eb10 MB\u30fb20\u30da\u30fc\u30b8\u307e\u3067\u3001\u30e9\u30d9\u30eb\u306f\u82f1\u8a9e\u3002\u4f5c\u6210\u3057\u305f\u30d5\u30a1\u30a4\u30eb\u306f1\u6642\u9593\u4fdd\u5b58\u3055\u308c\u3001\u305d\u306e\u5f8c\u524a\u9664\u3055\u308c\u307e\u3059\u3002"
+          },
+          "pt-BR": {
+            "subtitle": "Faturas PDF para Excel",
+            "description": "O Zovo Invoice Reader transforma faturas em PDF em uma planilha e confere as contas de cada fatura. Anexe at\u00e9 20 faturas PDF com texto. Voc\u00ea recebe uma pasta de trabalho do Excel com a aba Faturas (arquivo, fornecedor, n\u00famero, data, vencimento, moeda, subtotal, imposto, frete, desconto, total, valor devido, status da confer\u00eancia) e a aba Itens (descri\u00e7\u00e3o, quantidade, pre\u00e7o unit\u00e1rio, valor), al\u00e9m dos mesmos dados em CSV.\n\nTr\u00eas confer\u00eancias em centavos inteiros: os itens somam o subtotal; subtotal menos desconto mais imposto e frete d\u00e1 o total; quantidade vezes pre\u00e7o unit\u00e1rio d\u00e1 o valor do item. Resultado: PASS, MISMATCH com a diferen\u00e7a ou NOT CHECKABLE quando falta um valor.\n\nLimita\u00e7\u00f5es: apenas PDF com texto (digitaliza\u00e7\u00f5es s\u00e3o informadas, n\u00e3o adivinhadas), at\u00e9 20 arquivos, 10 MB e 20 p\u00e1ginas por arquivo, r\u00f3tulos em ingl\u00eas. Os arquivos gerados ficam guardados por 1 hora e depois s\u00e3o apagados."
+          }
+        }
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

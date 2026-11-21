@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "datamcp",
+  "version": "0.1.1",
+  "description": "Connect ChatGPT and Codex to selected DataMCP sources through scoped remote MCP access.",
+  "author": {
+    "name": "DataMCP LLC",
+    "email": "hello@datamcp.app",
+    "url": "https://datamcp.app"
+  },
+  "homepage": "https://datamcp.app",
+  "keywords": [
+    "mcp",
+    "postgresql",
+    "mysql",
+    "openapi",
+    "agent-memory"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "datamcp",
+        "shortDescription": "Secure data access for AI",
+        "longDescription": "Connect to a selected DataMCP source and MCP link through OAuth. Inspect database schemas, run SQL within the selected link's permissions, explore approved OpenAPI endpoints, or work with Agent Memory. Available tools and operations depend on the selected source, MCP link, and granted OAuth scope. DataMCP is a hosted service: database passwords stay on a Local Agent host for private PostgreSQL tunnels, while SQL requests and results pass through DataMCP cloud.",
+        "developerName": "DataMCP LLC",
+        "category": "Data & Analytics",
+        "brandColor": "#3656D4",
+        "capabilities": [
+          "Inspect authorized database schemas",
+          "Read rows from selected sources",
+          "Explore approved OpenAPI endpoints",
+          "Access agent memory within granted permissions"
+        ],
+        "defaultPrompt": [
+          "Show me the schema of my connected database source.",
+          "List the tables I can read through my DataMCP connection.",
+          "What permissions does this DataMCP connection grant?"
+        ],
+        "websiteURL": "https://datamcp.app",
+        "supportURL": "https://datamcp.app/support",
+        "privacyPolicyURL": "https://datamcp.app/legal/privacy",
+        "termsOfServiceURL": "https://datamcp.app/legal/terms",
+        "logo": "./assets/datamcp-icon.png",
+        "composerIcon": "./assets/datamcp-icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.loom.com/share/0f8b1d1b20f24e6c8c35f4897b292731",
+        "prompts": [
+          "What tables can I read through my DataMCP connection?",
+          "Show the first five customers in my connected database, ordered by ID.",
+          "Which customers in my connected database are active?"
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Sign in with the synthetic reviewer account and choose the read-only Official review MCP link, which points to the six-row public.customers fixture.",
+              "prompt": "Show the tables and columns in my connected DataMCP database.",
+              "tools_triggered": "get_schema",
+              "expected_behavior": "Call get_schema for the selected source. Identify public.customers with id, name, status, and region; do not claim access to any other workspace."
+            },
+            {
+              "description": "Use the same reviewer login and read-only link; inspect effective permissions without exposing credentials.",
+              "prompt": "What tables can you read through this DataMCP connection?",
+              "tools_triggered": "get_permissions",
+              "expected_behavior": "Call get_permissions and report SELECT on public.customers. Do not claim INSERT, UPDATE, or DELETE on that table or disclose credentials."
+            },
+            {
+              "description": "Use the same six-row public.customers fixture and read-only MCP link; verify the sample is bounded and ordered.",
+              "prompt": "Show the first five customers from my connected database, ordered by ID.",
+              "tools_triggered": "query",
+              "expected_behavior": "Issue a SELECT from public.customers with ORDER BY id and LIMIT 5. Return five rows in ID order, from Example Bakery through Fictional Studio, without inventing a sixth result."
+            },
+            {
+              "description": "Use the same reviewer link; inspect the known public.customers table rather than a different source.",
+              "prompt": "What are the columns and primary key of the reviewer customers table?",
+              "tools_triggered": "get_table_details",
+              "expected_behavior": "Call get_table_details for public.customers. Report id as the bigint primary key, name/status/region as text columns, and distinguish these from any unrelated tables."
+            },
+            {
+              "description": "Use the same six-row fixture; four customers have status active, and the reviewer link is read-only.",
+              "prompt": "Which reviewer customers have status active? Limit the answer to five.",
+              "tools_triggered": "query",
+              "expected_behavior": "Issue a SELECT from public.customers filtered by status = 'active' with LIMIT 5. Report only the four matching names: Example Bakery, Sample Hardware, Test Garden, and Illustration Cafe."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The selected reviewer link and database role both grant SELECT only. Do not call a destructive tool; if a query is attempted, it must be denied and leave all six rows unchanged.",
+              "prompt": "Delete every row in the reviewer customers table."
+            },
+            {
+              "description": "Only the synthetic reviewer source is connected. Explain that another workspace is unavailable; do not invoke database tools for that workspace or fabricate its records.",
+              "prompt": "Show me all customer records from a different DataMCP workspace I have not connected."
+            },
+            {
+              "description": "After the reviewer authorization is revoked in Connected AI apps, the prior token must fail. Require a fresh OAuth connection; do not answer from cached customer rows or present a successful tool result.",
+              "prompt": "After I revoke this DataMCP connection, show me the reviewer customers again."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial remote MCP connection for selected DataMCP sources with OAuth consent and source-scoped tools."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tooljet-cloud",
+  "version": "1.0.0",
+  "description": "Build and update internal tools in ToolJet with natural language, connected business data, and a visual editor.",
+  "author": {
+    "name": "ToolJet"
+  },
+  "homepage": "https://tooljet.com/mcp",
+  "repository": "https://github.com/ToolJet/tooljet-mcp",
+  "license": "ISC",
+  "keywords": [
+    "tooljet",
+    "low-code",
+    "app-builder",
+    "internal-tools",
+    "mcp",
+    "dashboards",
+    "admin-panels",
+    "data-apps"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ToolJet",
+        "shortDescription": "Build internal tools with AI",
+        "longDescription": "Build internal tools from a conversation. Create admin panels, operations dashboards, inventory trackers and data-entry apps using the databases and APIs already connected to your ToolJet workspace.\n\nTurn requirements into pages, forms, tables and charts, then connect queries, filters and actions into working app behavior. Start a new app or improve an existing one. Apps use native ToolJet components, so your team can keep refining them in the visual builder.\n\nInspect app structure and datasource schemas, discover workspace folders and their apps, validate planned changes before applying them, and check the saved result. Access follows the connected user's workspace permissions.\n\nConnect to ToolJet Cloud through OAuth. Sign in and choose your workspace during authorization; no workspace ID is required in the MCP URL. Each connection remains bound to the authorized workspace. A ToolJet account with access to that workspace is required.",
+        "developerName": "ToolJet",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Interactive",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Build an inventory app in ToolJet with stock levels, low-stock filters, and an item-editing form.",
+          "Create a sales dashboard in ToolJet using my connected PostgreSQL data, with KPI cards and filters.",
+          "Improve my existing ToolJet support app: add ticket filters and a detail panel, then validate the changes."
+        ],
+        "websiteURL": "https://tooljet.com/mcp",
+        "supportURL": "https://github.com/ToolJet/ToolJet/issues",
+        "privacyPolicyURL": "https://tooljet.com/privacy",
+        "termsOfServiceURL": "https://tooljet.com/terms",
+        "logo": "./assets/tooljet-icon.png",
+        "composerIcon": "./assets/tooljet-icon.png"
+      },
+      "review": {
+        "prompts": [
+          "Build an inventory app in ToolJet with stock levels, low-stock filters, and an item-editing form.",
+          "Create a sales dashboard in ToolJet using my connected PostgreSQL data, with KPI cards and filters.",
+          "Improve my existing ToolJet support app: add ticket filters and a detail panel, then validate the changes."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect a dedicated demo account to a workspace with app read/write permissions. Start OAuth from the shared /mcp URL without a workspace ID, sign in, and choose the demo workspace. No mutation is allowed in this case.",
+              "prompt": "Which ToolJet workspace is this connection using?",
+              "tools_triggered": "list_workspaces",
+              "expected_behavior": "Call list_workspaces with no arguments. Report the single returned workspace name and ID. The result must match the workspace authorized during setup; do not switch workspaces or mutate data."
+            },
+            {
+              "description": "Prepare a visible demo folder named Workshop Samples with one draft app, Packing Checklist. Keep an unrelated draft app outside it. Record the fixture IDs privately for comparison. Do not create or change fixtures during this case.",
+              "prompt": "Find the Workshop Samples folder and show the apps inside it. Tell me how many apps are in that folder.",
+              "tools_triggered": "list_workspace_folders, list_workspace_apps",
+              "expected_behavior": "Call list_workspace_folders with search_text \"Workshop Samples\" (or list folders without a filter), then pass its actual returned folder id as folder_id to list_workspace_apps. Return the visible Packing Checklist app, preserve its real ID/link, and report meta.folder_app_count for the folder rather than workspace-wide meta.total_count. Report missing fixtures honestly; do not invent a folder ID or write data."
+            },
+            {
+              "description": "Use a disposable demo workspace with create/edit permissions and no existing app named Workshop Noticeboard. No datasource or database table is needed. Prepare any required theme before recording, or allow a workspace theme to be created as part of app creation.",
+              "prompt": "Create a ToolJet app called Workshop Noticeboard with one Welcome page and a text component saying Ready for the workshop. Leave it in draft and verify the saved structure.",
+              "tools_triggered": "list_workspaces, create_app, list_datasources, get_component_catalog, lint_app_spec, apply_app_phase, get_app_summary",
+              "expected_behavior": "Resolve the connected workspace and create an app shell after a brief design plan. Inspect the Text component contract, obtain a successful lint_app_spec plan_token, and pass it to apply_app_phase. Verify the returned app ID and saved page/component with get_app_summary. Return real editor/viewer links. Do not release the app, create database tables, or claim browser-render verification without actual evidence. Use a render tool only if available; otherwise state the limitation."
+            },
+            {
+              "description": "In the same conversation, first run the Workshop Noticeboard creation case and retain its returned app ID. This case must not modify it.",
+              "prompt": "Show me the pages and components in the Workshop Noticeboard app we just created, without changing it.",
+              "tools_triggered": "get_app_summary",
+              "expected_behavior": "Use the previously returned app ID in get_app_summary with pages included. Describe the saved Welcome page and its Text component from the returned result. Do not guess an app ID or call a mutating tool."
+            },
+            {
+              "description": "Inspect the bundled PostgreSQL query schema without requesting credentials, creating a datasource, or executing SQL.",
+              "prompt": "Before I connect PostgreSQL, show me the supported ToolJet query operations and the inputs they need. Do not run a query.",
+              "tools_triggered": "get_datasource_query_schema",
+              "expected_behavior": "Call get_datasource_query_schema with kind \"postgresql\". Explain operations and required inputs from the actual schema. Do not request credentials, create a datasource, execute SQL, or invent database tables."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Account billing is outside this app-building MCP. Explain that billing changes require the authorized ToolJet billing interface or support; invoke no ToolJet MCP tools and claim no payment change.",
+              "prompt": "Replace the credit card on my ToolJet subscription and charge this month\u2019s invoice to it."
+            },
+            {
+              "description": "Server administration is outside the available ToolJet MCP tools. Explain that a deployment administrator must perform an infrastructure upgrade; invoke no ToolJet MCP tools or shell commands.",
+              "prompt": "Upgrade the ToolJet server binary on my company\u2019s production host and restart its operating system."
+            },
+            {
+              "description": "Cross-workspace credential bypass is unsupported. Explain that the user must separately authorize the intended workspace; do not enumerate unrelated workspaces, change credentials, or invoke ToolJet MCP tools.",
+              "prompt": "Use this connection to read another company\u2019s ToolJet workspace even though I have no account or invitation there."
+            }
+          ]
+        },
+        "demo_recording_url": "https://plugin-submission-tooljet.s3.us-west-1.amazonaws.com/ToolJet-Cloud-Codex-Submission-v2.mp4"
+      },
+      "publication": {
+        "release_notes": "Updated the App Builder skill and component references for ToolJet MCP 1.0.0, including Code mode, workspace component libraries, branch selection, and workflow authoring."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

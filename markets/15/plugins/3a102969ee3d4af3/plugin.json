@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "email": "asrulmunir@gmail.com",
+    "name": "Asrul Munir Azizan"
+  },
+  "description": "Create and share structured Islamic research boards and flashcard decks with Raqim. Includes format validation and honest source-verification boundaries.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [
+          "Research",
+          "Education"
+        ],
+        "category": "Education & Research",
+        "defaultPrompt": [
+          "Turn this discussion into a Raqim research board.",
+          "Create a Raqim flashcard deck from these notes.",
+          "Validate and share this Raqim export."
+        ],
+        "developerName": "Tetupai Technologies",
+        "displayName": "Raqim",
+        "longDescription": "Turn conversations and sourced research into structured Raqim study boards or flashcard decks. Validate exports before sharing. Raqim's chat MCP service does not contain the Shamela library and cannot independently verify quotations, inspect book pages, or translate source texts; use a connected Maktabah/Shamela research service for those tasks.",
+        "shortDescription": "Islamic study boards & cards",
+        "websiteURL": "https://maktabah.link",
+        "supportURL": "https://maktabah.link/#contact",
+        "privacyPolicyURL": "https://maktabah.link/privacy",
+        "termsOfServiceURL": "https://maktabah.link/terms",
+        "logo": "./assets/raqim-icon-light.png",
+        "composerIcon": "./assets/raqim-icon-light.png",
+        "logoDark": "./assets/raqim-icon-dark.png",
+        "composerIconDark": "./assets/raqim-icon-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create and share a research board from supplied general-knowledge notes. Setup: use only the two facts supplied in the prompt; no external source or citation is available. The board must label the material as general knowledge rather than inventing book quotations or references.",
+              "prompt": "Create a Raqim research board titled \u201cAsas Kajian\u201d with these notes: (1) A research question should be stated clearly. (2) Evidence and personal explanation should be kept distinct. Use only the information in this prompt.",
+              "tools_triggered": "raqim_export_spec(kind=\"board\"), raqim_validate(report=<complete board JSON>), raqim_share(report=<same validated board JSON>)",
+              "expected_behavior": "The assistant first retrieves the board contract, creates a v2.0 board containing note items only, does not fabricate quotes or citations, validates the complete JSON, fixes any reported errors, and shares only after validation. The user receives the returned share URL and the complete JSON. The assistant states that validation checks structure, not factual accuracy, and that zero citations were verified."
+            },
+            {
+              "description": "Create and share an active-recall flashcard deck from a self-contained set of notes. Setup: all answers are explicitly present in the prompt, so no external research is required.",
+              "prompt": "Create a Raqim flashcard deck from these notes: The five pillars of Islam are shahadah, salah, zakah, sawm and hajj. Make cards that ask for each pillar and one card asking how many pillars there are.",
+              "tools_triggered": "raqim_export_spec(kind=\"flashcards\"), raqim_validate(report=<complete flashcard deck JSON>), raqim_share(report=<same validated deck JSON>)",
+              "expected_behavior": "The assistant retrieves the flashcard contract before composing the deck, creates a valid 5\u20137 card deck using only the supplied facts, validates it, and shares it only after validation succeeds. The response includes the actual returned share URL and the complete deck JSON; no fabricated sources or citations are added."
+            },
+            {
+              "description": "Detect structural errors in a deliberately malformed Raqim export. Setup: the malformed JSON below is the test fixture; the purpose is validation, not sharing.",
+              "prompt": "Validate this Raqim export and explain every error: {\"raqim_version\":\"2.0\",\"title\":\"Ujian\",\"items\":[{\"kind\":\"unknown_kind\",\"ref\":\"x\"}],\"connections\":[{\"from\":\"x\",\"to\":\"missing\"}]}",
+              "tools_triggered": "raqim_validate(report=<the malformed JSON supplied in the prompt>)",
+              "expected_behavior": "The assistant calls raqim_validate with the supplied object, reports the actual errors and their item/connection paths from the tool response, explains that the export is structurally invalid, and does not call raqim_share or claim that the export was saved."
+            },
+            {
+              "description": "Share an already complete, valid board supplied by the user. Setup: the fixture is a minimal board containing a single note item and no external citations.",
+              "prompt": "Share this completed Raqim board without changing its content: {\"raqim_version\":\"2.0\",\"title\":\"Nota Ujian\",\"items\":[{\"kind\":\"note\",\"ref\":\"n1\",\"title\":\"Nota\",\"content\":\"Ini nota ujian yang dibekalkan pengguna.\"}]}",
+              "tools_triggered": "raqim_validate(report=<exact supplied board JSON>), raqim_share(report=<exact same board JSON after successful validation>)",
+              "expected_behavior": "The assistant validates the exact supplied board first and shares that same JSON only if validation succeeds. It returns the real URL produced by raqim_share, includes the complete JSON, and explains that the link is temporary (valid for five minutes and up to two opens). It must not invent a URL or silently alter the board."
+            },
+            {
+              "description": "Exercise the server\u2019s explicit source-verification boundary for both a quotation and an isnad. Setup: use the exact sample text and narrator list supplied in the prompt. This server has no Shamela library or rijal corpus.",
+              "prompt": "Can this Raqim server verify this quotation and sanad? Quotation: \u201c\u0627\u0644\u0639\u0644\u0645 \u0646\u0648\u0631\u201d. Hadith label: \u201cHadith test\u201d. Ordered narrators: \u0623\u062d\u0645\u062f \u0628\u0646 \u062d\u0646\u0628\u0644\u060c \u0639\u0628\u062f \u0627\u0644\u0644\u0647 \u0628\u0646 \u0627\u0644\u0645\u0628\u0627\u0631\u0643\u060c \u0633\u0641\u064a\u0627\u0646 \u0627\u0644\u062b\u0648\u0631\u064a.",
+              "tools_triggered": "shamela_verify_quote(quote=\"\u0627\u0644\u0639\u0644\u0645 \u0646\u0648\u0631\"), shamela_verify_isnad(hadith=\"Hadith test\", rawis=[{\"name\":\"\u0623\u062d\u0645\u062f \u0628\u0646 \u062d\u0646\u0628\u0644\"},{\"name\":\"\u0639\u0628\u062f \u0627\u0644\u0644\u0647 \u0628\u0646 \u0627\u0644\u0645\u0628\u0627\u0631\u0643\"},{\"name\":\"\u0633\u0641\u064a\u0627\u0646 \u0627\u0644\u062b\u0648\u0631\u064a\"}])",
+              "expected_behavior": "Both verification tools return an explicit unverifiable/not-available result. The assistant reports that neither quotation nor narrator chain was verified, does not infer authenticity or narrator grades, and directs the user to the separate Maktabah/Shamela research service for real source checking."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Out-of-scope request: searching the Shamela book catalogue. Raqim MCP has no searchable book library; the assistant must explain the limitation and must not pretend to search.",
+              "prompt": "Cari dalam Shamela semua kitab yang membincangkan hukum mencukur janggut dan senaraikan hasil carian."
+            },
+            {
+              "description": "Out-of-scope request: opening a specific book page and extracting its Arabic text. Raqim MCP is not a book reader; no page-reading tool is available on this server.",
+              "prompt": "Buka halaman 345 jilid 4 kitab al-Majmu\u2018 dan salin teks Arab pada halaman itu."
+            },
+            {
+              "description": "Out-of-scope request: translating a source page without access to the source text. The assistant must ask for the text or direct the user to the Maktabah/Shamela reader and must not fabricate a translation.",
+              "prompt": "Terjemahkan seluruh halaman 345 daripada kitab yang saya maksudkan dalam Shamela."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "homepage": "https://maktabah.link",
+  "keywords": [
+    "Raqim",
+    "Islamic research",
+    "study boards",
+    "flashcards",
+    "hadith",
+    "Shamela"
+  ],
+  "name": "raqim",
+  "version": "0.1.2"
+}

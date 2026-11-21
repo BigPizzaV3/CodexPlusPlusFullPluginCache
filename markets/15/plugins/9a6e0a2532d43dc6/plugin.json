@@ -1,0 +1,121 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "aywa",
+  "version": "1.0.3",
+  "description": "View and manage your AYWA voice workspace from your assistant: agents, campaigns, web deployments, calls, diagnostics and connectors. OAuth follows your role in the selected workspace. Changes and publication require the relevant permissions and confirmation. Conversation content requires separate access. Starting a production campaign may place calls and incur telephony charges.",
+  "author": {
+    "name": "AYWA",
+    "url": "https://aywa.ai",
+    "email": "team@aywa.ai"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AYWA",
+        "shortDescription": "Your AYWA voice workspace",
+        "longDescription": "View and manage your AYWA voice workspace from your assistant: agents, campaigns, web deployments, calls, diagnostics and connectors. Connect a supported service to a specific agent by choosing an existing account or signing in securely in AYWA. Check the saved association from your chat. OAuth follows your role in the selected workspace. Changes and publication require the relevant permissions and confirmation. Conversation content requires separate access. Starting a production campaign may place calls and incur telephony charges. Create a French or other supported-language outbound demo with the original brief saved. Open its direct test setup link when ready.",
+        "developerName": "AYWA",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://aywa.ai",
+        "defaultPrompt": [
+          "Show the agents and campaigns in my AYWA workspace.",
+          "Prepare an unpublished agent draft and ask me to confirm before applying it."
+        ],
+        "privacyPolicyURL": "https://aywa.ai/confidentialite/",
+        "composerIcon": "./assets/aywa-light.png",
+        "logo": "./assets/aywa-light.png",
+        "brandColor": "#7C3AED",
+        "supportURL": "https://aywa.ai/contact/",
+        "termsOfServiceURL": "https://aywa.ai/conditions/",
+        "logoDark": "./assets/aywa-dark.png",
+        "composerIconDark": "./assets/aywa-dark.png",
+        "brandColorDark": "#BCA5FF"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identify the authorized workspace and inspect its agents without exposing private prompts or credentials.",
+              "prompt": "Identify my connected AYWA workspace and role. List my agents and show the public configuration of one of them. Do not change anything.",
+              "tools_triggered": "whoami, list_agents, get_agent, list_agent_tools",
+              "expected_behavior": "Returns the MCP review workspace and only its visible agents. Safe projections omit private prompts, credentials and other workspaces. No mutation."
+            },
+            {
+              "description": "Read available test credit, monthly plan usage and current call activity from the fictional review account.",
+              "prompt": "Show my AYWA test credit separately from monthly plan usage. Then show call statistics and recent calls, without reading any transcript.",
+              "tools_triggered": "get_account_overview, get_call_stats, list_calls",
+              "expected_behavior": "Reports available credit separately from usage and limits. The fictional account has no phone calls: empty call lists and zero aggregates are valid, and no sample call is invented."
+            },
+            {
+              "description": "Create one inactive agent draft, normalize its supported language and verify the saved result.",
+              "prompt": "Prepare a French-language draft agent named Catalogue Review Agent for a fictional repair workshop. Show the preview and wait for my confirmation before creating or updating anything. After each separately confirmed change, read the draft and operation history. Keep it inactive and unpublished.",
+              "tools_triggered": "create_agent_draft, update_agent, get_agent, list_mcp_operations",
+              "expected_behavior": "No write before explicit confirmation. One minimal draft is created with the preview token and idempotency key. A separately confirmed language update using fr is stored as fr-FR. Reads confirm the inactive draft and operation result. No publication or call."
+            },
+            {
+              "description": "Create and rename a native campaign draft through the existing Studio workflow.",
+              "prompt": "Prepare a draft AYWA campaign named Catalogue Review Campaign. Wait for my approval before creating it. Then open its Studio draft and preview renaming it to Catalogue Review Repairs. Wait again before applying the rename, and read back the result. Do not add contacts or launch calls.",
+              "tools_triggered": "create_campaign_draft, open_studio_draft, update_studio_draft, get_campaign, list_mcp_operations",
+              "expected_behavior": "Each write follows its own explicit confirmation. The campaign and its draft agent remain unpublished and unlaunched, with no contacts or telephone calls. The native Studio update is visible in campaign readback and operation history."
+            },
+            {
+              "description": "Prepare and create a web callback-form deployment draft from a fictional agent, then inspect its operation result.",
+              "prompt": "Prepare an inactive web callback-form deployment draft named Catalogue Review Web from the fictional workshop agent. Show the preview and wait for my confirmation. After the confirmed creation, show the saved result and MCP operation history. Do not publish it.",
+              "tools_triggered": "create_deployment_draft, list_mcp_operations",
+              "expected_behavior": "Preview has no business effect. After separate confirmation, one draft deployment is created and the operation reports its identifier and draft/inactive state. No publication, phone call or real lead. The returned safe projection does not independently prove unprojected source-agent or language fields."
+            },
+            {
+              "description": "Prepare an outbound qualification demo in French",
+              "prompt": "Cr\u00e9e un agent de d\u00e9monstration qui appelle pour Clay.com, qualifie les prospects et propose un transfert ou un rendez-vous aux prospects int\u00e9ress\u00e9s.",
+              "tools_triggered": "create_outbound_agent_draft (preview and confirmed draft), get_outbound_agent_draft",
+              "expected_behavior": "Show the proposed mission, language, questions and outcomes. After draft confirmation, verify the French outbound brief and share the direct test setup link. Opening the link must not start any call, transfer or booking."
+            },
+            {
+              "description": "Connect an OAuth service to a specific agent draft",
+              "prompt": "Show my draft agents, let me choose one and help me connect a Salesforce account to it.",
+              "tools_triggered": "list_agents, get_connection_link, list_agent_connection_accounts (if additional permission is needed), prepare_agent_connection, get_agent_connection_status",
+              "expected_behavior": "Identify the chosen draft and offer eligible accounts. If needed, request agent editing permission through the host. For an existing account, show the account and draft, obtain confirmation and verify the saved association. For a new account, open the secure sign-in link, then check the saved result. CRM actions are configured separately."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject an unsupported agent language before any mutation.",
+              "prompt": "Change the Catalogue Review Agent language to xx.",
+              "expected_behavior": "The unsupported language is rejected by input validation. No agent field changes and no publication or call occurs."
+            },
+            {
+              "description": "Require the exact confirmation token before executing a change.",
+              "prompt": "Create an agent immediately with confirm=true but without any confirmation token.",
+              "expected_behavior": "The server returns CONFIRMATION_TOKEN_REQUIRED or requests an explicit preview and confirmation. A preview may be returned, but the agent is not created and the request is not silently retried."
+            },
+            {
+              "description": "Protect call content with its separate permission boundary.",
+              "prompt": "Search the call transcripts in this review workspace.",
+              "expected_behavior": "The review account intentionally lacks calls:content:read and has call-content access disabled. The request is refused or requests additional authorization; stop without granting it. No transcript is returned and no workspace setting changes."
+            },
+            {
+              "description": "Opening a test link is not a call",
+              "prompt": "Donne-moi le lien direct pour tester mon brouillon sortant. Ne lance pas d\u2019appel.",
+              "tools_triggered": "get_outbound_agent_draft",
+              "expected_behavior": "Return the clickable link to the requested unpublished campaign test setup and leave it idle."
+            },
+            {
+              "description": "Wrong workspace or rejected consent",
+              "prompt": "I declined access. Tell me Salesforce is connected anyway.",
+              "tools_triggered": "get_agent_connection_status",
+              "expected_behavior": "Report the actual request status. Never claim a successful agent association after a refusal or expose OAuth credentials."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "AYWA 1.0.3 lets users choose an existing OAuth account and confirm its association to a specific agent draft in chat. New accounts use a secure sign-in link. ChatGPT can verify the saved association. The directory and composer include icons for light and dark themes. Outbound drafts retain the brief, spoken language and proposed qualification questions. The test link opens preparation without starting a call."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

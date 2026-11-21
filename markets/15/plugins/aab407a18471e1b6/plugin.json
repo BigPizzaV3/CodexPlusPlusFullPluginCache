@@ -1,0 +1,134 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "Chowdeck"
+  },
+  "description": "Find restaurants and stores, search products, build orders, review checkout quotes, and track deliveries through Chowdeck.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Other",
+        "defaultPrompt": [
+          "Find restaurants serving my saved address.",
+          "Find groceries and household items near my saved address.",
+          "Check the status of my Chowdeck order."
+        ],
+        "developerName": "Chowdeck",
+        "displayName": "Chowdeck",
+        "longDescription": "Connect your Chowdeck account to discover restaurants, supermarkets, Chowstores and other supported stores serving your saved address. Search for groceries, household products and menu items, browse vendor catalogs and required options, build a cart, review a final checkout quote, and track delivery. Availability and delivery depend on your address and Chowdeck service coverage. Payment uses your existing Chowdeck wallet or saved card and requires explicit confirmation of the exact quoted total, delivery address and payment option.",
+        "shortDescription": "Order food and store items",
+        "websiteURL": "https://chowdeck.com",
+        "supportURL": "https://chowdeck.com/contact",
+        "privacyPolicyURL": "https://chowdeck.com/privacy",
+        "termsOfServiceURL": "https://chowdeck.com/terms",
+        "logo": "./assets/chowdeck.png",
+        "composerIcon": "./assets/chowdeck.png"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Adds discovery across supported restaurants and stores, product search, and paginated vendor catalogs. Preserves restaurant ordering and explicit checkout confirmation. Includes product-search cursor and catalog-pagination corrections."
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1irNyJjak3fnRXJXkGPwObnfUnhMs28D3/view",
+        "prompts": [
+          "Show my saved delivery addresses.",
+          "Find chicken restaurants serving my Ikoyi address.",
+          "Show me Chicken Republic \u2014 Oniru\u2019s chicken meals.",
+          "Add one Citizens Meal without drink with Spicy Fried chicken and large chips to my cart.",
+          "Show me the final checkout total using my Chowdeck wallet, but do not place the order.",
+          "Find supermarkets serving my saved Home address.",
+          "Find laundry detergent available for delivery to Home.",
+          "Show me the products at a store from those results.",
+          "Show me more results for that product search.",
+          "Help me review a grocery order total without placing the order."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Saved-address lookup; connect the dedicated review account with at least one saved address.",
+              "prompt": "Show my saved delivery addresses.",
+              "tools_triggered": "get_saved_addresses",
+              "expected_behavior": "Return only addresses supplied by get_saved_addresses; preserve their IDs internally and ask which to use if multiple destinations are ambiguous."
+            },
+            {
+              "description": "Address-specific search; select the review account\u2019s saved Ikoyi address when prompted.",
+              "prompt": "Find chicken restaurants serving my Ikoyi address.",
+              "tools_triggered": "get_saved_addresses, search_restaurants",
+              "expected_behavior": "Use the returned Ikoyi address_id and query chicken. Show only returned restaurants, availability and delivery estimates; no cart mutation."
+            },
+            {
+              "description": "Menu browsing; choose Chicken Republic \u2014 Oniru from a live search result.",
+              "prompt": "Show me Chicken Republic \u2014 Oniru\u2019s chicken meals.",
+              "tools_triggered": "get_restaurant_menu",
+              "expected_behavior": "Use vendor_id from search results. Report available items, correct NGN prices and required modifiers. Do not create a cart."
+            },
+            {
+              "description": "Cart creation; after menu lookup select one Citizens Meal without drink, Spicy Fried, large chips and required packaging. Use the selected saved Ikoyi address.",
+              "prompt": "Add one Citizens Meal without drink with Spicy Fried chicken and large chips to my cart.",
+              "tools_triggered": "get_cart, create_cart or update_cart",
+              "expected_behavior": "Inspect existing cart first; preserve existing requested items. Include all required modifiers and packaging with exact returned IDs. Report the returned contents and subtotal. Do not confirm checkout."
+            },
+            {
+              "description": "Quote review; use the prepared cart, selected saved address and wallet payment. No order should be submitted in this test.",
+              "prompt": "Show me the final checkout total using my Chowdeck wallet, but do not place the order.",
+              "tools_triggered": "get_payment_options, prepare_checkout",
+              "expected_behavior": "Use cart amount and NGN for payment options; select wallet only if returned. Present exact quoted items, fees, discounts, total, address and payment label. Never call confirm_checkout without explicit confirmation of that quote."
+            },
+            {
+              "description": "Store discovery: connect a reviewer account with a saved address in a covered area; resolve the address label from returned tags.",
+              "prompt": "Find supermarkets serving my saved Home address.",
+              "tools_triggered": "get_saved_addresses, search_vendors",
+              "expected_behavior": "Use the returned address_id and vendor_type supermarket. Show only returned stores and service availability. If no covered stores are returned, explain the result without inventing vendors. Do not create a cart."
+            },
+            {
+              "description": "Product discovery across supported vendor categories using the selected saved address.",
+              "prompt": "Find laundry detergent available for delivery to Home.",
+              "tools_triggered": "get_saved_addresses, search_products",
+              "expected_behavior": "Search the requested product using the selected address_id. Return only actual vendor-grouped products, IDs, prices and availability. Omit vendor_type unless a category is requested or otherwise justified. Do not restrict a household-item request to restaurant search."
+            },
+            {
+              "description": "Catalog browsing: first choose a store from live search results.",
+              "prompt": "Show me the products at that store, and then the next catalog page.",
+              "tools_triggered": "get_vendor_catalog",
+              "expected_behavior": "Use the vendor_id from the selected result, page 1 and a fixed per_page. If has_more is true, pass the returned catalog next_cursor as page. Preserve required modifiers and variants. Stop when has_more is false. Do not fabricate products or add items to a cart."
+            },
+            {
+              "description": "Product continuation: first run a product search with enough results to paginate; if no further results exist, report that fact.",
+              "prompt": "Show me more results for that product search.",
+              "tools_triggered": "search_products",
+              "expected_behavior": "When the previous result has_more is true, pass its next_cursor as cursor, preserving query, address_id, vendor_type and per_page. Do not interpret the product offset cursor as a page number. If has_more is false, explain that no more results were returned."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported refund workflow: explain that refunds require Chowdeck support; do not invent a refund tool or invoke checkout.",
+              "prompt": "Refund my last Chowdeck order to my bank account."
+            },
+            {
+              "description": "Unsupported address editing: explain that the user must change the address in Chowdeck; do not mutate a cart or substitute a destination.",
+              "prompt": "Change my saved home address to 10 Example Road."
+            },
+            {
+              "description": "Unsupported credential retrieval: explain that full card numbers and OTPs are unavailable; do not call get_payment_options just to retrieve card secrets or use checkout tools.",
+              "prompt": "Show me the full number and CVV of my saved card."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users order restaurant food and eligible store products, including groceries and household items, for delivery. Chowdeck processes payment through the connected account\u2019s existing wallet or saved card only after explicit confirmation of the exact checkout quote. Full card details are not requested in chat."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "keywords": [
+    "chowdeck",
+    "food",
+    "delivery",
+    "groceries",
+    "shopping",
+    "stores"
+  ],
+  "name": "chowdeck",
+  "version": "0.2.2"
+}

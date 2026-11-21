@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "email": "mezsondra@gmail.com",
+    "name": "Mezsondra LTD"
+  },
+  "description": "Find current AeroCell eSIM plans that fit a travel itinerary, data needs, and budget, with links to purchase on AeroCell.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "category": "Travel",
+        "defaultPrompt": [
+          "Find an eSIM plan for my next trip.",
+          "Compare AeroCell plans for Japan for a seven-day trip with at least 5 GB.",
+          "Help me choose eSIM plans for a multi-country itinerary."
+        ],
+        "developerName": "Mezsondra LTD",
+        "displayName": "AeroCell eSIM Plans",
+        "longDescription": "AeroCell, by Mezsondra LTD, helps travelers find live AeroCell eSIM plans by destination, travel dates, data allowance, and USD budget. Compare data, validity, price, and supported networks, then follow an AeroCell checkout link. For multi-country trips, search regional bundles with verified country coverage. Results cover AeroCell inventory. Purchases take place on aerocell.app; the plugin does not process payments, manage orders, or install eSIMs.",
+        "shortDescription": "eSIM plans for your trip",
+        "logo": "./assets/aerocell-logo.png",
+        "composerIcon": "./assets/aerocell-logo.png",
+        "websiteURL": "https://aerocell.app/developers",
+        "supportURL": "https://aerocell.app/support",
+        "privacyPolicyURL": "https://aerocell.app/privacy",
+        "termsOfServiceURL": "https://aerocell.app/terms"
+      },
+      "review": {
+        "prompts": [
+          "Find AeroCell eSIM options for Japan from December 1 to December 7, 2026, with at least 5 GB and a budget of US$30.",
+          "Find one AeroCell eSIM that covers France, Italy, and Spain from December 1 to December 10, 2026. I need at least 3 GB and can spend up to US$30.",
+          "I am considering a trip around the Gulf. Show AeroCell regional bundles and exactly which countries each covers; I have not chosen dates or countries yet.",
+          "Find an AeroCell eSIM for Japan costing no more than US$0.01. Keep that budget limit."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Country search with dates, data minimum, and USD budget. Setup: a fresh conversation with this plugin enabled; no account or fixture is required. Live inventory may change.",
+              "prompt": "Find AeroCell eSIM options for Japan from December 1 to December 7, 2026, with at least 5 GB and a budget of US$30.",
+              "tools_triggered": "find_esim_plans",
+              "expected_behavior": "Call find_esim_plans with country_code=JP, start_date=2026-12-01, end_date=2026-12-07, min_data_gb=5, max_price_usd=30, and a limit from 3 to 8; omit require_trip_coverage or set it true. Show up to three returned options with data, validity, USD price, operators, and returned AeroCell links. Every recommended plan must meet the filters and have covers_trip=true. Explain that covers_trip checks validity length, not activation timing. If no plans match, report that fact without inventing results or silently relaxing filters."
+            },
+            {
+              "description": "Refresh details for a real selected single-country plan. Setup: first ask the Japan search prompt from the preceding case, wait for its real results, then send this follow-up in the same conversation. If inventory is empty, report the case blocked rather than fabricate an ID.",
+              "prompt": "Show current details and the purchase link for the first Japan plan you just listed. I will complete payment on AeroCell.",
+              "tools_triggered": "get_esim_plan",
+              "expected_behavior": "Call get_esim_plan with country_code=JP and plan_id equal to the exact first plan ID returned by the preceding country search. Show the refreshed name, data, validity, current USD price, returned operators, and returned checkout_url. Explain that checkout occurs on aerocell.app and device compatibility must be checked. Do not claim purchase, payment, installation, or full-trip validity from the details response if covers_trip is null. If the plan has disappeared, explain unavailability and offer a fresh search."
+            },
+            {
+              "description": "A single regional bundle must cover an entire three-country itinerary. Setup: fresh conversation; public live catalog; no login required.",
+              "prompt": "Find one AeroCell eSIM that covers France, Italy, and Spain from December 1 to December 10, 2026. I need at least 3 GB and can spend up to US$30.",
+              "tools_triggered": "find_regional_esim_plans",
+              "expected_behavior": "Call find_regional_esim_plans with country_codes containing FR, IT, ES, start_date=2026-12-01, end_date=2026-12-10, min_data_gb=3, max_price_usd=30; omit require_trip_coverage or set it true. Recommend only returned bundles whose country_codes contain all three destinations, whose data and price meet filters, and whose covers_trip is true. Show returned price, validity, coverage, operators, and checkout link. Do not imply regional operator summaries identify the network in each individual country. If no match exists, say so without inventing coverage."
+            },
+            {
+              "description": "Region-only discovery when no exact itinerary or dates are supplied. Setup: fresh conversation; public live catalog. Gulf bundles can have different country lists.",
+              "prompt": "I am considering a trip around the Gulf. Show AeroCell regional bundles and exactly which countries each covers; I have not chosen dates or countries yet.",
+              "tools_triggered": "find_regional_esim_plans",
+              "expected_behavior": "Call find_regional_esim_plans with region=gulf and no invented country_codes or travel dates. Present up to three returned bundles, each with its exact country_codes translated accurately into names, returned price, data, validity, and checkout link. State that full-trip validity has not been checked when covers_trip is null. Do not imply every bundle covers every Gulf country. Preserve any explicitly daily allowance label; do not relabel a daily quota as total trip data. Ask for itinerary and dates to confirm suitability."
+            },
+            {
+              "description": "Supported search with a deliberately tight budget tests empty-result handling. Setup: fresh conversation; public live catalog. An empty result is an expected valid search outcome, not an unsupported-intent negative case.",
+              "prompt": "Find an AeroCell eSIM for Japan costing no more than US$0.01. Keep that budget limit.",
+              "tools_triggered": "find_esim_plans",
+              "expected_behavior": "Call find_esim_plans with country_code=JP and max_price_usd=0.01, without invented dates. If plans is empty and total_matching is zero, clearly say no matching AeroCell plans were returned, and ask whether the user wants to change a constraint. Do not fabricate a free plan, exceed the budget, or silently remove it. If future live inventory contains a matching plan, show only returned options within the budget and avoid claiming the set is empty."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported account/order action. Explain that this plugin cannot access orders or issue refunds, and direct the user to AeroCell support. Do not call any of find_esim_plans, find_regional_esim_plans, or get_esim_plan for this request. Do not claim a refund or cancellation occurred.",
+              "prompt": "Refund my last AeroCell order and cancel the payment."
+            },
+            {
+              "description": "Unsupported device installation and credential retrieval. Explain that the plugin cannot retrieve a purchased activation QR code or install an eSIM. Direct the user to their AeroCell account, purchase email, or support. Do not request passwords or activation codes, call any of the three plan tools, or claim installation succeeded.",
+              "prompt": "Retrieve the activation QR code from my AeroCell account and install that eSIM on my phone for me."
+            },
+            {
+              "description": "Travel-adjacent task outside the eSIM catalog. Explain that this plugin searches AeroCell eSIM data plans and cannot book flights or hotels. Do not call any of the three AeroCell tools or claim a booking was made.",
+              "prompt": "Book my flight from Istanbul to Tokyo and a hotel for my arrival night."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users discover and compare AeroCell travel eSIM data plans, then follow returned links to buy on aerocell.app. Any required sign-in, checkout, and payment occur on that website. The plugin does not process payments, place orders, access customer accounts, issue refunds, or install eSIMs."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Rename the listing to AeroCell eSIM Plans to remove the promotional price claim flagged during metadata checks. Preserve Mezsondra LTD publisher metadata, existing branding, live country and regional plan tools, review cases, commerce disclosure, and all-country availability."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "name": "aerocell",
+  "version": "0.2.3"
+}

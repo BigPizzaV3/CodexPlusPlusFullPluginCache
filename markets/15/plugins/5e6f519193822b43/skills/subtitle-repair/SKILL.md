@@ -1,0 +1,10 @@
+---
+name: subtitle-repair
+description: "Audit an existing plain-text UTF-8 SRT/WebVTT file and export normalized SRT, WebVTT and an exact JSON report. Inspect numbering, ordering and overlaps; preserve overlaps because they may be intentional. Optionally apply an explicit millisecond offset or stable timing sort without changing cue text or duration. Inputs are limited to 512 KB, 2000 cues and 24 hours. Invalid durations, unsupported styling/settings and offsets crossing zero or 24 hours are rejected rather than guessed. No transcription, translation, speech alignment or platform/accessibility certification. Requires a connected account; exported links are public."
+---
+
+# Subtitle Repair
+
+Require exactly one actual UTF-8 SRT/WebVTT attachment, HTTPS reference or literal subtitle_text. Audit first when the user asks for findings. Support at most 512 KB and 2000 plain-text cues, with timestamps within 24 hours. Styling, cue positioning, regions, style blocks, notes and header metadata are outside this parser and must not be silently removed. Invalid/missing times or nonpositive durations require manual correction; do not infer speech. Use offset_ms only when explicitly requested, with integer milliseconds within plus/minus one hour. Reject offsets crossing zero or 24 hours rather than clamp/remove cues. Keep source order by default; sort only when requested. Overlap is a finding, not automatically an error. Export actual SRT/VTT/JSON, show the bounded cue preview and warnings, and keep exact saved documents when storage partially fails. Reopen actual saved URLs instead of exporting again.
+
+Use actual supplied files/text and the connected tools. Do not invent an output, successful recovery or findings. If tools are unavailable, report the missing connection. Original inputs are processed without rehosting by this workflow. Exports are stored publicly and anyone holding their links can view them. Preserve successful files and exact returned documents if storage partially fails.

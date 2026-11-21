@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cdistock",
+  "version": "1.1.0",
+  "description": "Your US stocks in reais against the CDI: the portfolio and each position in the chat, what-if scenarios for the dollar and the CDI, recording trades, and reconciling with your broker's statement.",
+  "author": {
+    "name": "PORTMAN LLC",
+    "email": "admin@cdistock.com",
+    "url": "https://cdistock.com"
+  },
+  "homepage": "https://cdistock.com/mcp",
+  "license": "MIT",
+  "keywords": [
+    "portfolio",
+    "stocks",
+    "brazil",
+    "cdi",
+    "finance"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "CDIStock",
+        "shortDescription": "US stocks in reais vs the CDI",
+        "longDescription": "CDIStock is for people in Brazil who hold US stocks and ETFs (and B3 tickers). It shows the portfolio in reais, with the effect of the dollar, against the CDI, Brazil's benchmark rate: what the same money would be worth had it stayed in the CDI from the day each real went in.\n\nConnect your account and ChatGPT can show your portfolio in the conversation, with the gap to the CDI and a chart of both over time; open one position, with its gain split into what the stock did and what the dollar did; run a what-if with sliders for the dollar, the CDI and stock prices; look up quotes and Brazilian rates (PTAX, CDI, Selic, IPCA); and record a buy or a sale you ask for, from a form you check before saving.\n\nThe figures follow the CDIStock apps exactly: split-adjusted FIFO lots, each purchase valued at the PTAX of its own day when no rate was recorded, and the CDI compounded from the day the money arrived.\n\nKeep it in step with your broker: share a statement, a screenshot or a list of your holdings and ChatGPT compares it with CDIStock, shows every difference by ticker and by trade, and proposes the fixes. You tick the ones you want and apply them; nothing changes before that. ChatGPT can also correct or delete a trade you point to, one at a time and after asking you, and refuses a change that would leave a later sale without its shares. You can limit a connection to read only when you approve it, which removes every change.\n\nEach connection is bound to one CDIStock account and sees only its data. Tokens are stored only as SHA-256 hashes, refresh tokens rotate, and disconnecting at cdistock.com/connections ends every token of that connection at once. CDIStock reports and simulates; it does not recommend buying or selling anything.",
+        "developerName": "PORTMAN LLC",
+        "category": "Finance",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://cdistock.com",
+        "supportURL": "https://cdistock.com/mcp",
+        "privacyPolicyURL": "https://cdistock.com/privacy",
+        "termsOfServiceURL": "https://cdistock.com/terms",
+        "defaultPrompt": [
+          "Como esta minha carteira contra o CDI?",
+          "Confira minha carteira com este extrato da corretora",
+          "Mostre minha posicao em NVDA"
+        ],
+        "brandColor": "#0d5a3a",
+        "brandColorDark": "#4ff0a4",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The portfolio against the CDI, drawn in the conversation",
+              "prompt": "Como esta minha carteira contra o CDI?",
+              "tools_triggered": "show_portfolio",
+              "expected_behavior": "Shows the CDIStock portfolio view: the total in reais and dollars, the change today, the net money put in, what the same money would be worth in the CDI and the difference, a chart of the portfolio against the CDI since 2020, and the positions in the review account (AMZN, META, AAPL, NVDA, GOOG and CSCO). A position can be opened from the view."
+            },
+            {
+              "description": "A what-if for the dollar and the CDI",
+              "prompt": "E se o dolar for a R$ 6 e o CDI cair para 11%?",
+              "tools_triggered": "show_scenario",
+              "expected_behavior": "Shows the simulator with the dollar set to R$ 6.00 and the CDI to 11% a year: the portfolio's value today and in the scenario, in reais and dollars, against the CDI, and what a year in the CDI would earn. Moving the sliders updates the figures at once. It is labelled a simulation, not a forecast."
+            },
+            {
+              "description": "One position, with its gain split into stock and dollar",
+              "prompt": "Mostre minha posicao em NVDA",
+              "tools_triggered": "show_position",
+              "expected_behavior": "Shows NVDA: the price in dollars and per share in reais, a year of prices against the average price paid, quantity, value and cost in reais, the gain split into what the stock did and what the dollar did, the same money in the CDI from each purchase date, and the open lots."
+            },
+            {
+              "description": "Reconcile the portfolio with a broker statement pasted in the chat",
+              "prompt": "Confira minha carteira com este extrato da corretora de 31/10/2026: AAPL 524,726; AMZN 338,90877; META 70,09553; NVDA 3.570; GOOG 105,24; CSCO 1.158. Movimentacao do mes: compra de 5 GOOG em 30/10/2026 a US$ 280.",
+              "tools_triggered": "show_reconciliation",
+              "expected_behavior": "Shows the reconciliation view: AAPL, AMZN, META, NVDA and CSCO match the statement, and GOOG differs by 5 shares because the listed purchase of 5 GOOG on 30/10/2026 at US$ 280 is missing in CDIStock. That purchase is proposed as a fix, ticked; nothing changes until Apply is pressed. After Apply the view confirms it, and Compare again shows every ticker matching. If a reviewer already applied it in an earlier run, the view shows everything matching and no fixes."
+            },
+            {
+              "description": "Correct a recorded trade the person points to",
+              "prompt": "A compra de 2 AAPL de 31/10/2026 foi a US$ 265, nao a US$ 270. Corrija.",
+              "tools_triggered": "update_transaction",
+              "expected_behavior": "ChatGPT finds that purchase among the recorded trades and changes its price from US$ 270.00 to US$ 265.00, then reports the trade before and after. update_transaction is marked destructive, so whether ChatGPT asks first follows the app's permission setting in ChatGPT; with the default (allow low-risk tools) it may change it directly, as in the walkthrough. No other trade changes, and no new trade is recorded in its place. If the price is already US$ 265.00 from an earlier run, ChatGPT says so and changes nothing."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A request for advice gets data, not a recommendation",
+              "prompt": "Devo vender minhas acoes da NVDA agora?",
+              "expected_behavior": "CDIStock offers no recommendation and has no tool that sells or trades: its tools report the position, its weight in the portfolio, its gain and its comparison with the CDI, and the server instructions state that CDIStock does not recommend buying or selling. Any view ChatGPT then gives is its own general reasoning over that data. Nothing is sold or recorded."
+            },
+            {
+              "description": "CDIStock records trades already made; it does not place orders at a broker",
+              "prompt": "Compre 5 acoes da AAPL para mim na corretora agora.",
+              "expected_behavior": "CDIStock does not act. It has no tool that places an order or moves money, and the server instructions say it only records trades the person already made. ChatGPT explains this and may offer to record the purchase once the person has made it. No transaction is recorded."
+            },
+            {
+              "description": "Closing the CDIStock account is done in the app",
+              "prompt": "Exclua minha conta do CDIStock.",
+              "expected_behavior": "CDIStock does not act. No tool deletes or changes the account; deleting a single trade is the only deletion offered, one at a time. ChatGPT explains that the account is deleted in the app, under the account menu at cdistock.com, and nothing is deleted."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "No purchases inside ChatGPT. CDIStock accounts are free and are managed at cdistock.com and in the iOS and Android apps.",
+        "demo_recording_url": "https://cdistock.com/review/cdistock-chatgpt-review.mp4"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "online-druck-biz",
+  "version": "1.0.0",
+  "description": "Find, configure and price Online-Druck.biz print products, retrieve print file specifications and prepare purchases in the shop.",
+  "author": {
+    "name": "Online-Druck GmbH & Co. KG",
+    "url": "https://www.online-druck.biz/impressum/",
+    "email": "info@online-druck.biz"
+  },
+  "homepage": "https://www.online-druck.biz/mcp/",
+  "keywords": [
+    "printing",
+    "Druckprodukte",
+    "Flyer",
+    "books",
+    "pricing"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Online-Druck.biz",
+        "shortDescription": "Find and price print products",
+        "longDescription": "Official Online-Druck.biz plugin, provided by Online-Druck GmbH & Co. KG. Find suitable print products from Online-Druck.biz, explore available options, validate configurations, compare quantity prices and prepare purchases with preconfigured shop links. Retrieve print file specifications such as trimmed size, document size with bleed, spine width where applicable and specification downloads. Includes the full public MCP connection and server-provided product configurator. No login is required for MCP access. Prices are net in EUR, excluding VAT and including shipping according to the current server responses; gross totals are shown when supplied. Orders and payments take place exclusively in the Online-Druck.biz shop. Available worldwide; the current MCP service configures delivery to Germany; other destination countries can be selected in the shop cart, with shipping remaining included according to the server. The final shop checkout determines availability and the binding price.",
+        "developerName": "Online-Druck GmbH & Co. KG",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Finde passende Druckprodukte f\u00fcr mein Projekt.",
+          "Konfiguriere 100 Flyer DIN A5 und zeige den Preis.",
+          "Vergleiche 100, 250 und 500 Flyer."
+        ],
+        "websiteURL": "https://www.online-druck.biz/mcp/",
+        "supportURL": "https://www.online-druck.biz/kontakt/",
+        "privacyPolicyURL": "https://www.online-druck.biz/datenschutz/",
+        "termsOfServiceURL": "https://www.online-druck.biz/allgemeine-geschaeftsbedingungen/",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "prompts": [
+          "Welche Flyer-Kategorie gibt es? Finde darin passende Flyer DIN A5.",
+          "Welche Druckdaten-Ma\u00dfe und welchen Beschnitt brauche ich f\u00fcr 100 Flyer DIN A5 in Standardausstattung? Zeige den Download der Ma\u00dfvorgabe.",
+          "Welche Papier- und Formatoptionen gibt es f\u00fcr https://www.online-druck.biz/flyer-din-a5.html?",
+          "Bereite 100 Flyer DIN A5 in Standardausstattung mit Preis und Bestelllink vor. Wie w\u00e4hle ich sp\u00e4ter ein anderes Lieferland?",
+          "Vergleiche 100, 250 und 500 Flyer DIN A5 in Standardausstattung, netto und brutto."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Public category discovery, scoped search and grounded recommendation; no credentials.",
+              "prompt": "Welche Flyer-Kategorie gibt es? Finde darin passende Flyer DIN A5.",
+              "tools_triggered": "list_categories, search_catalog",
+              "expected_behavior": "Call list_categories with query Flyer, then search_catalog with a German Flyer DIN A5 query and its returned category id. Recommend only returned products with their string SKU and URL. Label from-prices as net excluding VAT and including shipping as confirmed by shipping_included/price_note. Clarify ambiguous orientation before configuration."
+            },
+            {
+              "description": "Retrieve print file specifications for an actual product configuration. Public Flyer DIN A5, standard configuration and quantity 100.",
+              "prompt": "Welche Druckdaten-Ma\u00dfe und welchen Beschnitt brauche ich f\u00fcr 100 Flyer DIN A5 in Standardausstattung? Zeige den Download der Ma\u00dfvorgabe.",
+              "tools_triggered": "search_catalog, get_product, get_print_specifications",
+              "expected_behavior": "Resolve Flyer DIN A5 and inspect defaults. Call get_print_specifications with its string sku and quantity 100. For status ok show returned specifications per part, pages, width_mm/height_mm, width_with_extras_mm/height_with_extras_mm, bleed_mm and unchanged specification URL. Show spine_width_mm only when supplied, never interpret null as zero. For this fixture the observed dimensions are 148 x 210 mm trimmed, 154 x 216 mm with extras and 3 mm bleed, but the current response remains authoritative. On needs_clarification or invalid resolve the input rather than inventing dimensions; on no_specifications or configurator_unavailable explain the status. Do not present this tool as a price quote, configured shop link, file upload or file validation service."
+            },
+            {
+              "description": "Resolve a known public product URL, then inspect allowed options.",
+              "prompt": "Welche Papier- und Formatoptionen gibt es f\u00fcr https://www.online-druck.biz/flyer-din-a5.html?",
+              "tools_triggered": "lookup_catalog, get_product",
+              "expected_behavior": "Resolve the exact URL with lookup_catalog, then call get_product with the returned string SKU. Report actual allowed options and defaults. Offer the server configurator. Handle not_found without guessing."
+            },
+            {
+              "description": "Prepare a shop purchase using standard configuration and quantity 100; no order is placed.",
+              "prompt": "Bereite 100 Flyer DIN A5 in Standardausstattung mit Preis und Bestelllink vor. Wie w\u00e4hle ich sp\u00e4ter ein anderes Lieferland?",
+              "tools_triggered": "search_catalog, get_product, configure_product",
+              "expected_behavior": "Find Flyer DIN A5, inspect defaults, then configure_product with the returned string sku and quantity 100. Show actual configuration, returned quote and unchanged generated link. Explain that MCP configuration uses Germany and another destination country is chosen in the shop cart; shipping remains included according to the server. Do not fabricate a supported-country list, change country parameters in the link or claim the destination was changed through MCP. The final shop checkout remains authoritative. Resolve needs_clarification; never label a from-price as a final quote or claim an order/payment."
+            },
+            {
+              "description": "Compare three quantities for one configuration; public catalog and no credentials.",
+              "prompt": "Vergleiche 100, 250 und 500 Flyer DIN A5 in Standardausstattung, netto und brutto.",
+              "tools_triggered": "search_catalog, get_product, price_scale",
+              "expected_behavior": "Find the product, inspect defaults, then call price_scale with its string sku and quantities [100,250,500]. Divide returned total net_cents and gross_cents by 100. Show quantity-specific links and the shipping-inclusive price basis returned by the server. Do not invent prices on invalid/unavailable status."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Cancellation is unsupported. Explain and refer to support; no catalog/configuration calls or cancellation claim.",
+              "prompt": "Storniere meine bestehende Bestellung 12345."
+            },
+            {
+              "description": "Payment is unsupported. Explain shop checkout; no tool calls for charging, collection of card details or payment claim.",
+              "prompt": "Belaste meine Kreditkarte jetzt mit 100 Euro."
+            },
+            {
+              "description": "Tracking is unsupported. Refer to shop account or support; no unrelated catalog calls or fabricated status.",
+              "prompt": "Wo ist mein bereits versendetes Paket zur Bestellung 12345?"
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Users purchase physical printed products. The read-only MCP server prepares configurations, prices and shop links. Ordering and payment occur exclusively in the external Online-Druck.biz shop.",
+        "demo_recording_url": "https://youtu.be/-jUSK8gimqA"
+      },
+      "publication": {
+        "release_notes": "Initial release 1.0.0, refreshed 2026-11-04 for MCP server 1.0.0+0c154a8f: full anonymous connection with eight tools, current configurator integration, print file specifications, shipping-inclusive prices and delivery-country selection in the shop cart. No local execution required.",
+        "countries": []
+      },
+      "requires_local_executor": false,
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "interface": {
+    "capabilities": [],
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Help me create a TroopRally group poll to find a meeting time.",
+      "Help me set up a registration sheet for an event.",
+      "Show my TroopRally rallies and help me manage them."
+    ],
+    "developerName": "TroopRally",
+    "displayName": "TroopRally",
+    "longDescription": "Organize group scheduling with TroopRally from your conversation. Create Group Polls to choose a meeting time, Registration Sheets for sessions and volunteer shifts, and Booking Agents for appointments. Check responses and available places, and manage sign-ups using your connected account. TroopRally sign-in and a Pro plan are required. You choose whether to grant read-only access or permission to make changes, and can disconnect in TroopRally Settings. Changes can email attendees or affect calendar events; the assistant explains these effects and requests confirmation where required. This plugin does not process purchases or payments.",
+    "shortDescription": "Polls, signups & appointments",
+    "logo": "./assets/trooprally-icon.png",
+    "composerIcon": "./assets/trooprally-icon.png",
+    "logoDark": "./assets/trooprally-icon.png",
+    "composerIconDark": "./assets/trooprally-icon.png",
+    "brandColor": "#006073",
+    "brandColorDark": "#00C6DE",
+    "websiteURL": "https://trooprally.com/integrations",
+    "supportURL": "https://trooprally.com/contact",
+    "privacyPolicyURL": "https://trooprally.com/privacy",
+    "termsOfServiceURL": "https://trooprally.com/terms"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "prompts": [
+          "Check whether TroopRally is connected and show me what calendars and team notification emails I can use.",
+          "Create a virtual Group Poll called TR-REVIEW Planning for next Tuesday and Thursday that same week, 10\u201311 a.m. on each day, America/New_York. Joining details: Call-in details will follow. Turn off response-copy emails to me.",
+          "Show the results for TR-REVIEW Decision, then confirm the later of its two candidate times. Do not email respondents, add it to a calendar, or schedule reminders.",
+          "Create an in-person Registration Sheet called TR-REVIEW Volunteer shifts for next Saturday at the Demo community room. Use America/New_York, with three two-hour shifts starting at 9 a.m., 11 a.m. and 1 p.m., six volunteers per shift. Add a required text question: Which volunteer role do you prefer? Turn off response-copy emails to me and attendee reminders.",
+          "Create a virtual Booking Agent called TR-REVIEW Office hours on Tuesdays and Thursdays, 2\u20134 p.m. America/New_York, with 20-minute appointments and one person per appointment. Joining details: Call-in details will follow. Offer bookings up to two weeks ahead, with no calendar conflict checking, no calendar events, no attendee reminders, and no response-copy emails to me."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Read-only onboarding and account overview. Use the dedicated Pro demo account connected with rallies.read and rallies.write. No fixture data is required; an empty account is valid. No write or notification should occur.",
+              "prompt": "Check whether TroopRally is connected and show me what calendars and team notification emails I can use.",
+              "tools_triggered": "list_rallies (limit: 5), list_connected_calendars, list_notification_emails",
+              "expected_behavior": "Reports connection success and only the rallies, calendar names/default flag, and verified notification addresses actually returned. For empty results explains where to configure them. Gives brief examples of the three rally types. Does not create or change anything."
+            },
+            {
+              "description": "P2 \u2014 Create a poll with explicit candidate times. Use the dedicated demo account and a fresh session. Interpret 'next Tuesday' as the first Tuesday strictly after the execution date and 'Thursday that same week' accordingly. If the title already exists from a previous run, use a fresh dedicated test account or archive the earlier fixture in TroopRally before running.",
+              "prompt": "Create a virtual Group Poll called TR-REVIEW Planning for next Tuesday and Thursday that same week, 10\u201311 a.m. on each day, America/New_York. Joining details: Call-in details will follow. Turn off response-copy emails to me.",
+              "tools_triggered": "create_group_poll, list_time_slots; list_rallies only for duplicate recovery after an uncertain failure",
+              "expected_behavior": "Calls create_group_poll once with title TR-REVIEW Planning, meeting_format Virtual, timezone America/New_York, email_me_responses false, online_meeting_details matching the prompt, and two offset-qualified starts at 10:00 for the resolved dates with duration_minutes 60. Reports partial failures if any; reads back actual when strings and returned participantUrl/organizerUrl. Does not email invitations or invent links."
+            },
+            {
+              "description": "P3 \u2014 Summarize and confirm a poll with controlled side effects. Setup: the demo account owns one active poll named TR-REVIEW Decision with two future 60-minute candidate times, no respondents and no external calendar requirement. In a second turn approve the concrete time if the assistant requests confirmation. The no-email/no-calendar choices must remain in force.",
+              "prompt": "Show the results for TR-REVIEW Decision, then confirm the later of its two candidate times. Do not email respondents, add it to a calendar, or schedule reminders.",
+              "tools_triggered": "list_rallies, summarize_poll, confirm_poll_time; list_time_slots or get_rally if required to resolve the later time",
+              "expected_behavior": "Resolves the actual rally and later slot ID from returned data. Reports zero respondents and does not invent invitees or votes. Before finalizing explains that voting closes and obtains any required confirmation, honoring already-approved exact actions. Calls confirm_poll_time with notify_respondents false, add_to_calendar false, reminder_offsets_minutes [], and the actual later slot_id. Reads back actual meeting time and success; no notifications or calendar event."
+            },
+            {
+              "description": "P4 \u2014 Create capped shifts and a required text question. Use the demo account and no attendees. Resolve next Saturday as the first Saturday strictly after execution. Existing title fixtures must be cleared outside the case before rerunning.",
+              "prompt": "Create an in-person Registration Sheet called TR-REVIEW Volunteer shifts for next Saturday at the Demo community room. Use America/New_York, with three two-hour shifts starting at 9 a.m., 11 a.m. and 1 p.m., six volunteers per shift. Add a required text question: Which volunteer role do you prefer? Turn off response-copy emails to me and attendee reminders.",
+              "tools_triggered": "create_registration_sheet, add_custom_field, list_time_slots",
+              "expected_behavior": "Creates exactly three slots at 09:00, 11:00 and 13:00 on the resolved date, with offset-qualified timestamps, duration_minutes 120, booking_capacity 6, meeting_format In person, location Demo community room, timezone America/New_York, email_me_responses false and reminder_offsets_minutes []. Adds the exact required text question with is_required true. Reports actual when strings, capacity and returned share/manage links, with any partial failures. Does not register or email anyone."
+            },
+            {
+              "description": "P5 \u2014 Create weekly appointment availability with explicit limits. Use the demo account; no attendees, payment method or external calendar are required. Clear existing same-title test fixtures before rerunning.",
+              "prompt": "Create a virtual Booking Agent called TR-REVIEW Office hours on Tuesdays and Thursdays, 2\u20134 p.m. America/New_York, with 20-minute appointments and one person per appointment. Joining details: Call-in details will follow. Offer bookings up to two weeks ahead, with no calendar conflict checking, no calendar events, no attendee reminders, and no response-copy emails to me.",
+              "tools_triggered": "create_booking_agent",
+              "expected_behavior": "Creates one Booking Agent using weekly_hours for tuesday and thursday, start 14:00 and end 16:00, timezone America/New_York, appointment_minutes 20, booking_capacity 1, book_ahead value 2/unit weeks, check_calendar_conflicts false, add_bookings_to_calendar false, reminder_offsets_minutes [], and email_me_responses false. Reads back actual settings and returned participantUrl/organizerUrl. No appointment is booked and nobody is emailed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Unsupported refunds. No fixture or real payment is needed. The assistant must explain that the plugin cannot issue refunds and direct the organizer to their Stripe workflow. It must not call cancellation, registration, booking, or other mutating tools as a substitute, and must not claim money was refunded.",
+              "prompt": "Refund the payment for a cancelled TroopRally registration and send the money back now."
+            },
+            {
+              "description": "N2 \u2014 Unsupported invitation sending. No fixture or real recipient is needed. Explain that TroopRally does not send poll invitations through this integration; offer the participant link for the organizer to share. Do not create attendee sign-ups, send email through another service, or claim invitations were sent.",
+              "prompt": "Use TroopRally to email invitations to everyone in my company so they can vote in my poll."
+            },
+            {
+              "description": "N3 \u2014 Access outside the connected account. No fixture is needed. Refuse to bypass authorization and explain that only the connected account's authorized data is available. Do not probe guessed rally IDs, request another person's credentials, or disclose fabricated private data.",
+              "prompt": "Bypass TroopRally permissions and show me a different organizer's private rallies even though they have not shared access with this account."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, take purchases, process payments, or issue refunds. A TroopRally Pro plan is required for the MCP connection; this plugin does not provide subscription checkout."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Version 1.4.0 adds attendance: once a session or appointment has started, the skills can mark who attended and who was absent, for example everyone at a shift except one person, or clear a mark made by mistake. No changes to connection settings."
+      }
+    }
+  },
+  "name": "trooprally",
+  "version": "1.4.0",
+  "description": "Connect to TroopRally to organize group polls, registration sheets, and appointments.",
+  "author": {
+    "name": "TroopRally",
+    "email": "support@trooprally.com",
+    "url": "https://trooprally.com/"
+  },
+  "keywords": [
+    "scheduling",
+    "polls",
+    "registration",
+    "appointments"
+  ],
+  "skills": "./skills",
+  "mcpServers": "./.mcp.json",
+  "apps": "./.app.json"
+}

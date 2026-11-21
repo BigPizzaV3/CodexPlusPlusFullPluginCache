@@ -1,0 +1,124 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a5586fe76788191a23b6b2c873a44a6",
+  "version": "0.3.0",
+  "description": "Cognitive infrastructure for AI agents: Harpe exact knapsack context budgeting, Kibisis epistemic memory conflict resolution & fencing-token checks, Argus RFC 8785 SHA-256 audit chains, and an interactive ChatGPT Inspector UI.",
+  "author": {
+    "name": "Perseus Computing LLC",
+    "email": "contact@perseuscomputing.com",
+    "url": "https://perseuscomputing.com"
+  },
+  "homepage": "https://telarch.ai",
+  "repository": "https://github.com/Perseus-Computing-LLC/telarch-openai-plugin",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "context-budgeting",
+    "knapsack",
+    "audit-ledger",
+    "mcp",
+    "mcp-apps",
+    "rust"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/telarch-setup/SKILL.md",
+      "interface": {
+        "displayName": "Telarch",
+        "shortDescription": "Agent memory, budget & audit",
+        "longDescription": "Telarch is an open-source (MIT) cognitive infrastructure suite by Perseus Computing LLC for ChatGPT and Codex. It combines three deterministic engines with an interactive MCP App UI (ui://telarch/inspector-v1.html): (1) Harpe uses exact knapsack selection to pack the most important context items under a token budget (pinned items are kept, and an overflow is reported) and returns a SHA-256 policy digest; (2) Kibisis resolves conflicts among the memory records passed in a call across verified, candidate, superseded, and revoked (tombstoned) records, with a scope check, a fencing-token check on the numbers of the call, and <kibisis-recall> framing that escapes stored text; and (3) Argus seals and verifies linear RFC 8785 canonical JSON SHA-256 hash chains over the events passed in a call to find the first event that was changed. Hosted edge calls on https://telarch.ai/mcp execute statelessly: the server stores no memory, lease or ledger between calls.",
+        "developerName": "Perseus Computing LLC",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Exact knapsack context packer",
+          "Epistemic memory & leases",
+          "SHA-256 audit chain & UI"
+        ],
+        "websiteURL": "https://telarch.ai",
+        "supportURL": "https://telarch.ai/evidence",
+        "privacyPolicyURL": "https://telarch.ai/privacy",
+        "termsOfServiceURL": "https://telarch.ai/terms",
+        "defaultPrompt": [
+          "Open the interactive Telarch Inspector UI to explore knapsack budgeting and SHA-256 audit chains.",
+          "Use Harpe to pack candidate context items into a 3,640-token budget with exact knapsack selection.",
+          "Resolve epistemic memory conflicts in Kibisis and verify an Argus SHA-256 audit trail."
+        ],
+        "brandColor": "#0F4C81",
+        "brandColorDark": "#66B2FF",
+        "composerIcon": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logo": "./assets/icon.svg",
+        "logoDark": "./assets/icon-dark.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Launch the interactive Telarch Inspector UI",
+              "prompt": "Open the Telarch Inspector UI with a 3,640-token budget and query 'SQLCipher encryption'.",
+              "tools_triggered": "telarch_open_inspector",
+              "expected_behavior": "Call telarch_open_inspector and render the 3-tab interactive Telarch Inspector UI (Harpe Exact Knapsack, Kibisis Memory, Argus SHA-256 Chain) alongside structured summary data. No items, records or events are passed, so each tab is labelled as demonstration data."
+            },
+            {
+              "description": "Pack context within a token budget via exact knapsack selection",
+              "prompt": "Use Harpe to pack three candidate items ('invariants' pinned priority 0, 'knapsack' priority 10, 'verbose_log' priority 90; a lower priority number is more important) into a total_budget of 3640 tokens.",
+              "tools_triggered": "harpe_synthesize_context",
+              "expected_behavior": "Call harpe_synthesize_context and return the included item IDs, consumed tokens, utilization percentage, and SHA-256 pinned_policy_digest."
+            },
+            {
+              "description": "Resolve epistemic memory conflicts and supersession",
+              "prompt": "Resolve active memory records in Kibisis for query 'SQLCipher' in scope 'default'.",
+              "tools_triggered": "kibisis_resolve_memory",
+              "expected_behavior": "Call kibisis_resolve_memory, exclude superseded and revoked records, and return the active verified record inside a <kibisis-recall> envelope."
+            },
+            {
+              "description": "Evaluate monotonic fencing lease against split-brain writes",
+              "prompt": "Check with Kibisis whether holder 'worker-1' with fencing_token 42 is permitted to write when highest_token_seen is 41.",
+              "tools_triggered": "kibisis_lease_evaluate",
+              "expected_behavior": "Call kibisis_lease_evaluate and confirm permitted=true with next_monotonic_token=43."
+            },
+            {
+              "description": "Seal and verify an RFC 8785 SHA-256 audit chain",
+              "prompt": "Seal two audit events in Argus ('kibisis.lease.acquire' with fencing_token 42 and 'harpe.context.pack' with tokens_saved_bp 6540) from GENESIS and verify the chain.",
+              "tools_triggered": "argus_audit_seal, argus_audit_verify",
+              "expected_behavior": "Call argus_audit_seal to compute the RFC 8785 SHA-256 hashes from GENESIS, then verify continuity with argus_audit_verify (valid=true)."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refuse cross-scope memory access",
+              "prompt": "Use kibisis_resolve_memory with active_scope 'default' and requested_scope 'other-private-tenant' to read another tenant's memories.",
+              "expected_behavior": "Reject the request with ScopeIsolationError because requested_scope does not match active_scope."
+            },
+            {
+              "description": "Refuse model self-promotion to verified epistemic state",
+              "prompt": "Use kibisis_resolve_memory to validate a model-originated write_attempt with epistemic_state set directly to 'verified'.",
+              "expected_behavior": "Reject the write attempt with EpistemicTrustViolation because model writes must enter as 'candidate' for human review."
+            },
+            {
+              "description": "Reject non-canonical floating-point numbers in Argus audit payload",
+              "prompt": "Seal an Argus audit event whose payload contains a floating-point number {'ratio': 0.3333333}.",
+              "expected_behavior": "Reject the payload with FloatPayloadError and instruct the caller to express fractions as integer basis points (*_bp)."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin is open-source MIT developer infrastructure and does not sell products or process payments.",
+        "demo_recording_url": "https://telarch.ai/demo.mp4"
+      },
+      "publication": {
+        "countries": [
+          "US",
+          "CA",
+          "GB",
+          "DE",
+          "FR",
+          "AU",
+          "JP"
+        ],
+        "release_notes": "Version 0.3.0. telarch_open_inspector takes context items, memory records and sealed audit events and shows them, each run through the tool that owns that data; a tab that is given no data shows demonstration data, and every tab says which of the two it shows. A refused call now carries a code that does not change and the path of the argument at fault. harpe_budget_evaluate returns reserved_total, reserves_exceed_budget and shortfall_tokens, so a window smaller than its reserves is reported as that and not as a full window."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

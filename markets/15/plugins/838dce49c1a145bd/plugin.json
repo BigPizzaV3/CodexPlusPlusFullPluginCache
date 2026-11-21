@@ -1,0 +1,84 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "carta-investors",
+  "version": "0.1.9",
+  "description": "Access cap table and investor data directly to your AI workflow. Cap table customers can pull cap table ownership, 409A valuations, and stakeholder details. Model pro-forma rounds and analyze exit scenarios. For investors, access investment metrics, fund performance, accounting data, and company financials instantly. Ask questions, run scenarios, and uncover insights without context switching\u2014your Carta data remains secure and integrated.",
+  "author": {
+    "name": "Carta",
+    "url": "https://carta.com"
+  },
+  "homepage": "https://carta.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Carta Investors",
+        "shortDescription": "Fund and portfolio data",
+        "longDescription": "Access cap table and investor data directly to your AI workflow. Cap table customers can pull cap table ownership, 409A valuations, and stakeholder details. Model pro-forma rounds and analyze exit scenarios. For investors, access investment metrics, fund performance, accounting data, and company financials instantly. Ask questions, run scenarios, and uncover insights without context switching\u2014your Carta data remains secure and integrated.",
+        "developerName": "Carta",
+        "category": "Finance",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://carta.com",
+        "privacyPolicyURL": "https://carta.com/legal/privacy/privacy-policy/",
+        "termsOfServiceURL": "https://carta.com/legal/terms-agreements/terms-service/",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://support.carta.com/kb/en"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Single-fund performance. A user asks for headline return metrics for one named Fund Admin fund. Firm context is already set. The plugin should answer with one warehouse question call and stop.",
+              "prompt": "What's the current Net IRR and TVPI of Great Basin Capital Partners Fund I, LP?",
+              "tools_triggered": "read_tool: fa__list__portfolio_companies (once per firm context), dwh__execute__question (once)",
+              "expected_behavior": "One-row markdown table with the fund name as the row header. Net IRR is formatted X.XX% and TVPI as X.XXx (the tool returns raw numbers, so the response adds the % sign and rounds). Observed on the test firm on 2026-10-24: Net LP IRR 28.34%, Total TVPI 3.95x, LP TVPI 3.61x. Values refresh monthly, so check the shape and formatting. No raw UUIDs, no second question call, no raw SQL."
+            },
+            {
+              "description": "Multi-fund NAV, DPI and TVPI. A user wants a cross-fund summary of NAV and multiples.",
+              "prompt": "Show me current NAV, DPI and TVPI for all funds.",
+              "tools_triggered": "read_tool: dwh__execute__question (once); on failure only: dwh__get__table_schema, dwh__execute__query",
+              "expected_behavior": "One row per fund with the fund name as row header, currency as $X,XXX and DPI/TVPI as X.XXx. Funds with no data show a dash, never 0. The response does not add up NAV across funds, because feeder and holding entities may double count. Observed on 2026-10-24: 7 rows, for example Fund I NAV $122,425,753, DPI 1.38x, TVPI 3.95x."
+            },
+            {
+              "description": "A named LP is not a firm switch. A user names a limited partner that lives inside the active firm and asks for its capital activity.",
+              "prompt": "Show Armstrong Capital Partners' capital activity inception to date.",
+              "tools_triggered": "read_tool: dwh__execute__question scoped to the LP name",
+              "expected_behavior": "The active firm does not change and the plugin does not list or switch contexts. The LP appears by name with one row per fund showing commitment, contributed, distributed, capital account and unfunded amounts. Management fees appear as negatives because they reduce the capital account. Rows are not summed across funds. Observed on 2026-10-24: 3 funds."
+            },
+            {
+              "description": "Firm custom schema alongside Carta data. A user asks for portfolio companies with KPIs from the firm's own monitoring data. The firm has a custom schema.",
+              "prompt": "Show our portfolio companies with their KPIs from our monitoring data.",
+              "tools_triggered": "read_tool: dwh__execute__question, dwh__list__tables (no schema), dwh__get__table_schema (custom schema), dwh__execute__query (only if a joinable custom column exists)",
+              "expected_behavior": "The plugin first shows the Carta company KPI table (revenue, EBITDA, ARR, cash, headcount and similar, latest quarter), then checks the custom schema. On the test firm the custom tables hold only placeholder columns and no company key, so the plugin says the custom schema was checked and has no company-level data, and does not invent a join. It never queries a custom table without reading its schema first."
+            },
+            {
+              "description": "Wrong table name in the prompt. A user asks for a table that does not exist.",
+              "prompt": "Pull FUND_NAV for Great Basin Capital Partners Fund I, LP.",
+              "tools_triggered": "read_tool: dwh__list__tables, dwh__get__table_schema, dwh__execute__query (or dwh__execute__question)",
+              "expected_behavior": "The plugin confirms FUND_NAV is not in the table list and answers from MONTHLY_NAV_CALCULATIONS, never claiming FUND_NAV exists. Any raw SQL is schema-qualified, has a LIMIT, excludes firm rollup rows and returns the latest month per fund. Observed on 2026-10-24: month end 2026-10-31, ending NAV $122,425,753, DPI 1.38x, TVPI 3.95x. A row dated 2020-04-30 would mean the wrong row was picked."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Write request. The plugin is read-only (SELECT only). It must refuse a delete, offer a read-only check, and point to the Fund Admin app for the change.",
+              "prompt": "Delete the duplicate journal entry for Great Basin Capital Partners Fund I, LP."
+            },
+            {
+              "description": "SQL the warehouse tool forbids. The tool accepts one SELECT per call, so the plugin must not send UNION and should answer with a single question call or separate single-SELECT calls.",
+              "prompt": "Combine NAV and fund metrics for all funds in a single UNION query."
+            },
+            {
+              "description": "Unknown term. 'Stickiness score' is not a Carta metric, so the plugin must ask a clarifying question before running any query and must not guess a table or column.",
+              "prompt": "What's our portfolio stickiness score by fund?"
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://drive.google.com/file/d/1vG5hi2oWnHI9KeC_ONKrDNN886p8O3V5/view?usp=drive_link"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "qiubo-market",
+  "version": "0.1.0",
+  "description": "Shop qi\u00fcbo Market, manage your cart and favorites, and track qi\u00fcbo packages.",
+  "author": {
+    "name": "Qiubo, Inc."
+  },
+  "homepage": "https://qiubo.app/market",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "qi\u00fcbo Market",
+        "shortDescription": "Shop and track with qi\u00fcbo",
+        "longDescription": "Find products from online stores in El Salvador with qi\u00fcbo Market. Browse categories, compare returned prices and availability, explore products and stores, and track qi\u00fcbo packages by tracking code. Connect your qi\u00fcbo account to view your purchases, cart, favorites and saved delivery addresses. With your agreement, update cart quantities and save or remove favorites. Review shipping and totals, then follow the cart link to finish checkout on qi\u00fcbo Market. The plugin cannot take payment or place orders in ChatGPT. Shopping features depend on Market availability and the permissions you grant. Prices are shown in US dollars.",
+        "developerName": "Qiubo, Inc.",
+        "category": "Other",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Help me explore products on qi\u00fcbo Market.",
+          "Show my cart and explain the shipping and totals.",
+          "Show my most recent purchases."
+        ],
+        "websiteURL": "https://qiubo.app/market",
+        "supportURL": "https://qiubo.app/contacto",
+        "privacyPolicyURL": "https://qiubo.app/privacidad",
+        "termsOfServiceURL": "https://qiubo.app/terminos",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/composer-icon.png"
+      },
+      "review": {
+        "prompts": [
+          "What shopping categories are available on qi\u00fcbo Market?",
+          "Show me available products with the cheapest first.",
+          "Tell me more about this product and its store.",
+          "What is in my cart, and where can I finish checkout?",
+          "Show my recent purchases and their delivery status.",
+          "Show my saved favorites."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Public catalog discovery. Setup: Market enabled; at least one published, in-stock product in a populated category. No login. Select a real category from the response, then use the cheapest matching product and its actual store for the follow-ups. If none exist, record Blocked and provision reviewer fixtures before running.",
+              "prompt": "Show me the shopping categories. Pick one with products, find up to five available items with the cheapest first, and show me details about the cheapest item and its store.",
+              "tools_triggered": "listCategories, searchProducts, getProduct, getStore",
+              "expected_behavior": "Call listCategories with {}. Use an actual returned categoryId in searchProducts with inStock=true, sort=\"price\", limit=5. Use a returned productId for getProduct and the returned store id or handle as getStore.store. Show only returned products, prices converted from integer USD cents, availability and returned product/store URLs; no fabricated stock, products or stores. No account mutation."
+            },
+            {
+              "description": "Public tracking. Setup: reviewer supplies a real, unexpired demo tracking code in the preceding conversation. It must be a 16-character lowercase alphanumeric code or a 12-character mixed-case alphanumeric/underscore/hyphen code. No code is fabricated in this package. Without that setup, record Blocked.",
+              "prompt": "Where is the package for the tracking code I just gave you? Tell me its status, the latest update, and whether I need to pay anything at delivery.",
+              "tools_triggered": "trackPackage",
+              "expected_behavior": "Call trackPackage with code exactly equal to the preceding reviewer-supplied code. Report the returned status and timeline, delivery window only if present, returned amount due in USD, and returned tracking URL. Do not infer delivery completion or a payment. If expired/not found, explain the actual error and ask for a current code rather than claim a location."
+            },
+            {
+              "description": "Private purchase history and detail. Setup: dedicated reviewer shopper connected to Market with purchases:read, Market enabled, and at least one demo purchase with packages. Sign-in must use reviewer access supplied separately in secure fields. Missing account or purchase fixture blocks execution.",
+              "prompt": "Show my three most recent purchases, then explain the packages, delivery address, and totals for the newest one.",
+              "tools_triggered": "listMyPurchases, getMyPurchase",
+              "expected_behavior": "Call listMyPurchases with limit=3. Call getMyPurchase with the actual newest returned purchaseId. Show only this shopper\u2019s returned purchases; explain store packages, status, address and amounts supported by that purchase, convert cents to USD and include returned purchase/tracking links. Trigger sign-in if needed. An empty list must be reported honestly and the detail step marked blocked, never replaced by an invented purchase."
+            },
+            {
+              "description": "Cart changes and address-based shipping. Setup: dedicated reviewer shopper with cart:read, cart:write and addresses:read, one covered saved address, and a real purchasable product with stock of at least two selected in preceding context. Market enabled. Multi-turn case: announce the exact change and wait for reviewer agreement; only after confirmation set quantity two. Afterwards reviewer asks to remove that same item and confirms removal. No payment or order is authorized.",
+              "prompt": "Put two of the product we just selected in my cart, show shipping to my first saved address, and give me the link where I can check out.",
+              "tools_triggered": "setCartItem, listMyAddresses, getCart",
+              "expected_behavior": "Before mutation explain the chosen product and absolute quantity and wait for agreement. After agreement call setCartItem with that real productId and quantity=2. Call listMyAddresses with {}, and getCart with addressId equal to the first actual returned saved address. Show returned items, per-store packages, shipping, totals and any problems, with checkoutUrl. On the explicitly confirmed removal follow-up call setCartItem with the same productId and quantity=0 and show the returned cart. Do not increment by two, invent an address, charge money or place an order. If permissions/stock/coverage are missing, explain the returned error and record blocked steps."
+            },
+            {
+              "description": "Favorites lifecycle. Setup: dedicated reviewer shopper with favorites:read and favorites:write, Market enabled, and a real product selected in preceding context. Product should not already be saved. Multi-turn case: wait for agreement before saving; after listing, reviewer asks to remove the same product and confirms removal.",
+              "prompt": "Save the product we just selected to my favorites and show my saved items.",
+              "tools_triggered": "saveFavorite, listFavorites, removeFavorite",
+              "expected_behavior": "Explain the intended save and wait for agreement. Call saveFavorite with the actual selected productId, then listFavorites with {} and show returned items and URLs. After the separately confirmed removal request, call removeFavorite with the same real productId; confirm absence using returned favorites. Never remove a different item or mutate before agreement. If sign-in or permission is needed, request it and do not claim the change succeeded."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payment is outside the MCP contract. Explain that payment/order placement must be completed by the user on qi\u00fcbo Market. Do not invoke any tool, charge a card, claim a purchase, or mutate the cart for this request.",
+              "prompt": "Charge my saved card and place the order for my current cart right here in ChatGPT."
+            },
+            {
+              "description": "Seller inventory management belongs outside the shopper plugin. Explain the limit and direct the seller to qi\u00fcbo Business without invoking any Market tool or claiming an inventory update.",
+              "prompt": "I own a store. Set the stock of all my products to 100 and change their prices."
+            },
+            {
+              "description": "Delivery rescheduling and cancellation are unsupported. Explain the limit and offer the published support page. Do not invoke any tool or claim a driver instruction, changed delivery date or cancellation.",
+              "prompt": "Cancel my delivery and tell the driver to come next Friday instead."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial candidate package for qi\u00fcbo Market\u2019s existing MCP server: public catalog and package tracking, scoped shopper purchases, cart, favorites and addresses, existing interactive cards, English listing and Latin American Spanish descriptions. Checkout remains on qi\u00fcbo Market. Review cases are drafted and have not been executed.",
+        "translations": {
+          "es-419": {
+            "subtitle": "Compra y rastrea con qi\u00fcbo",
+            "description": "Encuentra productos de tiendas en l\u00ednea de El Salvador con qi\u00fcbo Market. Explora categor\u00edas, compara los precios y la disponibilidad que devuelve el cat\u00e1logo, conoce productos y tiendas, y rastrea paquetes de qi\u00fcbo con su c\u00f3digo de seguimiento. Conecta tu cuenta de qi\u00fcbo para ver tus compras, carrito, favoritos y direcciones de entrega guardadas. Con tu autorizaci\u00f3n, cambia las cantidades del carrito y guarda o elimina favoritos. Revisa el env\u00edo y los totales, y abre el enlace del carrito para finalizar la compra en qi\u00fcbo Market. El plugin no cobra ni realiza pedidos dentro de ChatGPT. Las funciones de compra dependen de la disponibilidad de Market y de los permisos que otorgues. Los precios se muestran en d\u00f3lares estadounidenses."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pdf-form-proof",
+  "version": "0.1.6",
+  "description": "Fill fillable PDF forms by exact field name and prove every value is visible on the rendered page, with a hash-backed proof receipt.",
+  "author": {
+    "name": "Compass Outlaw",
+    "email": "eric@compass-outlaw.org",
+    "url": "https://compass-outlaw.org"
+  },
+  "homepage": "https://github.com/EssenceAlignment/pdf-form-proof",
+  "repository": "https://github.com/EssenceAlignment/pdf-form-proof",
+  "license": "MIT",
+  "keywords": [
+    "pdf",
+    "forms",
+    "acroform",
+    "ocr",
+    "verification"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PDF Form Proof",
+        "shortDescription": "Verified PDF form filling",
+        "longDescription": "Attach a fillable (AcroForm) PDF. Inspect its exact field names and checkbox states, fill fields by name (unknown names are refused, nothing is guessed), and get a proof receipt: input and output SHA-256, every field written, and a rendered-page check (text layer plus OCR) that reports whether each value shows on the page. Verify an already filled PDF the same way. Nothing is stored.",
+        "developerName": "Compass Outlaw",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://compass-outlaw.org",
+        "privacyPolicyURL": "https://pdf-form-proof-chatgpt-4s5ggoqiuq-uw.a.run.app/privacy",
+        "termsOfServiceURL": "https://pdf-form-proof-chatgpt-4s5ggoqiuq-uw.a.run.app/legal",
+        "defaultPrompt": [
+          "Inspect this attached PDF form and list its exact field names and checkboxes.",
+          "Fill this attached PDF form with the values I give you and prove each value shows on the page."
+        ],
+        "brandColor": "#134E4A",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://compass-outlaw.org/contact"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inspect the fields of a fillable form",
+              "prompt": "Use PDF Form Proof to inspect the attached PDF form and list all fillable field names and their types.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "pdf_form_inspect",
+              "expected_behavior": "Calls pdf_form_inspect with the attached file and reports 5 fillable fields (organization_name, contact_name, date, item_count as text; certified_complete as a checkbox) plus the file's SHA-256. The file is not changed."
+            },
+            {
+              "description": "Fill fields and prove the result in one turn",
+              "prompt": "Use PDF Form Proof to fill the attached PDF with organization_name 'Recovery Compass', contact_name 'Eric Jones', item_count '12', and check certified_complete, then prove the values show on the page.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "pdf_form_fill",
+              "expected_behavior": "Calls pdf_form_fill with the attached file and the four values and reports a proof receipt: status ok, input and output SHA-256 hashes, the four fields written, no read-back mismatches, and a rendered-page check with verdict PASS where each text value is VISIBLE. No PDF file is returned in chat; the receipt is the result."
+            },
+            {
+              "description": "Fill a date and a name, then prove them",
+              "prompt": "Use PDF Form Proof to fill the attached PDF with date '2026-11-02' and contact_name 'Test Person', then prove both values show on the page.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "pdf_form_fill",
+              "expected_behavior": "Calls pdf_form_fill with the attached file and the two values and reports a proof receipt: status ok, input and output SHA-256 hashes, fields_written containing date and contact_name, no read-back mismatches, and rendered_page_check verdict PASS with both values VISIBLE. No PDF file is returned in chat."
+            },
+            {
+              "description": "Verify a value on an already attached PDF",
+              "prompt": "Use PDF Form Proof to check whether the value 'Recovery Compass' appears on page 1 of the attached PDF.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "pdf_form_verify",
+              "expected_behavior": "Calls pdf_form_verify on the attached blank form and reports that 'Recovery Compass' is MISSING (not in the text layer and not on the rendered page), with the file's SHA-256. Because the form is blank this is the correct result."
+            },
+            {
+              "description": "Fingerprint a file",
+              "prompt": "Use PDF Form Proof to give me the SHA-256 fingerprint and byte size of the attached PDF.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "pdf_sha256",
+              "expected_behavior": "Calls pdf_sha256 on the attached file and reports a 64-character lowercase hexadecimal SHA-256 digest and the byte size (an integer)."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unknown field name is refused, not guessed",
+              "prompt": "Use PDF Form Proof to fill the field 'favorite_color' with 'blue' in the attached PDF.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "pdf_form_fill",
+              "expected_behavior": "The tool returns status refused with unknown_fields ['favorite_color'] and produces nothing; the assistant says the field does not exist in this form and offers to list the real field names."
+            },
+            {
+              "description": "Advice request is out of scope",
+              "prompt": "Look at the attached form and tell me which legal entity classification I should choose to pay less tax.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/equipment-check.pdf"
+              ],
+              "tools_triggered": "none (or pdf_form_inspect only)",
+              "expected_behavior": "The assistant declines to give legal or tax advice and says PDF Form Proof only inspects, fills and verifies PDF form fields; no fill is performed."
+            },
+            {
+              "description": "Flat PDF with no fillable fields",
+              "prompt": "Use PDF Form Proof to inspect and fill the fields in the attached PDF.",
+              "file_attachment_urls": [
+                "https://pdf-form-proof-mcp-4s5ggoqiuq-uw.a.run.app/samples/flat-page.pdf"
+              ],
+              "tools_triggered": "pdf_form_inspect",
+              "expected_behavior": "Calls pdf_form_inspect, reports kind none with 0 fields and the note that this is a flat PDF that cannot be filled; pdf_form_fill is not called or returns refused."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin is free and sells nothing. No pricing, upgrades, credits or subscriptions anywhere in the plugin."
+      },
+      "publication": {
+        "release_notes": "0.1.6: every tool now takes the attached file through the standard file input (openai/fileParams: download_url + file_id), so the attached PDF reaches the server on ChatGPT web and mobile; 0.1.5 asked for base64 and could not receive attachments. pdf_form_fill verifies the result on the rendered page in the same call and returns a proof receipt (input and output SHA-256, fields written, per-value VISIBLE verdicts) instead of a file. Test cases use a synthetic sample form served from the plugin's verified domain, with no personal fields; the IRS W-9 is no longer used. Server reports its own version. All tools: readOnlyHint true, destructiveHint false, openWorldHint false. Temporary download URLs are fetched into memory for the single call and never logged or retained. The recording shows all 5 positive and 3 negative cases run cold on ChatGPT web on 2026-11-02 with the sample PDF attached in each chat."
+      }
+    }
+  }
+}

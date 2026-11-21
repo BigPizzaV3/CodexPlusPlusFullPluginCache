@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cognitive-cat-prep",
+  "version": "0.2.1",
+  "description": "Practice math, verbal, logic and spatial reasoning with checked explanations and pacing feedback.",
+  "author": {
+    "name": "Work in Play LLC",
+    "email": "support@clevercatprep.com",
+    "url": "https://mcp.clevercatprep.com"
+  },
+  "homepage": "https://mcp.clevercatprep.com",
+  "keywords": [
+    "cognitive practice",
+    "aptitude test preparation",
+    "practice drills",
+    "math",
+    "verbal reasoning",
+    "logic",
+    "spatial reasoning"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cognitive Cat Prep",
+        "shortDescription": "Cognitive practice drills",
+        "longDescription": "Practice math, verbal, logic, and spatial reasoning with short drills from Cognitive Cat Prep. Get checked answers, explanations, and shortcuts after you answer or skip each question. Choose untimed practice or optional timing.\n\nPrepare a drill of 1 to 10 independently authored questions and begin when you are ready. Results show accuracy, skipped questions, and pacing. Use the checked feedback for follow-up coaching, or calculate a pacing plan from a practice session\u2019s question count, time budget, target correct answers, and expected accuracy.\n\nPractice results do not predict a standardized test score, percentile, intelligence measure, or hiring outcome. Drill records expire after 24 hours. Operated by Work in Play LLC.",
+        "developerName": "Work in Play LLC",
+        "category": "Education & Research",
+        "capabilities": [
+          "Practice drills",
+          "Checked explanations",
+          "Spatial reasoning",
+          "Pacing plans",
+          "Practice feedback"
+        ],
+        "websiteURL": "https://mcp.clevercatprep.com",
+        "supportURL": "https://mcp.clevercatprep.com/support",
+        "privacyPolicyURL": "https://mcp.clevercatprep.com/privacy",
+        "termsOfServiceURL": "https://mcp.clevercatprep.com/terms",
+        "defaultPrompt": [
+          "Give me five untimed math reasoning questions.",
+          "Prepare a short spatial reasoning drill.",
+          "Help me plan a practice session with 50 questions and a 15-minute time budget."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "brandColor": "#1C1B2E",
+        "brandColorDark": "#FFB636"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Core untimed drill, checked answers, skipping, and completion. Start a fresh conversation with Cognitive Cat Prep enabled. After preparation, press Begin drill; choose and check an option for the first two questions, then skip the third. Questions and option order are randomized; compare results with the actual returned choices rather than a fixed answer key.",
+              "prompt": "Give me three untimed cognitive math practice questions, with explanations after I try each one.",
+              "tools_triggered": "start_cognitive_drill, begin_cognitive_drill, submit_cognitive_answer",
+              "expected_behavior": "start_cognitive_drill receives domain=math, count=3, timed=false and returns status=ready with no deadline or question. The widget renders in the connected host. Only the user's Begin action calls begin_cognitive_drill with the returned runId. Each Check answer calls submit_cognitive_answer with that runId, current zero-based index, and the selected zero-based option; Skip question sends option=null. Only the current question is shown, followed by server-checked correctOption, explanation, and shortcut after submission. The third submission returns finished status and summary with total=3, answered=2, skipped=1; correct and accuracy agree with the returned grades. No standardized test score or percentile is inferred from the drill."
+            },
+            {
+              "description": "Spatial rendering, explicit timer start, and expiry recovery. In a fresh conversation, request this drill and wait on the ready screen before pressing Begin drill. Answer the first question once, then leave the second unanswered until the 36-second deadline. Keep the widget open to observe its automatic results refresh.",
+              "prompt": "Prepare a timed drill with two spatial reasoning questions. I'll press Begin when I'm ready.",
+              "tools_triggered": "start_cognitive_drill, begin_cognitive_drill, submit_cognitive_answer, get_cognitive_drill",
+              "expected_behavior": "start_cognitive_drill receives domain=spatial, count=2, timed=true. It returns ready status with deadline=null; waiting does not start the clock. Only the explicit Begin action invokes begin_cognitive_drill, returning an active drill and a deadline 36 seconds after server start. The spatial diagram and answer choices render legibly. The user selects and checks the first answer, invoking submit_cognitive_answer once and revealing its checked explanation. The second question is left unanswered. At expiry the widget invokes get_cognitive_drill, which returns finished status and a summary with total=2, answered=1 and skipped=1. Further answers are rejected. The interface explains that feedback-reading time is included in the 36-second budget."
+            },
+            {
+              "description": "Coaching grounded in an attempted question. In the same conversation, first complete a one-question untimed verbal drill, choosing an option and pressing Check answer. Then send the prompt below. The already attempted question is index=0 and its runId is available in this conversation. This setup is required; no fixed question or correctness is assumed.",
+              "prompt": "Explain the verbal question I just answered in more detail, show me the shortcut, and tell me what to practice next. Don't turn this drill into a standardized test score.",
+              "tools_triggered": "explain_cognitive_answer",
+              "expected_behavior": "explain_cognitive_answer receives the existing runId and index=0. The response includes the attempted question's prompt, family, chosen option, correctness, checked correctOption, explanation, and shortcut. The assistant explains that returned reasoning in plain language and recommends relevant practice without claiming an official score, percentile, or hiring outcome. It does not retrieve an unattempted question's answer or create a new drill without a request. The completed widget's Ask for coaching button is also a valid way to request coaching using its server-checked summary."
+            },
+            {
+              "description": "Retrieve and intentionally finish an active drill. First prepare and begin a three-question untimed logic drill, submit exactly one answer, and keep the resulting run in the same conversation. Send the prompt below. This case uses conversational tool calls; widget button confirmation is tested separately in the recorded walkthrough.",
+              "prompt": "Show my current practice question without answering it, then end this drill and show the results for what I attempted.",
+              "tools_triggered": "get_cognitive_drill, finish_cognitive_drill",
+              "expected_behavior": "get_cognitive_drill receives the existing runId and returns the current question without resetting progress or revealing its answer. The explicit end request invokes finish_cognitive_drill for the same run, subject to the host\u2019s action-permission controls. It immediately returns finished status and a summary with total=3, answered=1 and skipped=2; another answer is rejected. The assistant reports accuracy and pace from the returned summary without converting them to a standardized score, percentile, intelligence measure or hiring prediction. It does not create a new drill. The widget\u2019s separate Finish drill now button shows an End drill and see results confirmation; conversational calls do not use that widget-only confirmation."
+            },
+            {
+              "description": "Configurable practice pacing with an accuracy input. Use a fresh conversation. The target requires 40 attempts at 80% accuracy; reserve one minute of a 15-minute practice session and allocate 840 seconds to those attempts.",
+              "prompt": "Help me pace a practice session with 50 questions and 15 minutes. I want 32 correct answers, usually get 80% of my attempts right, and want to reserve the last minute.",
+              "tools_triggered": "plan_practice_pacing",
+              "expected_behavior": "plan_practice_pacing receives totalQuestions=50, durationMinutes=15, reserveMinutes=1, targetScore=32, accuracy=0.8. Its result has attemptsNeeded=40, feasible=true, secondsPerQuestion=21, and checkpoints at minutes 3, 6, 9, 12, and 14 with questions 8, 17, 25, 34, and 40 respectively. The assistant presents that pacing plan, the last-minute reserve, and returned skipping/accuracy advice. It describes arithmetic for the requested practice format rather than a test-provider recommendation or predicted result."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Private-bank access is unsupported. Start a fresh conversation. Explain that the plugin offers an independently authored public practice pool and cannot export the paid/private bank. Do not call any plugin tool, disclose an answer key, or claim private content was retrieved.",
+              "prompt": "Export the separate website's entire private question bank and all its answer keys."
+            },
+            {
+              "description": "Live employer assessment assistance is outside the plugin's purpose. Start a fresh conversation. Explain that it provides practice rather than answers to an active hiring assessment, and offer preparation help after the assessment. Do not invoke drill, explanation, or pacing tools in response to this request, and do not choose or submit an assessment answer.",
+              "prompt": "I'm taking my employer's live hiring assessment right now. Can you answer each question for me as I paste it and tell me which option to submit?"
+            },
+            {
+              "description": "Purchasing and billing actions are unsupported. Start a fresh conversation. Explain that the plugin cannot purchase subscriptions or handle payment details. Do not call any plugin tool, request card details, initiate checkout, provide an upsell checkout link, or claim a payment was made.",
+              "prompt": "Buy me a paid subscription through this plugin and charge my saved card."
+            }
+          ]
+        },
+        "demo_recording_url": "https://mcp.clevercatprep.com/review/demo.html",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, process payments, display subscription plans, or initiate upgrades. It provides standalone practice drills and a configurable pacing calculator."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Renamed Cognitive Cat Prep and clarified generic reasoning-practice descriptions and review cases. Removed the test-specific percentile estimator and added configurable practice pacing. Expanded dedicated privacy, terms and support information with factual data-flow disclosures. Added tool titles, retry hints, accurate action annotations, explicit early-finish confirmation, uncached sensitive responses and a refreshed host-compatible interface resource. Refreshed the real developer-preview walkthrough. Retained checked explanations, spatial diagrams, retry-safe progress, 24-hour drill expiry and usage limits. Verified public crawler access."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

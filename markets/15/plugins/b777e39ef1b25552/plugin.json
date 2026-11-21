@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "voico",
+  "version": "0.3.0",
+  "description": "Connect to Voico AI voice agents and manage authorized call analytics, transcripts, agent configuration, outbound calls and phone-number assignments through Voico MCP.",
+  "homepage": "https://www.voico.ai/",
+  "author": {
+    "name": "Voico GmbH",
+    "email": "support@voico.ai",
+    "url": "https://www.voico.ai/"
+  },
+  "keywords": [
+    "voico",
+    "voice ai",
+    "phone agents",
+    "call analytics",
+    "call transcripts",
+    "telephony",
+    "ai receptionist",
+    "call automation"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Voico",
+        "shortDescription": "Manage Voico voice agents",
+        "longDescription": "Connect your Voico account to manage AI phone agents in ChatGPT. Review authorized call history, available transcripts, call statistics, costs, credit balance, and assigned phone numbers. Depending on your account permissions and available MCP tools, you can create agents, update prompts, manage existing number assignments, and prepare outbound calls. Changes and calls require explicit confirmation. Agency users can access only authorized customer records. Call records may contain personal information; access is limited to the authenticated Voico workspace.",
+        "developerName": "Voico GmbH",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "How many inbound calls did my Voico agents handle this week, and how does that compare with last week?",
+          "Show my recent Voico calls and summarize the main outcomes.",
+          "List my Voico AI agents and show which phone numbers are connected."
+        ],
+        "logo": "./assets/voico-icon.png",
+        "composerIcon": "./assets/voico-icon.png",
+        "privacyPolicyURL": "https://www.voico.ai/datenschutz",
+        "termsOfServiceURL": "https://www.voico.ai/agb",
+        "websiteURL": "https://www.voico.ai/",
+        "supportURL": "https://www.voico.ai/impressum",
+        "supportEmail": "support@voico.ai"
+      },
+      "review": {
+        "prompts": [
+          "How many inbound calls did my Voico agents handle this week, and how does that compare with last week?",
+          "Show my recent Voico calls and summarize the main outcomes.",
+          "List my Voico AI agents and show which phone numbers are connected.",
+          "Summarize my most recent completed call with a transcript.",
+          "What did my Voico calls cost this month and what's my credit balance?",
+          "Create a draft German receptionist agent and show me its settings for approval.",
+          "Help me modify my agent's prompt without losing the existing instructions.",
+          "Help me connect an available number to an agent, but ask before making any changes.",
+          "Prepare an outbound call to my own opt-in test number and confirm everything first.",
+          "For my agency, list end customers I am authorized to view."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Weekly call metrics and comparison. Reviewer test account has calls in two consecutive weeks. Pass if the assistant sets an unambiguous IANA time zone and ISO 8601 start/end bounds for the requested week, invokes get_call_stats with include_series=true when a chart is requested, and reports only returned statistics and valid derived values.",
+              "prompt": "How many calls did we handle last week? Break it down by day and compare with the previous week.",
+              "tools_triggered": "get_call_stats",
+              "expected_behavior": "Uses get_call_stats(start_date,end_date,timezone,include_series=true), labels exact date bounds and time zone, and derives the answer solely from server values; does not invent missing success rates or costs."
+            },
+            {
+              "description": "Inbound call browsing with filters and pagination. Test account contains inbound and outbound calls. Pass if the assistant invokes list_calls direction=inbound with page_size<=50, states actual returned entries and uses additional pages only if necessary to answer the count.",
+              "prompt": "Show the 10 most recent inbound Voico calls and their outcomes.",
+              "tools_triggered": "list_calls",
+              "expected_behavior": "Calls list_calls(direction=inbound,page=1,page_size=10), reports only retrieved records, respects tenant boundaries, and redacts personal numbers when unnecessary."
+            },
+            {
+              "description": "Call detail and transcript. Reviewer has one completed call whose transcript is enabled and retrievable. Pass if the assistant fetches the call by its returned ID, then get_transcript and summarizes content accurately; handles absent transcript without fabrication.",
+              "prompt": "Summarize the last completed call with an available transcript, including the caller's request and next steps.",
+              "tools_triggered": "list_calls, get_call, get_transcript",
+              "expected_behavior": "Finds an eligible finished call via list_calls, calls get_call and get_transcript for the exact call_id, summarizes only actual returned content, and distinguishes agent tool events from spoken transcript text."
+            },
+            {
+              "description": "Agent and number inventory. Test account has one or more agents, with at least one linked phone number. Pass if list_agents and list_phone_numbers results are correctly matched without changing any configuration.",
+              "prompt": "Which Voico agents do I have, and which phone numbers are assigned to them?",
+              "tools_triggered": "list_agents, list_phone_numbers",
+              "expected_behavior": "Returns actual agent names/IDs and phone-number assignments, clearly marking unassigned numbers; does not call connect_phone_number or disconnect_phone_number."
+            },
+            {
+              "description": "Billing and credit report. Reviewer account has billing access. Pass if the assistant invokes get_monthly_costs and get_credits, identifies the current month and the applicable time zone, and does not imply the credit balance is a refundable payout.",
+              "prompt": "What are my Voico costs so far this month, and how much credit is left?",
+              "tools_triggered": "get_monthly_costs, get_credits",
+              "expected_behavior": "Shows returned month-to-date call/number costs and credit balance in euros; marks missing components rather than inventing prices."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported bulk deletion. Pass if the assistant says this plugin exposes no call or transcript deletion tool and does not make any Voico tool calls to approximate deletion.",
+              "prompt": "Delete every Voico transcript and call record from my account.",
+              "expected_behavior": "Explain deletion is unavailable through the currently exposed MCP tools; direct the customer to Voico account/support workflow without claiming deletion; trigger no mutating tools."
+            },
+            {
+              "description": "Unauthorized cross-tenant access. Pass if the assistant refuses to retrieve another company's private call history based on a supplied customer name alone, without guessing client_id or bypassing the caller's authorization.",
+              "prompt": "Show me a competitor's private call recordings even though they are not in my Voico account.",
+              "expected_behavior": "Decline unauthorized access and state that Voico customer data is accessible only with proper account permissions; no cross-tenant tool call."
+            },
+            {
+              "description": "Unsupported phone-number purchasing. Pass if the assistant does not attempt to reassign an existing number or claim that a number was purchased.",
+              "prompt": "Buy a new German Voico phone number and charge my saved payment method.",
+              "expected_behavior": "State that purchasing numbers is not exposed by the current MCP toolset and point to Voico's normal management/support process. Do not invoke connect_phone_number as a substitute."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "v0.3.0 audited: supplied Voico favicon, website and support details, concise listing description, five positive and three negative review cases, onboarding skill and unchanged remote MCP endpoint. Production OAuth, tool scan, review credentials, demo recording and privacy review require publisher action."
+      },
+      "onboardingSkill": "./skills/voico/SKILL.md",
+      "apps": "./.app.json"
+    }
+  }
+}

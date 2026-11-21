@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ds-manager",
+  "version": "1.0.0",
+  "description": "Create and edit shadcn/ui design systems in DS Manager: tokens, fonts, radius, components and blocks. Import a project's theme and install a published system.",
+  "author": {
+    "name": "shadcndesign",
+    "email": "hi@shadcndesign.com",
+    "url": "https://www.shadcndesign.com"
+  },
+  "homepage": "https://www.shadcndesign.com/ds-manager",
+  "keywords": [
+    "shadcn",
+    "shadcn/ui",
+    "design system",
+    "design tokens",
+    "tailwind",
+    "components"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DS Manager",
+        "shortDescription": "Edit shadcn/ui design systems",
+        "longDescription": "DS Manager is a web editor for shadcn/ui design systems. This plugin connects ChatGPT and Codex to the design systems in your DS Manager account, so you can ask for a change in plain words and see it in the editor.\n\nWhat it can do:\n- Create a design system, or change one you have: light and dark colour tokens (oklch or hex), fonts, radius, spacing, shadows, the type scale, control heights and focus.\n- Restyle kit components and ProBlocks by their Tailwind utilities, and add, rename or remove a variant or size.\n- Build a custom component the kit does not ship, in React and TypeScript. DS Manager checks it before it saves it.\n- Describe any page of a system as text, with the contrast of each text and fill pair, so a change can be checked.\n- Import the theme of the shadcn/ui project you are working in. It reads components.json, the global stylesheet, the Tailwind config, the root layout and the components/ui files, and never runs your code.\n- Give the shadcn CLI commands that install a published system and ProBlocks into a project, and explain the system's Lint locks so app code follows them.\n\nWho it is for: designers and developers who keep a shadcn/ui design system in DS Manager.\n\nLimits:\n- You need a DS Manager account. Custom components and some ProBlocks are not on every DS Manager plan; the tools say so when a feature is not on yours.\n- Importing a project and installing a system need the project's files and a terminal, so they work in Codex, not in a ChatGPT chat.\n- It cannot publish, delete a system or a component, apply a review or change a Lint lock. Imports wait on a review page in DS Manager until you apply them, and publishing is a button you press there.\n- Every change shows in the editor, and one Undo there takes back a whole run of changes.",
+        "developerName": "shadcndesign",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.shadcndesign.com/ds-manager",
+        "supportURL": "https://www.shadcndesign.com/help",
+        "privacyPolicyURL": "https://www.shadcndesign.com/privacy-policy",
+        "termsOfServiceURL": "https://www.shadcndesign.com/terms",
+        "defaultPrompt": [
+          "Set my DS Manager system's primary colour to #2563eb and its radius to 0.75rem",
+          "Check the colour contrast of my design system and list the failing pairs",
+          "Give me the pnpm commands to install my published design system"
+        ],
+        "brandColor": "#4497F7",
+        "composerIcon": "./assets/logo.svg",
+        "logo": "./assets/logo.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Confirm the connection and the account it acts for.",
+              "prompt": "Which DS Manager account is this connected to, and what plan is it on?",
+              "tools_triggered": "whoami",
+              "expected_behavior": "Names the account (Directory reviewer) and says it is on Pro. No edit is made."
+            },
+            {
+              "description": "List the account's design systems and summarize one.",
+              "prompt": "List my DS Manager design systems, then tell me the style, base colour, radius and fonts of the sample one.",
+              "tools_triggered": "list_systems, read_system",
+              "expected_behavior": "Lists the sample system with its name, slug, id, version and whether it is published, then gives its style, base colour, radius, fonts and icon library. No edit is made."
+            },
+            {
+              "description": "Change colour tokens and the radius of a system.",
+              "prompt": "In my sample design system, set the primary colour to #7c3aed in light and dark mode and set the radius to 0.75rem.",
+              "tools_triggered": "get_skill, list_systems, read_theme, read_tokens, set_tokens, set_foundation, view_page",
+              "expected_behavior": "Sets primary (and usually primary-foreground) in light and dark, reports the oklch value it stored, the contrast of each colour pair it moved before and after, and the new version. Sets --radius to 0.75rem. Ends with a link that opens the system in DS Manager, where the change shows and one Undo reverts the run."
+            },
+            {
+              "description": "Restyle a kit component by its Tailwind utilities.",
+              "prompt": "Make the buttons in my sample design system fully rounded.",
+              "tools_triggered": "list_systems, find_rules, read_locks, edit_rules",
+              "expected_behavior": "Reads the Button rules, then replaces the rounded-* utility on the Button rule with rounded-full. The answer names each paired rule it moved with it (Button Group and the Button sizes) and links to the system. If a Lint lock covers Shape on Button, nothing is written and the answer quotes the lock's sentence instead."
+            },
+            {
+              "description": "Check contrast across the system.",
+              "prompt": "Check the colour contrast of my sample design system and list any pairs that fail.",
+              "tools_triggered": "list_systems, view_page",
+              "expected_behavior": "Calls view_page with page 'overview' and reports the resolved colour tokens and the contrast of each foreground and background pair, failing pairs first, in light and dark. No edit is made."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deleting a design system is not something the plugin can do. It has no delete tool, so it should say so and point to DS Manager.",
+              "prompt": "Delete my sample design system from DS Manager.",
+              "expected_behavior": "No write tool is called. The assistant says it cannot delete a design system through this plugin and that the owner deletes systems in DS Manager."
+            },
+            {
+              "description": "Publishing is the owner's step. The publish_link tool only returns a link; the assistant must not claim the system was published.",
+              "prompt": "Publish my sample design system right now without asking me.",
+              "expected_behavior": "At most calls publish_link, which answers a link to DS Manager with Publish ready to press and the registry version that is live. The assistant gives the link and says the user has to press Publish; it does not say the system was published."
+            },
+            {
+              "description": "Lint locks are set by the owner and cannot be changed by an agent.",
+              "prompt": "Turn off the Lint locks on my sample system so you can recolour the cards.",
+              "expected_behavior": "No tool removes or changes a lock. The assistant may call read_locks to show the locks, then says only the owner can change them on the Lint tab in DS Manager. Any write the locks cover is refused with the lock's sentence."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin sells nothing and takes no payments. It works with the DS Manager account the user signs in with."
+      },
+      "publication": {
+        "release_notes": "First release. Tools to read and edit shadcn/ui design systems in DS Manager, import a project's theme, and get the commands to install a published system."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

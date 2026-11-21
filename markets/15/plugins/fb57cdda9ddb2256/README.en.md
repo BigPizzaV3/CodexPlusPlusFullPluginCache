@@ -1,0 +1,3 @@
+# FCC AI ured, 3.1.0
+
+Open https://forevercard.club/fcc-ai/. When the FCC plugin is published, install it in ChatGPT and sign in to your own FCC account. Review the access request personally. Ask: Help me set up my FCC assistant. It reads your permitted context and prepares a first private overview. Return to your FCC office to verify the saved overview. The page states when publication is still being prepared. Installing this ZIP as a chat attachment is not a supported installation route. Your own FCC PRO access and the required personal tool permissions remain necessary. Further personal style changes wait for your own review in FCC.

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bronto-eu",
+  "version": "1.0.0",
+  "description": "Investigate Bronto observability data, analyse logs and trends, review monitors, and create saved searches or muted monitors. This listing connects exclusively to Bronto\u2019s EU region and is intended for customers whose Bronto account and data are hosted in Europe.",
+  "author": {
+    "name": "Bronto",
+    "url": "https://bronto.io"
+  },
+  "homepage": "https://bronto.io",
+  "repository": "https://github.com/brontoio/bronto-mcp-server",
+  "keywords": [
+    "observability",
+    "logs",
+    "monitoring"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Bronto EU",
+        "shortDescription": "EU observability workflows",
+        "longDescription": "Investigate Bronto observability data, analyse logs and trends, review monitors, and create saved searches or muted monitors. This listing connects exclusively to Bronto\u2019s EU region and is intended for customers whose Bronto account and data are hosted in Europe.",
+        "developerName": "Bronto",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Search logs",
+          "Analyse trends",
+          "Review monitors",
+          "Create saved searches",
+          "Create muted monitors",
+          "Open Bronto pages"
+        ],
+        "websiteURL": "https://bronto.io",
+        "supportURL": "https://bronto.io/contact",
+        "privacyPolicyURL": "https://bronto.io/privacy-policy",
+        "termsOfServiceURL": "https://bronto.io/terms",
+        "defaultPrompt": [
+          "Investigate errors in my production logs from the last hour and summarize the likely causes.",
+          "Show error trends over the last 24 hours and highlight any unusual spikes.",
+          "Review my monitors, identify coverage gaps, and recommend what I should monitor next."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the two verified sample datasets. Use the dedicated EU sample-data account. It must provide Normalised CDN Logs in the CDN collection with numeric response_status and string host fields, recent sample 5xx events, and checkout in opentelemetry-demo. Resolve the dataset IDs using get_datasets and the field names/types using get_keys before dependent queries. Use Bronto event time (@time), not the embedded sample timestamp. ",
+              "prompt": "Show me the Normalised CDN Logs dataset in CDN and the checkout dataset in opentelemetry-demo, including their IDs, collections, tags and whether they are active.",
+              "tools_triggered": "get_datasets",
+              "expected_behavior": "Return the accessible named datasets with their exact IDs, collections, tags, active flags and last-ingest information; do not substitute a different collection with the same dataset name."
+            },
+            {
+              "description": "Retrieve a bounded recent error sample. Use the dedicated EU sample-data account. It must provide Normalised CDN Logs in the CDN collection with numeric response_status and string host fields, recent sample 5xx events, and checkout in opentelemetry-demo. Resolve the dataset IDs using get_datasets and the field names/types using get_keys before dependent queries. Use Bronto event time (@time), not the embedded sample timestamp. ",
+              "prompt": "Show the 20 most recent HTTP 5xx events from Normalised CDN Logs in the last 30 minutes, including response status and host.",
+              "tools_triggered": "get_keys, search_logs",
+              "expected_behavior": "Scope search_logs to the resolved CDN dataset, use response_status >= 500 AND response_status < 600, Last 30 minutes, limit 20 and most_recent_first=true; project response_status and host. Return at most 20 actual matching events in descending @time order; report an empty result truthfully if no current matches exist."
+            },
+            {
+              "description": "Aggregate the same error predicate by host and time bucket. Use the dedicated EU sample-data account. It must provide Normalised CDN Logs in the CDN collection with numeric response_status and string host fields, recent sample 5xx events, and checkout in opentelemetry-demo. Resolve the dataset IDs using get_datasets and the field names/types using get_keys before dependent queries. Use Bronto event time (@time), not the embedded sample timestamp. ",
+              "prompt": "Count HTTP 5xx responses in Normalised CDN Logs over the last hour in 12 time buckets, grouped by host. Show the top 10 hosts and the overall total.",
+              "tools_triggered": "get_keys, timeseries",
+              "expected_behavior": "Use COUNT(*), group_by_keys=[host], 12 slices, limit 10, Last 1 hour and the verified numeric 500-599 predicate. Report the returned overall total, per-host counts and 12 buckets. Disclose truncation when more than 10 hosts exist; do not present the top-10 subtotal as the overall total."
+            },
+            {
+              "description": "Persist a verified error investigation in the demo workspace. Use the dedicated EU sample-data account. It must provide Normalised CDN Logs in the CDN collection with numeric response_status and string host fields, recent sample 5xx events, and checkout in opentelemetry-demo. Resolve the dataset IDs using get_datasets and the field names/types using get_keys before dependent queries. Use Bronto event time (@time), not the embedded sample timestamp. Ensure the test saved-search name is unused; if it already exists, ask for a fresh review-specific name rather than creating an unrequested duplicate.",
+              "prompt": "Save the verified CDN 5xx event search as OpenAI EU Review CDN 5xx, with the purpose tag openai-submission-review.",
+              "tools_triggered": "create_saved_search, get_saved_searches",
+              "expected_behavior": "Create one saved search scoped to the resolved CDN dataset with the numeric 5xx predicate, response_status and host projection, Last 30 minutes and list display. Apply purpose=openai-submission-review. Return its identifier and verify query and tag through readback; do not claim it is saved on an error."
+            },
+            {
+              "description": "Create a monitor from the validated count query in the demo workspace. Use the dedicated EU sample-data account. It must provide Normalised CDN Logs in the CDN collection with numeric response_status and string host fields, recent sample 5xx events, and checkout in opentelemetry-demo. Resolve the dataset IDs using get_datasets and the field names/types using get_keys before dependent queries. Use Bronto event time (@time), not the embedded sample timestamp. The preceding conversation must establish COUNT(*) and the CDN 5xx predicate. Ensure the test monitor name is unused. Do not unmute it.",
+              "prompt": "Create a monitor named OpenAI EU Review CDN Error Spike for more than 50 CDN 5xx events in 15 minutes, and leave it muted for review.",
+              "tools_triggered": "create_monitor, search_monitors",
+              "expected_behavior": "Create one monitor with named query errors, COUNT(*), the resolved CDN dataset and numeric 5xx predicate, ABOVE 50, Last 15 minutes and no-data OK. Return its ID and verify the resolved query, threshold and muted_until=-1 through readback. Do not unmute it or claim creation on failure."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for unsupported deletion requests. Do not invoke any Bronto tool or claim the requested action succeeded; explain the unsupported action.",
+              "prompt": "Delete all logs older than 30 days from Bronto.",
+              "expected_behavior": "The app should not be invoked because it does not delete or modify stored log events."
+            },
+            {
+              "description": "Do not trigger for unsupported monitor administration. Do not invoke any Bronto tool or claim the requested action succeeded; explain the unsupported action.",
+              "prompt": "Unmute and delete the monitor named Checkout Error Spike.",
+              "expected_behavior": "The app should not be invoked because it cannot update, unmute, or delete existing monitors."
+            },
+            {
+              "description": "Do not trigger for unrelated deployment workflows. Do not invoke any Bronto tool or claim the requested action succeeded; explain the unsupported action.",
+              "prompt": "Deploy the latest application build to production and notify the team in Slack.",
+              "expected_behavior": "The app should not be invoked because code deployment and team messaging are outside its supported workflows."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not let users make payments or purchases.",
+        "prompts": [
+          "Investigate errors in my production logs from the last hour and summarize the likely causes.",
+          "Show error trends over the last 24 hours and highlight any unusual spikes.",
+          "Review my monitors, identify coverage gaps, and recommend what I should monitor next."
+        ]
+      },
+      "publication": {
+        "release_notes": "Version 1.0 \u2014 Initial submission\n\nBronto connects ChatGPT to live observability data through an OAuth-protected hosted MCP server.\n\nThis initial release supports discovering datasets and fields, searching and analysing logs, viewing time-series trends, reviewing errors and usage, auditing monitoring coverage, and inspecting existing saved searches and monitors.\n\nUsers can turn successful investigations into reusable saved searches and muted monitors. Monitors can be previewed before creation, validated for data-flow problems, and supplied with investigation instructions that Bronto runs when an alert fires. New monitors remain muted until reviewed in Bronto.\n\nThis regional listing connects only to Bronto\u2019s EU service. Reviewers should use the supplied OAuth account for this endpoint. This submission is for the EU endpoint only.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

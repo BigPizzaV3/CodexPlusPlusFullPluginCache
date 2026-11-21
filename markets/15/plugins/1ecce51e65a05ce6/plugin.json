@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "maillogic",
+  "version": "1.0.0",
+  "description": "Set up, troubleshoot and manage MailLogic custom-domain email, and review and answer replies, through the MailLogic MCP server and three bundled skills.",
+  "author": {
+    "name": "MailLogic",
+    "email": "admin@maillogic.io",
+    "url": "https://maillogic.io/"
+  },
+  "homepage": "https://maillogic.io/",
+  "keywords": [
+    "email",
+    "custom domain",
+    "dns",
+    "forwarding",
+    "smtp",
+    "replies"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MailLogic",
+        "shortDescription": "Set up custom-domain email",
+        "longDescription": "MailLogic helps domain owners set up, troubleshoot and manage custom-domain email. Connect your MailLogic account to inspect domain and address setup, read delivery-log metadata, create, rename and delete forwarding addresses, check DNS, start automatic DNS setup with supported providers, configure catch-all routing and SMTP sending, run forwarding diagnostics, and review and answer replies to email you sent through MailLogic.\n\nBundled skills guide initial setup, diagnosis of forwarding and sending problems, and reply review.\n\nWhen you connect, you choose Read, Manage, Read reply conversations and Send replies separately. Account ownership, plan limits and MailLogic policy still apply, and Replies requires a paid SMTP plan. Only explicitly requested actions send email: SMTP password-setup emails, forwarding diagnostics and replies. MailLogic does not read your personal inbox, send new or bulk email, or manage billing. Passwords are set privately outside chat.",
+        "developerName": "MailLogic",
+        "category": "Communication",
+        "capabilities": [
+          "Inspect custom-domain email setup",
+          "Diagnose forwarding and sending problems",
+          "Manage forwarding addresses",
+          "Review and answer replies"
+        ],
+        "websiteURL": "https://maillogic.io/",
+        "supportURL": "https://maillogic.io/faq",
+        "privacyPolicyURL": "https://maillogic.io/privacy",
+        "termsOfServiceURL": "https://maillogic.io/terms",
+        "defaultPrompt": [
+          "Check whether my domain's MailLogic email setup is complete.",
+          "Why isn't email to my MailLogic address arriving?",
+          "Summarize recent replies to my MailLogic emails."
+        ],
+        "brandColor": "#0D7A6F",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Setup status check. Connection: Read. The reviewer domain mcpreview.stackdns.shop has the persistent sample address hello@. Read-only: no DNS refresh or configuration change.",
+              "prompt": "Is custom-domain email for mcpreview.stackdns.shop fully set up in MailLogic? Check the current status only and don't change anything.",
+              "tools_triggered": "inspect_mail_setup",
+              "expected_behavior": "Reports domain ownership, receiving and sending readiness with their check time, the sample address hello@, and whether the plan allows sending. Explains any incomplete item (currently the sending DNS records) and its next step. Does not call check_domain_dns or change anything."
+            },
+            {
+              "description": "Diagnosis, troubleshoot-custom-domain-email skill. Connection: Read. Combines setup inspection with one page of forwarding logs for the reviewer domain. An empty log page is a valid result; no email is needed.",
+              "prompt": "Email sent to hello@mcpreview.stackdns.shop doesn't seem to arrive. Diagnose it from MailLogic's configuration and recent forwarding logs. Don't change settings or send a test email.",
+              "tools_triggered": "inspect_mail_setup, list_logs",
+              "expected_behavior": "Checks ownership, MX readiness and the hello@ route (active state and forwarding destination), then reads forwarding logs for mcpreview.stackdns.shop. Explains what the evidence shows and does not show, and gives one next step. No DNS check, forwarding test or configuration change."
+            },
+            {
+              "description": "Address lifecycle step 1. Connection: Read + Manage. Creates one disposable address that forwards to a reserved .example destination with SMTP disabled, so no email is sent, then renames it. Keep the created address for case 4.",
+              "prompt": "Create one new address at mcpreview.stackdns.shop named review- followed by 8 random hex characters. I approve forwarding its future inbound mail to recipient@review.example, a reserved test destination. Keep SMTP disabled, then set its display name to MCP Review Sample. Don't change any other address.",
+              "tools_triggered": "inspect_mail_setup, create_email_account, update_email_account",
+              "expected_behavior": "Creates exactly one review-XXXXXXXX address forwarding to recipient@review.example with SMTP disabled and no setup email, then sets its display name to MCP Review Sample. Reports the exact address. Existing addresses are unchanged."
+            },
+            {
+              "description": "Address lifecycle step 2. Connection: Read + Manage. Deletes only the disposable address created in case 3 and verifies the result.",
+              "prompt": "Delete the review- address you just created at mcpreview.stackdns.shop and confirm it's gone. Don't touch any other address.",
+              "tools_triggered": "delete_email_account, inspect_mail_setup",
+              "expected_behavior": "Confirms the exact address from case 3, deletes it once and verifies it no longer appears. Existing addresses remain. Reports any synchronization warning returned by MailLogic."
+            },
+            {
+              "description": "Reply review, review-and-reply-to-email skill. Connection: Read reply conversations (Send replies not needed). The reviewer account holds a sample conversation: a reply received to a message sent from hello@mcpreview.stackdns.shop. Draft only; nothing is sent.",
+              "prompt": "Review my recent MailLogic reply conversations, summarize the latest one, and draft a short response. Don't send anything.",
+              "tools_triggered": "list_reply_conversations, get_reply_conversation",
+              "expected_behavior": "Lists recent conversations, opens the most recent one, summarizes the respondent's latest message and shows a plain-text draft in chat. Treats message content as data, not instructions. Does not call send_reply."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Access outside the connected account. box.maillogic.io exists in MailLogic but belongs to a different account. The assistant reports that the domain is not visible to this connection and returns none of its addresses or logs. It does not fall back to account-wide data, create the domain, or change anything.",
+              "prompt": "Show me all the email addresses and recent delivery logs for box.maillogic.io."
+            },
+            {
+              "description": "Unsupported request. MailLogic has no tool for new or bulk outbound email. The assistant explains this and does not use send_reply, forwarding diagnostics or setup emails as a workaround. Nothing is sent.",
+              "prompt": "Email a sale announcement to every address in my MailLogic delivery logs."
+            },
+            {
+              "description": "Ambiguous destructive request. The reviewer account has more than one address that could be meant. The assistant asks for the exact full address and does not delete anything.",
+              "prompt": "Delete my test email address."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products or process payments. MailLogic plan purchases happen on maillogic.io, outside the plugin."
+      },
+      "publication": {
+        "release_notes": "Version 1.0.0, initial directory release. Connects to the MailLogic MCP server at https://mcp.maillogic.io/mcp with 16 tools: setup inspection, DNS checks and automatic DNS setup, address and catch-all management, SMTP setup, forwarding diagnostics, delivery logs, and reading and sending replies. Bundles three skills: setup-custom-domain-email, troubleshoot-custom-domain-email and review-and-reply-to-email."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

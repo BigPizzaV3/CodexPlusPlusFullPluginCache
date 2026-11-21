@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a844b5119f881919edba372464bb305",
+  "version": "1.0.0",
+  "description": "Work with your ProductBridge customer feedback, product roadmap, changelog and help center directly from ChatGPT.",
+  "author": {
+    "name": "Rohith Reddy Jarugu",
+    "url": "https://productbridge.io"
+  },
+  "homepage": "https://productbridge.io",
+  "license": "UNLICENSED",
+  "keywords": [
+    "product-feedback",
+    "roadmap",
+    "changelog",
+    "help-center",
+    "customer-feedback",
+    "product-management"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ProductBridge",
+        "shortDescription": "Feedback, roadmap, changelog",
+        "longDescription": "ProductBridge is a customer feedback and product roadmap platform. This connector gives ChatGPT direct access to your ProductBridge workspace, so you can work with customer feedback in conversation instead of switching to the dashboard.\n\nOnce connected, you can:\n\n- Search feedback by meaning rather than keyword, using vector similarity over your own feedback corpus.\n- Read and filter feedback posts by board, status, category, tag and user segment.\n- Capture new feedback straight out of a conversation, and update or reclassify existing posts.\n- Review your public product roadmap and move items between statuses.\n- Draft, publish and revise changelog entries.\n- Manage your help center's collections, categories and articles.\n- Summarise what your customers are asking for most, ranked by how many distinct people raised it.\n\nEvery tool is scoped to a single ProductBridge workspace, resolved from the OAuth access token rather than from anything the model supplies. The connector can read and write only data belonging to the workspace you authorise during sign-in; it cannot reach across workspaces.\n\nAuthentication uses OAuth 2.1 with PKCE and dynamic client registration. During sign-in you choose which of your ProductBridge workspaces to grant access to. Access tokens are short-lived and refresh tokens rotate on every use.",
+        "developerName": "Rohith Reddy Jarugu",
+        "category": "Productivity",
+        "websiteURL": "https://productbridge.io/",
+        "supportURL": "https://productbridge.io/support",
+        "privacyPolicyURL": "https://productbridge.io/legal/privacy-policy",
+        "termsOfServiceURL": "https://productbridge.io/legal/terms-and-conditions",
+        "capabilities": [
+          "Search customer feedback by meaning using vector similarity",
+          "Read and filter feedback posts, boards, statuses, categories and tags",
+          "Create, update and reclassify feedback posts",
+          "Read and update the public product roadmap",
+          "Draft, publish and revise changelog entries",
+          "Manage help center collections, categories and articles",
+          "Summarise feedback insights and most-requested themes"
+        ],
+        "defaultPrompt": [
+          "What are the most requested features in my ProductBridge workspace this month?",
+          "Find feedback similar to \"users want dark mode on mobile\"",
+          "Show me what is currently on my product roadmap"
+        ],
+        "brandColor": "#1C1917",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.loom.com/share/06e651ac7b0b42f9a66060c878c86916",
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Lists the feedback boards in the connected workspace, then returns a page of feedback posts from the default board.",
+              "prompt": "Show me the most recent customer feedback in my ProductBridge workspace.",
+              "tools_triggered": "list_feedback_boards, get_feedback_list",
+              "expected_behavior": "Calls list_feedback_boards to discover the workspace's boards, then get_feedback_list to retrieve a paginated set of posts. Replies with feedback titles, their statuses and vote counts. All results belong to the single workspace authorised during sign-in."
+            },
+            {
+              "description": "Semantic search over the workspace's own feedback corpus using vector similarity rather than keyword matching.",
+              "prompt": "Find feedback similar to \"the mobile app is slow to load\".",
+              "tools_triggered": "search_similar_feedback",
+              "expected_behavior": "Calls search_similar_feedback with the quoted text as the query. Returns semantically related feedback posts with titles and truncated descriptions, including posts that share no keywords with the query. Returns an empty result set rather than an error when nothing clears the similarity threshold."
+            },
+            {
+              "description": "Creates a new feedback post from the conversation, relying on the server to resolve the default board and default open status.",
+              "prompt": "Log a new piece of feedback titled \"Add CSV export to the analytics page\" with a note that two enterprise customers asked for it.",
+              "tools_triggered": "list_feedback_boards, create_feedback",
+              "expected_behavior": "Calls create_feedback with the title and description. board_id and status_id may be omitted, in which case the server resolves the workspace's first active board and its default open status. Replies with the created post's id and confirms it was created. The post then appears in get_feedback_list results."
+            },
+            {
+              "description": "Reads the product roadmap grouped by status, and the set of statuses available in the workspace.",
+              "prompt": "What is on my product roadmap right now, and which statuses do we use?",
+              "tools_triggered": "get_roadmap, list_roadmap_statuses",
+              "expected_behavior": "Calls get_roadmap to retrieve roadmap items grouped by status and list_roadmap_statuses to enumerate the workspace's configured statuses. Replies with the roadmap items organised under their status names. No data is modified."
+            },
+            {
+              "description": "Creates a help center article under an existing collection and category, discovering the taxonomy first.",
+              "prompt": "Draft a help center article called \"How to export your feedback to CSV\" and file it under our existing getting-started category.",
+              "tools_triggered": "list_help_collections, list_help_categories, create_help_article",
+              "expected_behavior": "Calls list_help_collections and list_help_categories to locate the target category, then create_help_article with the title, body and resolved category id. Replies with the created article's id. If no matching category exists, it says so rather than inventing an id or creating a category unasked."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Requests feedback data belonging to an organisation other than the one authorised, which the connector cannot reach.",
+              "prompt": "Pull up the customer feedback board for Acme Corp, a different company that also uses ProductBridge.",
+              "expected_behavior": "Does not return another organisation's data. Every tool derives its organisation scope from the OAuth token, not from the prompt, so there is no parameter through which another workspace can be addressed. The assistant should explain that it can only access the workspace that was authorised during sign-in."
+            },
+            {
+              "description": "Asks for an unscoped bulk deletion across the whole workspace. No bulk or filter-based delete tool exists.",
+              "prompt": "Delete every feedback post in my workspace that has fewer than three votes.",
+              "expected_behavior": "Does not perform the deletion. delete_feedback addresses exactly one post by its own id and there is no bulk, filtered or truncating delete tool on the server. The assistant should decline the sweep and, at most, offer to identify candidate posts for the user to confirm one at a time."
+            },
+            {
+              "description": "A request wholly unrelated to product feedback, which should not trigger any ProductBridge tool.",
+              "prompt": "What is the weather in Bengaluru tomorrow, and can you book me a taxi to the airport?",
+              "expected_behavior": "Calls no ProductBridge tool. None of the 42 tools relate to weather or travel booking, and none reach any external service. The assistant should answer from its other capabilities or say it cannot help, without invoking the connector."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

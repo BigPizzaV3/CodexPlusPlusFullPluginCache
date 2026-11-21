@@ -1,0 +1,8 @@
+---
+name: focus-stack
+description: "Blend actual already pixel-aligned focus-bracket stills and inspect exact source-selection provenance/map."
+---
+
+# Focus Stack
+
+Require2–4 actual opaque JPEG/PNG/WebP stills of the same static scene with matching exposure and explicitly confirmed existing pixel alignment. Do not infer alignment from tripod capture or equal dimensions: this plugin performs no registration. Request prepared aligned sources when needed. Set alignment_confirmed=true only when confirmed. Limits20MB each,32MB combined,32–1024px per side after orientation,up to1.05MP,identical dimensions. No resizing or transparent sources. Local focus energy is box-averaged squared4-neighbor Laplacian of encoded-sRGB luma; maximum per pixel wins, ties use first source. window_radius2–8 default3,feather_radius0–4 default2. One-hot winner masks are box-feathered and normalized for actual RGB blending. Noise/sharpening/exposure/highlights may win; seams/halos/ghosts can remain. Flat/no-signal selection is reported. Do not promise alignment,deghosting,new detail or all-in-focus certification. Audit computes exact source selection and SHA256 provenance without storing outputs. Create saves actual composite,pre-feather ordinal source-index PNG,JSON/readme ZIP and optional standalone images. Map gray values follow source order and explicit legend; it is not physical depth/distance/confidence or the final feathered mixture. Inputs are orientation-normalized8bit sRGB; source originals are not rehosted or included. Derived exports are public. Preserve ZIP/document if optional PNG saves fail. Reopen exact saved PNG/ZIP URLs without recomputing. Never invent hosted links or present local fixtures as online/host verification.

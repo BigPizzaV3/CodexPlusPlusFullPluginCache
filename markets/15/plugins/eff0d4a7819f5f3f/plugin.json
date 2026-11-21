@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "indiecrm",
+  "version": "0.1.1",
+  "description": "Review your IndieCRM pipeline, find contacts and companies, create and move deals, and log activities. Lead research requires access to the New leads private beta.",
+  "author": {
+    "name": "Daniel Sinewe"
+  },
+  "homepage": "https://indiecrm.app",
+  "repository": "https://github.com/danielsinewe/indiecrm",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "IndieCRM",
+        "shortDescription": "Deals, contacts, and research",
+        "longDescription": "Work with your IndieCRM workspaces from ChatGPT or Codex. Review pipeline stages and recent deals, search contacts and companies by name, create deals, move deals to a pipeline stage, and record notes, calls, emails, and meeting activities. Connect with your IndieCRM account through OAuth. Deal, contact, and company lists return up to 200 recent records without pagination. Recording an email or meeting activity does not send a message or schedule an event. Server tools also list saved research, enrich existing contacts from verified LinkedIn profiles, and complete pending CLI setup requests. LinkedIn enrichment can update contact fields and images and may use metered provider research. Saved research lead lists support pagination. Lead research imports, research details, and images require access to the New leads private beta.",
+        "developerName": "Daniel Sinewe",
+        "category": "Productivity",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png",
+        "brandColor": "#087f5b",
+        "defaultPrompt": [
+          "Review my IndieCRM pipeline and suggest next steps for my open deals.",
+          "Help me update a deal and log its latest activity in IndieCRM.",
+          "Save my verified lead research to IndieCRM."
+        ],
+        "websiteURL": "https://indiecrm.app/plugin",
+        "supportURL": "https://indiecrm.app/support",
+        "privacyPolicyURL": "https://indiecrm.app/privacy",
+        "termsOfServiceURL": "https://indiecrm.app/terms"
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Ordinary users purchase IndieCRM Pro through the IndieCRM website for USD 9 per month after a 7-day free trial. The plugin's MCP tools do not offer checkout, sell products, or process payments in ChatGPT or Codex. The dedicated review workspace has complimentary access without a card, trial, or subscription.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Workspace discovery. Setup: a dedicated reviewer account has access to a workspace named Plugin review and its Workspace data app/data scope. Review CRM is a product label, not the app ID. No personal customer records are used. Ask for accessible workspaces without changing any data.",
+              "prompt": "Which IndieCRM workspaces and apps can I access?",
+              "tools_triggered": "list_workspaces",
+              "expected_behavior": "Call list_workspaces with no arguments. Show only returned accessible workspaces and their apps, including Plugin review and its Workspace data app/data scope. Clearly distinguish app IDs from workspace IDs and product labels. Do not create or change records; if the account has no accessible workspaces, report the empty result rather than inventing a workspace."
+            },
+            {
+              "description": "Pipeline summary. Setup: use the Plugin review workspace and its Workspace data app/data scope. Its default Sales pipeline has Inbox, Qualified, Negotiation, and Won stages; the first three have kind open and Won has kind won. Seed an open Review starter deal worth 1250 USD in Inbox, with notes saying the contact will send requirements next week. Keep all reviewer deal values in USD.",
+              "prompt": "Review the open deals in my Plugin review workspace and suggest the next step for each.",
+              "tools_triggered": "list_workspaces, list_pipeline, list_deals",
+              "expected_behavior": "Resolve the CRM app ID nested under Plugin review from list_workspaces and pass that same appId to list_pipeline and list_deals. Call list_deals with status open and a limit within 1 to 200. Summarize only returned records, currency, stages, and notes. Include Review starter deal worth 1250 USD in Inbox and suggest following up about the promised requirements as a recommendation. Do not invent customer commitments beyond the saved notes. State the result limit if it is reached. Do not move a deal or log activity merely to make a recommendation."
+            },
+            {
+              "description": "Contact and company name searches. Setup: Plugin review and its Workspace data app/data scope contain one Avery Morgan contact with job title Operations lead, linked to a Northstar Labs company with industry Software. Email, phone, and domain are initially unset. Use synthetic reviewer data only; the company and contact must not exist in other reviewer apps under the same names.",
+              "prompt": "In Plugin review, find Avery Morgan and Northstar Labs and show the details saved in my CRM.",
+              "tools_triggered": "list_workspaces, list_contacts, list_companies",
+              "expected_behavior": "Resolve the CRM appId nested under Plugin review, then call list_contacts with search Avery Morgan and list_companies with search Northstar Labs in that same app. Show the returned full_name, title, and linked company for the contact, and the returned company name and industry Software. Identify missing fields when relevant. Do not invent phone, email, domain, size, or location fields or change the records."
+            },
+            {
+              "description": "Create a linked deal at a specified stage. Setup: the same reviewer workspace, default pipeline, Avery Morgan contact, and Northstar Labs company exist. There must be no existing deal called Review new opportunity before running this case. This case writes only to the dedicated reviewer workspace.",
+              "prompt": "In Plugin review, create a deal called Review new opportunity for 2500 USD with Avery Morgan at Northstar Labs, in Qualified, with notes: Interested in a small-team CRM.",
+              "tools_triggered": "list_workspaces, list_pipeline, list_contacts, list_companies, create_deal",
+              "expected_behavior": "Resolve the app, default pipeline Qualified stageId, contactId, and companyId from returned data. Call create_deal once with the resolved appId, title Review new opportunity, value 2500, currency USD, the resolved linked IDs, and notes Interested in a small-team CRM. Report success only after the tool returns the saved deal with a nonempty UUID and matching title, value, and currency. On an ambiguous match, clarify instead of writing to a different record. On an uncertain timeout, do not blindly repeat creation."
+            },
+            {
+              "description": "Move a deal and log a meeting activity. Setup: Review new opportunity from the previous case exists in Qualified. Negotiation is in that same default pipeline. This case is a synthetic reviewer workflow, not an instruction to contact a real customer.",
+              "prompt": "Move Review new opportunity in Plugin review to Negotiation and log a meeting activity saying: Reviewed the proposal and agreed to discuss pricing next Tuesday.",
+              "tools_triggered": "list_workspaces, list_pipeline, list_deals, move_deal, log_activity",
+              "expected_behavior": "Resolve the same app, the exact Review new opportunity dealId, and the Negotiation stageId from tool results. Call move_deal with that dealId and stageId, then log_activity with that appId, dealId, kind meeting, and the requested text. Report the returned stage/status and saved activity. Do not claim the deal is won unless the server returns won; do not schedule a calendar event or send a message. If only one change succeeds, report the partial result accurately."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Outbound email is outside the exposed MCP capabilities. Explain that the plugin can log an email activity but cannot send an email. Do not call log_activity, create_deal, or any other IndieCRM tool and do not claim a message was sent; the user did not request logging.",
+              "prompt": "Send Avery Morgan an email from my IndieCRM account asking them to sign the contract."
+            },
+            {
+              "description": "Calendar scheduling is outside the exposed MCP capabilities. Explain that recording a meeting activity is different from scheduling a calendar event and direct the user to the IndieCRM app. Do not call log_activity or other IndieCRM tools, and do not claim a meeting or invitation was created.",
+              "prompt": "Schedule a 30-minute calendar meeting with Avery Morgan next Tuesday at 10 AM through IndieCRM."
+            },
+            {
+              "description": "Contact and company deletion is unsupported. Explain that the plugin cannot delete these records; lookup and verified contact enrichment do not provide deletion. Do not call create_deal, move_deal, log_activity, enrichment, research tools, or any other IndieCRM tool; do not claim the contact or company was deleted.",
+              "prompt": "Delete Avery Morgan and Northstar Labs permanently from my IndieCRM workspace."
+            }
+          ]
+        },
+        "demo_recording_url": "https://indiecrm.app/plugin-demo.html"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Workspace discovery, pipeline reviews, contact and company search, linked deal creation, stage changes, and activity logging in ChatGPT or Codex. Saved research lists, explicitly requested LinkedIn contact enrichment, and pending CLI setup tools. Lead research imports require the New leads private beta. Clear limits on unsupported email, calendar, and deletion requests."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

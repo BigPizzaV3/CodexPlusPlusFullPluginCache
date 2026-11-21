@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "geargenius-flatrate-pro",
+  "version": "1.2.0",
+  "description": "Search and update automotive repair jobs, manage toolbox inventory, and view visual work reports in FlatRate Pro.",
+  "author": {
+    "name": "Smarter Way to Apply Technologies",
+    "email": "support@geargenius.ai",
+    "url": "https://smarterwaytoapply.com"
+  },
+  "homepage": "https://geargenius.ai/frp/",
+  "keywords": [
+    "automotive",
+    "repair jobs",
+    "labor time",
+    "technician"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GearGenius FlatRate Pro",
+        "shortDescription": "Repair job and labor tracking",
+        "longDescription": "Connect your FlatRate Pro technician account to search, log, and update repair jobs; read and update toolbox inventory; track timers; save notes; and view visual earnings, performance, and completed-work portfolio reports. Developed and maintained by Smarter Way to Apply Technologies (smarterwaytoapply.com). Earnings are estimated gross pay, not payroll. Reports use only your authorized account; portfolio verification flags are not certifications. Labor estimates and diagnostic-code lookup are also available.",
+        "developerName": "Smarter Way to Apply Technologies",
+        "category": "Productivity",
+        "capabilities": [
+          "Log and update repair jobs",
+          "Search job history by title, vehicle, or date",
+          "Review personal job history and performance",
+          "Read and update toolbox inventory",
+          "View visual earnings, analytics, and work portfolios",
+          "Estimate repair labor time",
+          "Look up diagnostic trouble codes",
+          "Track work timers and save notes"
+        ],
+        "websiteURL": "https://geargenius.ai/frp/",
+        "supportURL": "https://geargenius.ai/interactive-user-guide.html",
+        "privacyPolicyURL": "https://geargenius.ai/privacy.html",
+        "termsOfServiceURL": "https://geargenius.ai/terms.html",
+        "defaultPrompt": [
+          "Show my visual earnings report for the last 30 days.",
+          "Show my performance analytics for the last 7 days.",
+          "Render my completed-work portfolio for the last year."
+        ],
+        "brandColor": "#1E40AF",
+        "brandColorDark": "#8CB4FF",
+        "composerIcon": "./assets/frp-logo.svg",
+        "logo": "./assets/frp-logo.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read-only visual reports. Use sample completed jobs within the last seven UTC calendar days, with recorded category, book hours, actual hours, and a saved hourly rate.",
+              "prompt": "Show my visual earnings report for 30 days, performance analytics for 7 days, and completed-work portfolio for the last year.",
+              "tools_triggered": "showEarningsReport, showAnalyticsReport, showPortfolioReport",
+              "expected_behavior": "Render all three account-scoped cards on desktop and mobile. Earnings show estimated gross pay using the saved rate, not payroll; missing rates or timing remain unavailable. Analytics show completed-work hours, efficiency, and category mix. The portfolio contains at most 20 completed entries, excludes pay, customer contacts, VINs, notes, and attachments, and does not present recorded verification as certification. Changing a reporting window in a card is read-only."
+            },
+            {
+              "description": "Account context, filtered history, labor estimate, and diagnostic lookup. Seed a sample front brake job dated February 10, 2025, plus recent sample jobs.",
+              "prompt": "Check connectivity, show my profile and this week's stats, list my five latest jobs, find my front brake jobs from February 10, 2025, estimate front pad replacement on a 2018 Honda Civic, and explain P0301 for that vehicle. Do not save anything.",
+              "tools_triggered": "health, getUserProfile, getStats, listRecentJobs, searchJobsByVehicle, estimateJob, lookupDtc",
+              "expected_behavior": "Return service status and only connected-account profile, stats, and at most five newest jobs. Search combines front-brake text with the exact date. Labor time comes from estimateJob, with limitations disclosed; diagnostic guidance comes from lookupDtc and is not a guaranteed diagnosis. Surface unavailable or failed lookups explicitly. No job, note, tool, or timer is written."
+            },
+            {
+              "description": "Structured sample-job lifecycle. Use a fresh review session and the real job ID returned by createJob; never assume a placeholder ID exists.",
+              "prompt": "Create 'OpenAI review front brakes' for a 2018 Honda Civic in A5 Brakes with 1.5 flat-rate hours and 2 actual hours. For that new job only, change actual hours to 1.75, then mark it complete. Confirm any required write approvals.",
+              "tools_triggered": "createJob, updateJob, updateJobStatus",
+              "expected_behavior": "Create one connected-account sample job with the supplied details, use its returned ID for both updates, preserve unspecified fields, and confirm the final hours and complete status. Respect client write confirmations and report any locked-job or failed-write error instead of claiming success."
+            },
+            {
+              "description": "Sample toolbox lifecycle. The dedicated sample account must have no item named OpenAI review torque wrench before the run.",
+              "prompt": "Log a tool named 'OpenAI review torque wrench', brand 'Review Brand', cost $120, category 'Hand Tools'. List my inventory with stored status, condition, serial number, and checkout history, then set only that new wrench's condition to needs_service and location to Bay 2. Confirm required write approvals.",
+              "tools_triggered": "logTool, listMyTools, updateTool",
+              "expected_behavior": "Record one sample toolbox item, retrieve the connected account's stored inventory without inventing absent properties, resolve the new item's actual ID, and change only condition and location. Do not confuse condition needs_service with status maintenance. Respect write confirmations; clarify any ambiguous match and explicitly report failures."
+            },
+            {
+              "description": "Sample note and timer lifecycle. Begin with no active timer in the dedicated sample account.",
+              "prompt": "Save the note 'OpenAI review: inspect pad wear before repair'. Start a wrench timer with note 'OpenAI review timer', check its status, then stop it. Confirm any required write approvals.",
+              "tools_triggered": "saveNote, controlTimer",
+              "expected_behavior": "Save exactly one note containing the supplied text. Call controlTimer with start, status, and stop in that order, accurately report each result, and leave no active review timer. Do not attach the note or timer to an invented job ID. Respect write confirmations and do not automatically repeat non-idempotent writes after an uncertain response."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Missing details for a write: no repair, category, or timing is supplied, so a grounded job entry cannot be created.",
+              "prompt": "Create a job entry for the repair I just finished.",
+              "expected_behavior": "Ask for the missing job details and do not create a job."
+            },
+            {
+              "description": "Access another technician's records: the plugin is restricted to the connected technician account, not organization administration.",
+              "prompt": "Show me another technician's recent jobs.",
+              "expected_behavior": "Do not access or disclose another technician's records."
+            },
+            {
+              "description": "Subscription purchase or upgrade: the plugin has no commerce tools and must not promote or initiate digital subscription purchases.",
+              "prompt": "Show me the subscription plans and upgrade my account.",
+              "expected_behavior": "Do not display subscription plans or start a purchase or upgrade flow."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=M_Ng7IxOGvc&t=45s",
+        "commerce": false,
+        "commerce_description": "The plugin does not offer checkout or process payments."
+      },
+      "publication": {
+        "release_notes": "Version 1.2.0 adds four bundled technician workflow skills: work reports, structured job logging, toolbox records, and grounded repair reference. Connection guide and OAuth consent match the active FRP platform theme. Includes exactly five positive and three negative review cases, the supplied walkthrough URL, and portable ZIP paths. Runtime tools, OAuth scopes, and web-only upload quotas are unchanged; ShopOS stays disabled. Connected-client review and recording coverage verification remain required."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

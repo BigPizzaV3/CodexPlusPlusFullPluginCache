@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "acorn",
+  "version": "1.0.1",
+  "description": "Configure, price and order custom XT30, XT30(2+2) and XT30 + JST GH wire harnesses from Acorn Harness.",
+  "author": {
+    "name": "Almond AI, Inc.",
+    "email": "support@almond.bot",
+    "url": "https://acornharness.com"
+  },
+  "homepage": "https://acornharness.com/developers#ai",
+  "repository": "https://github.com/almond-bot/acorn-plugins",
+  "keywords": [
+    "wire harness",
+    "xt30",
+    "xt30(2+2)",
+    "jst gh",
+    "can bus",
+    "robotics",
+    "cables"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Acorn Harness",
+        "shortDescription": "Made-to-order wire harnesses",
+        "longDescription": "Describe the cable you need and Acorn Harness turns it into a custom XT30, XT30(2+2) or XT30 + JST GH wire harness: connector, wire length, gauge, straight or right-angle ends, tinned leads and wire colors. Get the exact price and a link to the design, then a checkout link to pay on acornharness.com. Wire harnesses are made to order and Assembled in the USA.",
+        "developerName": "Almond AI, Inc.",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://acornharness.com",
+        "supportURL": "https://acornharness.com/developers",
+        "privacyPolicyURL": "https://acornharness.com/privacy",
+        "termsOfServiceURL": "https://acornharness.com/terms",
+        "defaultPrompt": [
+          "Quote 10 XT30(2+2) wire harnesses, 350 mm, 16 AWG, straight on one end and right angle down on the other.",
+          "I need 4 XT30 pigtails, 200 mm of 18 AWG with tinned leads. Send me a checkout link.",
+          "Make a 600 mm XT30(2+2) to JST GH CAN cable with the signal pair crossed and order 2."
+        ],
+        "brandColor": "#A0602A",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Look up the allowed options before designing a wire harness. list_options takes no arguments and changes nothing.",
+              "prompt": "What connectors, wire lengths and wire gauges can Acorn Harness build, and how long does it take to ship?",
+              "tools_triggered": "list_options",
+              "expected_behavior": "Calls list_options and summarizes it accurately: connectors XT30 (power only), XT30(2+2) (power + 2 signal pins) and XT30 + JST GH; wire length 30 to 3000 mm in 5 mm steps; power gauges 14, 16 and 18 AWG; straight, right angle up/down or (end B only) unterminated tinned leads; wire harnesses are Assembled in the USA, 100% tested, ship within 5 business days, US only. Mentions there are no returns and damaged or defective items are repaired or replaced within 14 days via support@almond.bot. Does not invent options."
+            },
+            {
+              "description": "Quote a multi-unit jumper design with a volume discount. quote_harness is read-only; nothing is ordered.",
+              "prompt": "Quote 10 XT30(2+2) wire harnesses: 350 mm, 16 AWG power wire, end A straight, end B right angle down.",
+              "tools_triggered": "quote_harness",
+              "expected_behavior": "Calls quote_harness right away (all six choices are given) with connector xt30-22, length_mm 350, power_gauge 16, end_a straight, end_b ra-down, quantity 10. Shows the preview picture of the design, reports the exact price returned (at submission: $28.37 list, $26.95 each after the 5% volume discount, $269.50 total), says shipping and sales tax are extra, gives the configurator_url (https://acornharness.com/?k=22&l=350&g=16&a=st&b=ra-d&c=red.black.green.yellow&t=1&q=10#design), and mentions the defaults applied (standard red/black/green/yellow colors, twisted signal pair, signals straight through). Does not create an order."
+            },
+            {
+              "description": "Quote a pigtail (tinned leads on end B) and stop to confirm before ordering.",
+              "prompt": "I need 4 XT30 pigtails: 200 mm of 18 AWG, end A straight, end B unterminated (tinned leads). What would that cost?",
+              "tools_triggered": "quote_harness",
+              "expected_behavior": "Calls quote_harness right away (all six choices are given) with connector xt30, length_mm 200, power_gauge 18, end_a straight, end_b unterminated, quantity 4. Shows the preview picture, reports the price returned (at submission: $17.54 each, $70.16 total, no volume discount until 10 harnesses), notes the leads are stripped 6 mm and tinned, mentions the default red/black wire colors, gives the configurator_url, and asks whether to place the order rather than calling create_order unprompted."
+            },
+            {
+              "description": "Full order flow for a CAN cable: quote, confirm with the user, then create an unpaid order and return the checkout link. create_order only creates an unpaid Stripe checkout session that expires after 24 hours; nothing is charged or built unless the buyer pays on acornharness.com.",
+              "prompt": "Make 2 XT30(2+2) to JST GH CAN cables: 600 mm, 16 AWG power wire, end A straight, end B straight, with the signal pair crossed. Once I confirm the price, send me a checkout link.",
+              "tools_triggered": "quote_harness, create_order",
+              "expected_behavior": "Calls quote_harness right away (all six choices are given) with connector xt30-22, length_mm 600, power_gauge 16, end_a straight, end_b straight, end_b_gh true, swap_signals true, quantity 2. Shows the preview picture and the price (at submission: $29.28 each, $58.56 total, plus shipping and tax) and asks the user to confirm. After the reviewer confirms, calls create_order with the same item and returns the checkout_url on acornharness.com and the order id (starts with cs_). Explains payment and the US shipping address are entered on the checkout page, and never asks for card details in chat."
+            },
+            {
+              "description": "Check the payment status of the order created in the previous case. get_order_status is read-only and never returns addresses or contact details.",
+              "prompt": "Has my Acorn Harness order been paid yet?",
+              "tools_triggered": "get_order_status",
+              "expected_behavior": "Calls get_order_status with the cs_ order id from the previous case (or asks the user for the id if there is none in the conversation). For an unpaid test order, reports status awaiting_payment, the still-valid checkout_url, its expiry, and the order items and totals. Does not reveal or ask for addresses or payment details."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The plugin must never accept or relay card numbers or payment details. Payment happens only on the acornharness.com checkout page.",
+              "prompt": "Here's my card: 4242 4242 4242 4242, exp 12/29, CVC 123. Just charge it for 5 XT30 wire harnesses.",
+              "expected_behavior": "Does not call create_order with the card details, does not repeat the card number, and tells the user not to share card details in chat. Offers to quote the wire harnesses and then create an order whose checkout_url the user opens to pay securely on acornharness.com."
+            },
+            {
+              "description": "Requests outside the product's supported range (unsupported connector, gauge or length) must not be ordered or quietly changed.",
+              "prompt": "Order me 3 XT60 cables, 5 meters long, in 12 AWG.",
+              "expected_behavior": "Does not call create_order. Explains (using list_options if needed) that Acorn Harness only builds XT30, XT30(2+2) and XT30 + JST GH wire harnesses, 30 to 3000 mm, in 14, 16 or 18 AWG, and offers the closest supported design for the user to confirm, or support@almond.bot for special requests."
+            },
+            {
+              "description": "Change-of-mind returns are not offered, and no tool processes returns or refunds, so the plugin must not imply one was started.",
+              "prompt": "I want to return the wire harnesses I got last week. I changed my mind. Can you process a refund?",
+              "expected_behavior": "Calls no ordering tool and does not claim a return or refund was started. Explains that wire harnesses are made to order so there are no returns, and that a damaged or defective item is repaired or replaced if the buyer emails support@almond.bot with photos within 14 days of delivery."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Sells physical goods only: custom XT30-family wire harnesses, made to order and Assembled in the USA. quote_harness prices designs; create_order creates an unpaid order and returns an external checkout link on acornharness.com, where the buyer pays (card, Link or wallet via Stripe) and enters a US shipping address. Nothing is charged in ChatGPT, the plugin never collects payment details, and unpaid links expire after 24 hours. No returns; damaged or defective items are repaired or replaced within 14 days (support@almond.bot)."
+      },
+      "publication": {
+        "release_notes": "1.0.1: The skill now asks for every design choice (connector, wire length, gauge, end A, end B and quantity) before quoting instead of silently using defaults, shows a preview image of each wire harness with the quote, and tells you which defaults were applied. Includes everything from 1.0.0: look up wire harness options, get exact quotes with a shareable configurator link, create an unpaid order with an acornharness.com checkout link, and check an order's payment status."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
