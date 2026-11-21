@@ -1,6 +1,6 @@
 # Codex++ Full Plugin Cache（私有归档）
 
-此仓库保存从当前账号可取得的完整本地插件市场快照：**5,491 个实际插件包，分为 7 个市场目录**。仓库应保持私有；其中部分包没有公开再分发许可，不能当作公开镜像发布。
+此仓库保存从当前账号可取得的完整本地插件市场快照（2026-11-21）：**14,491 个实际插件包，分为 16 个市场目录**。仓库应保持私有；其中部分包没有公开再分发许可，不能当作公开镜像发布。
 
 ## 使用
 
@@ -23,7 +23,9 @@ codex plugin marketplace add ./CodexPlusPlusFullPluginCache/markets/07
 codex plugin add <插件名称>@codex-plus-full-local-01
 ```
 
-完整目录、失败的 22 个条目、下载统计和 API Key 读取验证见 `directory.json`、`summary.json`、`api-read-validation.json`。
+完整目录、没有缓存下来的条目和下载统计见 `directory.json`、`summary.json`；`api-read-validation.json`、`registration.json`、`USAGE.txt` 是 2026-10-08 那次快照的记录。
+
+Codex++ 读的索引是 `plugin-index-v2.json`（含官方目录的分组和图标，来自 `directory-layout.json`）；`plugin-index.json` 留给只收 8 MiB 以内索引的旧版本，不再更新。
 
 上传时刻意排除了一个插件包中的 `.env` 和 `.env.local`；它们含有凭据，完整列表见 `upload-exclusions.json`。本机缓存仍保留原文件。
 
@@ -31,4 +33,4 @@ codex plugin add <插件名称>@codex-plus-full-local-01
 
 此快照没有调用插件安装器，也没有执行插件包内代码。插件包可能包含需要单独账号、OAuth 或第三方服务授权的 MCP 连接器；API Key 模式下“包能安装”不等于远程服务一定能连接。
 
-公开可再分发的子集另见 [CodexPlusPlusPluginCache](https://github.com/BigPizzaV3/CodexPlusPlusPluginCache)。
+原来的公开子集 [CodexPlusPlusPluginCache](https://github.com/BigPizzaV3/CodexPlusPlusPluginCache) 已并入本仓库并归档。
