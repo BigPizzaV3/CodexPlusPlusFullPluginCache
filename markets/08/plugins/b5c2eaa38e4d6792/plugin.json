@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a969879ebc0819188d4be61a32be543",
+  "version": "1.0.0",
+  "description": "Connect KLARA business software to your AI assistant: customers, articles, invoices, accounting and payroll straight from the chat.",
+  "author": {
+    "name": "ePost Service AG",
+    "url": "https://www.epost.ch"
+  },
+  "homepage": "https://mcp.klara.ch/docs",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "KLARA",
+        "shortDescription": "Invoices, accounting, payroll",
+        "longDescription": "KLARA is Swiss business software for small and medium-sized companies - accounting, payroll, invoicing, order and customer management in one place. This plugin connects ChatGPT to your KLARA company so you can get your admin done in the chat.\n\nWhat you can do:\n- Find customers and articles, check invoices and read documents\n- Create and update customers, contacts and articles\n- Prepare invoices from your articles and deliver them\n- Record bookings, attach receipts and read your VAT statement and open bank positions\n- Look up employees and prepare payroll items\n\nBuilt for safety: KLARA works on live company data, so every write is prepared first. The assistant shows you a summary and an approval link; nothing is written until you approve the action yourself on the KLARA MCP approval page in your browser - with an authenticator code or a passkey. The assistant never receives a code.\n\nYou sign in with a KLARA API key that you create in your KLARA account. The key only opens what its role allows and can be revoked at any time. Available for KLARA Business customers in Switzerland.",
+        "developerName": "ePost Service AG",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.klara.ch",
+        "privacyPolicyURL": "https://www.klara.ch/datenschutz",
+        "termsOfServiceURL": "https://www.klara.ch/geschaeftsbedingungen",
+        "defaultPrompt": [
+          "Which KLARA company am I connected to, and which areas can I access with this key?",
+          "Create a draft invoice for Muster AG: 3 hours of consulting at CHF 180, payable within 30 days.",
+          "Show me the VAT statement for Q1 2026 and the open bank positions."
+        ],
+        "brandColor": "#522462",
+        "composerIcon": "./assets/klara-plugin-icon-128-transparent.png",
+        "logo": "./assets/klara-plugin-icon-512-white.png",
+        "supportURL": "https://support.klara.ch"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect and verify access - see which KLARA company the plugin is connected to and which areas the API key opens.",
+              "prompt": "Which KLARA company am I connected to, and which areas can I access with this key?",
+              "tools_triggered": "klara_whoami",
+              "expected_behavior": "Company 'Dude Shop' (Luzern, UID CHE-103.727.240), auth type API key, label integration-openai-review, environment production (KLARA has no test environment), and the probed areas (customers, articles, bank accounts, payroll) reported as accessible. Read-only, no data is changed."
+            },
+            {
+              "description": "Look up a customer and their details.",
+              "prompt": "Find the customer \"Hans Muster\" in KLARA and show me his address, contact persons and additional addresses.",
+              "tools_triggered": "klara_search_customers, klara_get_customer",
+              "expected_behavior": "Hans Muster (customer id 6, individual, Strasse 400, 3000 Bern) with one contact person (Export Test) and two additional addresses: 'Alternative Lieferadresse' in 1700 Fribourg and 'Kontaktperson' in 3000 Bern. Read-only."
+            },
+            {
+              "description": "Create master data through the approval gate - every write is prepared first and executed only after the user approves in the browser.",
+              "prompt": "Create a new customer in KLARA: company \"Review Test GmbH\", Bahnhofstrasse 1, 8001 Z\u00fcrich, Switzerland, e-mail review-test@example.com.",
+              "tools_triggered": "klara_prepare_customer_create, klara_confirm",
+              "expected_behavior": "The assistant first searches for an existing record (duplicate check). klara_prepare_customer_create returns a summary and an approval URL; nothing is written yet. After approving on the approval page (authenticator code or passkey) and saying 'approved', klara_confirm returns executed: true with the new customer id. If the name already exists from an earlier review run, the assistant reports the existing record instead of creating a duplicate - then use a numbered variant such as 'Review Test 4 GmbH'."
+            },
+            {
+              "description": "Gated write - prepare an invoice, review the verified summary, approve on the approval page, then execute. Shows that nothing is written before approval.",
+              "prompt": "Create an invoice for the customer \"Hans Muster\" with 10 metres of article 111232 (Stoff Meterware) and a 30-day payment term. Show me the summary before you post it.",
+              "tools_triggered": "klara_prepare_invoice, klara_confirm",
+              "expected_behavior": "Summary with verified article price (CHF 2.50/m incl. 8.1% VAT, total CHF 25.00), staging id, approval URL and expiry; no invoice exists yet. Calling klara_confirm before approval returns 'not yet approved' and writes nothing. After approval the invoice is created as a DRAFT with its number. Note: in our recorded runs, ChatGPT's own security layer blocked the subsequent posting-to-accounting call before the permission prompt; the draft outcome is the expected result of this case."
+            },
+            {
+              "description": "Accounting reads - VAT statement and open bank positions.",
+              "prompt": "Show me the VAT statement for Q1 2026 and list the open bank positions of the company. Keep it concise: a summary plus the 15 most recent open positions as a short table in the chat, no files.",
+              "tools_triggered": "klara_vat_report, klara_bank_open_positions",
+              "expected_behavior": "VAT report 2026/Q1, status CALCULATED, with code boxes (e.g. 200 = 1'099.19, 399 = 58.51, 510 = 182.24); nothing is recalculated. Open bank positions: around 337 positions summarized with the most recent ones as a table. Read-only, no data is changed."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General tax knowledge - the user asks about Swiss VAT in general, not about their company's data in KLARA. Expected: the assistant answers from general knowledge or web search without calling a KLARA tool.",
+              "prompt": "What is the current standard VAT rate in Switzerland, and how does the net tax rate method work?"
+            },
+            {
+              "description": "A 'booking' outside accounting - a restaurant reservation, not a ledger entry. Expected: no KLARA tool is called.",
+              "prompt": "Book me a table for four at an Italian restaurant in Zurich tomorrow at 7 pm."
+            },
+            {
+              "description": "Software comparison - the user wants an opinion about accounting tools, not an action in their KLARA company. Expected: the assistant answers editorially without calling a KLARA tool.",
+              "prompt": "Compare KLARA, bexio and Abacus - which accounting software is best for a small bakery with two employees?"
+            }
+          ]
+        },
+        "demo_recording_url": "https://klara-demo-video.vercel.app/rz4ItEneSvYSvgyq/",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments. It connects the user's own KLARA business software account; invoices it prepares are the user's own business documents, created only after explicit out-of-band approval."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

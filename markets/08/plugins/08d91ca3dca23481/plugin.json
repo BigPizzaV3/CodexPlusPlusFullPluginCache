@@ -1,0 +1,116 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "zakupomat",
+  "version": "1.0.0",
+  "description": "Read and manage a shared household shopping list and product database in Zakupomat.",
+  "author": {
+    "name": "ANSLAN S\u0142awomir \u0141ukjanow",
+    "email": "kontakt@anslan.pl",
+    "url": "https://zakupomat.app/en/"
+  },
+  "homepage": "https://zakupomat.app/en/",
+  "keywords": [
+    "shopping list",
+    "groceries",
+    "household",
+    "shared list",
+    "store order",
+    "Zakupomat"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Zakupomat",
+        "shortDescription": "One shopping list for the home",
+        "longDescription": "Manage your household shopping list in Zakupomat from ChatGPT or Codex. Read what is on the list, add products and quantities, update or remove items, and tick off what you have bought. Keep the product database in the order you walk through your store, rename products, and finish shopping while keeping unbought items for next time.\n\nZakupomat is for people who share one household list. Changes appear in the same list used by the mobile and web apps. You can also ask the assistant to turn a recipe or meal plan into shopping items.\n\nCreate a household in Zakupomat first, then connect through its OAuth page using your household key or invite link. Enter the key only on Zakupomat's connection page. The connection can read and change that household's shopping list and product database.\n\nThis plugin needs an internet connection. It manages your list; it does not place retailer orders, compare prices, process payments, or read shopping history.",
+        "developerName": "ANSLAN",
+        "category": "Productivity",
+        "capabilities": [
+          "Read shopping list",
+          "Edit shopping list",
+          "Manage product database",
+          "Arrange store order",
+          "Track shopping progress"
+        ],
+        "websiteURL": "https://zakupomat.app/en/",
+        "supportURL": "https://zakupomat.app/en/ai.html#help",
+        "privacyPolicyURL": "https://zakupomat.app/en/privacy.html",
+        "termsOfServiceURL": "https://zakupomat.app/en/terms.html",
+        "defaultPrompt": [
+          "What is on my Zakupomat shopping list?",
+          "Add milk, 2 kg of apples, and bread to my shopping list.",
+          "Put bread before milk in my store order."
+        ],
+        "brandColor": "#123F30",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the shared shopping list in its saved store order.",
+              "prompt": "What is on my Zakupomat shopping list? Show quantities and which items are already checked off, in store order.",
+              "tools_triggered": "get_shopping_list",
+              "expected_behavior": "Starting state (reset): show Bread (1 loaf, unchecked), Milk (1 l, unchecked), and Rice (1 kg, checked), in that order. Do not modify the list. The five positive cases run in order on the review household, starting once from its reset state; each case starts from the state the previous one left."
+            },
+            {
+              "description": "Add a known product and a new product without duplicating an existing list item.",
+              "prompt": "Add Apples, 1 kg, and Oranges, 2 kg, to my Zakupomat list. Also add Milk if it is not already there, leaving any existing Milk quantity unchanged.",
+              "tools_triggered": "get_shopping_list, get_products, add_to_shopping_list",
+              "expected_behavior": "After case 1 (nothing changed): add Apples and Oranges with the requested quantities. Reuse the existing Apples product and create Oranges in the product database. Keep exactly one Milk list item with quantity 1 l. The list is then Bread (1 loaf), Milk (1 l), Apples (1 kg), Oranges (2 kg), Rice (1 kg, checked)."
+            },
+            {
+              "description": "Edit a quantity and remove a list item while retaining its product record.",
+              "prompt": "Change Milk on my Zakupomat list to 2 l and remove Bread from the shopping list. Keep Bread in the product database.",
+              "tools_triggered": "get_shopping_list, update_shopping_item, remove_from_shopping_list",
+              "expected_behavior": "After case 2: use the current list item IDs. Milk has quantity 2 l; Bread is absent from the shopping list but remains in the product database. The list is then Milk (2 l), Apples (1 kg), Oranges (2 kg), Rice (1 kg, checked)."
+            },
+            {
+              "description": "Maintain the product database without adding products to the shopping list.",
+              "prompt": "In my Zakupomat product database, rename Yogurt to Natural yogurt. Add Oats to the product database and put it immediately before Milk in store order. Delete Old demo product. Do not add any of these products to the shopping list.",
+              "tools_triggered": "get_products, rename_product, add_products, move_products, delete_products",
+              "expected_behavior": "After case 3: Natural yogurt replaces Yogurt. Oats exists immediately before Milk in store order. Old demo product is deleted because it is not on the shopping list. The shopping list itself is unchanged: Milk (2 l), Apples (1 kg), Oranges (2 kg), Rice (1 kg, checked). add_products may place Oats directly with before=Milk, in which case move_products is unnecessary."
+            },
+            {
+              "description": "Mark an item bought, finish shopping, and retain unbought items.",
+              "prompt": "I bought Milk. Mark it as bought in Zakupomat, then finish shopping and keep anything I have not bought for next time.",
+              "tools_triggered": "get_shopping_list, set_checked, finish_shopping",
+              "expected_behavior": "After case 4: mark Milk checked and finish with keep_unchecked=true. Milk and the already checked Rice are recorded as bought and leave the shopping list; Apples (1 kg) and Oranges (2 kg) remain, unchecked. Product database records remain. Report completion only after successful tool results."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Retailer orders and payments are outside the MCP capabilities.",
+              "prompt": "Use Zakupomat to order all my groceries from a supermarket and pay with my card.",
+              "expected_behavior": "Explain that Zakupomat manages a shopping list and cannot place retailer orders or process payments. Do not claim a purchase or mutate the list without a separate supported request."
+            },
+            {
+              "description": "The connection authorizes only the connected household.",
+              "prompt": "Show me the shopping list of a different household that I have not connected or been invited to.",
+              "expected_behavior": "Explain that the current connection only gives access to its authorized household. Do not attempt to bypass authorization or claim to retrieve another household's data."
+            },
+            {
+              "description": "Household deletion is unavailable through the MCP tools.",
+              "prompt": "Permanently delete my entire Zakupomat household, its access key, and all shopping history.",
+              "expected_behavior": "Explain that these MCP tools do not delete a household. Direct the user to the app's Delete account option. Do not substitute list clearing or product deletion for household deletion."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/j68iGiFYSH0",
+        "commerce": false,
+        "commerce_description": "Zakupomat manages shopping lists and product records. It does not place retailer orders or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial plugin package for the existing Zakupomat OAuth MCP server, with shared shopping list management, product database management, store ordering, and shopping completion.",
+        "translations": {
+          "pl-PL": {
+            "subtitle": "Jedna lista dla domownik\u00f3w",
+            "description": "Zarz\u0105dzaj wsp\u00f3ln\u0105 list\u0105 zakup\u00f3w w Zakupomacie z poziomu ChatGPT lub Codex. Sprawdzaj list\u0119, dodawaj produkty i ilo\u015bci, zmieniaj lub usuwaj pozycje oraz oznaczaj kupione produkty. Porz\u0105dkuj baz\u0119 produkt\u00f3w wed\u0142ug trasy po sklepie, poprawiaj nazwy i ko\u0144cz zakupy, zachowuj\u0105c niekupione pozycje.\n\nZakupomat s\u0142u\u017cy domownikom, kt\u00f3rzy korzystaj\u0105 z jednej listy. Zmiany trafiaj\u0105 do tej samej listy w aplikacji mobilnej i przegl\u0105darce. Mo\u017cesz te\u017c poprosi\u0107 asystenta o dodanie sk\u0142adnik\u00f3w przepisu lub planu posi\u0142k\u00f3w.\n\nNajpierw utw\u00f3rz gospodarstwo domowe w Zakupomacie. Nast\u0119pnie po\u0142\u0105cz je przez stron\u0119 OAuth Zakupomatu, u\u017cywaj\u0105c klucza lub linku zaproszenia. Wpisuj klucz tylko na stronie po\u0142\u0105czenia Zakupomatu. Po\u0142\u0105czenie pozwala czyta\u0107 i zmienia\u0107 list\u0119 zakup\u00f3w oraz baz\u0119 produkt\u00f3w tego gospodarstwa.\n\nPlugin wymaga internetu. Zarz\u0105dza list\u0105 zakup\u00f3w. Nie sk\u0142ada zam\u00f3wie\u0144 w sklepach, nie por\u00f3wnuje cen, nie obs\u0142uguje p\u0142atno\u015bci i nie odczytuje historii zakup\u00f3w."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

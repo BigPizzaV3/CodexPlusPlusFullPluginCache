@@ -1,0 +1,88 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "embedsocial",
+  "version": "1.0.0",
+  "description": "Read collected social posts, widget media and click analytics from EmbedSocial.",
+  "author": {
+    "name": "EmbedSocial"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "EmbedSocial",
+        "shortDescription": "Your UGC and widget analytics",
+        "longDescription": "Connect your existing EmbedSocial account to explore its collected social posts and media. Find posts by keyword, source and date; view widget media and individual media details; and summarize widget click counts for a date range. This app provides read-only access. Available data and analytics depend on your account permissions and plan. Click counts do not measure unique visitors, sales or conversions.",
+        "developerName": "EmbedSocial",
+        "category": "Data & Analytics",
+        "defaultPrompt": [
+          "Show my widgets and their connected sources.",
+          "Find the latest social posts collected in my EmbedSocial account.",
+          "Summarize my widget click analytics for this month."
+        ],
+        "websiteURL": "https://embedsocial.com/docs/api-access/chatgpt-mcp-connector/",
+        "supportURL": "https://embedsocial.com/docs/",
+        "privacyPolicyURL": "https://embedsocial.com/privacy-policy/",
+        "termsOfServiceURL": "https://embedsocial.com/terms-of-service/",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated reviewer account with the sample Instagram Widget Demo. Show up to five real owned widgets, without promising that five exist.",
+              "prompt": "Show up to five of my EmbedSocial widgets and their references.",
+              "tools_triggered": "socialfeed_widgets_list",
+              "expected_behavior": "Call socialfeed_widgets_list without a client api_key. Show no more than five returned widgets using their actual names and widgetRef or legacy albumRef. Distinguish a displayed selection from a full account list. Do not invent pagination arguments; the current schema advertises none."
+            },
+            {
+              "description": "Use the dedicated reviewer account with collected Instagram posts containing jeans dated January 1, 2015 through September 30, 2026. The publisher-selected keyword returned matching posts in a connected-account rehearsal; verify the same sample data is available through the secure reviewer login.",
+              "prompt": "Find up to five collected Instagram posts mentioning jeans from January 1, 2015 through September 30, 2026.",
+              "tools_triggered": "socialfeed_items_query_api",
+              "expected_behavior": "Call socialfeed_items_query_api with pageSize=\"5\", periodStart=\"2015-01-01\", periodEnd=\"2026-09-30\", sourceType as the JSON string [\"instagram\"], searchString=\"jeans\", and no api_key or itemType. Return only matching posts from the response, with their actual source attribution and links. Never claim to search Instagram directly or retrieve posts not already collected into the authenticated EmbedSocial account."
+            },
+            {
+              "description": "Use the dedicated reviewer account with at least three collected posts in the stated date range so a two-item page has a next cursor. Start a fresh conversation; the prompt supplies its own initial filters. Confirm this data is available to the reviewer account before submitting.",
+              "prompt": "Show the first two collected social posts dated January 1, 2015 through September 30, 2026, newest first. Then show the next page with exactly the same filters.",
+              "tools_triggered": "socialfeed_items_query_api (initial query and cursor query)",
+              "expected_behavior": "First call with pageSize=\"2\", periodStart=\"2015-01-01\", periodEnd=\"2026-09-30\", and orderBy as the JSON string {\"originalCreatedOn\":\"desc\"}. Use the exact returned nextPageToken as searchAfter and retain those filters; do not invent a cursor or combine forward and backward cursors. Show distinct returned posts in date order. If no next cursor exists, explain that no next page is available. Do not pass api_key or itemType."
+            },
+            {
+              "description": "Use the dedicated reviewer account with the owned sample Instagram Widget Demo, widgetRef 3475f33920011d113113f4a5b788214461d636c7. The connected-account rehearsal retrieved three album media items and matching single-item details. Confirm the reviewer login sees the same widget and media.",
+              "prompt": "Show up to three media items from my Instagram Widget Demo, then fetch the details of the first item.",
+              "tools_triggered": "socialfeed_widgets_list, social_feed_hashtag_album_get_media, social_feed_get_single_media",
+              "expected_behavior": "Resolve the real owned widget reference. Call album media with that album_ref, page=\"1\" and per_page=\"3\". Pass an actual returned data[].media_id to the single-media tool, never a collected-item indexId or guessed ID. Check that the detail item agrees with the album result by ID and link. If the album is empty, explain it and make no single-media call. Omit client api_key from every call."
+            },
+            {
+              "description": "Use Instagram Widget Demo, widgetRef 3475f33920011d113113f4a5b788214461d636c7, with analytics access. Report the actual returned September 2026 totals, including zeros. The connected-account rehearsal returned all 30 requested dates and zero totals for all four metrics; nonzero event correctness remains unverified.",
+              "prompt": "Show post clicks, icon clicks, lightbox opens and CTA clicks for my Instagram Widget Demo from September 1 through September 30, 2026.",
+              "tools_triggered": "socialfeed_widgets_list, widget_analytics_get_metrics",
+              "expected_behavior": "Resolve the real widgetRef, then call widget_analytics_get_metrics with period=\"custom\", from=\"2026-09-01 00:00:00\", to=\"2026-09-30 23:59:59\", and no api_key. Summarize all four API totals and verify the periodic series covers the requested range. Do not call click counts unique visitors, conversions, revenue or CTR. Explain that all-zero results alone do not establish a lack of engagement and may reflect account/plan limits."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Review-only boundary test: the MCP searches content already collected into the connected EmbedSocial account. Explain this scope and offer a collected-content search. Do not invent a direct Instagram search tool or claim uncollected posts were retrieved. This request is not an advertised feature.",
+              "prompt": "Using EmbedSocial, search Instagram directly for posts mentioning jeans that have not been collected into my account."
+            },
+            {
+              "description": "Review-only boundary test: current widget analytics provides click occurrences, not sales revenue, purchases or attributed conversions. Explain the available metrics and offer a click report. Do not query unsupported metrics, fabricate sales values or infer conversions from click counts. This request is not an advertised feature.",
+              "prompt": "Using EmbedSocial, show the sales revenue and purchases generated by my Instagram Widget Demo."
+            },
+            {
+              "description": "Review-only boundary test: the current tools retrieve collected social posts and widget media, not Instagram direct messages. Explain that limitation. Do not invent a message-reading tool or present collected posts as private messages. This request is not an advertised feature.",
+              "prompt": "Use EmbedSocial to read my Instagram direct messages."
+            }
+          ]
+        },
+        "demo_recording_url": "https://app.arcade.software/share/ygwTfJT9kiMoXomqBNyT"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial read-only release for existing EmbedSocial accounts: collected content, widget media and widget click analytics. No purchase or account mutation tools."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

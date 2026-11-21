@@ -1,0 +1,95 @@
+{
+  "author": {
+    "name": "14930398 Canada Inc."
+  },
+  "description": "Shorty turns long videos, audio files, documents, and web pages into readable summaries and accurate transcripts. The Shorty plugin lets ChatGPT run that library end-to-end: start a summary from a YouTube link, a web page, pasted text, or a file already uploaded to your account; transcribe a publicly accessible audio or video URL; generate subtitle tracks for a video you provide; then poll the job until it reaches a terminal state and pull the finished article or transcript back into the conversation. It can also search your existing summaries, open a specific article or transcription, list what you made recently, check how much of your monthly quota is left, and search Shorty's own documentation.\n\nAccess runs through OAuth 2.1 with PKCE. You choose which scopes to grant on the consent screen \u2014 separate read scopes for articles, transcriptions, jobs, usage and docs, and separate write scopes for creating summaries and transcriptions \u2014 and any tool whose scope you did not grant is never offered to the assistant at all. Consent is re-checked on every individual tool call, so revoking Shorty from Connected AI Apps in Settings stops the assistant immediately rather than at token expiry. Write tools are backed by an idempotency ledger, so a retried request will not create duplicate jobs, and no tool deletes or overwrites work you already have.\n\nSummaries and transcriptions consume your Shorty plan's monthly quota; the assistant can check the remaining balance before starting a long job.",
+  "interface": {
+    "capabilities": [],
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Summarize this page for me: https://en.wikipedia.org/wiki/Podcast",
+      "Find my Shorty notes about pricing and tell me what they said.",
+      "How much of my Shorty quota is left this month?"
+    ],
+    "developerName": "14930398 Canada Inc.",
+    "displayName": "Shorty",
+    "longDescription": "Shorty turns long videos, audio files, documents, and web pages into readable summaries and accurate transcripts. The Shorty plugin lets ChatGPT run that library end-to-end: start a summary from a YouTube link, a web page, pasted text, or a file already uploaded to your account; transcribe a publicly accessible audio or video URL; generate subtitle tracks for a video you provide; then poll the job until it reaches a terminal state and pull the finished article or transcript back into the conversation. It can also search your existing summaries, open a specific article or transcription, list what you made recently, check how much of your monthly quota is left, and search Shorty's own documentation.\n\nAccess runs through OAuth 2.1 with PKCE. You choose which scopes to grant on the consent screen \u2014 separate read scopes for articles, transcriptions, jobs, usage and docs, and separate write scopes for creating summaries and transcriptions \u2014 and any tool whose scope you did not grant is never offered to the assistant at all. Consent is re-checked on every individual tool call, so revoking Shorty from Connected AI Apps in Settings stops the assistant immediately rather than at token expiry. Write tools are backed by an idempotency ledger, so a retried request will not create duplicate jobs, and no tool deletes or overwrites work you already have.\n\nSummaries and transcriptions consume your Shorty plan's monthly quota; the assistant can check the remaining balance before starting a long job.",
+    "privacyPolicyURL": "https://aishorty.com/privacy",
+    "shortDescription": "Summarize and transcribe media",
+    "supportURL": "https://aishorty.com/support",
+    "termsOfServiceURL": "https://aishorty.com/terms",
+    "websiteURL": "https://aishorty.com",
+    "logo": "./assets/logo.png",
+    "logoDark": "./assets/logo-dark.png",
+    "composerIcon": "./assets/icon.png",
+    "composerIconDark": "./assets/icon-dark.png"
+  },
+  "name": "app-6a7ae13f2eac8191980a9405f1d8ccea",
+  "version": "1.0.1",
+  "mcpServers": "./.mcp.json",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Enumerate the tool surface",
+              "prompt": "What tools do you have available from Shorty?",
+              "tools_triggered": "tools/list, then search_tools",
+              "expected_behavior": "tools/list returns exactly 2 tools, search_tools and execute_typescript (the MCP Code Mode surface). Calling search_tools with no query returns 12 TypeScript declarations for the reviewer's full-scope grant: external_search_articles, external_list_recent_articles, external_get_article, external_list_transcriptions, external_get_transcription, external_get_usage_quota, external_get_job_status and external_search_docs (read-only), plus external_create_youtube_summary, external_create_content_summary, external_create_transcription and external_create_subtitles (write). The assistant lists those operations; every one of them is called inside execute_typescript."
+            },
+            {
+              "description": "List the seeded library",
+              "prompt": "Show me my most recent Shorty summaries.",
+              "tools_triggered": "search_tools, then execute_typescript calling external_list_recent_articles",
+              "expected_behavior": "Up to 8 articles, newest first, each with id, title, description, articleType and createdAt. The library holds the seeded items (Podcast, The Pre-Mortem: A Key to Preventing Mistakes, Pricing Experiments That Did Not Backfire, Offsite Notes - Q4 Roadmap Themes, Q3 Audience Report - The Signal Loop, RFC 9457: Problem Details for HTTP APIs, Designing Onboarding That Users Actually Finish) plus the items earlier review passes created, such as Big Buck Bunny, The Quick Brown Fox and Audiobook; anything the reviewer summarizes appears above them. Source types span YouTube, web page, PDF and text."
+            },
+            {
+              "description": "Search then open an article",
+              "prompt": "Search my Shorty library for pricing, then open the top result and tell me its main points.",
+              "tools_triggered": "search_tools, then execute_typescript calling external_search_articles and external_get_article",
+              "expected_behavior": "search_articles({ query: 'pricing' }) returns 2 matches: Pricing Experiments That Did Not Backfire and Offsite Notes - Q4 Roadmap Themes. get_article({ articleId }) on the chosen id returns found: true and the article with title, description, articleType, summary.parts and bodyText; the seeded articles carry their content in bodyText (summary.parts can be empty for them), and the assistant reads the main points back in prose."
+            },
+            {
+              "description": "Create a summary and poll it",
+              "prompt": "Summarize this page for me: https://en.wikipedia.org/wiki/Radio_drama - then tell me when it is done.",
+              "tools_triggered": "search_tools, then execute_typescript calling external_create_content_summary, external_get_job_status and external_get_article",
+              "expected_behavior": "create_content_summary({ sourceType: 'webpage', url }) returns a job handle, not the finished text: { jobId, articleId: null }. Poll get_job_status({ jobId }) until status is SUCCESS with an outputId (QUEUED or PROCESSING in between is a pass; on the verified production run a Wikipedia page finished in under 10 seconds), then get_article({ articleId: outputId }) returns the finished summary with title, description and bodyText. If the page was already summarized for this account, create returns articleId set and a jobId beginning with 'existing:' - that is a cache hit: read it with get_article directly and do not poll. Re-issuing the identical request with the same idempotencyKey returns idempotent: true instead of starting a second job (Postgres idempotency ledger)."
+            },
+            {
+              "description": "Search the product docs",
+              "prompt": "What does Shorty's documentation say about webhooks?",
+              "tools_triggered": "search_tools, then execute_typescript calling external_search_docs",
+              "expected_behavior": "search_docs({ query: 'webhooks' }) returns 3 documentation pages, each with title, description, snippet, an absolute url on aishorty.com and a markdown_url twin the reviewer can open directly in a browser; the top result is 'Webhooks - Shorty API' (https://aishorty.com/docs/api/webhooks). This operation searches Shorty's own documentation corpus and touches no user data."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Asking for the media file",
+              "prompt": "Download the captioned MP4 from my last subtitle job and send it to me.",
+              "expected_behavior": ""
+            },
+            {
+              "description": "File format conversion",
+              "prompt": "Convert my interview recording from M4A to WAV.",
+              "expected_behavior": ""
+            },
+            {
+              "description": "Deleting library work",
+              "prompt": "Delete the transcription of my July customer interview from my library.",
+              "expected_behavior": ""
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1HDOr4pSTqCkCfJv_MrgKt8BV4-HJzVEj/view",
+        "commerce": false,
+        "commerce_description": ""
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Logo refresh: the listing icons are replaced with the official 1024px brand logo. No change to the MCP server, tools, OAuth or test account."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

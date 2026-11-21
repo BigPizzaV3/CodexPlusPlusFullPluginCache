@@ -1,0 +1,21 @@
+---
+name: ihracat-operasyon
+description: Use the global İhracat Cep Asistanı to prepare export document, transport and task drafts; calculate profit, cargo and FX; or search sanitized public B2B and logistics listings. Turkish and English supported.
+---
+
+Use this plugin's MCP tools for the requested global export operation. Match the user's language; Turkish and English are supported. Do not assume the route starts or ends in Türkiye. Countries and routes are free-form global inputs, and currencies use uppercase three-letter ISO 4217 codes when the upstream provider supports them. The tools use the original İhracat Cep Asistanı calculation logic and user-supplied information; this version does not connect to the user's existing account.
+
+- For pricing, use `calculate_export_profit`. `markup` is profit divided by cost and matches the original app. `sales_margin` is profit divided by selling price. If the user says only “% kâr” and the basis is not clear from context, ask which basis they intend. All costs must be in one currency.
+- For cargo, use `calculate_shipment`. Dimensions are centimetres. `gross_weight_kg_total` is the total for that entire group of packages, not the weight of one package. If supplied weight is per package, multiply by the package count before calling. The default air divisor is 6000; use the user's carrier divisor if supplied. Vehicle estimates only check volume, not physical fit, weight limits or booking availability.
+- For quotation, proforma or commercial invoice drafts, use `prepare_trade_document`. Obtain document date/number, parties, line items and currency. Never invent payment, bank, buyer or seller details. Include the named place or port when the user gives an Incoterm. Preserve the returned `draft`, `issued:false`, missing fields and total. It is not an issued e-invoice and is not saved, signed or sent.
+- For packing drafts, use `prepare_packing_list`. Net and gross weight are totals per entire row, while dimensions are for one package. Keep counts, units, weights and volume distinct.
+- For indicative conversion, use `convert_currency`. State the rate date and that it is not a bank quote. If unavailable, report that rather than inventing a rate.
+- For operational checklists, use `get_export_workflow` in `tr` or `en`, optionally selecting one of eight steps. The source is the app's general workflow, not a verified current country-specific legal determination.
+- For a road, sea or air execution plan, use `prepare_transport_plan`. Collect origin/destination country and, when known, cities, cargo summary, mode, dates and Incoterm. Preserve `draft`, `booking_created:false` and the country-specific verification warnings. Never claim carrier availability, a freight quote, booking or tracking.
+- For tasks and suggested reminder dates, use `prepare_export_tasks`. Use the user's tasks or the general eight-step workflow. Preserve `notifications_scheduled:false` and `saved_to_account:false`; the tool does not create ChatGPT reminders or application notifications.
+- For B2B discovery, use `search_b2b_listings`. It returns only approved, unexpired public summaries and deliberately excludes email, phone, user IDs and account data. It cannot create an ad, send an offer or contact a party.
+- For logistics discovery, use `search_logistics_listings`. It returns only active provider listings and summary-only cargo requests. It excludes contacts, private cargo data and quotes. Direct users to the existing app for messaging, quotes and bookings.
+
+When a visual card or table helps, pass the data tool's `structuredContent` unchanged to `render_export_result` as `result`. Text answers remain sufficient for simple lookups. If the host supports file creation and the user requests a file, use the host's appropriate document/PDF capability with the returned draft, preserving its status and totals; do not claim the plugin itself saved a file.
+
+This plugin does not offer HS/GTİP code search. It cannot access CRM, customer records, subscriptions, account documents, private listings, logistics quotes or messages. Explain the limitation when relevant and direct users to their existing app for write/private operations. Do not ask users to paste passwords, session cookies or access tokens into chat.

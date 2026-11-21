@@ -1,0 +1,181 @@
+---
+name: car-image-urls
+description: Put a vehicle image into a web page, React component, app, email, Markdown file, PDF or slide deck using signed delivery URLs, so the browser loads the image directly, or share one as a link where a conversation cannot show a tool's image (a terminal such as Claude Code or Codex) or the person asks for a link. Use whenever the output is HTML, JSX, Markdown, CSS, an email template, a document or a spreadsheet rather than a picture shown in the chat; covers looking each vehicle up once and minting by its id, TTL and use caps, batching up to 50, inventory grids from a list of VINs, caching, alt text and expiry. Do not use to show a car in a chat app (car-image shows it inline with get_car_image), for downloading bytes in a script (car-image), or for finding which vehicle to render (vehicle-catalog).
+---
+
+**ChatGPT image card:** For a requested image, after the free vehicle lookup, use `create_car_image_urls` with the returned `vehicle` id, `ttl_seconds: 604800`, `max_uses: 0`, and renewal off. ChatGPT displays the returned images in an inline card. Do not call `get_car_image` first or make another image call to fix display. Reuse an unexpired URL. If the card is unavailable, show the exact returned URL as a clickable link and state expiry. These ChatGPT instructions take precedence over the general chat examples below. Other hosts keep their own display workflow.
+
+When no view is specified, use **Front three-quarter (facing left)**, `view=front-3-4` (35°). Preserve any view the user explicitly requests.
+
+# Signed delivery URLs
+
+A signed URL is a self-contained link to one rendered vehicle image. The browser, email client or PDF reader loads it directly, with no sign-in. **A page gets a signed URL, or a copy of the file you serve yourself; it never calls the account API.**
+
+In a conversation, minting goes through the connected `create_car_image_urls` tool. In an application, minting is server code, which is the `car-image-sdk` skill's job; this skill covers what to ask for and how to use the URLs it returns.
+
+## Chat replies
+
+To show a vehicle in a chat app, do not mint a URL: `get_car_image` returns the picture and the host displays it inline (the `car-image` skill covers that and random-car selection). Mint a signed URL in a conversation only when the person will not see a tool's image (a terminal such as Claude Code or Codex, or a host that hands tool images to the model alone) or when they ask for a link. Then resolve the vehicle first and mint once with `ttl_seconds: 604800`, `max_uses: 0` and renewal off unless requested.
+
+In Codex, show each exact returned `data[].url` as a normal clickable Markdown link, for example `[View the vehicle image](https://example.com/image.png)` with the returned URL substituted. Do not use Markdown image syntax or paste the tool's image `markdown` into these chats, even if generic tool text recommends it. Open that same URL with an available browser-opening tool, preferably in the in-app browser (for example, `open_in_codex` with a browser target). Retain the clickable link in the final reply whether opening succeeds or not. If no browser tool is available, just provide the link. Do not claim the browser opened unless the tool confirms it.
+
+In a terminal (Claude Code), put the plain `data[].url` on its own line, which the terminal makes clickable; Markdown image syntax does not render there. In Claude's apps, when the person asked for a link, paste each returned `data[].markdown` outside code fences; if only `url` is returned, use `![year make model, view, color](https://example.com/image.png)` with the exact returned URL. Do not automatically open a browser. Other hosts may use inline images when supported, otherwise a clickable link.
+
+Include a short vehicle caption and expiry. Reuse unexpired URLs; do not download the image or make another paid image call to work around chat display. These host-specific rules apply to chat replies; website and document embeds still use image markup.
+
+## Why not just call the image endpoint from the page
+
+`GET /api/v1/images/car` is an account call, made by servers. Anything in a browser — an `<img src>`, a `fetch` in client-side JavaScript, a CSS `background-image` — is readable by the user and by anyone they share the page with, so a page makes no account calls.
+
+Signed URLs solve this: the signature authorizes exactly one image for a limited time, and nothing else.
+
+## The call
+
+Look each vehicle up first (`resolve_vehicle`, `search_vehicles` or `decode_vin`; all free, the `vehicle-catalog` skill) and mint by its id. A name from memory can miss a car the catalog carries, and in a batch one wrong name fails the whole call.
+
+With MCP connected, use `create_car_image_urls`. Over REST it is `POST /api/v1/image-urls`:
+
+```json
+{
+  "images": [
+    { "vehicle": "veh_78qtwrgh37bkr", "view": "side", "color": "red", "width": 768, "height": 432, "trim": true, "format": "auto" }
+  ],
+  "ttl_seconds": 86400,
+  "max_uses": 0
+}
+```
+
+An entry may spell the vehicle out instead, in the catalog's spelling:
+
+```json
+{
+  "images": [
+    { "make": "Porsche", "model": "911", "year": 2024, "view": "side", "color": "red", "width": 768, "height": 432, "trim": true, "format": "auto" }
+  ],
+  "ttl_seconds": 86400,
+  "max_uses": 0
+}
+```
+
+The MCP tool also returns ready-to-display `markdown` for each image. Each REST entry returns `id`, `url`, `expires_at`, `max_uses`, `renews_until` and the normalized vehicle (which opens with `vehicle_id` and echoes `fit`, `background`, `trim` and `padding`). `"vehicle"` and make, model and year together are a `400`, and `"color": "#1a2b3c"` is any paint at the same price.
+
+- **`images`** — 1 to 50 per call. Body limit is 64 KiB; split larger jobs into batches of 50. Each entry takes the same sizing options as `get_car_image`: `size` or `width`/`height` (delivered up to the stored image's own size, a larger size clamped; both together return exactly that box) or the presets `aspect_ratio` and `resolution`, `fit` (`contain` default, `cover`, `inside`), `background` (`transparent` default, a CSS color name such as `white`, or hex), `trim` with `padding` (0–50 %) or the `framing` preset for them (`balanced` for grids and listings, `tight` for thumbnails, `consistent` for galleries), `shadow` (a soft ground shadow under the car), and `format` (`png`, `webp`, `jpg`, `auto`). The `car-image` skill has the full table.
+- **`ttl_seconds`** — 60 to 604800 (7 days). Default 3600.
+- **`max_uses`** — `0` means unlimited loads until expiry. A positive number caps redemptions and returns `410` afterwards.
+- **`renew`** — `true` makes the URL auto-renew: the first load in each further window of `ttl_seconds` renews it (counting the image in the month that window falls in, if that month has not counted it yet) and keeps it alive, until `renew_days` (1–365, default 365) from creation. Requires `max_uses: 0`. See "Surfaces that outlive a TTL" below.
+- **`Idempotency-Key` header** — send one (1–255 characters of letters, digits, `.` `_` `:` `-`) whenever the call might be repeated: a job queue, a build step, a retried request. The same key with the same body within 24 hours replays the first response (`Idempotent-Replayed: true`) instead of minting and billing a second batch; the same key with a different body is a `422`; a retry that overtakes the original still in flight is a `409` with `Retry-After`. The MCP tool takes `idempotency_key` as an argument (a replay comes back with `idempotent_replayed: true`); the `car-image-sdk` skill covers it in code.
+
+## What it counts
+
+**Each image counts one vehicle image of the plan's month when its URL is created**: one vehicle in one color from one view, once a month however many URLs, sizes and loads it gets. Loading a URL adds nothing, however many times, until it expires. Ten URLs for ten cars count 10 vehicle images whether they are loaded once or a million times; ten URLs of one car in one color and view, at different sizes, count 1. No credit is charged (`billing.credits_charged: 0`; `billing.vehicle_images` gives the month's `used` and `included`). A view the catalog has not prepared yet counts the same: we prepare the vehicle in that view so it can be shown in any color, which takes a little time. Past the allowance the call answers `402` and mints nothing. Accounts that paid before 2026-10-25 stay on 1 credit per URL until the cutover date in their notice.
+
+So: mint once, cache the URL, reuse it. Re-minting the same image on every page render costs nothing extra that month, but it is a request per render and a new URL each time.
+
+## Choosing a TTL
+
+The TTL is a cache lifetime, not a security boundary — anyone with the URL can load it until it expires. Match it to how the page is served.
+
+| Surface | TTL | Why |
+| --- | --- | --- |
+| Static site, build-time generation | 7 days (`604800`), re-mint on each build | Longest window; the build owns the refresh. |
+| Server-rendered page, cached in your DB | 1-7 days | Store `url` and `expires_at`; re-mint when `expires_at` is near. |
+| Per-request SSR with no storage | 1 hour (default) | The page outlives the URL only if the user leaves the tab open. |
+| Email | 7 days, `max_uses: 0`, `renew: true` | Mail is opened days, months or a year later. A renewable URL keeps working, renewing on the first load of each opened week; a plain 7-day URL is a broken image by week two. |
+| CMS page or PDF nobody re-publishes | 7 days, `renew: true` | Same reasoning as email: the surface is rendered once and read for a long time. |
+| One-off share link | Short TTL plus `max_uses` | The only case where a use cap helps. |
+
+**Never mint a URL inside a React render, a `useEffect`, or a hot request path without caching.** That is a paid API call per render.
+
+## Surfaces that outlive a TTL
+
+An email, a PDF or a page in a CMS nobody re-publishes is rendered once and opened whenever the reader gets to it. For those, mint with `renew: true`:
+
+```json
+{ "images": [{ "make": "Porsche", "model": "911", "year": 2024, "view": "front-3-4", "color": "red", "width": 480 }], "ttl_seconds": 604800, "renew": true }
+```
+
+- The URL is created and counted like any other. When it is loaded after `expires_at`, the first load in each new window of `ttl_seconds` renews it; every further load in that window is free and cacheable, exactly like the first window. Windows nobody opens count nothing.
+- A renewal counts the image as a vehicle image of the month it falls in, once: an image opened every week of a year counts once in each month someone opened it, never per week.
+- A renewal is counted once per window whatever the open count: the reference `renew:<id>:<window>` is unique, so two mail proxies racing on the first open count once.
+- A renewal in a month whose allowance is used up gets `402` (`plan_image_limit`) on that load and the image shows as broken until the allowance resets on the 1st (UTC) or the plan is raised; the URL itself stays valid and resumes on its next load. On the credit meter the same happens when the balance is empty.
+- A URL ends (`403`), renewals included, when the account revokes the access that issued it.
+- `renew` cannot be combined with a use cap (`max_uses` must be 0).
+
+Store `renews_until` next to the URL. The story at https://carimage.dev/customers/car-images-in-email?ref=plugin shows the exact email HTML.
+
+## Patterns
+
+### A page: mint on the server, render the stored URL
+
+Mint when the page is built or its data is fetched, keep `url` and `expires_at`, and render plain markup. The `car-image-sdk` skill has this as server code (`references/typescript.md`, Next.js).
+
+```tsx
+<img src={image.url} alt="2024 Porsche 911, side view, red" width={768} height={432} />
+```
+
+Ask for `width: 768`, `height: 432` and `trim: true` for that slot: `width` and `height` together return exactly 768×432, so the `<img>` attributes match the bytes, and `trim` makes the car fill that wide box instead of floating in a square. Key your cache by the vehicle parameters so a page view does not mint a new URL; an `Idempotency-Key` stops a retried build from paying twice, not a hot path from minting on every request.
+
+### A batch for a comparison grid
+
+```json
+{
+  "images": [
+    { "make": "Toyota", "model": "RAV4", "year": 2023, "view": "front-3-4", "color": "silver", "width": 512 },
+    { "make": "Honda", "model": "CR-V", "year": 2023, "view": "front-3-4", "color": "silver", "width": 512 },
+    { "make": "Mazda", "model": "CX-5", "year": 2023, "view": "front-3-4", "color": "silver", "width": 512 }
+  ],
+  "ttl_seconds": 604800
+}
+```
+
+One call, three vehicle images. Results come back in request order.
+
+### An inventory grid from a list of VINs
+
+A dealer page, a marketplace import, a fleet dashboard: the input is a spreadsheet of VINs or of year, make and model, and most rows are the same few vehicles.
+
+1. **Look up every row for free.** `decode_vin` for a VIN (`vehicle.id`), `resolve_vehicle` for a name (`params.vehicle_id`). Set aside the rows that do not resolve and report them; do not guess.
+2. **Deduplicate by vehicle id.** Forty Camrys of one model year are one image. The cost is distinct vehicles × views × paints, not rows.
+3. **Say the count, and get a yes.** "212 rows, 37 distinct vehicles, one view each: 37 vehicle images of this month's allowance." For a large list, `POST /api/v1/images/availability` (free, up to 200 image objects a call, REST or the SDK; there is no MCP tool for it) says which views are prepared and whether the batch fits the month.
+4. **Mint in batches of 50** with an `idempotency_key` per batch, so a retried import does not pay twice.
+5. **Store `url`, `expires_at` and the `vehicle_id` next to each row**, and re-mint by id before expiry. A page nobody rebuilds wants `renew: true`.
+
+Show the decoded trim, body and engine as text beside the image; the render represents the model, not that car on the lot.
+
+### One fixed image: a hero, a card, a slide
+
+When the image never changes, a signed URL that expires is more machinery than the job needs. Save the file once and serve it from the project's own assets: mint one URL with `create_car_image_urls` (for example `vehicle: "veh_78qtwrgh37bkr"`, `view: "front-3-4"`, `color: "red"`, `width: 1024`, `height: 576`, `trim: true`, `padding: 6`, `format: "webp"`), then save the file that URL serves into the project's assets, for example as `public/hero-911.webp`. The URL itself is the only thing the download needs.
+
+One vehicle image, no expiry to track, no request at page load. Keeping copies on your own servers or CDN to serve your own product is part of a paid plan's license, for as long as the plan is active (within 30 days after it ends, stored copies are deleted; an Image Pack's images may be kept for good); the Free plan is for evaluation and personal projects, and a standalone library or bulk export needs a written agreement. `search_help` has the terms when the user asks (the `car-image-support` skill). Use signed URLs when the set of vehicles is open-ended: a catalog, a search result, a listing feed.
+
+### Markdown and email
+
+```md
+![2022 BMW M3, front three-quarter view, blue](https://carimage.dev/api/v1/delivery/eyJ2IjoxLCJ…)
+```
+
+Transparent PNG sits on any background, which is what you want in a document. For email, ask for a solid `background` (`"white"`, or the hex of the surrounding table cell) — it flattens PNG and WebP too, and `jpg` defaults to white — because some older mail clients render PNG transparency as black.
+
+## Getting the image right
+
+- **Transparent by default.** `format: "png"` has a real alpha channel, so the render drops onto any background without a box around it. Choose `webp` for smaller files with transparency, `jpg` only when the surface cannot do alpha, and `auto` for an `<img>` any browser will load: the URL negotiates WebP or PNG from each client's `Accept` header on every load.
+- **Ask for the box you will display**, up to the stored image's own size (a 1024 px square for older renders, up to 2560 px for new ones). With both `width` and `height` the image comes back exactly that size (`fit: "contain"`, the default, keeps the whole car and pads the rest; `"cover"` fills the box and crops). For a non-square slot add `trim: true` so the car fills it instead of floating in its frame, with `padding` (0–50 %) for breathing room. A 512 px render in a 256 px slot wastes bytes; a 256 px render in a 512 px slot looks soft, and nothing is upscaled past 1024. For retina, request 2× the CSS size.
+- **Set `width` and `height` on the `<img>`** so the page does not reflow while it loads — the values you asked for, since that is exactly what comes back.
+- **Alt text describes the vehicle**: "2024 Porsche 911, side view, red". Not "car", not "image".
+- **Cache publicly.** Delivery URLs are safe to put behind a CDN for their TTL; that is the point of them.
+
+## Expiry is a real state
+
+`expires_at` comes back with every URL. Whatever stores the URL must store that too.
+
+- Re-mint before expiry, not after a user reports a broken image.
+- A `403` on a delivery URL means expired, invalid, the access that issued it was revoked, or `code: "origin_not_allowed"`: the page loading it is on a site the allowed origins set in the dashboard do not list; loads without a `Referer` or `Origin`, such as email clients, pass. A `410` means a use-capped URL hit its cap. Both are fixed by minting a fresh URL, not by retrying the old one. A `402` means a renewable URL entered a new window in a month whose allowance is used up; the same URL resumes once the allowance resets or the plan is raised.
+- In chat, a URL is the fallback where a tool's image does not reach the person: follow the host-specific display rules above and state expiry (ChatGPT/Codex get a clickable link and browser opening when available, a terminal the plain URL, Claude's apps inline Markdown). Reuse the same URL without another paid call.
+
+## Do not
+
+- Mint a URL for a vehicle you have not looked up. One `404` fails the whole batch before anything is charged; it carries `suggestions` (and, over REST, the `index` of the entry), so fix that entry and send the batch again.
+- Call the account API from client-side code or an `<img src>`. Use a signed URL instead.
+- Mint a URL per request or per render without caching — each one is a paid API call.
+- Treat a signed URL as private. It is unguessable, not access-controlled.
+- Present a render as a photograph of one specific listed vehicle. It represents the model.

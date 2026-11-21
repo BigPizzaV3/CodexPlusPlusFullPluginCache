@@ -1,0 +1,51 @@
+#!/usr/bin/expect -f
+log_user 0
+exp_internal 0
+set timeout 20
+
+if {$argc != 3} {
+  exit 64
+}
+
+set service [lindex $argv 0]
+set account [lindex $argv 1]
+set label [lindex $argv 2]
+set credential [string trim [exec /usr/bin/pbpaste]]
+
+if {[string length $credential] < 20 || ![regexp {^[\x21-\x7E]+$} $credential]} {
+  exit 65
+}
+
+spawn /usr/bin/security add-generic-password -U -a $account -s $service -l $label -w
+expect {
+  -re {(?i)password[^:]*:} {
+    send -- "$credential\r"
+  }
+  timeout {
+    exit 66
+  }
+  eof {
+    exit 67
+  }
+}
+
+expect {
+  -re {(?i)retype password[^:]*:} {
+    send -- "$credential\r"
+  }
+  timeout {
+    exit 68
+  }
+  eof {
+    exit 69
+  }
+}
+
+expect {
+  eof {}
+  timeout {
+    exit 70
+  }
+}
+set child_result [wait]
+exit [lindex $child_result 3]

@@ -1,0 +1,43 @@
+# Thư viện phong cách Tốc Biến — 37 kiểu
+
+Đọc bảng này để chọn 2–3 kiểu hợp với dự án, rồi mở `styles/<id>.md` của kiểu đã chốt. Thang = biến tấu bố cục · chuyển động · mật độ (1–10). Xem mẫu thật: https://tocbien.cloud/phong-cach/<id>/
+
+| id | Kiểu | Nhìn thế nào | Hợp với | Ngành minh hoạ | Thang |
+|---|---|---|---|---|---|
+| `claymorphism` | Claymorphism | Khối đất nặn mềm, bóng dày, màu tím pastel | Hợp khi đang dùng AI để dựng website cho tiện ích cho người trẻ cần cảm giác dễ chạm nhưng phép tính phải chính xác. | Sản phẩm công nghệ, ứng dụng, cửa hàng | 6·4·4 |
+| `maximalism` | Maximalism | Nhiều màu chồng lớp, chữ đổ bóng ba tầng | Hợp khi đang dùng AI để dựng website cho lễ hội và sự kiện đông nội dung cần năng lượng cao nhưng vẫn dễ chọn. | Sự kiện, hội chợ, quán ăn | 9·5·8 |
+| `cyberpunk` | Cyberpunk | Đen tuyền, neon lơ và hồng, lưới phát sáng | Hợp khi đang dùng AI để dựng website cho game, cộng đồng công nghệ và sự kiện đêm cần không khí mạnh cùng tác vụ rõ. | Phòng máy, quán game, công nghệ | 8·4·5 |
+| `bold-typography` | Bold Typography | Chữ khổng lồ chiếm trang, đen trắng, viền rỗng | Hợp khi đang dùng AI để dựng website cho copywriter và hãng quảng cáo nơi thông điệp là sản phẩm chính. | Studio sáng tạo, quảng cáo, thiết kế | 8·2·3 |
+| `vaporwave` | Vaporwave | Hoàng hôn neon, lưới phối cảnh và chữ điện tử | Hợp khi đang dùng AI để dựng website cho landing âm nhạc, sự kiện và văn hóa cần không khí mạnh nhưng lịch vẫn dễ đọc. | Âm nhạc, sự kiện, văn hoá | 9·7·5 |
+| `terminal` | Terminal | Nền đen, chữ đơn cách xanh lá, khung dòng lệnh | Hợp khi đang dùng AI để dựng website cho công cụ kỹ thuật cần cho người xem hiểu lỗi, trạng thái và đầu ra. | Công cụ kỹ thuật, quản trị, kho vận | 6·2·6 |
+| `playful-geometric` | Playful Geometric | Màu tươi, hình bo méo, chữ đậm tròn | Hợp khi đang dùng AI để dựng website cho hoạt động gia đình cần vui, dễ chọn và luôn nói với phụ huynh. | Nhà trẻ, lớp dạy trẻ em, tư vấn | 6·4·4 |
+| `sketch` | Sketch | Giấy kẻ ly, nét vẽ tay, viền đứt đoạn | Hợp khi đang dùng AI để dựng website cho đồ thủ công và lớp thực hành cần kể rõ quá trình làm bằng tay. | Cửa hàng thủ công, sản phẩm, cà phê | 6·2·4 |
+| `portfolio` | Portfolio | Portfolio editorial, chân dung và ảnh nghệ thuật | Hợp khi đang dùng AI để dựng website cho nhà thiết kế độc lập cần chứng minh cách nghĩ, đầu ra và nhận brief. | Portfolio, studio, sáng tạo | 7·3·4 |
+| `web3` | Web3 | Nền đen, khối cầu cam và quỹ đạo vàng | Hợp khi đang dùng AI để dựng website cho sản phẩm blockchain cần giải thích cơ chế bằng thao tác, không dựa vào giá coin. | Giáo dục, cộng đồng công nghệ | 8·6·4 |
+| `enterprise` | Enterprise | Bề mặt sáng, tím chàm và bảng công việc | Hợp khi đang dùng AI để dựng website cho phần mềm doanh nghiệp cần làm rõ vai trò, trạng thái và lịch sử xử lý. | Nhóm làm việc, phần mềm doanh nghiệp | 5·4·4 |
+| `kinetic` | Kinetic | Chữ cực lớn, vàng chanh và chuyển động liên tục | Hợp khi đang dùng AI để dựng website cho studio motion, sự kiện và chiến dịch lấy chữ làm hình ảnh chủ đạo. | Sáng tạo, sự kiện, studio | 9·9·4 |
+| `minimal-dark` | Minimal Dark | Ba tầng nền tối, điểm nhấn hổ phách | Hợp khi đang dùng AI để dựng website cho tiện ích cá nhân cần giao diện tĩnh, ít nhiễu và trạng thái thật rõ. | Ứng dụng, công cụ cá nhân | 4·3·3 |
+| `modern-dark` | Modern Dark | Nền đen nhiều lớp, tím sáng và lưới lệch | Hợp khi đang dùng AI để dựng website cho sản phẩm cộng tác sáng tạo cần chiều sâu tối và dữ liệu vẫn dễ quét. | Thiết kế, sản phẩm số | 8·6·4 |
+| `luxury` | Luxury | Chữ có chân cỡ lớn, nhiều khoảng trống | Hợp khi đang dùng AI để dựng website cho nội thất, lưu trú và dịch vụ cao cấp cần bán bằng tay nghề và hình ảnh. | Nội thất, spa, khách sạn | 6·3·2 |
+| `newsprint` | Newsprint | Kiểu báo giấy, cột chữ và đường kẻ | Hợp khi đang dùng AI để dựng website cho tòa soạn, quán văn hóa và blog dài cần thứ bậc như báo in. | Báo, tạp chí, blog | 7·2·8 |
+| `academia` | Academia | Gỗ sẫm, nhấn đồng thau, chữ có chân | Hợp khi đang dùng AI để dựng website cho lớp học, nghiên cứu và tư vấn chuyên môn cần vẻ học thuật đáng tin. | Trung tâm dạy học, luật sư, tư vấn | 6·2·4 |
+| `botanical` | Botanical | Xanh lá dịu, chữ có chân nghiêng, khối bo vòm | Hợp khi đang dùng AI để dựng website cho spa và chăm sóc sức khỏe nhẹ nhàng, nơi đặt lịch là việc chính. | Spa, mỹ phẩm thiên nhiên, phòng trà | 5·2·3 |
+| `organic` | Organic | Kem, xanh lá, khối bo hữu cơ, chữ tròn đậm | Hợp khi đang dùng AI để dựng website cho nông sản và thực phẩm tươi cần kể rõ nguồn gốc lẫn lựa chọn mua. | Cửa hàng thực phẩm, nông sản, quán ăn | 5·3·5 |
+| `monochrome` | Monochrome | Chỉ đen và trắng, chữ có chân rất lớn, kẻ đậm | Hợp khi đang dùng AI để dựng website cho nhiếp ảnh gia cần để tác phẩm dẫn dắt, chữ chỉ giữ nhịp biên tập. | Studio ảnh, thời trang, sáng tạo | 7·2·6 |
+| `swiss-minimalist` | Swiss Minimalist | Lưới 12 cột cứng, một màu đỏ nhấn, chữ không chân | Hợp khi đang dùng AI để dựng website cho kiến trúc và studio cần lưới kỷ luật, luận điểm rõ và ít trang trí. | Studio thiết kế, kiến trúc, sáng tạo | 6·1·5 |
+| `professional` | Professional | Trắng ngà, chữ có chân và điểm nhấn vàng trầm | Hợp khi đang dùng AI để dựng website cho dịch vụ chuyên môn cần tạo cảm giác an toàn trước khi khách trao đổi. | Kế toán, bảo hiểm, tư vấn, luật | 3·1·6 |
+| `industrial` | Industrial | Xám máy móc, nút đỏ và các khối chìm nổi | Hợp khi đang dùng AI để dựng website cho gara và xưởng kỹ thuật cần thao tác có cảm giác vật lý, dữ liệu rõ. | Gara, xưởng cơ khí, kho vận | 6·3·6 |
+| `flat-design` | Flat Design | Màu phẳng tươi, bo góc vừa, không đổ bóng | Hợp khi đang dùng AI để dựng website cho dịch vụ địa phương cần ít bước, màu rõ và dùng tốt trên điện thoại. | Cửa hàng, bán hàng online, sản phẩm | 4·2·5 |
+| `material-design` | Material Design | Thẻ nổi bằng bóng mềm, xanh y tế, nút tròn | Hợp khi đang dùng AI để dựng website cho lịch hẹn dịch vụ cần mẫu nhập quen thuộc, phản hồi rõ và dễ chạm. | Phòng khám, dịch vụ đặt lịch, tư vấn | 3·3·5 |
+| `retro` | Retro | Cửa sổ máy tính thập niên 90, viền nổi và xanh navy | Hợp khi đang dùng AI để dựng website cho âm nhạc và thương hiệu hoài niệm muốn dùng ngôn ngữ web thập niên 90. | Quán ăn, tiệm cắt tóc, cà phê | 6·2·4 |
+| `art-deco` | Art Deco | Đen sâu, vàng đồng, hoa văn quạt đối xứng | Hợp khi đang dùng AI để dựng website cho nhà hàng, bar và đêm diễn cần cảm giác trang trọng của một dịp đặc biệt. | Nhà hàng, quán bar, khách sạn | 7·2·3 |
+| `neo-brutalism` | Neo-Brutalism | Vàng chói, viền đen 4px, bóng khối cứng | Hợp khi đang dùng AI để dựng website cho studio thương hiệu cần gây nhớ ngay bằng màu, viền và bóng khối mạnh. | Studio sáng tạo, quảng cáo, thiết kế | 9·4·5 |
+| `bauhaus` | Bauhaus | Ba màu cơ bản, hình khối nguyên thuỷ, lưới vuông | Hợp khi đang dùng AI để dựng website cho lớp thiết kế và studio muốn biến chính giao diện thành ví dụ thị giác. | Lớp dạy vẽ, studio sáng tạo, tư vấn | 7·2·4 |
+| `neumorphism` | Neumorphism | Một sắc xám, khối chìm nổi bằng bóng đôi | Hợp khi đang dùng AI để dựng website cho công cụ ít chữ cần cảm giác điều khiển vật lý và trạng thái rõ. | Sản phẩm công nghệ, ứng dụng, quy trình | 5·2·3 |
+| `saas` | SaaS | Trắng sạch, xanh dương, ảnh chụp màn hình có bóng | Hợp khi đang dùng AI để dựng website cho SaaS vận hành và bán hàng cần cho khách thấy sản phẩm hoạt động thật. | Sản phẩm công nghệ, quy trình, cửa hàng | 3·2·5 |
+| `bento` | Bento | Lưới ô lớn nhỏ xen kẽ | Hợp khi đang dùng AI để dựng website cho người làm nhiều loại việc muốn giới thiệu 5–7 điểm mà không kéo trang quá dài. | Cửa hàng, xưởng dịch vụ | 7·5·5 |
+| `glass` | Kính mờ | Thẻ kính mờ chồng lớp | Hợp khi đang dùng AI để dựng website cho công cụ lịch và năng suất cần nhiều lớp không gian nhưng chữ vẫn rõ. | Sản phẩm công nghệ | 7·6·3 |
+| `dark-tech` | Dark tech | Nền tối, một màu neon | Hợp khi đang dùng AI để dựng website cho AI, API và tự động hóa cần cho thấy cách kiểm dữ liệu thay vì chỉ trang trí neon. | Công cụ, phần mềm | 8·7·3 |
+| `aurora` | Aurora | Nền loang màu mềm | Hợp khi đang dùng AI để dựng website cho sản phẩm AI nhẹ nhàng cần chỉ rõ quan hệ giữa đầu vào và kết quả. | Lớp học, sự kiện | 7·6·4 |
+| `sticky-stack` | Sticky-stack | Từng bước xếp chồng khi cuộn | Hợp khi đang dùng AI để dựng website cho dịch vụ có quy trình dài cần người xem nhớ đúng thứ tự và đầu ra. | Gara, dịch vụ theo quy trình | 7·7·4 |
+| `cockpit` | Bảng điều khiển | Bảng dày, xem được nhiều dòng | Hợp khi đang dùng AI để dựng website cho trang quản trị nội bộ cần xem nhiều dòng, tìm lỗi và xử lý cả ngày. | Kho vận, quản trị nội bộ | 4·3·8 |

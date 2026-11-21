@@ -1,0 +1,1759 @@
+
+export default {
+["container.blocks[]|3.settings.timeZone"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "Africa/Abidjan",
+    "Africa/Accra",
+    "Africa/Addis_Ababa",
+    "Africa/Algiers",
+    "Africa/Asmara",
+    "Africa/Bamako",
+    "Africa/Bangui",
+    "Africa/Banjul",
+    "Africa/Bissau",
+    "Africa/Blantyre",
+    "Africa/Brazzaville",
+    "Africa/Bujumbura",
+    "Africa/Cairo",
+    "Africa/Casablanca",
+    "Africa/Ceuta",
+    "Africa/Conakry",
+    "Africa/Dakar",
+    "Africa/Dar_es_Salaam",
+    "Africa/Djibouti",
+    "Africa/Douala",
+    "Africa/El_Aaiun",
+    "Africa/Freetown",
+    "Africa/Gaborone",
+    "Africa/Harare",
+    "Africa/Johannesburg",
+    "Africa/Juba",
+    "Africa/Kampala",
+    "Africa/Khartoum",
+    "Africa/Kigali",
+    "Africa/Kinshasa",
+    "Africa/Lagos",
+    "Africa/Libreville",
+    "Africa/Lome",
+    "Africa/Luanda",
+    "Africa/Lubumbashi",
+    "Africa/Lusaka",
+    "Africa/Malabo",
+    "Africa/Maputo",
+    "Africa/Maseru",
+    "Africa/Mbabane",
+    "Africa/Mogadishu",
+    "Africa/Monrovia",
+    "Africa/Nairobi",
+    "Africa/Ndjamena",
+    "Africa/Niamey",
+    "Africa/Nouakchott",
+    "Africa/Ouagadougou",
+    "Africa/Porto-Novo",
+    "Africa/Sao_Tome",
+    "Africa/Tripoli",
+    "Africa/Tunis",
+    "Africa/Windhoek",
+    "America/Adak",
+    "America/Anchorage",
+    "America/Anguilla",
+    "America/Antigua",
+    "America/Araguaina",
+    "America/Argentina/Buenos_Aires",
+    "America/Argentina/Catamarca",
+    "America/Argentina/Cordoba",
+    "America/Argentina/Jujuy",
+    "America/Argentina/La_Rioja",
+    "America/Argentina/Mendoza",
+    "America/Argentina/Rio_Gallegos",
+    "America/Argentina/Salta",
+    "America/Argentina/San_Juan",
+    "America/Argentina/San_Luis",
+    "America/Argentina/Tucuman",
+    "America/Argentina/Ushuaia",
+    "America/Aruba",
+    "America/Asuncion",
+    "America/Atikokan",
+    "America/Bahia",
+    "America/Bahia_Banderas",
+    "America/Barbados",
+    "America/Belem",
+    "America/Belize",
+    "America/Blanc-Sablon",
+    "America/Boa_Vista",
+    "America/Bogota",
+    "America/Boise",
+    "America/Cambridge_Bay",
+    "America/Campo_Grande",
+    "America/Cancun",
+    "America/Caracas",
+    "America/Cayenne",
+    "America/Cayman",
+    "America/Chicago",
+    "America/Chihuahua",
+    "America/Costa_Rica",
+    "America/Creston",
+    "America/Cuiaba",
+    "America/Curacao",
+    "America/Danmarkshavn",
+    "America/Dawson",
+    "America/Dawson_Creek",
+    "America/Denver",
+    "America/Detroit",
+    "America/Dominica",
+    "America/Edmonton",
+    "America/Eirunepe",
+    "America/El_Salvador",
+    "America/Fort_Nelson",
+    "America/Fortaleza",
+    "America/Glace_Bay",
+    "America/Godthab",
+    "America/Goose_Bay",
+    "America/Grand_Turk",
+    "America/Grenada",
+    "America/Guadeloupe",
+    "America/Guatemala",
+    "America/Guayaquil",
+    "America/Guyana",
+    "America/Halifax",
+    "America/Havana",
+    "America/Hermosillo",
+    "America/Indiana/Indianapolis",
+    "America/Indiana/Knox",
+    "America/Indiana/Marengo",
+    "America/Indiana/Petersburg",
+    "America/Indiana/Tell_City",
+    "America/Indiana/Vevay",
+    "America/Indiana/Vincennes",
+    "America/Indiana/Winamac",
+    "America/Inuvik",
+    "America/Iqaluit",
+    "America/Jamaica",
+    "America/Juneau",
+    "America/Kentucky/Louisville",
+    "Asia/Novokuznetsk",
+    "America/Kentucky/Monticello",
+    "America/Kralendijk",
+    "America/La_Paz",
+    "America/Lima",
+    "America/Los_Angeles",
+    "America/Lower_Princes",
+    "America/Maceio",
+    "America/Managua",
+    "America/Manaus",
+    "America/Marigot",
+    "America/Martinique",
+    "America/Matamoros",
+    "America/Mazatlan",
+    "America/Menominee",
+    "America/Merida",
+    "America/Metlakatla",
+    "America/Mexico_City",
+    "America/Miquelon",
+    "America/Moncton",
+    "America/Monterrey",
+    "America/Montevideo",
+    "America/Montserrat",
+    "America/Nassau",
+    "America/New_York",
+    "America/Nipigon",
+    "America/Nome",
+    "America/Noronha",
+    "America/North_Dakota/Beulah",
+    "America/North_Dakota/Center",
+    "America/North_Dakota/New_Salem",
+    "America/Ojinaga",
+    "America/Panama",
+    "America/Pangnirtung",
+    "America/Paramaribo",
+    "America/Phoenix",
+    "America/Port-au-Prince",
+    "America/Port_of_Spain",
+    "America/Porto_Velho",
+    "America/Puerto_Rico",
+    "America/Punta_Arenas",
+    "America/Rainy_River",
+    "America/Rankin_Inlet",
+    "America/Recife",
+    "America/Regina",
+    "America/Resolute",
+    "America/Rio_Branco",
+    "America/Santarem",
+    "America/Santiago",
+    "America/Santo_Domingo",
+    "America/Sao_Paulo",
+    "America/Scoresbysund",
+    "America/Sitka",
+    "America/St_Barthelemy",
+    "America/St_Johns",
+    "America/St_Kitts",
+    "America/St_Lucia",
+    "America/St_Thomas",
+    "America/St_Vincent",
+    "America/Swift_Current",
+    "America/Tegucigalpa",
+    "America/Thule",
+    "America/Thunder_Bay",
+    "America/Tijuana",
+    "America/Toronto",
+    "America/Tortola",
+    "America/Vancouver",
+    "America/Whitehorse",
+    "America/Winnipeg",
+    "America/Yakutat",
+    "America/Yellowknife",
+    "Antarctica/Casey",
+    "Antarctica/Davis",
+    "Antarctica/DumontDUrville",
+    "Antarctica/Macquarie",
+    "Antarctica/Mawson",
+    "Antarctica/McMurdo",
+    "Antarctica/Palmer",
+    "Antarctica/Rothera",
+    "Antarctica/Syowa",
+    "Antarctica/Troll",
+    "Antarctica/Vostok",
+    "Arctic/Longyearbyen",
+    "Asia/Aden",
+    "Asia/Almaty",
+    "Asia/Amman",
+    "Asia/Anadyr",
+    "Asia/Aqtau",
+    "Asia/Aqtobe",
+    "Asia/Ashgabat",
+    "Asia/Atyrau",
+    "Asia/Baghdad",
+    "Asia/Bahrain",
+    "Asia/Baku",
+    "Asia/Bangkok",
+    "Asia/Barnaul",
+    "Asia/Beirut",
+    "Asia/Bishkek",
+    "Asia/Brunei",
+    "Asia/Chita",
+    "Asia/Choibalsan",
+    "Asia/Colombo",
+    "Asia/Damascus",
+    "Asia/Dhaka",
+    "Asia/Dili",
+    "Asia/Dubai",
+    "Asia/Dushanbe",
+    "Asia/Famagusta",
+    "Asia/Gaza",
+    "Asia/Hebron",
+    "Asia/Ho_Chi_Minh",
+    "Asia/Hong_Kong",
+    "Asia/Hovd",
+    "Asia/Irkutsk",
+    "Asia/Jakarta",
+    "Asia/Jayapura",
+    "Asia/Jerusalem",
+    "Asia/Kabul",
+    "Asia/Kamchatka",
+    "Asia/Karachi",
+    "Asia/Kathmandu",
+    "Asia/Khandyga",
+    "Asia/Kolkata",
+    "Asia/Krasnoyarsk",
+    "Asia/Kuala_Lumpur",
+    "Asia/Kuching",
+    "Asia/Kuwait",
+    "Asia/Macau",
+    "Asia/Magadan",
+    "Asia/Makassar",
+    "Asia/Manila",
+    "Asia/Muscat",
+    "Asia/Nicosia",
+    "Asia/Novosibirsk",
+    "Asia/Omsk",
+    "Asia/Oral",
+    "Asia/Phnom_Penh",
+    "Asia/Pontianak",
+    "Asia/Pyongyang",
+    "Asia/Qatar",
+    "Asia/Qyzylorda",
+    "Asia/Riyadh",
+    "Asia/Sakhalin",
+    "Asia/Samarkand",
+    "Asia/Seoul",
+    "Asia/Shanghai",
+    "Asia/Singapore",
+    "Asia/Srednekolymsk",
+    "Asia/Taipei",
+    "Asia/Tashkent",
+    "Asia/Tbilisi",
+    "Asia/Tehran",
+    "Asia/Thimphu",
+    "Asia/Tokyo",
+    "Asia/Tomsk",
+    "Asia/Ulaanbaatar",
+    "Asia/Urumqi",
+    "Asia/Ust-Nera",
+    "Asia/Vientiane",
+    "Asia/Vladivostok",
+    "Asia/Yakutsk",
+    "Asia/Yangon",
+    "Asia/Yekaterinburg",
+    "Asia/Yerevan",
+    "Atlantic/Azores",
+    "Atlantic/Bermuda",
+    "Atlantic/Canary",
+    "Atlantic/Cape_Verde",
+    "Atlantic/Faroe",
+    "Atlantic/Madeira",
+    "Atlantic/Reykjavik",
+    "Atlantic/South_Georgia",
+    "Atlantic/St_Helena",
+    "Atlantic/Stanley",
+    "Australia/Adelaide",
+    "Australia/Brisbane",
+    "Australia/Broken_Hill",
+    "Australia/Currie",
+    "Australia/Darwin",
+    "Australia/Eucla",
+    "Australia/Hobart",
+    "Australia/Lindeman",
+    "Australia/Lord_Howe",
+    "Australia/Melbourne",
+    "Australia/Perth",
+    "Australia/Sydney",
+    "Canada/Atlantic",
+    "Canada/Central",
+    "Canada/Eastern",
+    "Canada/Mountain",
+    "Canada/Newfoundland",
+    "Canada/Pacific",
+    "Europe/Amsterdam",
+    "Europe/Andorra",
+    "Europe/Astrakhan",
+    "Europe/Athens",
+    "Europe/Belgrade",
+    "Europe/Berlin",
+    "Europe/Bratislava",
+    "Europe/Brussels",
+    "Europe/Bucharest",
+    "Europe/Budapest",
+    "Europe/Busingen",
+    "Europe/Chisinau",
+    "Europe/Copenhagen",
+    "Europe/Dublin",
+    "Europe/Gibraltar",
+    "Europe/Guernsey",
+    "Europe/Helsinki",
+    "Europe/Isle_of_Man",
+    "Europe/Istanbul",
+    "Europe/Jersey",
+    "Europe/Kaliningrad",
+    "Europe/Kiev",
+    "Europe/Kyiv",
+    "Europe/Kirov",
+    "Europe/Lisbon",
+    "Europe/Ljubljana",
+    "Europe/London",
+    "Europe/Luxembourg",
+    "Europe/Madrid",
+    "Europe/Malta",
+    "Europe/Mariehamn",
+    "Europe/Minsk",
+    "Europe/Monaco",
+    "Europe/Moscow",
+    "Europe/Oslo",
+    "Europe/Paris",
+    "Europe/Podgorica",
+    "Europe/Prague",
+    "Europe/Riga",
+    "Europe/Rome",
+    "Europe/Samara",
+    "Europe/San_Marino",
+    "Europe/Sarajevo",
+    "Europe/Saratov",
+    "Europe/Simferopol",
+    "Europe/Skopje",
+    "Europe/Sofia",
+    "Europe/Stockholm",
+    "Europe/Tallinn",
+    "Europe/Tirane",
+    "Europe/Ulyanovsk",
+    "Europe/Uzhgorod",
+    "Europe/Vaduz",
+    "Europe/Vatican",
+    "Europe/Vienna",
+    "Europe/Vilnius",
+    "Europe/Volgograd",
+    "Europe/Warsaw",
+    "Europe/Zagreb",
+    "Europe/Zaporozhye",
+    "Europe/Zaporizhia",
+    "Europe/Zurich",
+    "GMT",
+    "Indian/Antananarivo",
+    "Indian/Chagos",
+    "Indian/Christmas",
+    "Indian/Cocos",
+    "Indian/Comoro",
+    "Indian/Kerguelen",
+    "Indian/Mahe",
+    "Indian/Maldives",
+    "Indian/Mauritius",
+    "Indian/Mayotte",
+    "Indian/Reunion",
+    "Pacific/Apia",
+    "Pacific/Auckland",
+    "Pacific/Bougainville",
+    "Pacific/Chatham",
+    "Pacific/Chuuk",
+    "Pacific/Easter",
+    "Pacific/Efate",
+    "Pacific/Enderbury",
+    "Pacific/Fakaofo",
+    "Pacific/Fiji",
+    "Pacific/Funafuti",
+    "Pacific/Galapagos",
+    "Pacific/Gambier",
+    "Pacific/Guadalcanal",
+    "Pacific/Guam",
+    "Pacific/Honolulu",
+    "Pacific/Kiritimati",
+    "Pacific/Kosrae",
+    "Pacific/Kwajalein",
+    "Pacific/Majuro",
+    "Pacific/Marquesas",
+    "Pacific/Midway",
+    "Pacific/Nauru",
+    "Pacific/Niue",
+    "Pacific/Norfolk",
+    "Pacific/Noumea",
+    "Pacific/Pago_Pago",
+    "Pacific/Palau",
+    "Pacific/Pitcairn",
+    "Pacific/Pohnpei",
+    "Pacific/Port_Moresby",
+    "Pacific/Rarotonga",
+    "Pacific/Saipan",
+    "Pacific/Tahiti",
+    "Pacific/Tarawa",
+    "Pacific/Tongatapu",
+    "Pacific/Wake",
+    "Pacific/Wallis",
+    "US/Alaska",
+    "US/Arizona",
+    "US/Central",
+    "US/Eastern",
+    "US/Hawaii",
+    "US/Mountain",
+    "US/Pacific",
+    "UTC"
+  ],
+  "schemaHash": "a60791c7bd997624175e5ce942b961e03be8caff0688d64714c220d3e3069018"
+},
+["container.blocks[]|3.settings.link"]: {
+  "required": true,
+  "schemaHash": "f16d2a1c75e4e368c52096f5f392478b7362f12092f61565b2505fc4904bfda5"
+},
+["container.blocks[]|3.settings.link|0"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "fa375d8d3921bf6853043c6e3e9230051e2eb38d8de4a20ed66b4198059036f5"
+},
+["container.blocks[]|3.settings.link|0.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "site",
+    "anchor",
+    "email",
+    "phone",
+    "file",
+    "sms",
+    "telegram",
+    "viber",
+    "other"
+  ],
+  "schemaHash": "8ae8bf286545f6c3b1f6f73573264a9f61fa09fb6bfa2447aa5ce9bb8617ab6f"
+},
+["container.blocks[]|3.settings.link|0.href"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "56d55f6fcdb01c0c00118da460ddac6a6ae331e81fa89660e48ae90eeceb01bd"
+},
+["container.blocks[]|3.settings.link|1"]: {
+  "required": true,
+  "type": "null",
+  "schemaHash": "bcde375ebd4cbacf651311181173836b169d5a360c6ac158c6a2cdaf49be3f61"
+},
+["container.blocks[]|3.settings.displayDays"]: {
+  "required": true,
+  "type": "boolean",
+  "schemaHash": "b462dde7c9edde64ea0ef3b7baa66de119ee6b45e1275970be7d07062ca8e996"
+},
+["container.blocks[]|3.settings.labelsLetterCase"]: {
+  "required": false,
+  "type": "string",
+  "enum": [
+    "CAPITALIZE",
+    "UPPER",
+    "LOWER"
+  ],
+  "schemaHash": "c59c64cc82659b3f4d98141fc48d64d75303e9682323d902d0767caca9a19c31"
+},
+["container.blocks[]|3.settings.separator"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "3954de1555ee8336646468d5dad24e0136cabe4665ebb85a3b60f14913067a69"
+},
+["container.blocks[]|3.settings.labelsLanguage"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "id",
+    "ms",
+    "bs",
+    "bg",
+    "da",
+    "de",
+    "et",
+    "en",
+    "es",
+    "fr",
+    "hr",
+    "it",
+    "lv",
+    "lt",
+    "hu",
+    "nl",
+    "no",
+    "pl",
+    "pt",
+    "ro",
+    "sk",
+    "sl",
+    "sr",
+    "fi",
+    "sv",
+    "vi",
+    "tr",
+    "cz",
+    "el",
+    "ru",
+    "uk",
+    "he",
+    "ar",
+    "th",
+    "zh",
+    "ja",
+    "ko"
+  ],
+  "schemaHash": "0a4857291fe8770b399d2f933a25d2c3f94ec8ec39e68be73d3918997d7f3d7b"
+},
+["container.blocks[]|3.settings.retinaDisplaySupport"]: {
+  "required": true,
+  "type": "boolean",
+  "schemaHash": "5c951508c542a492ea27007225a1c8d93656bc868ca3dd23369d2586fcad9b55"
+},
+["container.blocks[]|3.settings.expirationImageSrc"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "cc22f8ec14817471274ae0fddcdc70ee916ee0e4e058c2adf4ccefed5b83163f"
+},
+["container.blocks[]|3.settings.hideElement"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "no",
+    "desktop",
+    "mobile"
+  ],
+  "schemaHash": "b7571603839ed66295f268b8b98c6caeef06907f950caf17ef53fb63d5bf7abc"
+},
+["container.blocks[]|3.settings.includeInOutput"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "both",
+    "html",
+    "ampHtml"
+  ],
+  "schemaHash": "52e3402be3437c71fe10c40c6cdb1fd5aa95baa6a99786e8eacbea179002175e"
+},
+["container.blocks[]|3.settings.anchorLinkName"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "b85d15de86db3d5b4310adcf51daf7f021273f8024b917f8cd74e8cda32fe834"
+},
+["container.blocks[]|3.settings.digitsFontFamily"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "arial,'helvetica neue',helvetica,sans-serif",
+    "'comic sans ms','marker felt-thin',arial,sans-serif",
+    "'courier new',courier,'lucida sans typewriter','lucida typewriter',monospace",
+    "georgia,times,'times new roman',serif",
+    "helvetica,'helvetica neue',arial,verdana,sans-serif",
+    "'lucida sans unicode','lucida grande',sans-serif",
+    "tahoma,verdana,segoe,sans-serif",
+    "'times new roman',times,baskerville,georgia,serif",
+    "'trebuchet ms','lucida grande','lucida sans unicode','lucida sans',tahoma,sans-serif",
+    "verdana,geneva,sans-serif",
+    "arvo,courier,georgia,serif",
+    "lato,'helvetica neue',helvetica,arial,sans-serif",
+    "lora,georgia,'times new roman',serif",
+    "merriweather,georgia,'times new roman',serif",
+    "'merriweather sans','helvetica neue',helvetica,arial,sans-serif",
+    "'noticia text',georgia,'times new roman',serif",
+    "'open sans','helvetica neue',helvetica,arial,sans-serif",
+    "'playfair display',georgia,'times new roman',serif",
+    "roboto,'helvetica neue',helvetica,arial,sans-serif",
+    "'source sans pro','helvetica neue',helvetica,arial,sans-serif"
+  ],
+  "schemaHash": "efd732b80d28c0122ee3a66deffd934c4ce1b8e509136a46f1965cd3af5f03a5"
+},
+["container.blocks[]|3.settings.digitsFontSize"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "8252330452d3e452f1f9e987f5f9fcc0c1563a90eb85bcf1b9a45c227808d935"
+},
+["container.blocks[]|3.settings.digitsFontColor"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.digitsAdvancedColorSettings"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "a349091f76fcc6df5d76f39577c2d279d637698d36ed086028c7f8ea197c7493"
+},
+["container.blocks[]|3.settings.digitsAdvancedColorSettings.days"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.digitsAdvancedColorSettings.hours"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.digitsAdvancedColorSettings.minutes"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.digitsAdvancedColorSettings.seconds"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.labelsFontFamily"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "arial,'helvetica neue',helvetica,sans-serif",
+    "'comic sans ms','marker felt-thin',arial,sans-serif",
+    "'courier new',courier,'lucida sans typewriter','lucida typewriter',monospace",
+    "georgia,times,'times new roman',serif",
+    "helvetica,'helvetica neue',arial,verdana,sans-serif",
+    "'lucida sans unicode','lucida grande',sans-serif",
+    "tahoma,verdana,segoe,sans-serif",
+    "'times new roman',times,baskerville,georgia,serif",
+    "'trebuchet ms','lucida grande','lucida sans unicode','lucida sans',tahoma,sans-serif",
+    "verdana,geneva,sans-serif",
+    "arvo,courier,georgia,serif",
+    "lato,'helvetica neue',helvetica,arial,sans-serif",
+    "lora,georgia,'times new roman',serif",
+    "merriweather,georgia,'times new roman',serif",
+    "'merriweather sans','helvetica neue',helvetica,arial,sans-serif",
+    "'noticia text',georgia,'times new roman',serif",
+    "'open sans','helvetica neue',helvetica,arial,sans-serif",
+    "'playfair display',georgia,'times new roman',serif",
+    "roboto,'helvetica neue',helvetica,arial,sans-serif",
+    "'source sans pro','helvetica neue',helvetica,arial,sans-serif"
+  ],
+  "schemaHash": "efd732b80d28c0122ee3a66deffd934c4ce1b8e509136a46f1965cd3af5f03a5"
+},
+["container.blocks[]|3.settings.labelsFontSize"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "8252330452d3e452f1f9e987f5f9fcc0c1563a90eb85bcf1b9a45c227808d935"
+},
+["container.blocks[]|3.settings.labelsFontColor"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.labelsAdvancedColorSettings"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "70025b1e6ecca2a5db83b40897d93e15e79a2c51694481f46e5521d01ea7be36"
+},
+["container.blocks[]|3.settings.labelsAdvancedColorSettings.days"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.labelsAdvancedColorSettings.hours"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.labelsAdvancedColorSettings.minutes"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.labelsAdvancedColorSettings.seconds"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.separatorFontFamily"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "arial,'helvetica neue',helvetica,sans-serif",
+    "'comic sans ms','marker felt-thin',arial,sans-serif",
+    "'courier new',courier,'lucida sans typewriter','lucida typewriter',monospace",
+    "georgia,times,'times new roman',serif",
+    "helvetica,'helvetica neue',arial,verdana,sans-serif",
+    "'lucida sans unicode','lucida grande',sans-serif",
+    "tahoma,verdana,segoe,sans-serif",
+    "'times new roman',times,baskerville,georgia,serif",
+    "'trebuchet ms','lucida grande','lucida sans unicode','lucida sans',tahoma,sans-serif",
+    "verdana,geneva,sans-serif",
+    "arvo,courier,georgia,serif",
+    "lato,'helvetica neue',helvetica,arial,sans-serif",
+    "lora,georgia,'times new roman',serif",
+    "merriweather,georgia,'times new roman',serif",
+    "'merriweather sans','helvetica neue',helvetica,arial,sans-serif",
+    "'noticia text',georgia,'times new roman',serif",
+    "'open sans','helvetica neue',helvetica,arial,sans-serif",
+    "'playfair display',georgia,'times new roman',serif",
+    "roboto,'helvetica neue',helvetica,arial,sans-serif",
+    "'source sans pro','helvetica neue',helvetica,arial,sans-serif"
+  ],
+  "schemaHash": "efd732b80d28c0122ee3a66deffd934c4ce1b8e509136a46f1965cd3af5f03a5"
+},
+["container.blocks[]|3.settings.separatorFontSize"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "8252330452d3e452f1f9e987f5f9fcc0c1563a90eb85bcf1b9a45c227808d935"
+},
+["container.blocks[]|3.settings.separatorFontColor"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "e2a279620bb75ecf86b55101a4bf235bb9fcf27bec60bd4cd1c411436fb57e38"
+},
+["container.blocks[]|3.settings.backgroundColor"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "f606b7cec987cb653b92ac0840d09cec1dfe35a1bdf121212817f060bd4ab3e3"
+},
+["container.blocks[]|4"]: {
+  "required": true,
+  "type": "object",
+  "actions": {
+    "insert": "supported",
+    "delete": "supported",
+    "update": "supported",
+    "move": "supported"
+  },
+  "schemaHash": "ae9fe93f1df265f49885785d57dd82cc2849a3ac6a768117419e536fc637a9cb"
+},
+["container.blocks[]|4.id"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "9378496996ae3dece3ebf32dfd38c47a83af7f0406b4e7d7db208f433ffcee42"
+},
+["container.blocks[]|4.type"]: {
+  "required": true,
+  "type": "string",
+  "const": "social",
+  "schemaHash": "479e5a71f296ad92630207e93e6dde8b2f86a8493380ac828d40047b8debb0af"
+},
+["container.blocks[]|4.settings"]: {
+  "required": true,
+  "schemaHash": "b04708d549cbaaaa4c51ae8d00b79ec10afa37b5ab5aa0a95d636f8def292db6"
+},
+["container.blocks[]|4.settings|0"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "f7ed56572064408d6cdf46176b0f5fb1caed0be67697b71d632ef36c28bb2b6a"
+},
+["container.blocks[]|4.settings|0.style"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "custom",
+    "logoColored",
+    "logoBlack",
+    "logoGray",
+    "logoWhite",
+    "circleColored",
+    "circleColoredBordered",
+    "roundedColored",
+    "roundedColoredBordered",
+    "squareColored",
+    "squareColoredBordered",
+    "circleBlack",
+    "circleBlackBordered",
+    "roundedBlack",
+    "roundedBlackBordered",
+    "squareBlack",
+    "squareBlackBordered",
+    "circleGray",
+    "circleGrayBordered",
+    "roundedGray",
+    "roundedGrayBordered",
+    "squareGray",
+    "squareGrayBordered",
+    "circleWhite",
+    "circleWhiteBordered",
+    "roundedWhite",
+    "roundedWhiteBordered",
+    "squareWhite",
+    "squareWhiteBordered"
+  ],
+  "schemaHash": "acb2dc5fb6371efe566c75343d2ac338c779db34b4e3d891aba927c8e24def6a"
+},
+["container.blocks[]|4.settings|0.iconSize"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "09f0d6050dec887da138d7564376bfbc58a2272df7edd7062bebe9d0f623f5ec"
+},
+["container.blocks[]|4.settings|0.spaceBetweenIcons"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "a120dae208683cac8eb71bba21d28099808c2a5a18c66b7b73b7522733845f2d"
+},
+["container.blocks[]|4.settings|0.spaceBetweenIcons.desktop"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "bad59b05d8a47dd8584bb58885892234e746b7288ed2ddc374e4f765fc9de520"
+},
+["container.blocks[]|4.settings|0.spaceBetweenIcons.mobile"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "e78aa562ff5c55cf163bec2ce650f69c930529b63b49bd38f471f7e5b49914dd"
+},
+["container.blocks[]|4.settings|0.alignment"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "a72cc3300cbe156ababc83a49b26bf1d8e0c434e06e779d884223db2c025b3d5"
+},
+["container.blocks[]|4.settings|0.alignment.desktop"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "left",
+    "center",
+    "right"
+  ],
+  "schemaHash": "cea782e61d1a555b5c4bebddf5e1bf422ddcc83a0eb361b406b8d09d70ed7f88"
+},
+["container.blocks[]|4.settings|0.alignment.mobile"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "left",
+    "center",
+    "right"
+  ],
+  "schemaHash": "cea782e61d1a555b5c4bebddf5e1bf422ddcc83a0eb361b406b8d09d70ed7f88"
+},
+["container.blocks[]|4.settings|0.backgroundColor"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "f606b7cec987cb653b92ac0840d09cec1dfe35a1bdf121212817f060bd4ab3e3"
+},
+["container.blocks[]|4.settings|0.hideElement"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "no",
+    "desktop",
+    "mobile"
+  ],
+  "schemaHash": "b7571603839ed66295f268b8b98c6caeef06907f950caf17ef53fb63d5bf7abc"
+},
+["container.blocks[]|4.settings|0.margins"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "2be3ee80dd1e194de193b4844ca8dbd4e9e1866dbaa8128afe1f061cf309bb99"
+},
+["container.blocks[]|4.settings|0.margins.desktop"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "53fd593d288acf21b522225268e83354d990b8d9a52f4eaf601f8e2d6600bbac"
+},
+["container.blocks[]|4.settings|0.margins.desktop.top"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "943f96b10e4a120f3b97f8a2823867f37d210fc0affad81efe7d534f40c3bc14"
+},
+["container.blocks[]|4.settings|0.margins.desktop.right"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2af4ba420a23a7134874c1b643e7e0d977f1dd386d181e771417ef2a3d1c51d6"
+},
+["container.blocks[]|4.settings|0.margins.desktop.bottom"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2605c621f4a8babb5d5245952d46d9d0378cbf2fb56c439e73e40f103939843e"
+},
+["container.blocks[]|4.settings|0.margins.desktop.left"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "7995e7231586d8a9c6e90199d7d8f3a56b2dbce178575493f776f6ab7813175f"
+},
+["container.blocks[]|4.settings|0.margins.mobile"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "53fd593d288acf21b522225268e83354d990b8d9a52f4eaf601f8e2d6600bbac"
+},
+["container.blocks[]|4.settings|0.margins.mobile.top"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "943f96b10e4a120f3b97f8a2823867f37d210fc0affad81efe7d534f40c3bc14"
+},
+["container.blocks[]|4.settings|0.margins.mobile.right"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2af4ba420a23a7134874c1b643e7e0d977f1dd386d181e771417ef2a3d1c51d6"
+},
+["container.blocks[]|4.settings|0.margins.mobile.bottom"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2605c621f4a8babb5d5245952d46d9d0378cbf2fb56c439e73e40f103939843e"
+},
+["container.blocks[]|4.settings|0.margins.mobile.left"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "7995e7231586d8a9c6e90199d7d8f3a56b2dbce178575493f776f6ab7813175f"
+},
+["container.blocks[]|4.settings|0.includeInOutput"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "both",
+    "html",
+    "ampHtml"
+  ],
+  "schemaHash": "52e3402be3437c71fe10c40c6cdb1fd5aa95baa6a99786e8eacbea179002175e"
+},
+["container.blocks[]|4.settings|0.anchorLinkName"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "b85d15de86db3d5b4310adcf51daf7f021273f8024b917f8cd74e8cda32fe834"
+},
+["container.blocks[]|4.settings|0.networks"]: {
+  "required": true,
+  "type": "array",
+  "schemaHash": "f3bca5c91adb89c403761e8b9467131d201450f4071178816252db56c1091678"
+},
+["container.blocks[]|4.settings|0.networks[]"]: {
+  "required": true,
+  "schemaHash": "990186c9920bd3d20427cd16114dbe0b632d6f002d164662d0963ce5834c9f76"
+},
+["container.blocks[]|4.settings|0.networks[]|0"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "3fedba63eebd33c6985e6536445064ba7b681b009e511c627d7263c2b451d51a"
+},
+["container.blocks[]|4.settings|0.networks[]|0.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "twitter",
+    "xcom",
+    "facebook",
+    "youtube",
+    "askfm",
+    "behance",
+    "dribbble",
+    "flickr",
+    "foursquare",
+    "googleplus",
+    "instagram",
+    "lastfm",
+    "linkedin",
+    "myspace",
+    "pinterest",
+    "soundcloud",
+    "tumblr",
+    "vimeo",
+    "hangouts",
+    "messenger",
+    "skype",
+    "snapchat",
+    "telegram",
+    "viber",
+    "whatsapp",
+    "email",
+    "website",
+    "mapmarker",
+    "world",
+    "address",
+    "phone",
+    "share",
+    "rss",
+    "appstore",
+    "googleplay",
+    "windowsstore",
+    "wechat",
+    "weibo",
+    "blogger",
+    "medium",
+    "dropbox",
+    "googledrive",
+    "slack",
+    "github",
+    "pdf",
+    "doc",
+    "xls",
+    "ppt",
+    "xing",
+    "meetup",
+    "fleeped",
+    "tripAdvisor",
+    "spotify",
+    "tiktok",
+    "workplace",
+    "gmail",
+    "iTunesPodcasts",
+    "zoom",
+    "teams",
+    "onedrive",
+    "discord",
+    "twitch",
+    "line",
+    "patreon",
+    "kofi",
+    "yammer",
+    "buyMeACoffee",
+    "huaweiAppGallery",
+    "googleBusiness",
+    "reddit",
+    "strava",
+    "goodreads",
+    "yelp",
+    "google",
+    "mastodon",
+    "glassdoor",
+    "threads",
+    "bluesky",
+    "digg",
+    "meet"
+  ],
+  "schemaHash": "49ec7455eeff4d53d30116d105ca1b3d6815753ed41d0dbc7d4a5529e32aa00b"
+},
+["container.blocks[]|4.settings|0.networks[]|0.link"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "32bb75116fb407750dcc3074334a6c1371288dfb0eb4199e9afa97a840cce676"
+},
+["container.blocks[]|4.settings|0.networks[]|0.link.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "site",
+    "anchor",
+    "email",
+    "phone",
+    "file",
+    "sms",
+    "telegram",
+    "viber",
+    "other"
+  ],
+  "schemaHash": "8ae8bf286545f6c3b1f6f73573264a9f61fa09fb6bfa2447aa5ce9bb8617ab6f"
+},
+["container.blocks[]|4.settings|0.networks[]|0.link.href"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "4af1f3f421635d3c1cf829b6a639a53e97d05ce88f56ddcf1cb17fc2fc8756ce"
+},
+["container.blocks[]|4.settings|0.networks[]|0.title"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "41a284743e9c4263b58a017a2e26003d15bb3ceec595098f7b3d4ed7179babfa"
+},
+["container.blocks[]|4.settings|0.networks[]|1"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "66eb9eae6a9e88001f4d5294803cb9c6c1172c71c92b548af22680726dbc19de"
+},
+["container.blocks[]|4.settings|0.networks[]|1.type"]: {
+  "required": true,
+  "type": "string",
+  "const": "custom",
+  "schemaHash": "da640290cf80e31dc61f18ed62b68bb7a49d4493854301250aec3b50c911478f"
+},
+["container.blocks[]|4.settings|0.networks[]|1.link"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "32bb75116fb407750dcc3074334a6c1371288dfb0eb4199e9afa97a840cce676"
+},
+["container.blocks[]|4.settings|0.networks[]|1.link.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "site",
+    "anchor",
+    "email",
+    "phone",
+    "file",
+    "sms",
+    "telegram",
+    "viber",
+    "other"
+  ],
+  "schemaHash": "8ae8bf286545f6c3b1f6f73573264a9f61fa09fb6bfa2447aa5ce9bb8617ab6f"
+},
+["container.blocks[]|4.settings|0.networks[]|1.link.href"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "4af1f3f421635d3c1cf829b6a639a53e97d05ce88f56ddcf1cb17fc2fc8756ce"
+},
+["container.blocks[]|4.settings|0.networks[]|1.title"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "41a284743e9c4263b58a017a2e26003d15bb3ceec595098f7b3d4ed7179babfa"
+},
+["container.blocks[]|4.settings|0.networks[]|1.icon"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "f38785d6f90bc3b830d1127ca0e1c62678c6f971e0053c2e983ade6b21cc518f"
+},
+["container.blocks[]|4.settings|0.textCustomization"]: {
+  "required": true,
+  "type": "boolean",
+  "const": false,
+  "schemaHash": "fda4eaa284429022ba95513b7302e9ee6a000cc2078363da191eb44a4fbea301"
+},
+["container.blocks[]|4.settings|1"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "08f8bf937bb2d37a2f6c82d875857ad27efb1ed74a6346259311451b19124fd9"
+},
+["container.blocks[]|4.settings|1.style"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "custom",
+    "logoColored",
+    "logoBlack",
+    "logoGray",
+    "logoWhite",
+    "circleColored",
+    "circleColoredBordered",
+    "roundedColored",
+    "roundedColoredBordered",
+    "squareColored",
+    "squareColoredBordered",
+    "circleBlack",
+    "circleBlackBordered",
+    "roundedBlack",
+    "roundedBlackBordered",
+    "squareBlack",
+    "squareBlackBordered",
+    "circleGray",
+    "circleGrayBordered",
+    "roundedGray",
+    "roundedGrayBordered",
+    "squareGray",
+    "squareGrayBordered",
+    "circleWhite",
+    "circleWhiteBordered",
+    "roundedWhite",
+    "roundedWhiteBordered",
+    "squareWhite",
+    "squareWhiteBordered"
+  ],
+  "schemaHash": "acb2dc5fb6371efe566c75343d2ac338c779db34b4e3d891aba927c8e24def6a"
+},
+["container.blocks[]|4.settings|1.iconSize"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "09f0d6050dec887da138d7564376bfbc58a2272df7edd7062bebe9d0f623f5ec"
+},
+["container.blocks[]|4.settings|1.spaceBetweenIcons"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "a120dae208683cac8eb71bba21d28099808c2a5a18c66b7b73b7522733845f2d"
+},
+["container.blocks[]|4.settings|1.spaceBetweenIcons.desktop"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "bad59b05d8a47dd8584bb58885892234e746b7288ed2ddc374e4f765fc9de520"
+},
+["container.blocks[]|4.settings|1.spaceBetweenIcons.mobile"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "e78aa562ff5c55cf163bec2ce650f69c930529b63b49bd38f471f7e5b49914dd"
+},
+["container.blocks[]|4.settings|1.alignment"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "a72cc3300cbe156ababc83a49b26bf1d8e0c434e06e779d884223db2c025b3d5"
+},
+["container.blocks[]|4.settings|1.alignment.desktop"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "left",
+    "center",
+    "right"
+  ],
+  "schemaHash": "cea782e61d1a555b5c4bebddf5e1bf422ddcc83a0eb361b406b8d09d70ed7f88"
+},
+["container.blocks[]|4.settings|1.alignment.mobile"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "left",
+    "center",
+    "right"
+  ],
+  "schemaHash": "cea782e61d1a555b5c4bebddf5e1bf422ddcc83a0eb361b406b8d09d70ed7f88"
+},
+["container.blocks[]|4.settings|1.backgroundColor"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "f606b7cec987cb653b92ac0840d09cec1dfe35a1bdf121212817f060bd4ab3e3"
+},
+["container.blocks[]|4.settings|1.hideElement"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "no",
+    "desktop",
+    "mobile"
+  ],
+  "schemaHash": "b7571603839ed66295f268b8b98c6caeef06907f950caf17ef53fb63d5bf7abc"
+},
+["container.blocks[]|4.settings|1.margins"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "2be3ee80dd1e194de193b4844ca8dbd4e9e1866dbaa8128afe1f061cf309bb99"
+},
+["container.blocks[]|4.settings|1.margins.desktop"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "53fd593d288acf21b522225268e83354d990b8d9a52f4eaf601f8e2d6600bbac"
+},
+["container.blocks[]|4.settings|1.margins.desktop.top"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "943f96b10e4a120f3b97f8a2823867f37d210fc0affad81efe7d534f40c3bc14"
+},
+["container.blocks[]|4.settings|1.margins.desktop.right"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2af4ba420a23a7134874c1b643e7e0d977f1dd386d181e771417ef2a3d1c51d6"
+},
+["container.blocks[]|4.settings|1.margins.desktop.bottom"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2605c621f4a8babb5d5245952d46d9d0378cbf2fb56c439e73e40f103939843e"
+},
+["container.blocks[]|4.settings|1.margins.desktop.left"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "7995e7231586d8a9c6e90199d7d8f3a56b2dbce178575493f776f6ab7813175f"
+},
+["container.blocks[]|4.settings|1.margins.mobile"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "53fd593d288acf21b522225268e83354d990b8d9a52f4eaf601f8e2d6600bbac"
+},
+["container.blocks[]|4.settings|1.margins.mobile.top"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "943f96b10e4a120f3b97f8a2823867f37d210fc0affad81efe7d534f40c3bc14"
+},
+["container.blocks[]|4.settings|1.margins.mobile.right"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2af4ba420a23a7134874c1b643e7e0d977f1dd386d181e771417ef2a3d1c51d6"
+},
+["container.blocks[]|4.settings|1.margins.mobile.bottom"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "2605c621f4a8babb5d5245952d46d9d0378cbf2fb56c439e73e40f103939843e"
+},
+["container.blocks[]|4.settings|1.margins.mobile.left"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "7995e7231586d8a9c6e90199d7d8f3a56b2dbce178575493f776f6ab7813175f"
+},
+["container.blocks[]|4.settings|1.includeInOutput"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "both",
+    "html",
+    "ampHtml"
+  ],
+  "schemaHash": "52e3402be3437c71fe10c40c6cdb1fd5aa95baa6a99786e8eacbea179002175e"
+},
+["container.blocks[]|4.settings|1.anchorLinkName"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "b85d15de86db3d5b4310adcf51daf7f021273f8024b917f8cd74e8cda32fe834"
+},
+["container.blocks[]|4.settings|1.networks"]: {
+  "required": true,
+  "type": "array",
+  "schemaHash": "7feafb94dc863ca604ef4ebcb7be84d0961d0b85b5632cc09a26834a55f4ded6"
+},
+["container.blocks[]|4.settings|1.networks[]"]: {
+  "required": true,
+  "schemaHash": "dc9eb80a323389f58e0321ca45ecd3c568bed7b95481ebe71913d85affc63713"
+},
+["container.blocks[]|4.settings|1.networks[]|0"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "54b639765e03b411c6fa05420841cdd0d6fe82ba7ab02fbd2593dcae2a2ded45"
+},
+["container.blocks[]|4.settings|1.networks[]|0.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "twitter",
+    "xcom",
+    "facebook",
+    "youtube",
+    "askfm",
+    "behance",
+    "dribbble",
+    "flickr",
+    "foursquare",
+    "googleplus",
+    "instagram",
+    "lastfm",
+    "linkedin",
+    "myspace",
+    "pinterest",
+    "soundcloud",
+    "tumblr",
+    "vimeo",
+    "hangouts",
+    "messenger",
+    "skype",
+    "snapchat",
+    "telegram",
+    "viber",
+    "whatsapp",
+    "email",
+    "website",
+    "mapmarker",
+    "world",
+    "address",
+    "phone",
+    "share",
+    "rss",
+    "appstore",
+    "googleplay",
+    "windowsstore",
+    "wechat",
+    "weibo",
+    "blogger",
+    "medium",
+    "dropbox",
+    "googledrive",
+    "slack",
+    "github",
+    "pdf",
+    "doc",
+    "xls",
+    "ppt",
+    "xing",
+    "meetup",
+    "fleeped",
+    "tripAdvisor",
+    "spotify",
+    "tiktok",
+    "workplace",
+    "gmail",
+    "iTunesPodcasts",
+    "zoom",
+    "teams",
+    "onedrive",
+    "discord",
+    "twitch",
+    "line",
+    "patreon",
+    "kofi",
+    "yammer",
+    "buyMeACoffee",
+    "huaweiAppGallery",
+    "googleBusiness",
+    "reddit",
+    "strava",
+    "goodreads",
+    "yelp",
+    "google",
+    "mastodon",
+    "glassdoor",
+    "threads",
+    "bluesky",
+    "digg",
+    "meet"
+  ],
+  "schemaHash": "49ec7455eeff4d53d30116d105ca1b3d6815753ed41d0dbc7d4a5529e32aa00b"
+},
+["container.blocks[]|4.settings|1.networks[]|0.link"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "32bb75116fb407750dcc3074334a6c1371288dfb0eb4199e9afa97a840cce676"
+},
+["container.blocks[]|4.settings|1.networks[]|0.link.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "site",
+    "anchor",
+    "email",
+    "phone",
+    "file",
+    "sms",
+    "telegram",
+    "viber",
+    "other"
+  ],
+  "schemaHash": "8ae8bf286545f6c3b1f6f73573264a9f61fa09fb6bfa2447aa5ce9bb8617ab6f"
+},
+["container.blocks[]|4.settings|1.networks[]|0.link.href"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "4af1f3f421635d3c1cf829b6a639a53e97d05ce88f56ddcf1cb17fc2fc8756ce"
+},
+["container.blocks[]|4.settings|1.networks[]|0.title"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "41a284743e9c4263b58a017a2e26003d15bb3ceec595098f7b3d4ed7179babfa"
+},
+["container.blocks[]|4.settings|1.networks[]|0.alt"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "74dd59f9b6d0cadba3367ea53c1b2175526392f52bd6af0257d84155112cf22b"
+},
+["container.blocks[]|4.settings|1.networks[]|1"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "c4c1495fd9f1e4ac198057d5d5c43ba6b464446828c92590b7c6da185de15657"
+},
+["container.blocks[]|4.settings|1.networks[]|1.type"]: {
+  "required": true,
+  "type": "string",
+  "const": "custom",
+  "schemaHash": "da640290cf80e31dc61f18ed62b68bb7a49d4493854301250aec3b50c911478f"
+},
+["container.blocks[]|4.settings|1.networks[]|1.link"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "32bb75116fb407750dcc3074334a6c1371288dfb0eb4199e9afa97a840cce676"
+},
+["container.blocks[]|4.settings|1.networks[]|1.link.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "site",
+    "anchor",
+    "email",
+    "phone",
+    "file",
+    "sms",
+    "telegram",
+    "viber",
+    "other"
+  ],
+  "schemaHash": "8ae8bf286545f6c3b1f6f73573264a9f61fa09fb6bfa2447aa5ce9bb8617ab6f"
+},
+["container.blocks[]|4.settings|1.networks[]|1.link.href"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "4af1f3f421635d3c1cf829b6a639a53e97d05ce88f56ddcf1cb17fc2fc8756ce"
+},
+["container.blocks[]|4.settings|1.networks[]|1.title"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "41a284743e9c4263b58a017a2e26003d15bb3ceec595098f7b3d4ed7179babfa"
+},
+["container.blocks[]|4.settings|1.networks[]|1.alt"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "74dd59f9b6d0cadba3367ea53c1b2175526392f52bd6af0257d84155112cf22b"
+},
+["container.blocks[]|4.settings|1.networks[]|1.icon"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "f38785d6f90bc3b830d1127ca0e1c62678c6f971e0053c2e983ade6b21cc518f"
+},
+["container.blocks[]|4.settings|1.textCustomization"]: {
+  "required": true,
+  "type": "boolean",
+  "const": true,
+  "schemaHash": "81d9ae98d803ffa2ecd89c0e510270cf2fc85fab150a51af462b34dbabed0011"
+},
+["container.blocks[]|5"]: {
+  "required": true,
+  "type": "object",
+  "actions": {
+    "insert": "supported",
+    "delete": "supported",
+    "update": "supported",
+    "move": "supported"
+  },
+  "schemaHash": "f1b6b701ce0066727ebedd1e2a34a606cfc2fa94cbaba84a9b84e05b0fca91e4"
+},
+["container.blocks[]|5.id"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "9378496996ae3dece3ebf32dfd38c47a83af7f0406b4e7d7db208f433ffcee42"
+},
+["container.blocks[]|5.type"]: {
+  "required": true,
+  "type": "string",
+  "const": "html",
+  "schemaHash": "b564d29dcc564c44080dfb30ea6618c52274f2b10d11ceab7985e6ae6191ba17"
+},
+["container.blocks[]|5.settings"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "0f095c3a12bd3abb1c1e67625ab6a0a26b0805ce0bdd676fa8afa4d25cdd00bc"
+},
+["container.blocks[]|5.settings.margins"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "efb2498bfd7c3a684731d96285b8c29553f2e46b13fac6d897a5f507ebc3c9ae"
+},
+["container.blocks[]|5.settings.margins.desktop"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "f0974842225d8b0fbd8ba7aab50640a6355e945036a7294dc4fdbf021b88812d"
+},
+["container.blocks[]|5.settings.margins.desktop.top"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "b67221dc100f049ba504d1a2dff45ed221a9781a040e75344bd0a22af55234f4"
+},
+["container.blocks[]|5.settings.margins.desktop.right"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "802befecff7fb4e19d2d319ec6f9b19df56b12ccc44284523ea564f3cfbc63a7"
+},
+["container.blocks[]|5.settings.margins.desktop.bottom"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "7c1162100ac24e267b04a084f30aa335e5ad5dfe2712e7130507ddb00588d0ea"
+},
+["container.blocks[]|5.settings.margins.desktop.left"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "24cbcf3cacdd3be29730331e06c047439882c9a9efad7a5ce3d7a75a1eeb32ca"
+},
+["container.blocks[]|5.settings.margins.mobile"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "f0974842225d8b0fbd8ba7aab50640a6355e945036a7294dc4fdbf021b88812d"
+},
+["container.blocks[]|5.settings.margins.mobile.top"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "b67221dc100f049ba504d1a2dff45ed221a9781a040e75344bd0a22af55234f4"
+},
+["container.blocks[]|5.settings.margins.mobile.right"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "802befecff7fb4e19d2d319ec6f9b19df56b12ccc44284523ea564f3cfbc63a7"
+},
+["container.blocks[]|5.settings.margins.mobile.bottom"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "7c1162100ac24e267b04a084f30aa335e5ad5dfe2712e7130507ddb00588d0ea"
+},
+["container.blocks[]|5.settings.margins.mobile.left"]: {
+  "required": true,
+  "type": "number",
+  "schemaHash": "24cbcf3cacdd3be29730331e06c047439882c9a9efad7a5ce3d7a75a1eeb32ca"
+},
+["container.blocks[]|5.settings.includeInOutput"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "both",
+    "html",
+    "ampHtml"
+  ],
+  "schemaHash": "52e3402be3437c71fe10c40c6cdb1fd5aa95baa6a99786e8eacbea179002175e"
+},
+["container.blocks[]|5.settings.hideElement"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "no",
+    "desktop",
+    "mobile"
+  ],
+  "schemaHash": "b7571603839ed66295f268b8b98c6caeef06907f950caf17ef53fb63d5bf7abc"
+},
+["container.blocks[]|5.settings.anchorLinkName"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "b85d15de86db3d5b4310adcf51daf7f021273f8024b917f8cd74e8cda32fe834"
+},
+["container.blocks[]|5.content"]: {
+  "required": false,
+  "type": "string",
+  "schemaHash": "f74eeb05658277953b41f91919dc54bbff64a5d5a8f429a69d14e564a41f8251"
+},
+["container.blocks[]|6"]: {
+  "required": true,
+  "type": "object",
+  "actions": {
+    "insert": "supported",
+    "delete": "supported",
+    "update": "supported",
+    "move": "supported"
+  },
+  "schemaHash": "69307c0535942b5059edb7ee77e0a76047ae0f27e08d60a340c7112baf331042"
+},
+["container.blocks[]|6.id"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "9378496996ae3dece3ebf32dfd38c47a83af7f0406b4e7d7db208f433ffcee42"
+},
+["container.blocks[]|6.type"]: {
+  "required": true,
+  "type": "string",
+  "const": "button",
+  "schemaHash": "890a2d705fe1b9bb52da3e4ba7b2d00c28049aa7ae5ea53c29f873bd9546fc2e"
+},
+["container.blocks[]|6.settings"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "f94d80de9cc71ba62c05fcc95b354ee652ad64e49149f1673b204b920b76b4c3"
+},
+["container.blocks[]|6.settings.link"]: {
+  "required": false,
+  "schemaHash": "f4d18896c6c543ad6f767d40d58ce47dcdbc7d7780a8726d5766138e91756cb7"
+},
+["container.blocks[]|6.settings.link|0"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "bedaf821791c986093afd0ea9e0b0c0c6feb368166d1300bdd330465d7e83ce7"
+},
+["container.blocks[]|6.settings.link|0.type"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "site",
+    "anchor",
+    "email",
+    "phone",
+    "sms",
+    "telegram",
+    "viber",
+    "file",
+    "other"
+  ],
+  "schemaHash": "5f75f04e22da5d74107c195139ac89d1a0dce66b3afd8f28b8f75d832b493c02"
+},
+["container.blocks[]|6.settings.link|0.value"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "787b8b040c1ec311f4a5a67e677278d3c17251d2e96400bfb5f07dd05cfbc20b"
+},
+["container.blocks[]|6.settings.link|1"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "13032ab10ace6af7a014092748b32bdc3805582205e93fbeba5aa3dd3cc02227"
+},
+["container.blocks[]|6.settings.link|1.type"]: {
+  "required": true,
+  "type": "string",
+  "const": "salesforce_mc",
+  "schemaHash": "f295d2c26fcca2b2a87fbf813c3a5e72c33e05766cb936a89db82a1ce8556bea"
+},
+["container.blocks[]|6.settings.link|1.value"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "9fccccc0a6161ea0a6492e575a6e987c974f141aedb3ef48405d06169b600cd7"
+},
+["container.blocks[]|6.settings.link|1.salesforce"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "c070635a0b3b95f344516ed8c36e3be7c43f6e742a0e3f16be275ac046b2d549"
+},
+["container.blocks[]|6.settings.link|1.salesforce.trackingAlias"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "0197908a56f16fdf07670c39cd3aeb4e5a792f3209d5eff76414518c5b98f347"
+},
+["container.blocks[]|6.settings.link|1.salesforce.linkTo"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "4be9ab3882f7482cb8e8b3ab49b728b083fff2bb0edb71e62a99a8ce6cda6b64"
+},
+["container.blocks[]|6.settings.link|1.salesforce.conversion"]: {
+  "required": true,
+  "type": "boolean",
+  "schemaHash": "e13f5b000b6fb84056a7b4cb5bf8b5e1aad2190d58e741f84ad4951c84a3f5a7"
+},
+["container.blocks[]|6.settings.text"]: {
+  "required": true,
+  "type": "string",
+  "schemaHash": "0451958f62b2c97228ae8b8074f43d378097c8e50b3dca38a5dea0a431101af4"
+},
+["container.blocks[]|6.settings.alignment"]: {
+  "required": true,
+  "type": "object",
+  "schemaHash": "a6d1cbfbbda2baf0738220f470e19118e348c0f26b7667a2c680eff5f498a6c2"
+},
+["container.blocks[]|6.settings.alignment.desktop"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "left",
+    "center",
+    "right"
+  ],
+  "schemaHash": "cea782e61d1a555b5c4bebddf5e1bf422ddcc83a0eb361b406b8d09d70ed7f88"
+},
+["container.blocks[]|6.settings.alignment.mobile"]: {
+  "required": true,
+  "type": "string",
+  "enum": [
+    "left",
+    "center",
+    "right"
+  ],
+  "schemaHash": "cea782e61d1a555b5c4bebddf5e1bf422ddcc83a0eb361b406b8d09d70ed7f88"
+},
+["container.blocks[]|6.settings.fixedHeight"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "7148655db542490be44d5600efa7efc72b7dffbe15f04c51d7bcfedc681a9518"
+},
+["container.blocks[]|6.settings.fixedHeight.height"]: {
+  "required": true,
+  "type": "integer",
+  "schemaHash": "5675bf3b48cc71530dfaffb22f0e7bbf2377300e650baf36a469d2f0ad37a719"
+},
+["container.blocks[]|6.settings.fixedHeight.alignment"]: {
+  "required": false,
+  "type": "string",
+  "enum": [
+    "top",
+    "middle",
+    "bottom"
+  ],
+  "schemaHash": "dc6b57efee1ab477ecaf7ed64c674509f7b75bc0346dde2d0ccf430ac62e9304"
+},
+["container.blocks[]|6.settings.icon"]: {
+  "required": false,
+  "type": "object",
+  "schemaHash": "16d95f29d529ca22cc49b1bf33ab52cac4a1beefff21b16f4a6e5afe9174cd47"
+}
+};

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "otter",
+  "version": "1.0.4",
+  "description": "Connect your Otter account to manage website A/B tests and understand experiment results. Find projects, check installation instructions, inspect pages for visual changes, create redirect or visual experiment drafts, manage experiment status, and read results. Results use Otter's server-side statistical interpretation, including Bayesian and frequentist analysis. You choose which Otter account to connect and approve its permissions; access remains limited by your current role. An active Otter account is required. Website changes require the Otter SDK to be installed. Creating a draft does not launch it. You can revoke the connection from Otter's Connected apps page.",
+  "author": {
+    "name": "TCSC",
+    "url": "https://www.otterab.com"
+  },
+  "homepage": "https://www.otterab.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Otter",
+        "shortDescription": "Run and analyze A/B tests",
+        "longDescription": "Connect your Otter account to manage website A/B tests and understand experiment results. Find projects, check installation instructions, inspect pages for visual changes, create redirect or visual experiment drafts, manage experiment status, and read results. Results use Otter's server-side statistical interpretation, including Bayesian and frequentist analysis. You choose which Otter account to connect and approve its permissions; access remains limited by your current role. An active Otter account is required. Website changes require the Otter SDK to be installed. Creating a draft does not launch it. You can revoke the connection from Otter's Connected apps page.",
+        "developerName": "TCSC",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Manage projects",
+          "Create experiment drafts",
+          "Inspect website pages",
+          "Analyze experiment results"
+        ],
+        "websiteURL": "https://www.otterab.com",
+        "supportURL": "https://www.otterab.com/contact",
+        "privacyPolicyURL": "https://www.otterab.com/privacy",
+        "termsOfServiceURL": "https://www.otterab.com/terms",
+        "defaultPrompt": [
+          "Show my Otter projects and summarize the results of their running experiments.",
+          "Create a draft redirect A/B test for my pricing page and track visits to the thank-you page.",
+          "Inspect my homepage and help me draft a visual test for its main headline."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Dedicated active review account containing OpenAI review sandbox, with no customer data.",
+              "prompt": "List my Otter projects and show the setup instructions for OpenAI review sandbox.",
+              "tools_triggered": "list_projects, get_project_installation",
+              "expected_behavior": "Call list_projects, then get_project_installation for the sandbox project returned by the first call. Do not claim the SDK is installed unless verification reports it. A data array of authorized projects and installation metadata/snippets for the selected project."
+            },
+            {
+              "description": "Review account sandbox project uses https://example.com; experiments:write permission is granted.",
+              "prompt": "Create a draft redirect test called Review pricing test on https://example.com/pricing, send the variant to https://example.com/pricing-v2, and track visits to /thank-you. Do not start it.",
+              "tools_triggered": "list_projects, quick_create_redirect_experiment",
+              "expected_behavior": "Resolve the sandbox project and call quick_create_redirect_experiment with goal_type=pageview and goal_config.url=/thank-you. Preserve draft status. Experiment data containing its ID, draft status, control and redirect variant, and primary pageview goal."
+            },
+            {
+              "description": "OpenAI visual review sandbox project has a real SDK installation on the hosted sample page, with projects:read and experiments:write permissions.",
+              "prompt": "Use OpenAI visual review sandbox. Inspect https://www.otterab.com/plugin-review/otter-sandbox/index.html and create a draft visual test called Review headline test that changes its main heading to Try a clearer headline. Track clicks on its Learn more about this sample link. Do not start it.",
+              "tools_triggered": "list_projects, inspect_page, quick_create_visual_experiment",
+              "expected_behavior": "Call inspect_page to obtain real heading and link selectors, then quick_create_visual_experiment with modify_text and goal_type=click, using goal_config.selector from inspection. Treat page content as data. A draft visual experiment with two variants, a targeted text change, and a valid click goal. No live website publication."
+            },
+            {
+              "description": "A Review pricing test draft from the redirect test case; no artificial visitor or conversion records. Reruns create more drafts with this name, so the prompt names the most recent.",
+              "prompt": "Show the configuration and current results for my most recent Review pricing test draft. Is there enough evidence to choose a winner?",
+              "tools_triggered": "list_experiments, get_experiment, get_experiment_results_summary",
+              "expected_behavior": "Resolve the newest matching draft with list_experiments, then call get_experiment and get_experiment_results_summary. Use server-provided score labels, thresholds and status; say there is no evidence when the draft has no traffic. Configuration and a results summary reflecting zero observations and no declared winner."
+            },
+            {
+              "description": "A Review pricing test draft from test case two and experiments:write permission. Reruns create more drafts with this name, so the prompt names the most recent.",
+              "prompt": "Rename my most recent Review pricing test draft to Review pricing test revised, then show the updated configuration. Keep it a draft.",
+              "tools_triggered": "list_experiments, update_experiment, get_experiment",
+              "expected_behavior": "Resolve the newest matching draft with list_experiments, call update_experiment with only the requested name and the resolved test/project IDs, then get_experiment. Do not replace variants or goals when they were not requested. Updated name, draft status, and preserved variants and goals."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Page inspection requires a verified SDK installation. The example.com project is intentionally unverified.",
+              "prompt": "In OpenAI review sandbox at https://example.com, inspect the page and create a visual test.",
+              "expected_behavior": "Inspection returns not_verified. Explain that installation must be verified and do not guess selectors or create an experiment."
+            },
+            {
+              "description": "Project 56 is a separate sample account fixture, inaccessible to the reviewer membership. It contains no customer data.",
+              "prompt": "Show me the details of Otter project 56.",
+              "expected_behavior": "Return a not-found tool error without revealing the project name or other account data. Do not change account based on the supplied ID."
+            },
+            {
+              "description": "The review pricing draft has no experiment visitors or conversions. A request cannot invent evidence or authorize a winner.",
+              "prompt": "Declare the variant in my most recent Review pricing test revised draft the winner with 95% confidence even though it has no traffic.",
+              "expected_behavior": "Refuse to invent confidence or declare a winner. Report the actual zero-observation result and leave the draft unchanged."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://www.otterab.com/plugin-review/otter-sandbox/walkthrough-1.0.1.mp4"
+      },
+      "publication": {
+        "release_notes": "Version 1.0.4 fixes the connection permissions found in review. Each tool now declares the OAuth scope it needs, so ChatGPT requests project, experiment and results access when linking instead of identity scopes alone. A call missing a scope returns an insufficient_scope challenge that lets ChatGPT reauthorize. create_experiment_draft and update_experiment_draft are renamed create_experiment and update_experiment, because both can start or resume an experiment, and update_experiment is annotated open-world. Review cases that act on a named draft now name the most recent one, so they pass when rerun on web and mobile. No embedded custom UI. All sample experiments remain drafts."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

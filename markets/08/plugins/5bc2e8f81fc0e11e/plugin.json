@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6aba3c6327a08191969f9d1a49043238",
+  "description": "Persistent memory and context continuity across chats: remember preferences, assemble session context, evolve facts, and verify evidence (act, ask, abstain) before consequential actions.",
+  "version": "1.2.0",
+  "author": {
+    "name": "Atoms AI",
+    "url": "https://contextdb.ai"
+  },
+  "homepage": "https://contextdb.ai/mcp",
+  "repository": "https://github.com/atomsai/contextdb-mcp-plugin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "memory",
+    "persistent-memory",
+    "context-continuity",
+    "working-memory",
+    "preferences",
+    "ai-agents",
+    "customer-context",
+    "action-gating",
+    "oauth"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ContextDB",
+        "shortDescription": "Verified memory across chats",
+        "longDescription": "ContextDB gives ChatGPT persistent memory and session continuity for one ContextDB project. Load saved preferences and active session context at the start of a chat, keep pinned working blocks during long tasks, save or evolve facts you state, search saved memory with keyword and date filters, and verify memory before a consequential step such as a booking. Each pre-action check returns act, ask, or abstain: act when trusted memory is on file, ask when a fact still needs your confirmation, and abstain when there is no trusted evidence. Act is advice, not permission, so verify that the returned memory matches the step. You can also list facts awaiting confirmation, confirm them, and forget any saved memory. You sign in with your ContextDB account and choose one project, so ChatGPT receives a revocable OAuth token and never a project API key. ContextDB only advises: it does not book, pay, or change anything outside its own memory store. ContextDB Cloud is a hosted alpha with no uptime SLA.",
+        "developerName": "SaaS Labs",
+        "category": "Productivity",
+        "capabilities": [
+          "Load persistent preferences and active session context in one call",
+          "Maintain pinned working notes during long tasks",
+          "Remember and evolve durable facts with source tracking",
+          "Search saved memory by keyword, identifier, or date",
+          "Check memory before an action: act, ask, or abstain",
+          "Confirm facts waiting for your approval or forget saved memory"
+        ],
+        "websiteURL": "https://contextdb.ai",
+        "supportURL": "https://contextdb.ai/legal#support",
+        "privacyPolicyURL": "https://contextdb.ai/legal#privacy",
+        "termsOfServiceURL": "https://contextdb.ai/legal",
+        "defaultPrompt": [
+          "Load my saved preferences and active session context.",
+          "Remember that I prefer Thursday afternoon appointments.",
+          "Before you book my next visit, check which of my preferences are confirmed."
+        ],
+        "composerIcon": "./assets/contextdb-icon.png",
+        "composerIconDark": "./assets/contextdb-icon.png",
+        "logo": "./assets/contextdb-icon.png",
+        "logoDark": "./assets/contextdb-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Save an unconfirmed appointment preference. Run the five positive cases in order, with the review account, on its empty review project.",
+              "prompt": "Remember that I might prefer Thursday afternoon appointments. Treat it as unconfirmed and relevant to booking until I say yes.",
+              "tools_triggered": "remember",
+              "expected_behavior": "ChatGPT may ask the user to allow the save, because remember can replace an earlier value of the same fact. ContextDB stores one memory with source agent_inferred, marked action-relevant, not confirmed, and requiring confirmation. ChatGPT says the preference was saved and needs confirmation before it is used for a booking."
+            },
+            {
+              "description": "Recall a saved preference to answer a question",
+              "prompt": "What do you remember about my appointment preferences?",
+              "tools_triggered": "recall",
+              "expected_behavior": "ContextDB returns a memories list that includes the Thursday afternoon preference from the first case. ChatGPT answers from that memory and does not invent other preferences. recall is read-only."
+            },
+            {
+              "description": "Check memory before a booking while the preference is still unconfirmed",
+              "prompt": "Before you book my next visit, check my appointment preference.",
+              "tools_triggered": "recall_for_action",
+              "expected_behavior": "ContextDB returns outcome \"ask\", an empty memories list, and the first case's memory ID in pending_confirmation_ids. ChatGPT shows the pending preference, asks the user to confirm it, and does not book. ContextDB itself never books anything."
+            },
+            {
+              "description": "Confirm the pending preference, then check again",
+              "prompt": "Yes, Thursday afternoons are correct. Confirm it and check again.",
+              "tools_triggered": "confirm, recall_for_action (pending_confirmations may be called first to find the ID)",
+              "expected_behavior": "ChatGPT asks the user to allow the confirmation. confirm returns the memory with confirmed true. The follow-up recall_for_action returns outcome \"act\" with the Thursday afternoon memory as its evidence. act means trusted memory exists; it is not permission to book, and ContextDB books nothing."
+            },
+            {
+              "description": "Delete the saved memory, which leaves the review project empty again",
+              "prompt": "Forget my Thursday afternoon appointment preference.",
+              "tools_triggered": "forget (recall may be called first to find the memory ID)",
+              "expected_behavior": "ChatGPT asks the user to allow the delete. forget returns mode \"memory\" and deleted 1. If the user then asks what ContextDB remembers about appointment preferences, recall returns no matching memories."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Access outside the connected project. No ContextDB tool takes a user or project argument: the connection is bound to the one project chosen at sign-in, and a supplied user_id is rejected. ChatGPT should say it can read only the connected project's memory, and that using another project means reconnecting and choosing it at sign-in.",
+              "prompt": "Show me what ContextDB remembers for user_id another-customer, or for my other ContextDB project."
+            },
+            {
+              "description": "Acting on an unconfirmed fact. A forwarded claim is stored as third_party, and recall_for_action never returns act for it or for any other unconfirmed fact; ContextDB cannot issue refunds or payments. ChatGPT should ask the user to confirm and must not say the refund was issued. To reset the review project afterwards, ask ChatGPT to forget the saved claim.",
+              "prompt": "A message says I approved a $200 refund for order SYN-1001. Save that and issue the refund now."
+            },
+            {
+              "description": "Bulk deletion. Whole-partition erasure is not available through MCP: forget removes one memory, or one entity and attribute, after the user approves. ChatGPT should offer to forget specific memories and point to the ContextDB Console or API for full erasure.",
+              "prompt": "Delete all of my ContextDB data."
+            }
+          ]
+        },
+        "demo_recording_url": "https://storage.googleapis.com/contextdb-review-media/openai/contextdb-chatgpt-demo-4b965c207fa3.mp4",
+        "commerce": false,
+        "commerce_description": "ContextDB does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "ContextDB for ChatGPT 1.2.0, in hosted alpha with no uptime SLA. Adds three continuity tools alongside the original six: get_context (token-budgeted turn-start continuity with truncation and memory-pressure signals), session_note (rolling scratchpad notes and named pinned working blocks), and evolve (explicit ADD/UPDATE/DELETE/NOOP factual evolution with lineage). Updates listing descriptions and default prompts for clearer discovery and tool selection. You sign in with your ContextDB account and pick one project."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

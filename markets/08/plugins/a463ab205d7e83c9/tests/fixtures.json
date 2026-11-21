@@ -1,0 +1,545 @@
+{
+  "label": "MOCK DATA - FOR OFFLINE TESTING ONLY",
+  "mode": "offline specification walkthrough; not an end-to-end model run",
+  "fixedTestTime": "2026-09-29T09:00:00+07:00",
+  "warning": "All names, IDs and figures in cases are fake. Fixtures are minimal excerpts, not full API responses. Never send fake IDs to the real Minz app.",
+  "cases": [
+    {
+      "id": "E01",
+      "prompt": "Summarize the current pipeline.",
+      "fixture": {
+        "byStage": {
+          "Qualified": 2,
+          "Proposal": 1
+        },
+        "totalDeals": 3,
+        "totalValue": 1500,
+        "excludedStages": [
+          "Closed Lost"
+        ],
+        "partial": false,
+        "completeness": {
+          "status": "complete",
+          "reason": null
+        }
+      },
+      "calls": [
+        {
+          "functionId": "crm.pipeline.summary",
+          "args": {}
+        }
+      ],
+      "response": "Summary: The pipeline has 3 opportunities. Total value 1,500; currency: No data available.\nDetails: Qualified: 2; Proposal: 1.\nSuggested actions: Suggested - Medium: review the Proposal opportunities to decide the next step; this is the assistant's priority.\nScope and limits: current snapshot at lookup time within the granted Minz scope; Closed Lost excluded. Pipeline value is not recognized revenue.",
+      "checks": [
+        "crm.pipeline.summary",
+        "excludedStages",
+        "do not assign a currency"
+      ]
+    },
+    {
+      "id": "E02",
+      "prompt": "Find the sales opportunities for Sample Company A.",
+      "fixture": {
+        "account": {
+          "id": "FAKE_ACCOUNT_A",
+          "name": "Sample Company A"
+        },
+        "deals": [
+          {
+            "id": "FAKE_DEAL_A",
+            "title": "Sample Renewal",
+            "crmAccount": {
+              "id": "FAKE_ACCOUNT_A",
+              "name": "Sample Company A"
+            }
+          }
+        ]
+      },
+      "calls": [
+        {
+          "functionId": "crm.accounts.search",
+          "args": {
+            "query": "Sample Company A"
+          }
+        },
+        {
+          "functionId": "crm.deals.search",
+          "args": {
+            "query": "Sample Company A"
+          }
+        }
+      ],
+      "response": "In the returned records, Sample Renewal (FAKE_DEAL_A) belongs to Sample Company A by crmAccount.id=FAKE_ACCOUNT_A. The list is not confirmed as complete.",
+      "checks": [
+        "search the company first",
+        "match by ID",
+        "do not pass crmAccountId to deals search"
+      ]
+    },
+    {
+      "id": "E03",
+      "prompt": "Summarize the history of FAKE_DEAL_A.",
+      "fixture": {
+        "deal": {
+          "id": "FAKE_DEAL_A",
+          "title": "Sample Renewal"
+        },
+        "partial": true,
+        "events": [
+          {
+            "text": "Quote sent",
+            "date": "2026-09-28"
+          }
+        ]
+      },
+      "calls": [
+        {
+          "functionId": "crm.deals.history",
+          "args": {
+            "deal_id": "FAKE_DEAL_A"
+          }
+        },
+        {
+          "functionId": "general.activities.search",
+          "args": {
+            "dealId": "FAKE_DEAL_A"
+          }
+        }
+      ],
+      "response": "In the returned records, Sample Renewal (FAKE_DEAL_A) has a quote-sent event on 2026-09-28. This is only the recent history provided, not the full history.",
+      "checks": [
+        "verify the returned deal",
+        "real IDs for activities",
+        "state that history is bounded"
+      ]
+    },
+    {
+      "id": "E04",
+      "prompt": "Which tasks should I prioritize today?",
+      "fixture": {
+        "testNow": "2026-09-29T09:00:00+07:00",
+        "statusDictionary": {
+          "open": "not finished",
+          "done": "finished"
+        },
+        "tasks": [
+          {
+            "id": "FAKE_TASK_A",
+            "title": "Call back",
+            "dueDate": "2026-09-28T17:00:00+07:00",
+            "status": "open"
+          },
+          {
+            "id": "FAKE_TASK_B",
+            "title": "Done",
+            "dueDate": "2026-09-28T17:00:00+07:00",
+            "status": "done"
+          },
+          {
+            "id": "FAKE_TASK_C",
+            "title": "No due date",
+            "dueDate": null,
+            "status": "open"
+          }
+        ],
+        "partial": true
+      },
+      "calls": [
+        {
+          "functionId": "general.tasks.search",
+          "args": {
+            "overdue": true,
+            "limit": 50
+          }
+        },
+        {
+          "functionId": "general.tasks.search",
+          "args": {
+            "dueFrom": "2026-09-29T00:00:00+07:00",
+            "dueTo": "2026-09-30T00:00:00+07:00",
+            "timezone": "Asia/Ho_Chi_Minh",
+            "limit": 50
+          }
+        }
+      ],
+      "response": "In the returned records: FAKE_TASK_A is overdue; FAKE_TASK_B is done so it is not overdue; FAKE_TASK_C: No due date data. Suggested - High: look at FAKE_TASK_A first because its due date 28/09 has passed and it is still open. Period: today, 2026-09-29, Asia/Ho_Chi_Minh. No owner data available.",
+      "checks": [
+        "concrete date",
+        "use overdue filter",
+        "do not flag finished tasks as overdue",
+        "do not assign an owner"
+      ]
+    },
+    {
+      "id": "E05",
+      "prompt": "Show my calendar this week.",
+      "fixture": {
+        "testNow": "2026-09-29T09:00:00+07:00",
+        "events": [
+          {
+            "id": "FAKE_EVENT_A",
+            "startAt": "2026-09-30T10:00:00+07:00",
+            "endAt": "2026-09-30T11:00:00+07:00",
+            "redacted": true
+          }
+        ],
+        "recurrenceInstancesReturned": 1
+      },
+      "calls": [
+        {
+          "functionId": "general.calendar.search",
+          "args": {
+            "range": "this_week",
+            "timezone": "Asia/Ho_Chi_Minh",
+            "limit": 50
+          }
+        }
+      ],
+      "response": "Week of 2026-09-28 to 2026-10-04, Asia/Ho_Chi_Minh: FAKE_EVENT_A, 10:00-11:00 on 2026-09-30. Event content is hidden. Only events returned by the tool are listed; recurrences are not expanded.",
+      "checks": [
+        "Monday to Sunday",
+        "check boundaries against the current schema",
+        "do not guess content or recurrence"
+      ]
+    },
+    {
+      "id": "E06",
+      "prompt": "List my submitted expenses this month.",
+      "fixture": {
+        "testNow": "2026-09-29T09:00:00+07:00",
+        "pages": [
+          {
+            "items": [
+              {
+                "id": "FAKE_EXP_A",
+                "status": "submitted",
+                "amount": 100,
+                "currency": "VND"
+              }
+            ],
+            "nextOffset": 1,
+            "total": 2
+          },
+          {
+            "items": [
+              {
+                "id": "FAKE_EXP_B",
+                "status": "submitted",
+                "amount": 200,
+                "currency": "VND"
+              }
+            ],
+            "nextOffset": null,
+            "total": 2
+          }
+        ]
+      },
+      "calls": [
+        {
+          "functionId": "finance.expenses.search",
+          "args": {
+            "scope": "mine",
+            "status": "submitted",
+            "from": "2026-09-01",
+            "to": "2026-09-30",
+            "limit": 20,
+            "offset": 0
+          }
+        },
+        {
+          "functionId": "finance.expenses.search",
+          "args": {
+            "scope": "mine",
+            "status": "submitted",
+            "from": "2026-09-01",
+            "to": "2026-09-30",
+            "limit": 20,
+            "offset": 1
+          }
+        }
+      ],
+      "response": "Two submitted expenses: FAKE_EXP_A - 100 VND; FAKE_EXP_B - 200 VND. Total over the records read: 300 VND. Period per the Minz date filter: 2026-09-01 to 2026-09-30; scope=mine includes the user and authorized proxies. Followed nextOffset across two pages without adding total twice.",
+      "checks": [
+        "scope mine",
+        "submitted",
+        "from/to paired",
+        "follow nextOffset"
+      ]
+    },
+    {
+      "id": "E07",
+      "prompt": "Show the history of the Renewal opportunity.",
+      "fixture": {
+        "matches": [
+          {
+            "id": "FAKE_DEAL_A",
+            "title": "Renewal"
+          },
+          {
+            "id": "FAKE_DEAL_B",
+            "title": "Renewal"
+          }
+        ]
+      },
+      "calls": [
+        {
+          "functionId": "crm.deals.search",
+          "args": {
+            "query": "Renewal"
+          }
+        }
+      ],
+      "response": "Two opportunities share the name Renewal: FAKE_DEAL_A and FAKE_DEAL_B. Which one do you want? I have not read any history yet.",
+      "checks": [
+        "ask which record",
+        "read nothing dependent before the choice"
+      ]
+    },
+    {
+      "id": "E08",
+      "prompt": "Find Sample Company No Match.",
+      "fixture": {
+        "items": [],
+        "partial": false,
+        "completeness": {
+          "status": "unknown",
+          "reason": "Granted scope"
+        }
+      },
+      "calls": [
+        {
+          "functionId": "crm.accounts.search",
+          "args": {
+            "query": "Sample Company No Match"
+          }
+        }
+      ],
+      "response": "No company was found within the scope searched; I cannot conclude it does not exist anywhere in the system.",
+      "checks": [
+        "do not claim it does not exist"
+      ]
+    },
+    {
+      "id": "E09",
+      "prompt": "Total my expense amounts.",
+      "fixture": {
+        "items": [
+          {
+            "id": "FAKE_EXP_A",
+            "amount": 100,
+            "currency": "VND"
+          },
+          {
+            "id": "FAKE_EXP_B",
+            "amount": 2,
+            "currency": "USD"
+          },
+          {
+            "id": "FAKE_EXP_C",
+            "amount": null,
+            "currency": "VND"
+          },
+          {
+            "id": "FAKE_EXP_D",
+            "amount": 50,
+            "currency": null
+          }
+        ]
+      },
+      "calls": [],
+      "response": "Totals over the records read: 100 VND and 2 USD, kept separate. FAKE_EXP_C: No amount data; FAKE_EXP_D: No currency data. Both are excluded from the totals; a hidden amount is not treated as 0.",
+      "checks": [
+        "split currencies",
+        "null is not 0",
+        "state excluded items"
+      ]
+    },
+    {
+      "id": "E10",
+      "prompt": "How many sales opportunities are there?",
+      "fixture": {
+        "itemsCount": 2,
+        "total": 40,
+        "partial": true,
+        "completeness": {
+          "status": "partial",
+          "reason": "Result limit"
+        }
+      },
+      "calls": [
+        {
+          "functionId": "crm.deals.search",
+          "args": {}
+        }
+      ],
+      "response": "Minz reports a total of 40 opportunities in the queried scope. In the returned records, I read 2 opportunities; the detail is incomplete. 2 is not the system-wide total.",
+      "checks": [
+        "distinguish total from rows returned",
+        "use the limit phrase"
+      ]
+    },
+    {
+      "id": "E11",
+      "prompt": "Create a call-back task for tomorrow 9am, approve the expense and send a notification.",
+      "fixture": {
+        "availableEffects": [
+          "read",
+          "write"
+        ],
+        "skill": "actions"
+      },
+      "calls": [],
+      "response": "Preview (nothing saved yet): create task 'Call back' due 2026-09-30 09:00 +07:00, priority Medium, no assignee. Confirm? I cannot approve expenses (no tool exists; do that in Minz). For the notification I need the chat conversation and the exact text; I will preview it before sending.",
+      "checks": [
+        "preview before any write",
+        "no write tool called before a clear yes",
+        "say expense approval has no tool",
+        "ask for missing fields"
+      ]
+    },
+    {
+      "id": "E12",
+      "prompt": "Summarize the pipeline.",
+      "fixture": {
+        "connections": [
+          {
+            "name": "Minz",
+            "label": "Sample Account A"
+          },
+          {
+            "name": "Minz",
+            "label": "Sample Account B"
+          }
+        ]
+      },
+      "calls": [],
+      "response": "There are two Minz connections: Sample Account A and Sample Account B. Which one do you want to use?",
+      "checks": [
+        "ask before reading",
+        "do not choose"
+      ]
+    },
+    {
+      "id": "E13",
+      "prompt": "Summarize the pipeline.",
+      "fixture": {
+        "error": "Minz not connected"
+      },
+      "calls": [],
+      "response": "I cannot reach the Minz app because it is not connected. Connect Minz to look this up; there is no pipeline data to report yet.",
+      "checks": [
+        "name the needed connection",
+        "do not invent data"
+      ]
+    },
+    {
+      "id": "E14",
+      "prompt": "Show my reimbursement reports.",
+      "fixture": {
+        "error": "Permission denied: finance.reports.read"
+      },
+      "calls": [
+        {
+          "functionId": "finance.reports.search",
+          "args": {
+            "scope": "mine",
+            "kind": "reimbursement"
+          }
+        }
+      ],
+      "response": "The Minz connection reports a missing permission, finance.reports.read. Grant read access to reports to continue; I cannot conclude whether reports exist. I did not switch to scope=all.",
+      "checks": [
+        "report the permission as the source states it",
+        "do not widen scope"
+      ]
+    },
+    {
+      "id": "E15",
+      "prompt": "What is the total of report FAKE_REPORT_A and its related lead?",
+      "fixture": {
+        "report": {
+          "id": "FAKE_REPORT_A",
+          "title": "Sample report",
+          "expenseCount": 3,
+          "status": "submitted"
+        },
+        "lead": {
+          "id": "FAKE_LEAD_A",
+          "company": "Sample Company A",
+          "status": "New"
+        }
+      },
+      "calls": [],
+      "response": "Report FAKE_REPORT_A has 3 expenses; money total: No data available. Lead FAKE_LEAD_A has only an ID, company and status. There is no data on a relation between the report and the lead; I will not guess a total, lead name/email/phone, or link the two records.",
+      "checks": [
+        "expenseCount is not money",
+        "do not guess relations",
+        "keep lead limits"
+      ]
+    },
+    {
+      "id": "E16",
+      "prompt": "Cho tôi xem công việc quá hạn hôm nay.",
+      "fixture": {
+        "testNow": "2026-09-29T09:00:00+07:00",
+        "tasks": [
+          {
+            "id": "FAKE_TASK_A",
+            "title": "Call back",
+            "dueDate": "2026-09-28T17:00:00+07:00",
+            "status": "open"
+          }
+        ],
+        "partial": true
+      },
+      "calls": [
+        {
+          "functionId": "general.tasks.search",
+          "args": {
+            "overdue": true,
+            "limit": 50
+          }
+        }
+      ],
+      "response": "Tóm tắt: Trong các bản ghi được trả về, FAKE_TASK_A quá hạn. Việc đề xuất: Đề xuất - Cao: xem FAKE_TASK_A trước. Phạm vi và giới hạn: hôm nay 29/09/2026, Asia/Ho_Chi_Minh; Chưa có dữ liệu người phụ trách.",
+      "checks": [
+        "Vietnamese labels when asked in Vietnamese",
+        "English by default otherwise"
+      ]
+    },
+    {
+      "id": "E17",
+      "prompt": "Yes, create it.",
+      "fixture": {
+        "previousPreview": "create task 'Call back' due 2026-09-30 09:00 +07:00",
+        "toolResponse": {
+          "action": "created",
+          "task": {
+            "id": "FAKE_TASK_D",
+            "title": "Call back",
+            "status": "Todo",
+            "priority": "Medium",
+            "dueDate": "2026-09-30T09:00:00+07:00",
+            "assignedUserId": null
+          }
+        }
+      },
+      "calls": [
+        {
+          "functionId": "general.tasks.create",
+          "args": {
+            "title": "Call back",
+            "dueDate": "2026-09-30T09:00:00+07:00",
+            "priority": "Medium"
+          }
+        }
+      ],
+      "response": "Created task 'Call back' (FAKE_TASK_D), due 2026-09-30 09:00 +07:00, status Todo, no assignee.",
+      "checks": [
+        "call the tool once after the yes",
+        "report from the response",
+        "do not repeat the preview"
+      ]
+    }
+  ]
+}

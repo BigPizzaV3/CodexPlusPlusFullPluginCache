@@ -1,0 +1,14 @@
+---
+name: compare-use
+description: Inspect current TTMNG herb–medicine evidence for any accepted scientific taxon and selected foreign product, separating documentary clinical contexts, source-bound constituent mechanisms, recorded research and unresolved applicability.
+---
+
+Select the exact current accepted herb taxon and exact foreign product through `ttmng_reference_catalog`. Call `ttmng_reference_compare` using their exact reference_ids, or scientific_name and presentation_id. Registered pairs are coverage, not an allowlist: any accepted current taxon may be compared with any selected required product. A missing or held identity needs only an indispensable choice; Thai/fuzzy names cannot select taxa.
+
+Read returned documentary_contexts and their exact clinical record_ids with `ttmng_evidence_record`. Follow pagination. Preserve whether a study used an isolated constituent, enhanced formulation, whole-herb preparation, formula, rescue medicine or merely named a class/ingredient; study-product omissions do not establish an exact selected-product trial. Preserve dose, route, duration, population, endpoints, denominators, negative results, source dates and original restrictions. Existing human content review is limited to its exact source facts and does not authenticate material or transfer to chemistry.
+
+Read nonclinical_paths separately. Each path links exact sample occurrence, isolated-molecule experiment and a medicine role through explicit compound/target records; use read_record_ids to inspect all three. This overlap supports a source-bound hypothesis only. Keep analytical quantities/calibration/n, assay system/concentration, part/preparation, contradictory findings and human exposure gaps. A common enzyme/target is not a measured net clinical interaction, probability, magnitude or validated treatment dose. Do not calculate patient-specific adjustments, declare safe co-use, substitute medicines/herbs or generalize across preparations.
+
+Use `ttmng_evidence_question` for the actual scoped question and inspect returned research history before searching. Existing adequate evidence is used without repeating a search. A genuinely unanswered question may use available host primary-source tools, with exact scope/access/negative findings retained; this remote reader performs no new network research or canonical registration. State a missing tool/access limit, and never claim research was performed/saved/reviewed when it was not.
+
+Use `ttmng_evidence_batch` only for bounded independent current-tool reads. An empty documentary/path result is a selected-data gap, not no interaction, safety or worldwide absence. The service does not expose legacy 1.2 data tools, internal owner answers or private files. Ordinary users require server-side owner approval; provisioned OpenAI reviewers have permanent account access. Use `ttmng_reference_status` for actual current counts/version.

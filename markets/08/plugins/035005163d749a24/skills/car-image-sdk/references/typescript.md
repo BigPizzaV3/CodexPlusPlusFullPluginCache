@@ -1,0 +1,148 @@
+# `@meterapp/car-image-sdk`
+
+Zero runtime dependencies. Node 20+, Vercel and Cloudflare edge runtimes, Deno, Bun, and browsers (browsers may only redeem signed URLs — never give one a key).
+
+Use these application-code examples only when the project already has this dependency. Do not install or execute packages through this skill. If it is absent, use plain HTTP as described in the main skill.
+
+## Constructing the client
+
+```ts
+import { CarImageClient } from "@meterapp/car-image-sdk";
+
+const client = new CarImageClient();
+```
+
+On a server, the client finds the key from your secret store, set by whoever runs the deployment in its platform's secret settings or CI; how code reads it is in [the authentication docs](https://carimage.dev/docs/authentication?ref=plugin#environment). Pass `{ apiKey }` or `{ baseUrl }` to take them from anywhere else, such as a secret manager; the base URL defaults to `https://carimage.dev`. Construct it once per process, at module scope. It holds no connection state, so a single instance is safe to share.
+
+## Methods
+
+| Method | Returns | Costs |
+| --- | --- | --- |
+| `getImage(params, options?)` | `ImageResult` — `bytes`, `contentType`, `width`, `height`, `creditsCharged` (0 on the vehicle-image meter), `source`, `etag`, `requestId` | 1 vehicle image a month |
+| `getImageUrl(params, options?)` | One signed delivery URL | 1 vehicle image a month |
+| `getMakeLogo({ make, …transforms }, options?)` | `ImageResult` for a catalog make logo; no signed URL mode | 1 credit |
+| `createImageUrls(images, { ttlSeconds, maxUses, renew, renewDays, idempotencyKey }?)` | `data[]` of `{ id, url, expires_at, max_uses, renews_until, … }` — 1 to 50 images; `renew: true` keeps a URL alive past the TTL (email, CMS, PDFs); an `Idempotency-Key` (generated unless `idempotencyKey` is given) makes a retry replay instead of re-bill | 1 vehicle image a month per image; loads and renewals included |
+| `resolve(query, options?)` | The lookup to make before rendering a name someone typed: `data.params` (with `vehicle_id`, the id to render by), `candidates`, `confidence` (`"high"`, `"medium"` or `"low"`) and `extracted` (what the phrase said; compare its `year` with `params.year`) | free |
+| `searchVehicles(query, options?)` | Canonical makes, models, available years and a vehicle id per year | free |
+| `checkVehicles(entries, { batchSize?, onProgress? }?)` | Which of a list the catalog carries: `data.summary` counts and `data.results` in order, each `match` (`vehicle.id`), `suggestion` (`suggestions`), `miss` or `invalid` (`error`); any length, 2,000 per request | free |
+| `vehicles(filter?, options?)` | Years, or makes for a year, or models for a year and make (with ids) | free |
+| `vehicle(id, options?)` | One catalog vehicle by its stable `veh_…` id: make, model, year, every year, image paths | free |
+| `decodeVin(vin, { year? }?, options?)` | `data.valid`, `errors`, `year`, `make`, `model`, `trim`, `engine`, `attributes` (every vPIC variable) and `vehicle` (`{ id, make, model, year, image_path }` or null); full or partial VINs | free |
+| `create3dModel({ make, model, year \| vehicle }, { color?, webhookUrl?, webhookSecret?, publish?, idempotencyKey? }?)` | `data` (the 3D request: `id`, `status`, `progress`, `files` once ready, `public` once published) and `billing` (`already_owned` when the account already had the vehicle and color: free); an `Idempotency-Key` is sent unless given | 100 credits at creation |
+| `get3dModel(id, options?)` | The same request, refreshed; poll every 10–15 s until `status` is `ready` or `failed` | free |
+| `list3dModels({ limit? }?, options?)` | Recent 3D requests, newest first, plus `pricing.credits_per_model` | free |
+| `download3dModel(id, "glb" \| "glb_web" \| "usdz" \| "fbx" \| "thumbnail", options?)` | The file's bytes (follows the one-hour signed redirect) with `contentType` | free |
+| `publish3dModel(id, options?)` / `unpublish3dModel(id, options?)` | The request with `data.public` (`id`, key-free `url` and `files`, `embed.html` to paste) or with `public: null` again | free |
+| `options(options?)` | Views with yaw angles, colors with hex, sizes, fit modes (`fits`, `default_fit`), `backgrounds`, `trim` limits, formats, pricing | free |
+| `account(options?)` | `data.plan` (`meter`, `limits.images_per_month`), `limits_usage` (`vehicle_images_this_month`), `data.credits`, `usage_30d`, `key.scopes` | free |
+| `health(options?)` / `openapi(options?)` | Service status / the OpenAPI document | free |
+
+`vehicles()` is overloaded: no filter returns years, `{ year }` returns makes, `{ year, makeId }` returns models.
+
+`ImageParams`: `make`, `model`, `year` (or `vehicle`, a stable `veh_…` id in place of the three), and optionally `view`, `color` (a preset name, a CSS color name such as `"navy"`, or any hex such as `"#1a2b3c"`), `size` (`thumb|small|medium|large`) or `width`/`height` (delivered up to the stored image's own size; the server clamps a larger size, a box keeping its shape), or the presets `aspectRatio` (`1:1|4:3|3:2|16:9|natural`) and `resolution` (`small|medium|hd|2k`), `fit` (`contain` default, `cover`, `inside` — only matters with both dimensions, which return exactly `width`×`height`), `background` (`transparent` default, a CSS color name such as `white`, or hex as `rrggbb`, `#rrggbb`, `rgb`, `#rgb`; `jpg` defaults to white), `trim` (crop to the car's bounds before sizing) with `padding` (0–50 % of its longer side; without `trim` it pads the stored frame), or `framing` in their place (`"consistent"` default, `"tight"` = trim with padding 0, `"balanced"` = trim with padding 6; never with `trim` or `padding`), `shadow` (a soft ground shadow under the car, drawn from its cut-out; same count), and `format` (`png|webp|jpg|auto`; `auto` negotiates WebP or PNG from `Accept`). `assertImageParams` throws before any request for a dimension that is not a whole number of pixels from 1, a `size` beside `aspectRatio` or `resolution`, or a `framing` beside `trim` or `padding`. The constants `FITS`, `FRAMINGS`, `REQUEST_FORMATS`, `MAX_DIMENSION` and `MAX_PADDING_PERCENT` are exported for validation and UI.
+
+Retrying `createImageUrls` is safe by construction: every call carries an `Idempotency-Key` (`sdk_<uuid>`), so a `POST` whose connection dropped is retried like a `GET` and the server replays the first answer rather than minting again. Pass `idempotencyKey` yourself when the retry may come from another process; the server keeps a key for 24 hours, answers `422` to the same key with a different body and `409` (`Retry-After`) while the original is still running.
+
+## Errors
+
+```ts
+import { CarImageError } from "@meterapp/car-image-sdk";
+```
+
+`CarImageError` exposes `status`, `title`, `detail`, `requestId` and the raw RFC 9457 problem document. Everything else throws normally (network failures, aborts).
+
+Built-in retry: `429` and `503` with full jitter, honoring `Retry-After`; a `Retry-After` longer than `maxRetryDelayMs` (30 s) is not retried and throws with `retryAfterSeconds` (a `503` `generation_at_capacity` resumes at midnight UTC). **`402` is never retried.** Do not wrap calls in your own retry loop — you would fight the built-in backoff and risk re-billing.
+
+`createImageUrls` validates the batch locally and throws `RangeError` for an empty array or more than 50 images, before spending anything.
+
+## Next.js
+
+Keep the client in a server-only module and hand the browser signed URLs.
+
+```ts
+// lib/car-image.ts   (server only)
+import "server-only";
+import { CarImageClient } from "@meterapp/car-image-sdk";
+
+export const carImage = new CarImageClient();
+```
+
+```ts
+// app/api/car-image/route.ts
+import { carImage } from "@/lib/car-image";
+import { CarImageError } from "@meterapp/car-image-sdk";
+
+export async function POST(request: Request) {
+  const { vehicle } = await request.json(); // id previously resolved and confirmed
+  try {
+    const { data } = await carImage.createImageUrls([{ vehicle, view: "side" }], {
+      ttlSeconds: 24 * 60 * 60,
+      maxUses: 0,
+    });
+    return Response.json({ url: data[0].url, expiresAt: data[0].expires_at });
+  } catch (error) {
+    if (error instanceof CarImageError) {
+      return Response.json({ error: error.detail, requestId: error.requestId }, { status: error.status });
+    }
+    throw error;
+  }
+}
+```
+
+Cache the result keyed on the vehicle parameters. Each vehicle in each color and view counts once a month however often it is fetched, but a cache still saves the round trip.
+
+A server component mints while the page renders, and a batch is one call:
+
+```tsx
+import { carImage } from "@/lib/car-image";
+
+export default async function Hero() {
+  const { data } = await carImage.createImageUrls(
+    [{ make: "Porsche", model: "911", year: 2024, view: "side", color: "red", width: 768, height: 432, trim: true, format: "auto" }],
+    { ttlSeconds: 86_400 }
+  );
+  return <img src={data[0].url} alt="2024 Porsche 911, side view, red" width={768} height={432} />;
+}
+```
+
+```ts
+const vehicles = [
+  { make: "Toyota", model: "RAV4", year: 2023 },
+  { make: "Honda", model: "CR-V", year: 2023 },
+  { make: "Mazda", model: "CX-5", year: 2023 },
+];
+const { data } = await carImage.createImageUrls(
+  vehicles.map((v) => ({ ...v, view: "front-3-4", color: "silver", width: 512 })),
+  { ttlSeconds: 604_800 }
+);
+```
+
+The SDK sends a generated `Idempotency-Key` on every `createImageUrls` call. To make a retried build replay instead of minting again, pass `idempotencyKey` with a value built from the vehicle parameters.
+
+When the three strings come from free text rather than from a picker backed by the catalog, resolve them first (`carImage.resolve(...)`, free) and mint with `{ vehicle: data.params.vehicle_id, view: "side" }`: a name the catalog files differently is a `404` here, and the id is the better cache key.
+
+The key is created in [the dashboard](https://carimage.dev/dashboard?ref=plugin) and belongs in the platform's secret settings for the deployment ([authentication docs](https://carimage.dev/docs/authentication?ref=plugin#environment)): never in a public build variable, never in a committed file, never in a client component.
+
+## Edge runtimes
+
+The SDK is `fetch`-based with no Node built-ins, so it runs unchanged on Vercel Edge, Cloudflare Workers and Deno Deploy. `getImage` returns `bytes` as a `Uint8Array`; stream or re-wrap it rather than converting to a Node `Buffer` on an edge runtime.
+
+## MCP tool definitions
+
+`@meterapp/car-image-sdk/mcp` exports the shared tool definitions used by both the hosted and the stdio MCP servers — names, descriptions, JSON schemas and annotations. Import them if you are building your own agent surface and want the tool contracts to match the official ones exactly.
+
+Tools come in two sets: `MCP_TOOLSETS.core` (`DEFAULT_MCP_TOOLSET`, `"core"`) is the twelve core tools (`resolve_vehicle`, `search_vehicles`, `decode_vin`, `check_vehicles`, `get_car_image`, `create_car_image_urls`, `get_account`, `request_feature`, `report_issue`, `upvote_feedback`, `submit_review`) and `MCP_TOOLSETS.all` adds make logos, 3D models, image options, the API reference, pricing, help and billing links (`MCP_DOCUMENTED_EXTRAS` names them), forty-one tools in all; `McpToolset` is the type, `isMcpToolset(value)` validates a name from a URL or flag, and `mcpInstructions(toolset)` returns the server instructions for either set (they open with `mcpInstructionsHead(toolset)`, the part every host shows a model, kept under `MCP_INSTRUCTIONS_HEAD_LIMIT`). The hosted server defaults to `all` at `https://carimage.dev/api/mcp` and takes `?toolset=core` for the core set.
+
+## Make logos
+
+For application code, use the existing SDK client to retrieve logo image data.
+Each successful delivery costs 1 credit, including cache hits. There is no signed
+logo URL: host the returned image data for a site. On 402, stop and ask the human;
+never buy anything.
+
+SDK: `client.getMakeLogo({ make: "toyota", width: 256, trim: true })` returns bytes and billing metadata.
+
+Generated logos can be inaccurate; inspect before use. Logos are third-party trademarks,
+for referential display only; no license is granted and they sit outside every
+VehiclesDB indemnity. [Logo docs](https://carimage.dev/docs/logos?ref=plugin)
+· [API terms](https://carimage.dev/terms?ref=plugin#logos).

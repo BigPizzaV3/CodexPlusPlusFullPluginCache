@@ -1,0 +1,119 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a843a16915481919f370eedc589391c",
+  "version": "1.0.0",
+  "description": "Connect ChatGPT to your accounting in Moniary.",
+  "author": {
+    "name": "Moniary",
+    "email": "podpora@moniary.com",
+    "url": "https://moniary.com"
+  },
+  "homepage": "https://moniary.com",
+  "keywords": [
+    "invoices",
+    "expenses",
+    "accounting",
+    "suppliers",
+    "czech",
+    "ares",
+    "vat"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Moniary",
+        "shortDescription": "Your accounting in Moniary",
+        "longDescription": "Ask about invoices, suppliers, spending, and receivables in your Moniary workspace.\n\nOpen document details, look up companies, and with your approval issue or email an invoice, match a bank payment, mark something paid, or add a tag.",
+        "developerName": "Moniary",
+        "category": "Finance",
+        "capabilities": [
+          "Search received invoices, receipts and credit notes",
+          "Show invoice details with line items, VAT and payment terms",
+          "List documents that need attention or are overdue",
+          "Summarize spending by supplier or category",
+          "Run read-only analytics over your invoice data",
+          "List issued invoices, receivables and what each customer owes",
+          "Prepare, issue and e-mail invoices; create credit notes; send payment reminders",
+          "Review bank transactions and match them to invoices",
+          "Mark documents as paid, checked or with a new workflow status",
+          "Look up companies by name or VAT ID",
+          "Manage suppliers, customers and document tags",
+          "Preview VAT return, control statement and EC sales list",
+          "Convert currencies and check the workspace credit balance"
+        ],
+        "websiteURL": "https://moniary.com",
+        "supportURL": "https://moniary.com/contact",
+        "privacyPolicyURL": "https://moniary.com/privacy-policy",
+        "termsOfServiceURL": "https://moniary.com/terms-of-service",
+        "defaultPrompt": [
+          "Which received invoices are still unpaid, and which are overdue?",
+          "Which suppliers have we spent the most with?",
+          "Which customers still owe us money on issued invoices?"
+        ],
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List unpaid received invoices and flag overdue ones. Verifies payment-state filtering in the reviewer's sample workspace (3 unpaid received invoices, 1 overdue).",
+              "prompt": "Which received invoices are still unpaid? Show supplier, invoice number, due date and amount, and mark the overdue ones.",
+              "tools_triggered": "query_invoices (invoices_getOverdueInvoices optional)",
+              "expected_behavior": "Calls query_invoices with a payment-state filter for documents still to pay (unpaid, overdue, partial). Lists 3 invoices: KP-26-1044 from Kancel\u00e1\u0159sk\u00e9 pot\u0159eby Fikce s.r.o., 10 053,89 K\u010d, due 16 Oct 2026 (overdue); SU-2026-1003 from Software Uk\u00e1zka s.r.o., 2 662 K\u010d, due 31 Oct 2026; 2026091701 from Energie Vzor a.s., 2 820,99 K\u010d, due 20 Oct 2026. Overdue status depends on the review date. Does not show internal invoice ids and does not invent invoices."
+            },
+            {
+              "description": "Open the latest invoice from a known supplier and show its line items and VAT. Verifies invoice search plus detail retrieval.",
+              "prompt": "Show me the line items and VAT breakdown of the latest invoice from Kancel\u00e1\u0159sk\u00e9 pot\u0159eby Fikce.",
+              "tools_triggered": "query_invoices, get_invoice_details",
+              "expected_behavior": "Finds the supplier's invoices with query_invoices (supplierNames) and opens the newest one, KP-26-1044, with get_invoice_details. Shows 4 line items (A4 paper 10 \u00d7 119 K\u010d, printer toner 2 \u00d7 1 490 K\u010d, office chair 3 990 K\u010d, delivery 149 K\u010d), all at 21 % VAT: base 8 309,00 K\u010d, VAT 1 744,89 K\u010d, total 10 053,89 K\u010d, due 16 Oct 2026."
+            },
+            {
+              "description": "Rank suppliers by total spend. Verifies aggregation grouped by supplier.",
+              "prompt": "Which suppliers have we spent the most with? Give me the total per supplier.",
+              "tools_triggered": "invoices_getSpendingBySupplier (execute_sql_query as alternative)",
+              "expected_behavior": "Calls invoices_getSpendingBySupplier (or one read-only execute_sql_query SELECT grouped by supplier). Returns, highest first: Kancel\u00e1\u0159sk\u00e9 pot\u0159eby Fikce s.r.o. 10 053,89 K\u010d, Energie Vzor a.s. 2 820,99 K\u010d, Software Uk\u00e1zka s.r.o. 2 662 K\u010d, each with 1 invoice. Amounts in different currencies are not summed together."
+            },
+            {
+              "description": "Show outstanding receivables from issued invoices per customer.",
+              "prompt": "Which customers still owe us money on issued invoices, and is anything overdue?",
+              "tools_triggered": "issuedInvoices_getReceivables",
+              "expected_behavior": "Calls issuedInvoices_getReceivables. Reports 54 062 K\u010d outstanding on 3 invoices: Pek\u00e1rna Uk\u00e1zka s.r.o. 34 243 K\u010d (overdue), Modr\u00e1 Laguna s.r.o. 11 979 K\u010d and Jan Vzorn\u00fd 7 840 K\u010d (not yet overdue at the time of writing; due dates may pass during review). Does not send reminders unless the user asks."
+            },
+            {
+              "description": "Look up a Czech company by I\u010cO in the public ARES registry and report its VAT status.",
+              "prompt": "Look up the company with I\u010cO 27082440 and tell me its registered address and whether it is a VAT payer.",
+              "tools_triggered": "businesses_searchCompanies",
+              "expected_behavior": "Calls businesses_searchCompanies with query 27082440. Returns Alza.cz a.s., Jankovcova 1522/53, 170 00 Praha 7, VAT ID CZ27082440, VAT payer, as returned by ARES. Does not create or modify any supplier in the workspace."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Direct money transfer request. Moniary cannot move money and has no tool that sends a payment order to a bank.",
+              "prompt": "Transfer 25 000 K\u010d from my account to Stavebniny Nov\u00e1k s.r.o. right now.",
+              "tools_triggered": "none",
+              "expected_behavior": "No Moniary write tool is called (in particular not invoices_setInvoicesPaid or bankTransactions_matchToInvoice). Explains that Moniary cannot transfer money or send payment orders; payments are made in the user's own bank. It may offer to look up the invoice or its payment details."
+            },
+            {
+              "description": "Request for data from another company's workspace that the connected account was not granted.",
+              "prompt": "Show me all invoices of my competitor Kovo Brno s.r.o. from their Moniary account.",
+              "tools_triggered": "none (list_workspaces at most)",
+              "expected_behavior": "Does not return data from any workspace other than those granted at sign-in. At most calls list_workspaces, then explains that it can only access the user's own authorized workspaces. If the user means invoices received from that supplier, it may offer to search the user's own workspace instead."
+            },
+            {
+              "description": "General question unrelated to the user's invoices or accounting data.",
+              "prompt": "What will the weather be like in Brno tomorrow?",
+              "tools_triggered": "none",
+              "expected_behavior": "No Moniary tool is called. ChatGPT answers without the plugin or says that Moniary only helps with invoices, suppliers and spending in the user's workspace."
+            }
+          ]
+        },
+        "demo_recording_url": "https://artifacts.moniary.cloud/demo/chatgpt-plugin/2026-10-19/moniary-chatgpt-demo.mp4"
+      },
+      "publication": {
+        "release_notes": "1.0.0 \u2013 First ChatGPT listing. Connect to Moniary for invoices, suppliers, spending, receivables, bank matching, company lookup, tags and VAT previews. Write actions (issue or email an invoice, match a payment, mark paid, add a tag) ask for approval first. No money transfers and nothing can be deleted from ChatGPT."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

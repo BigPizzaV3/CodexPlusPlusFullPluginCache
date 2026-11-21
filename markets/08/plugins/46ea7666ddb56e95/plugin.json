@@ -1,0 +1,74 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6ab2ac5bf520819183a10f80287a8ab4",
+  "version": "0.1.3",
+  "description": "Access Anrok transactions, customers, products, exemption certificates, filings, and nexus through the existing Anrok connection.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Anrok",
+        "shortDescription": "Read and update Anrok tax data",
+        "longDescription": "Use your existing Anrok connection to inspect transactions and tax summaries, customers, products, exemption certificates, filings, and nexus, and perform supported updates when requested.",
+        "defaultPrompt": "Summarize my Anrok filings awaiting review.",
+        "category": "Finance",
+        "websiteURL": "https://anrok.com",
+        "supportURL": "https://help-center.anrok.com/hc/en-us/requests/new",
+        "privacyPolicyURL": "https://www.anrok.com/privacy-terms",
+        "termsOfServiceURL": "https://www.anrok.com/privacy-terms",
+        "logo": "./assets/anrok-icon.png",
+        "composerIcon": "./assets/anrok-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Identify unregistered jurisdictions approaching nexus and prioritize jurisdictions already exposed. Use an authorized account with nexus data.",
+              "prompt": "Where are we approaching nexus but haven't registered?",
+              "tools_triggered": "get_nexus_status (isRemittingFilter: \"nonRemitting\")",
+              "expected_behavior": "The reply opens with the server's tax-advice caveat: this is general information about how Anrok works, not advice for the user's business, so confirm with a tax advisor. It then lists the unregistered jurisdictions with nexusExposureType: \"approaching\", each showing sales toward the threshold against the threshold amount. It also flags any jurisdiction already past the threshold without a registration (exposed), since those are more urgent."
+            },
+            {
+              "description": "Find returns awaiting approval and apply a rolling 30-day due-date window to the returned filings. Evaluate relative dates as of the test execution date.",
+              "prompt": "What returns are due in the next 30 days and still awaiting my approval?",
+              "tools_triggered": "list_filings (filter: {statuses: [\"sellerReview\"]})",
+              "expected_behavior": "The returns in seller review that are due in the next 30 days, soonest first. Each shows the jurisdiction, filing period, due date and review-by date (the approval deadline). If there are none, it says so. list_filings cannot filter by due date, so the assistant applies the 30-day cutoff to dueDate itself."
+            },
+            {
+              "description": "Summarize 2026 year-to-date gross sales by jurisdiction. Run in 2026 with dateEndi resolved to the test execution date; use the account currency.",
+              "prompt": "What is my YTD Gross Sales in Anrok by State?",
+              "tools_triggered": "get_transaction_summary (groupBy: \"total\", groupByJuris: true, dateBegin: \"2026-01-01\", dateEndi: today)",
+              "expected_behavior": "A table of gross sales (preTaxAmountGross) by jurisdiction for the year so far, usually with refunds, net sales and tax alongside, in the account currency. Any non-US jurisdictions appear too, because the grouping is by jurisdiction, not only by state."
+            },
+            {
+              "description": "Find certificates expiring within the next 90 days, including across result pages. Evaluate the window as of the test execution date; do not send renewal requests without an explicit user request.",
+              "prompt": "Which exemption certificates are expiring in the next 90 days?",
+              "tools_triggered": "list_certificates, possibly several paginated calls",
+              "expected_behavior": "The certificates expiring in the next 90 days, soonest first, each with customer name, certificate ID, expiry date and the jurisdictions it covers. The assistant may offer to send renewal requests with create_certificate_request, but does not send any unless the user asks."
+            },
+            {
+              "description": "Identify customers with missing or invalid VAT IDs using transaction-level validation. Establish and state a date range; if needed, ask the user for the reporting period before searching.",
+              "prompt": "Which customers have missing or invalid VAT IDs?",
+              "tools_triggered": "search_transactions (vrnValidationStatuses: [\"missing\", \"invalid\"], plus a date range)",
+              "expected_behavior": "The customers behind the flagged transactions. Each shows whether the VAT ID was missing or invalid, how many transactions are affected and in which countries, plus the total revenue affected. VAT status is stored per transaction, not on the customer record, so the answer covers a stated period. Passing a date range is what makes the tool return totals."
+            }
+          ],
+          "negative": [
+            {
+              "prompt": "Pay all taxes owed in my Anrok account.",
+              "description": "Tools triggered: None. Expected behavior: The assistant says it cannot make payments, because the Anrok MCP has no tool that pays or remits tax. It points the user to the Anrok app, where returns are approved and remitted. It may offer to show what is currently due with a read-only list_filings call, but does not invoke it in response to this negative prompt."
+            },
+            {
+              "prompt": "Delete all my transactions in Anrok in 2026.",
+              "description": "Tools triggered: None. Expected behavior: The assistant says it cannot delete transactions, because there is no delete tool. It must not use remove_transactions_from_filing instead, since that only takes transactions off an open return and deletes nothing. It says this has to be done in Anrok directly, and may offer a read-only count of 2026 transactions without invoking tools in response to this negative prompt."
+            },
+            {
+              "prompt": "Give me admin permissions in Anrok.",
+              "description": "Tools triggered: None. Expected behavior: The assistant says it cannot change user roles or permissions. The MCP has no user-management tools, and it can only use the access granted when the connector was authorized. An existing admin on the account has to change the user's role in Anrok."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

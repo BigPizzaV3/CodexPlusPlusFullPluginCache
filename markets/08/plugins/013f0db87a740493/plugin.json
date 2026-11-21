@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6aad926a192c81918267546b8201038f",
+  "version": "1.12.0",
+  "description": "Connect your Visitta account to find doctors and itineraries, create an empty or populated itinerary, edit its doctor list with optional appointments and manual or distance ordering, request automatic filling or time suggestions within the same itinerary, choose whether completed visits count toward cycle coverage, and record or correct visits. Every new itinerary has a date, defaulting to today in Visitta's time zone, with optional times and cycle credit in the same flow. Itinerary and doctor changes require a reviewed preview and confirmation. Requested appointments remain separate from estimates; conflicts can be saved as drafts after explicit acceptance. Access is limited to the authorized account. The plugin does not delete doctors or itineraries, search the public web, or manage meeting calendars.",
+  "author": {
+    "name": "DIEGO LIMA LOPES"
+  },
+  "homepage": "https://visitta.app",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Visitta",
+        "shortDescription": "Doctors, routes and visits",
+        "longDescription": "Connect your Visitta account to find doctors and itineraries, create an empty or populated itinerary, edit its doctor list with optional appointments and manual or distance ordering, request automatic filling or time suggestions within the same itinerary, choose whether completed visits count toward cycle coverage, and record or correct visits. Every new itinerary has a date, defaulting to today in Visitta's time zone, with optional times and cycle credit in the same flow. Itinerary and doctor changes require a reviewed preview and confirmation. Requested appointments remain separate from estimates; conflicts can be saved as drafts after explicit acceptance. Access is limited to the authorized account. The plugin does not delete doctors or itineraries, search the public web, or manage meeting calendars.",
+        "developerName": "DIEGO LIMA LOPES",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Crie um roteiro para hoje sem contabilizar no ciclo.",
+          "Mostre meus roteiros.",
+          "Qual \u00e9 meu roteiro de hoje?"
+        ],
+        "websiteURL": "https://visitta.app",
+        "supportURL": "https://visitta.app/suporte",
+        "privacyPolicyURL": "https://visitta.app/privacidade",
+        "termsOfServiceURL": "https://visitta.app/termos",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read a saved demonstration itinerary. Setup: a dedicated account with one itinerary named DEMO-MCP \u2014 grava\u00e7\u00e3o dated 2026-09-29. List saved itineraries with from_date=2026-09-29 and to_date=2026-09-29 before reading its details, containing DEMO-MCP Dra. Ana completed, DEMO-MCP Dr. Bruno and DEMO-MCP Dra. Carla pending. Resolve its actual ID from the account; no invented IDs.",
+              "prompt": "Mostre apenas o roteiro DEMO-MCP \u2014 grava\u00e7\u00e3o de 29/09/2026. Resuma os m\u00e9dicos e quem est\u00e1 conclu\u00eddo ou pendente.",
+              "tools_triggered": "list_upcoming_itineraries, get_itinerary_details",
+              "expected_behavior": "Show only the named itinerary and its three doctors using returned data. Ana is completed, Bruno and Carla pending. Read calls do not create cycles or change account records."
+            },
+            {
+              "description": "Create an intentionally incomplete fictional doctor. Setup: CRM 9990004 AL is absent; Cardiologia is enabled. The reviewer explicitly confirms after inspecting the preview.",
+              "prompt": "Cadastre a m\u00e9dica fict\u00edcia DEMO-MCP Dra. Helena, CRM 9990004 AL, cardiologista, em Macei\u00f3/AL. Ainda n\u00e3o tenho o endere\u00e7o. Deixe o cadastro pendente, sem inventar informa\u00e7\u00f5es.",
+              "tools_triggered": "get_client_catalog, preview_clients, create_clients",
+              "expected_behavior": "Preview the provided name, CRM, specialty and city; explain the missing address. Save only after confirmation with the matching preview token. Return one created doctor pending route details, without invented address, coordinates or a claim of readiness for routes."
+            },
+            {
+              "description": "Update only one weekday. Setup: one DEMO-MCP Dra. Ana with attendance 08:00\u201317:00 on weekdays and no Tuesday visit window. Reviewer confirms the preview.",
+              "prompt": "Para DEMO-MCP Dra. Ana, altere somente ter\u00e7a-feira: atendimento das 8h \u00e0s 12h e visita de representante das 9h \u00e0s 9h30. Mostre antes e depois.",
+              "tools_triggered": "search_clients, preview_client_update, update_client",
+              "expected_behavior": "Identify the exact fictional doctor. Preview Tuesday attendance 08:00\u201312:00 and visit 09:00\u201309:30, then save only after confirmation using matching changes and preview token. Other weekdays and existing itinerary visits remain unchanged."
+            },
+            {
+              "description": "Complete a pending visit already present in the demonstration itinerary. Setup: DEMO-MCP Dr. Bruno has a pending visit in that itinerary and belongs to the active cycle. Resolve IDs from the actual response; reviewer confirms the doctor and target. The itinerary date is 2026-09-29; find that saved date if testing later.",
+              "prompt": "Conclua a visita de DEMO-MCP Dr. Bruno no roteiro DEMO-MCP \u2014 grava\u00e7\u00e3o de 29/09/2026.",
+              "tools_triggered": "get_itinerary_details, complete_visit",
+              "expected_behavior": "Identify the pending Bruno visit, ask for confirmation and complete only that visit. Return a non-null completed_at; cycle coverage records the completion without recalculating the route or changing Carla."
+            },
+            {
+              "description": "Correct a mistaken completion. Setup: DEMO-MCP Dra. Ana has a completed visit in the same demonstration itinerary. Reviewer confirms reopening. The itinerary date is 2026-09-29; find that saved date if testing later.",
+              "prompt": "No roteiro DEMO-MCP \u2014 grava\u00e7\u00e3o de 29/09/2026, a conclus\u00e3o de DEMO-MCP Dra. Ana foi marcada por engano. Desfa\u00e7a somente essa conclus\u00e3o.",
+              "tools_triggered": "get_itinerary_details, reopen_visit",
+              "expected_behavior": "Identify Ana in the named itinerary, ask for confirmation and reopen only her visit. Return completed_at=null. Remove her visit completion from cycle coverage while preserving the doctor, itinerary, visit and other doctors."
+            },
+            {
+              "description": "Create an itinerary without cycle credit or times using the unified flow. Setup: two active located fictional doctors DEMO-MCP Dra. Ana and DEMO-MCP Dr. Bruno, plus a located saved point DEMO-MCP Base. Resolve all identifiers from queries. The reviewer explicitly confirms each preview.",
+              "prompt": "Crie um roteiro r\u00e1pido fora de ciclo com DEMO-MCP Dra. Ana e DEMO-MCP Dr. Bruno, saindo do ponto salvo DEMO-MCP Base. Mostre a ordem e a dist\u00e2ncia antes de salvar.",
+              "tools_triggered": "search_clients, list_saved_locations, preview_itinerary, create_itinerary",
+              "expected_behavior": "Find the doctors and chosen saved point in the authorized account. Use preview_itinerary with today's date by default, counts_toward_cycle=false, optional times left blank and the requested distance order. Save only after confirmation with create_itinerary and the matching payload/token. Return the actual date and saved itinerary link; do not create a separate route type. Repeated confirmation must not duplicate it."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for unrelated calendar requests. The app should not be invoked because meeting calendars are outside its supported workflows. Do not invoke any Visitta tool.",
+              "prompt": "Quais reuni\u00f5es eu tenho amanh\u00e3?"
+            },
+            {
+              "description": "Permanent doctor deletion is unsupported. Explain the limitation without invoking any Visitta tool or replacing deletion with deactivation or cycle removal.",
+              "prompt": "O Visitta consegue apagar definitivamente DEMO-MCP Dra. Carla?"
+            },
+            {
+              "description": "Do not trigger for open-ended web searches. The app should not be invoked because it only works with the authenticated user's Visitta records. Do not invoke any Visitta tool.",
+              "prompt": "Pesquise na internet os melhores m\u00e9dicos do Brasil."
+            },
+            {
+              "description": "Never invent the requested current location. Ask for actual coordinates or a saved point before previewing a departure from the current location; a basic doctor list otherwise needs no departure.",
+              "prompt": "Crie um roteiro saindo de onde estou agora, mas n\u00e3o vou informar minha localiza\u00e7\u00e3o nem escolher um ponto salvo."
+            },
+            {
+              "description": "Permanent itinerary deletion and its visits is unsupported by the plugin. Explain the limitation without modifying records or suggesting another itinerary type.",
+              "prompt": "O plugin pode apagar definitivamente um roteiro e todas as suas visitas?"
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://youtu.be/s5fFMaflRJI"
+      },
+      "publication": {
+        "release_notes": "Use one itinerary workflow with a default date, optional appointments and cycle credit. Retire separate simple-itinerary tools from discovery and align help and examples.",
+        "translations": {
+          "pt-BR": {
+            "subtitle": "M\u00e9dicos, roteiros e visitas",
+            "description": "Conecte sua conta Visitta para consultar m\u00e9dicos e roteiros, criar e editar a lista de m\u00e9dicos com ordem manual ou por dist\u00e2ncia e compromissos opcionais, escolher se as visitas conclu\u00eddas contam no ciclo e registrar ou corrigir visitas. Todo roteiro novo tem data, por padr\u00e3o hoje no fuso do Visitta; hor\u00e1rios e contabiliza\u00e7\u00e3o no ciclo s\u00e3o opcionais no mesmo fluxo. Altera\u00e7\u00f5es de roteiros e m\u00e9dicos exigem pr\u00e9via e confirma\u00e7\u00e3o. Compromissos informados ficam separados das estimativas; conflitos podem ser salvos como rascunho ap\u00f3s aceita\u00e7\u00e3o expl\u00edcita. O acesso se limita \u00e0 conta autorizada. O plugin n\u00e3o exclui m\u00e9dicos nem roteiros, pesquisa a internet ou gerencia reuni\u00f5es."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

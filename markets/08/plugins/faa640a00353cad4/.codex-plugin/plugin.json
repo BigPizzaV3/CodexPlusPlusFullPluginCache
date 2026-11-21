@@ -1,0 +1,106 @@
+{
+  "name": "geckoboard",
+  "version": "1.0.0",
+  "description": "Access business metrics from Geckoboard directly in ChatGPT. Query up-to-date metrics from Zendesk, HubSpot, Pipedrive, Intercom, Aircall, Google Analytics, and more, without exporting records or calculating metrics by hand. Use the data to analyse performance, investigate changes, and create reports.",
+  "author": {
+    "name": "Geckoboard",
+    "url": "https://www.geckoboard.com"
+  },
+  "homepage": "https://www.geckoboard.com/product/metrics-mcp/",
+  "keywords": [
+    "analytics",
+    "metrics",
+    "business intelligence",
+    "reporting"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Geckoboard",
+    "shortDescription": "Query your business metrics",
+    "longDescription": "Access business metrics from Geckoboard directly in ChatGPT. Query up-to-date metrics from Zendesk, HubSpot, Pipedrive, Intercom, Aircall, Google Analytics, and more, without exporting records or calculating metrics by hand. Use the data to analyse performance, investigate changes, and create reports.",
+    "developerName": "Geckoboard",
+    "category": "Data & Analytics",
+    "capabilities": [
+      "Query business metrics",
+      "Explore connected data",
+      "Retrieve data lists"
+    ],
+    "websiteURL": "https://www.geckoboard.com",
+    "supportURL": "https://support.geckoboard.com",
+    "privacyPolicyURL": "https://www.geckoboard.com/legal/privacy-policy/",
+    "termsOfServiceURL": "https://www.geckoboard.com/legal/",
+    "defaultPrompt": [
+      "Which integrations can I query through Geckoboard?",
+      "How many Zendesk tickets were solved in the last 30 days?",
+      "What HubSpot deal metrics can I analyse?"
+    ],
+    "composerIcon": "./assets/composer-icon.png",
+    "composerIconDark": "./assets/composer-icon.png",
+    "logo": "./assets/logo.png",
+    "logoDark": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the integrations accessible to the dedicated reviewer account.",
+              "prompt": "Which integrations can I query through Geckoboard?",
+              "tools_triggered": "list_connections",
+              "expected_behavior": "List Google Analytics, HubSpot and Zendesk Support, matching the reviewer account connections returned by the tool. Do not list connections belonging to another account. Connection names may be included where useful; internal connection IDs are not required in the answer."
+            },
+            {
+              "description": "Retrieve the aggregate count of tickets solved during the requested period.",
+              "prompt": "How many Zendesk tickets were solved in the past 30 days? Use Europe/London and include all priorities and channels.",
+              "tools_triggered": "list_metrics, get_metric, query_metrics",
+              "expected_behavior": "Discover the reviewer account Zendesk connection and solved-ticket metric. Query solved_tickets for the standard past-30-days period in Europe/London with no priority, channel, grouping or comparison restriction. Return the count reported by the tool and state the period and timezone. Preserve a legitimate zero; do not widen the period to find activity. Distinguish a query error or missing data from a numeric zero. Compare against the same reviewer-account metric, period and timezone at execution time."
+            },
+            {
+              "description": "Resolve an existing pipeline and sum the value of deals by their creation date.",
+              "prompt": "What is the total value of HubSpot deals created since 1 July 2026 that are currently in Sales Pipeline? Include all deal stages and use Europe/London.",
+              "tools_triggered": "list_metrics, get_metric, list_field_values, query_metrics",
+              "expected_behavior": "Resolve the exact Sales Pipeline value from the reviewer connection, then query Value of deals created (deals_created_value) using SUM, sinceDate 2026-07-01, timezone Europe/London, and the resolved deal.pipeline filter. Include all stages, with no won/lost/open-only restriction. Report the returned total and currency, explaining that the date basis is deal creation and pipeline membership is current. Do not substitute close date, weighted value or another pipeline. Use the live discovered schema for the request. Compare with a reference query using identical settings and the same execution time window."
+            },
+            {
+              "description": "Return a bounded list of the most recently created deals in an existing pipeline.",
+              "prompt": "Show up to 20 HubSpot deals currently in Sales Pipeline, newest by creation date first. Include deal name, creation date, stage and amount. Show dates in Europe/London.",
+              "tools_triggered": "list_data_lists, get_data_list, list_field_values, query_data_lists",
+              "expected_behavior": "Discover all_deals_list and its supported fields, resolve Sales Pipeline, and filter deal.pipeline to that value. Request deal.name, deal.create_date, deal.stage and deal.amount. Set limit 20 and sort deal.create_date DESC; use deal.id DESC as a secondary tie-breaker if the discovered capabilities support multiple sort fields. Do not add a created-date window or deal-status filter. Return only matching rows with dates and currency formatted from the response. Return fewer rows when fewer exist; do not fabricate rows. If hasMore is true, state that this is only the most recent 20. Match the reference rows/order for the same account and query; equal creation-time ties without a supported secondary sort may have either order."
+            },
+            {
+              "description": "Resolve the GA4 property scope and retrieve its aggregate session count.",
+              "prompt": "How many sessions did the Spacekit Web property in Google Analytics 4 have in the past 30 days? Use the property timezone, Etc/GMT.",
+              "tools_triggered": "list_metrics, get_metric, list_scope_values, query_metrics",
+              "expected_behavior": "Discover the reviewer Google Analytics connection, the sessions metric and property scope. Resolve Spacekit Web through list_scope_values and use its returned scope ID/value. Query the standard past-30-days period in Etc/GMT without a dimension, comparison or extra filter. Report the returned session count, property name, period and timezone. Do not substitute users, conversions or the Europe/London dashboard timezone. Compare with the same sessions query for the same property and dates; disclose any returned warnings rather than inventing a value."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for dashboard creation because the app only retrieves analytics data.",
+              "prompt": "Create a new Geckoboard dashboard and add a sales widget to it.",
+              "expected_behavior": "Explain that this integration cannot create dashboards or widgets. Do not invoke a Geckoboard tool or claim that a dashboard was created."
+            },
+            {
+              "description": "Do not trigger for requests to modify records in a connected integration.",
+              "prompt": "Update every open HubSpot deal so its stage is Closed Won.",
+              "expected_behavior": "Explain that this integration cannot update HubSpot records. Do not invoke a Geckoboard tool or claim that any deal was modified."
+            },
+            {
+              "description": "Do not trigger for an unrelated consumer-information request.",
+              "prompt": "What will the weather be in London tomorrow?",
+              "expected_behavior": "Do not invoke Geckoboard: weather is outside its analytics capability. Offer an appropriate weather source or state that current weather data is needed."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1C79eaij_aE8iEm_lBAO_D4F71Nf_Ja_3/view?usp=sharing",
+        "commerce": false,
+        "commerce_description": "The plugin retrieves analytics data. It does not sell products, initiate subscriptions, or process payments."
+      },
+      "publication": {
+        "release_notes": "Launching Geckoboard's official plugin for ChatGPT and Codex. Bring accurate metrics from Zendesk, HubSpot, Google Analytics, and more into your AI assistant to perform analysis, automate reporting, and build custom data tools."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

@@ -1,0 +1,576 @@
+{
+ "catalogVersion": "1.9.0",
+ "source": "src/contracts/catalog.ts (min-ai-bros/mcp)",
+ "functions": [
+  {
+   "functionId": "ops.cases.search",
+   "toolName": "ops_cases_search",
+   "title": "Search cases",
+   "contractVersion": "1.1.0",
+   "description": "Search workflow cases (tickets) visible to the delegated user with the full /cases filter and sort surface: state, workflow, step, object type, assignee, SLA state, date ranges, duration, archive/acknowledge flags, sort and offset paging. Returns owner, deadline and SLA state.",
+   "domain": "ops.cases",
+   "effect": "read",
+   "scopes": [
+    "ops.cases.read"
+   ],
+   "limits": {
+    "maxResults": 20,
+    "maxItems": 20,
+    "maxQueryLength": 120,
+    "maxInputBytes": 4096,
+    "maxOutputBytes": 32768,
+    "maxArgumentDepth": 2,
+    "maxBytes": 32768,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Visibility follows the /cases boundary (participant, tenant-wide view_cases, workflow/service/case shares, watcher); filters only narrow it. Archived cases are excluded unless archived=only. total is the visible match count; rows are capped at limit and offset pages through them (nextCursor is not implemented; nextOffset is returned when a 1.1.0 argument is used). Filters or sorts on computed values (slaStates, step, assigneeQuery, deadline range, duration, sortBy slaState/deadline/ownerName/durationDays) are evaluated over the 1000 most recent matching visible cases and report partial when that cap is hit. Date arguments are ISO date-times; from bounds are inclusive."
+   },
+   "declaration": "declare function search(args?: { query?: string; state?: 'running' | 'completed' | 'failed' | 'cancelled'; states?: Array<'running' | 'completed' | 'failed' | 'cancelled'>; workflowSlug?: string; view?: 'all' | 'myturn' | 'myrequests'; objectType?: string; step?: string; assigneeQuery?: string; slaStates?: Array<'ok' | 'warning' | 'breach' | 'none'>; archived?: 'exclude' | 'only'; unacknowledgedOnly?: boolean; createdFrom?: string; createdTo?: string; updatedFrom?: string; updatedTo?: string; closedFrom?: string; closedTo?: string; deadlineFrom?: string; deadlineTo?: string; durationMinDays?: number; durationMaxDays?: number; sortBy?: 'createdAt' | 'updatedAt' | 'closedAt' | 'title' | 'state' | 'workflowSlug' | 'deadline' | 'slaState' | 'ownerName' | 'durationDays'; sortDir?: 'asc' | 'desc'; offset?: number; limit?: number }): Promise<CaseSearchResult>;"
+  },
+  {
+   "functionId": "ops.cases.detail",
+   "toolName": "ops_cases_detail",
+   "title": "Get case detail",
+   "contractVersion": "1.1.0",
+   "description": "Read one workflow case visible to the delegated user, including its active tasks and SLA state. Optional include adds the full task history, a bounded event timeline and parent/child cases.",
+   "domain": "ops.cases",
+   "effect": "read",
+   "scopes": [
+    "ops.cases.read"
+   ],
+   "limits": {
+    "maxResults": 1,
+    "maxItems": 1,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 32768,
+    "maxArgumentDepth": 2,
+    "maxBytes": 32768,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Returns zero items when the case does not exist or is not visible to the user (indistinguishable). At most 10 active tasks are listed; include=tasks lists the 30 most recent tasks (any status), include=timeline the 30 earliest events as type/step/actor kind/time only, include=links the visible parent and up to 10 visible child cases."
+   },
+   "declaration": "declare function detail(args: { caseId: string; include?: Array<'tasks' | 'timeline' | 'links'> }): Promise<CaseDetailResult>;"
+  },
+  {
+   "functionId": "ops.workflow_instances.search",
+   "toolName": "ops_workflow_instances_search",
+   "title": "Search workflow instances",
+   "contractVersion": "1.0.0",
+   "description": "Search workflow instances visible to the delegated user by definition, state or target object type.",
+   "domain": "ops.workflow_instances",
+   "effect": "read",
+   "scopes": [
+    "ops.workflows.read"
+   ],
+   "limits": {
+    "maxResults": 20,
+    "maxItems": 20,
+    "maxInputBytes": 2048,
+    "maxOutputBytes": 24576,
+    "maxArgumentDepth": 2,
+    "maxBytes": 24576,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Same case visibility boundary as ops.cases.search (stricter than the Jarmin tool, which is tenant-wide). Archived instances are excluded; rows are capped at limit."
+   },
+   "declaration": "declare function search(args?: { slug?: string; state?: 'running' | 'completed' | 'failed' | 'cancelled'; targetObjectType?: string; limit?: number }): Promise<WorkflowInstanceSearchResult>;"
+  },
+  {
+   "functionId": "ops.workflow_definitions.search",
+   "toolName": "ops_workflow_definitions_search",
+   "title": "Search workflow definitions",
+   "contractVersion": "1.0.0",
+   "description": "Search active workflow definitions (names and categories only) for context when reading cases.",
+   "domain": "ops.workflow_definitions",
+   "effect": "read",
+   "scopes": [
+    "ops.workflows.read"
+   ],
+   "limits": {
+    "maxResults": 20,
+    "maxItems": 20,
+    "maxQueryLength": 120,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 16384,
+    "maxArgumentDepth": 2,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "unknown",
+    "partialPossible": true,
+    "notes": "Only status=active definitions in the tenant, latest version first per slug; step graphs and form schemas are never included."
+   },
+   "declaration": "declare function search(args?: { query?: string; category?: string; limit?: number }): Promise<WorkflowDefinitionSearchResult>;"
+  },
+  {
+   "functionId": "ops.sla.summary",
+   "toolName": "ops_sla_summary",
+   "title": "Summarize SLA",
+   "contractVersion": "1.0.0",
+   "description": "Summarize SLA health of the running workflow cases visible to the delegated user: completion time, on-time rate, bottlenecks and cases at risk.",
+   "domain": "ops.sla",
+   "effect": "read",
+   "scopes": [
+    "ops.sla.read"
+   ],
+   "limits": {
+    "maxResults": 20,
+    "maxItems": 20,
+    "maxInputBytes": 256,
+    "maxOutputBytes": 16384,
+    "maxArgumentDepth": 1,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": true,
+    "notes": "Computed over at most 1000 visible running cases and the 200 most recently completed visible cases; partial=true when the running set was truncated. Uses the same thresholds as /api/ops/sla-summary but only over cases the user may view."
+   },
+   "declaration": "declare function summary(args?: {}): Promise<SlaSummaryResult>;"
+  },
+  {
+   "functionId": "company.org_nodes.search",
+   "toolName": "company_org_nodes_search",
+   "title": "Search org nodes",
+   "contractVersion": "1.0.0",
+   "description": "Search active organization nodes (legal entities, departments, teams, positions) with their type and parent. Read-only.",
+   "domain": "company.org_nodes",
+   "effect": "read",
+   "scopes": [
+    "company.orgchart.read"
+   ],
+   "limits": {
+    "maxResults": 50,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 24576,
+    "maxItems": 50,
+    "maxQueryLength": 120,
+    "maxArgumentDepth": 2,
+    "maxBytes": 24576,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Same boundary as the read-only /company/orgchart page: every active member of the tenant sees the whole tree (there is no per-branch restriction in the existing orgchart read APIs). Only currently active nodes; total is the tenant match count, rows are capped at limit and nextCursor is not implemented."
+   },
+   "declaration": "declare function search(args?: { query?: string; typeId?: string; parentId?: string; limit?: number }): Promise<OrgNodesResult>;"
+  },
+  {
+   "functionId": "company.org_edges.search",
+   "toolName": "company_org_edges_search",
+   "title": "Search org relations",
+   "contractVersion": "1.0.0",
+   "description": "Search active relations between organization nodes (contains, reports_to, ...). Read-only.",
+   "domain": "company.org_edges",
+   "effect": "read",
+   "scopes": [
+    "company.orgchart.read"
+   ],
+   "limits": {
+    "maxResults": 50,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 32768,
+    "maxItems": 50,
+    "maxArgumentDepth": 2,
+    "maxBytes": 32768,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Same boundary as /api/orgchart/edges GET (tenant members, active edges only). nodeId matches edges where the node is either endpoint. total is the tenant match count; rows are capped at limit."
+   },
+   "declaration": "declare function search(args?: { typeId?: string; nodeId?: string; limit?: number }): Promise<OrgEdgesResult>;"
+  },
+  {
+   "functionId": "company.profile.get",
+   "toolName": "company_profile_get",
+   "title": "Get company profile",
+   "contractVersion": "1.0.0",
+   "description": "Read the profile of the delegated user's own company: name, tagline, industry, size, mission, vision and values. Read-only.",
+   "domain": "company.profile",
+   "effect": "read",
+   "scopes": [
+    "company.profile.read"
+   ],
+   "limits": {
+    "maxResults": 1,
+    "maxInputBytes": 256,
+    "maxOutputBytes": 16384,
+    "maxItems": 1,
+    "maxArgumentDepth": 1,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Same boundary as GET /api/orgs/[id]/profile (any active member). Returns one item, or zero items when the tenant row is missing. Every profile field is coerced to bounded plain text."
+   },
+   "declaration": "declare function get(args?: {}): Promise<CompanyProfileResult>;"
+  },
+  {
+   "functionId": "company.people.search",
+   "toolName": "company_people_search",
+   "title": "Search people directory",
+   "contractVersion": "1.0.0",
+   "description": "Search active people in the company by name or position: display name, job title, primary position and unit only. Read-only.",
+   "domain": "company.people",
+   "effect": "read",
+   "scopes": [
+    "company.people.read"
+   ],
+   "limits": {
+    "maxResults": 50,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 32768,
+    "maxItems": 50,
+    "maxQueryLength": 120,
+    "maxArgumentDepth": 2,
+    "maxBytes": 32768,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Same boundary as the /company/people page: every active member of the tenant sees the active, non-deleted directory (no per-team restriction exists there). Search matches display name only, never email or phone. total is the tenant match count; rows are capped at limit."
+   },
+   "declaration": "declare function search(args?: { query?: string; positionNodeId?: string; limit?: number }): Promise<PeopleResult>;"
+  },
+  {
+   "functionId": "company.assignments.search",
+   "toolName": "company_assignments_search",
+   "title": "Search position assignments",
+   "contractVersion": "1.0.0",
+   "description": "Search current position assignments (who holds which position, primary flag, FTE, reports-to). Read-only.",
+   "domain": "company.assignments",
+   "effect": "read",
+   "scopes": [
+    "company.people.read"
+   ],
+   "limits": {
+    "maxResults": 50,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 32768,
+    "maxItems": 50,
+    "maxArgumentDepth": 2,
+    "maxBytes": 32768,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Only currently open assignments (effectiveTo null) of active, non-deleted workers in the tenant, matching the people directory. total is the tenant match count; rows are capped at limit."
+   },
+   "declaration": "declare function search(args?: { workerId?: string; positionNodeId?: string; limit?: number }): Promise<AssignmentsResult>;"
+  },
+  {
+   "functionId": "omni.conversations.search",
+   "toolName": "omni_conversations_search",
+   "title": "Search conversations",
+   "contractVersion": "1.0.0",
+   "description": "Search omni-channel inbox conversations in inboxes the delegated user can view, returning channel, contact display name, status, assignee, unread count and CRM links. Never returns message content, email or phone.",
+   "domain": "omni.conversations",
+   "effect": "read",
+   "scopes": [
+    "omni.conversations.read"
+   ],
+   "limits": {
+    "maxResults": 20,
+    "maxInputBytes": 2048,
+    "maxOutputBytes": 49152,
+    "maxItems": 20,
+    "maxQueryLength": 80,
+    "maxArgumentDepth": 2,
+    "maxBytes": 49152,
+    "maxCallDurationMs": 12000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Visibility follows the Omni inbox boundary: only inboxes on which the delegated user has at least 'view' access (explicit InboxMember grant, orgchart scope walk, or tenant-wide omni admin) are read; the Omni module must be enabled for the tenant. Records in other inboxes are indistinguishable from missing ones. Junk conversations are excluded. 'query' matches contact or group name (queries that look like an email or phone number are rejected). total is the visible match count; rows are capped at limit and paged with 'page'; nextCursor is not implemented."
+   },
+   "declaration": "declare function search(args?: { query?: string; status?: 'open' | 'closed' | 'bot_handling' | 'waiting_human'; channelType?: 'zalo_personal' | 'zalo_oa' | 'facebook'; channelId?: string; inboxId?: string; kind?: 'direct' | 'group'; assignee?: 'me' | 'unassigned'; unreadOnly?: boolean; tag?: string; linkedDealId?: string; linkedContactId?: string; lastMessageAfter?: string; lastMessageBefore?: string; page?: number; limit?: number }): Promise<OmniConversationsResult>;"
+  },
+  {
+   "functionId": "omni.conversations.detail",
+   "toolName": "omni_conversations_detail",
+   "title": "Get conversation detail",
+   "contractVersion": "1.0.0",
+   "description": "Read the metadata of one omni-channel conversation the delegated user can view: channel, status, assignee, tags, bot state and CRM links. Never returns message content, email or phone.",
+   "domain": "omni.conversations",
+   "effect": "read",
+   "scopes": [
+    "omni.conversations.read"
+   ],
+   "limits": {
+    "maxResults": 1,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 8192,
+    "maxItems": 1,
+    "maxArgumentDepth": 2,
+    "maxBytes": 8192,
+    "maxCallDurationMs": 12000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": false,
+    "notes": "Visibility follows the Omni inbox boundary: only inboxes on which the delegated user has at least 'view' access (explicit InboxMember grant, orgchart scope walk, or tenant-wide omni admin) are read; the Omni module must be enabled for the tenant. Records in other inboxes are indistinguishable from missing ones. Returns zero items when the conversation does not exist, belongs to another tenant, has no inbox, or sits in an inbox the user cannot view (indistinguishable)."
+   },
+   "declaration": "declare function detail(args: { conversationId: string }): Promise<OmniConversationDetailResult>;"
+  },
+  {
+   "functionId": "omni.channels.list",
+   "toolName": "omni_channels_list",
+   "title": "List channels",
+   "contractVersion": "1.0.0",
+   "description": "List connected omni channels (Zalo, Zalo OA, Facebook pages) in inboxes the delegated user can view, with enabled flag and connection state. No credentials or tokens.",
+   "domain": "omni.channels",
+   "effect": "read",
+   "scopes": [
+    "omni.channels.read"
+   ],
+   "limits": {
+    "maxResults": 50,
+    "maxInputBytes": 512,
+    "maxOutputBytes": 32768,
+    "maxItems": 50,
+    "maxArgumentDepth": 1,
+    "maxBytes": 32768,
+    "maxCallDurationMs": 12000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Visibility follows the Omni inbox boundary: only inboxes on which the delegated user has at least 'view' access (explicit InboxMember grant, orgchart scope walk, or tenant-wide omni admin) are read; the Omni module must be enabled for the tenant. Records in other inboxes are indistinguishable from missing ones. Channels without an inbox are not listed. Test channels and soft-deleted channels are excluded upstream. At most 50 channels are returned."
+   },
+   "declaration": "declare function list(args?: { inboxId?: string }): Promise<OmniChannelsResult>;"
+  },
+  {
+   "functionId": "omni.inboxes.list",
+   "toolName": "omni_inboxes_list",
+   "title": "List inboxes",
+   "contractVersion": "1.0.0",
+   "description": "List the omni inboxes the delegated user can view (id, name, default flag), to scope conversation and channel queries.",
+   "domain": "omni.inboxes",
+   "effect": "read",
+   "scopes": [
+    "omni.inboxes.read"
+   ],
+   "limits": {
+    "maxResults": 50,
+    "maxInputBytes": 256,
+    "maxOutputBytes": 16384,
+    "maxItems": 50,
+    "maxArgumentDepth": 1,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 12000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Visibility follows the Omni inbox boundary: only inboxes on which the delegated user has at least 'view' access (explicit InboxMember grant, orgchart scope walk, or tenant-wide omni admin) are read; the Omni module must be enabled for the tenant. Records in other inboxes are indistinguishable from missing ones. At most 50 inboxes are returned."
+   },
+   "declaration": "declare function list(args?: {}): Promise<OmniInboxesResult>;"
+  },
+  {
+   "functionId": "okr.context.get",
+   "toolName": "okr_context_get",
+   "title": "Load OKR context",
+   "contractVersion": "1.0.0",
+   "description": "Load the full OKR context for the delegated user in one call: company profile, who the user is (position, units led), the active cycle (elapsed %, days left) and every visible objective with its key results, progress and latest self-assessed confidence. Returns grounded data only, no advice.",
+   "domain": "okr.objectives",
+   "effect": "read",
+   "scopes": [
+    "okr.objectives.read"
+   ],
+   "limits": {
+    "maxInputBytes": 256,
+    "maxOutputBytes": 131072,
+    "maxItems": 50,
+    "maxArgumentDepth": 1,
+    "maxBytes": 131072,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "Objectives of the active cycle visible to the user (public, owned or created by them), at most 50 with 20 key results each; partial=true when more exist."
+   },
+   "declaration": "declare function get(args?: {}): Promise<{ company: object; me: object; cycle: object; objectives: Array<{ id: string; title: string; level: string; lane: string; state: string; progress: number; keyResults: Array<{ id: string; title: string; progress: number }> }>; returnedCount: number; partial: boolean; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "okr.quality.review",
+   "toolName": "okr_quality_review",
+   "title": "Review OKR quality",
+   "contractVersion": "1.0.0",
+   "description": "Score the quality of an OKR: flags key results that are unmeasurable, vague, or too many. Give either objectiveId (a visible objective) or an inline title with keyResults. Read-only.",
+   "domain": "okr.objectives",
+   "effect": "read",
+   "scopes": [
+    "okr.objectives.read"
+   ],
+   "limits": {
+    "maxInputBytes": 8192,
+    "maxOutputBytes": 16384,
+    "maxItems": 20,
+    "maxArgumentDepth": 3,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 10000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Heuristic review of one objective. An objectiveId the user cannot see is indistinguishable from an unknown one."
+   },
+   "declaration": "declare function review(args: { objectiveId?: string; title?: string; keyResults?: Array<{ title?: string; targetValue?: number; startValue?: number; metricType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'BOOLEAN'; unit?: string }> }): Promise<{ title: string; keyResultCount: number; issues: Array<{ kr: string; issue: string }>; verdict: string; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "docs.register.search",
+   "toolName": "docs_register_search",
+   "title": "Search document register",
+   "contractVersion": "1.0.0",
+   "description": "Search the issued-document register (decisions, regulations, announcements, official letters) that the verified user may read. Returns register metadata only, never document content, attachments or signatures. Drafts and confidential documents are excluded.",
+   "domain": "docs.register",
+   "effect": "read",
+   "scopes": [
+    "docs.register.read"
+   ],
+   "limits": {
+    "maxItems": 20,
+    "maxQueryLength": 200,
+    "maxInputBytes": 4096,
+    "maxOutputBytes": 49152,
+    "maxArgumentDepth": 2,
+    "maxBytes": 49152,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "total is the exact count within the caller's document access and filters; rows are capped at 20 and nextCursor is not implemented."
+   },
+   "declaration": "declare function search(args?: { query?: string; number?: string; bookId?: string; docType?: 'decision' | 'regulation' | 'announcement' | 'official_letter'; limit?: number }): Promise<DocRegisterSearchResult>;"
+  },
+  {
+   "functionId": "docs.numbers.explain",
+   "toolName": "docs_numbers_explain",
+   "title": "Explain document number",
+   "contractVersion": "1.0.0",
+   "description": "Explain a document number: how the numbering book's pattern is composed and whether the number belongs to a readable document, was burnt (voided or expired reservation), is unreadable to the caller, or is unused.",
+   "domain": "docs.numbers",
+   "effect": "read",
+   "scopes": [
+    "docs.register.read"
+   ],
+   "limits": {
+    "maxItems": 20,
+    "maxQueryLength": 100,
+    "maxInputBytes": 2048,
+    "maxOutputBytes": 16384,
+    "maxArgumentDepth": 2,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "One explanation per call. owner.kind = forbidden means a document exists but is not readable by the caller; it must not be read as an unused number."
+   },
+   "declaration": "declare function explain(args: { number: string; bookId?: string }): Promise<DocNumberExplanation>;"
+  },
+  {
+   "functionId": "docs.books.list",
+   "toolName": "docs_books_list",
+   "title": "List document books",
+   "contractVersion": "1.0.0",
+   "description": "List the active document books (registers) of the workspace with their numbering pattern, reset cycle and accepted document types. Book clerk assignments are not returned.",
+   "domain": "docs.books",
+   "effect": "read",
+   "scopes": [
+    "docs.register.read"
+   ],
+   "limits": {
+    "maxItems": 20,
+    "maxInputBytes": 1024,
+    "maxOutputBytes": 24576,
+    "maxArgumentDepth": 1,
+    "maxBytes": 24576,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "total is the exact count of active books; rows are capped at 20 and nextCursor is not implemented."
+   },
+   "declaration": "declare function list(args?: {}): Promise<DocBooksResult>;"
+  },
+  {
+   "functionId": "docs.templates.search",
+   "toolName": "docs_templates_search",
+   "title": "Search document templates",
+   "contractVersion": "1.0.0",
+   "description": "Search document template metadata (name, type, status, version). Requires the manage_people capability, as the web template settings do. Template bodies, variables and files are never returned.",
+   "domain": "docs.templates",
+   "effect": "read",
+   "scopes": [
+    "docs.templates.read"
+   ],
+   "limits": {
+    "maxItems": 20,
+    "maxQueryLength": 200,
+    "maxInputBytes": 2048,
+    "maxOutputBytes": 16384,
+    "maxArgumentDepth": 2,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 5000
+   },
+   "completeness": {
+    "total": "known",
+    "partialPossible": true,
+    "notes": "total is the exact count within the workspace and filters; rows are capped at 20 and nextCursor is not implemented."
+   },
+   "declaration": "declare function search(args?: { query?: string; type?: string; limit?: number }): Promise<DocTemplatesResult>;"
+  },
+  {
+   "functionId": "chat.conversations.search",
+   "toolName": "chat_conversations_search",
+   "title": "Find team chat conversations",
+   "contractVersion": "1.0.0",
+   "description": "List internal team chat conversations (direct messages and groups) the delegated user is an active member of, to pick a target for chat.messages.send. Never returns message content.",
+   "domain": "chat.conversations",
+   "effect": "read",
+   "scopes": [
+    "chat.conversations.read"
+   ],
+   "limits": {
+    "maxResults": 20,
+    "maxInputBytes": 512,
+    "maxOutputBytes": 16384,
+    "maxItems": 20,
+    "maxQueryLength": 80,
+    "maxArgumentDepth": 1,
+    "maxBytes": 16384,
+    "maxCallDurationMs": 10000
+   },
+   "completeness": {
+    "total": "unknown",
+    "partialPossible": true,
+    "notes": "Only conversations where the user is an active member are listed, most recently active first (the 100 most recent are searched, at most twenty returned). If the connection was limited to specific conversations, only those appear."
+   },
+   "declaration": "declare function search(args?: { query?: string; limit?: number }): Promise<{ items: Array<{ id: string; type: 'dm' | 'group'; name: string | null }>; returnedCount: number; total: number | null; partial: boolean; nextCursor: null; completeness: { status: string; reason: string | null } }>;"
+  }
+ ]
+}

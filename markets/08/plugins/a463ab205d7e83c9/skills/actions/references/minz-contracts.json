@@ -1,0 +1,256 @@
+{
+ "catalogVersion": "1.9.0",
+ "source": "src/contracts/catalog.ts (min-ai-bros/mcp)",
+ "functions": [
+  {
+   "functionId": "chat.messages.send",
+   "toolName": "chat_messages_send",
+   "title": "Send team chat message",
+   "contractVersion": "1.0.0",
+   "description": "Post a text message to an internal team chat conversation the delegated user is a member of. The message appears under the bot name chosen when the connection was authorised, not under the user's name. Max 5000 characters; no mentions or attachments.",
+   "domain": "chat.messages",
+   "effect": "write",
+   "scopes": [
+    "chat.messages.write"
+   ],
+   "limits": {
+    "maxInputBytes": 24576,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "This sends one visible message per call; calling it again posts another message. It fails when the connection has no bot configured, the bot key was revoked, or the user is not a member of the conversation. Confirm the target conversation and the wording with the user before calling."
+   },
+   "declaration": "declare function send(args: { conversationId: string; content: string; replyToId?: string }): Promise<{ messageId: string; conversationId: string; botName: string; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "general.calendar.create_event",
+   "toolName": "general_calendar_create_event",
+   "title": "Create calendar event",
+   "contractVersion": "1.0.0",
+   "description": "Create a native calendar event owned by the delegated user. Times need an explicit UTC offset (for example 2026-10-08T09:00:00+07:00); end defaults to one hour after start and an event may last at most 31 days. Optional weekly/daily/monthly recurrence (RRULE, at most 100 occurrences), and links to a deal or contact the user can see. No attendees, no Google Meet.",
+   "domain": "general.calendar",
+   "effect": "write",
+   "scopes": [
+    "general.calendar.write"
+   ],
+   "limits": {
+    "maxInputBytes": 16384,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 20000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Creates exactly one event (plus its occurrences for a recurring rule) per call; calling again creates another event. Pushes to the user's connected Google Calendar when one exists, reported in googleSyncStatus."
+   },
+   "declaration": "declare function create_event(args: { title: string; startAt: string; endAt?: string; timezone?: string; location?: string; description?: string; meetingUrl?: string; visibility?: 'public' | 'team' | 'private' | 'busy'; recurrenceRule?: string; dealId?: string; contactId?: string }): Promise<{ id: string; title: string; startAt: string; endAt: string; meetingUrl: string | null; recurrenceRule: string | null; occurrenceCount: number; googleSyncStatus: string; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "general.calendar.update_event",
+   "toolName": "general_calendar_update_event",
+   "title": "Update calendar event",
+   "contractVersion": "1.0.0",
+   "description": "Change the title, time, location, description, meeting URL or visibility of ONE native calendar event the delegated user may edit (their own event, or any when they hold admin authority). Send only the fields to change; null clears description, location or meetingUrl. Imported Google events and recurring-series heads cannot be edited here; a single occurrence of a series can. Attendees are not changed.",
+   "domain": "general.calendar",
+   "effect": "write",
+   "scopes": [
+    "general.calendar.write"
+   ],
+   "limits": {
+    "maxInputBytes": 16384,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 20000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Updates exactly one event row; moving only startAt keeps the event duration; the same values sent again leave it unchanged. Fails closed for unknown, foreign-tenant or not-editable events (indistinguishable from not found for events the user cannot see). Invited people are re-notified when the time, title, location or meeting URL changes."
+   },
+   "declaration": "declare function update_event(args: { eventId: string; title?: string; startAt?: string; endAt?: string; location?: string | null; description?: string | null; meetingUrl?: string | null; visibility?: 'public' | 'team' | 'private' | 'busy' }): Promise<{ id: string; title: string; startAt: string; endAt: string; changed: string[]; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "general.calendar.delete_event",
+   "toolName": "general_calendar_delete_event",
+   "title": "Delete calendar event",
+   "contractVersion": "1.0.0",
+   "description": "Delete ONE native calendar event the delegated user may delete (their own, or any with admin authority), notifying invitees of the cancellation and removing it from their connected Google Calendar. A standalone event is removed; a single occurrence of a recurring series is cancelled. Destructive and not reversible: confirm with the user first. Whole series, imported Google events and series heads cannot be deleted here.",
+   "domain": "general.calendar",
+   "effect": "write",
+   "scopes": [
+    "general.calendar.write"
+   ],
+   "limits": {
+    "maxInputBytes": 16384,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 20000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Removes exactly one event ('deleted') or cancels one occurrence of a series ('cancelled'). Deleting an event that is already gone returns not found."
+   },
+   "declaration": "declare function delete_event(args: { eventId: string }): Promise<{ id: string; result: 'deleted' | 'cancelled'; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "general.calendar.respond_event",
+   "toolName": "general_calendar_respond_event",
+   "title": "Respond to calendar invitation",
+   "contractVersion": "1.0.0",
+   "description": "Set the delegated user's own RSVP (accepted, declined or tentative) on a calendar event they are invited to. Only the user's own attendee row changes; an RSVP on an occurrence of a recurring series applies to the whole series, as in the Calendar app.",
+   "domain": "general.calendar",
+   "effect": "write",
+   "scopes": [
+    "general.calendar.write"
+   ],
+   "limits": {
+    "maxInputBytes": 16384,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 20000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Sets the caller's RSVP; repeating the same response is a no-op. Fails closed with not found when the user is not invited or the event is in another workspace."
+   },
+   "declaration": "declare function respond_event(args: { eventId: string; response: 'accepted' | 'declined' | 'tentative' }): Promise<{ id: string; response: 'accepted' | 'declined' | 'tentative'; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "okr.objectives.draft",
+   "toolName": "okr_objectives_draft",
+   "title": "Draft OKR objective",
+   "contractVersion": "1.0.0",
+   "description": "Create a DRAFT objective with 2-4 measurable key results in the active cycle, owned by the delegated user. The draft appears dimmed in /okr and only becomes active when the user approves it there. Each call creates one new draft; clarify the goal with the user first.",
+   "domain": "okr.objectives",
+   "effect": "write",
+   "scopes": [
+    "okr.objectives.write"
+   ],
+   "limits": {
+    "maxInputBytes": 8192,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 3,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Creates exactly one DRAFT objective per call; calling again creates another draft. Never activates an objective: the user approves it in /okr. Clarify the goal with the user before calling."
+   },
+   "declaration": "declare function draft(args: { title: string; description?: string; lane?: 'COMMITMENT' | 'ASPIRATION'; level?: 'COMPANY' | 'DEPARTMENT' | 'TEAM' | 'INDIVIDUAL'; keyResults: Array<{ title: string; targetValue: number; startValue?: number; metricType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'BOOLEAN'; unit?: string }> }): Promise<{ objectiveId: string; title: string; lane: string; level: string; cycle: string; keyResultCount: number; state: 'DRAFT'; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "okr.key_results.checkin",
+   "toolName": "okr_key_results_checkin",
+   "title": "Check in key result",
+   "contractVersion": "1.0.0",
+   "description": "Check in one key result: record the user's confidence (ON_TRACK, AT_RISK, OFF_TRACK) and an optional blocker note. A numeric value is accepted only for manually tracked key results; automatic key results keep their adapter value. Only the key result owner, objective owner or objective creator may check in. Roll-up key results cannot be checked in.",
+   "domain": "okr.key_results",
+   "effect": "write",
+   "scopes": [
+    "okr.key_results.write"
+   ],
+   "limits": {
+    "maxInputBytes": 4096,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Appends one check-in record per call; calling again appends another. NOT_FOUND for a key result outside the tenant, FORBIDDEN when the user may not write its progress. Roll-up key results cannot be checked in."
+   },
+   "declaration": "declare function checkin(args: { krId: string; confidence: 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK'; note?: string; value?: number }): Promise<{ krId: string; title: string; value: number; unit: string | null; target: number; confidence: string | null; auto: boolean; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "general.tasks.create",
+   "toolName": "general_tasks_create",
+   "title": "Create task",
+   "contractVersion": "1.0.0",
+   "description": "Create one task owned by the delegated user. Optionally assign it to a colleague of the same workspace and link it to a deal or contact the user can see. Status defaults to Todo and priority to Medium.",
+   "domain": "general.tasks",
+   "effect": "write",
+   "scopes": [
+    "general.tasks.write"
+   ],
+   "limits": {
+    "maxInputBytes": 8192,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Creates exactly one task per call and is not idempotent: calling it again creates another task. dealId and contactId must be visible to the delegated user and assignedUserId must be an active colleague of the workspace, otherwise the call is rejected. Confirm the title, due date and assignee with the user before calling."
+   },
+   "declaration": "declare function create(args: { title: string; description?: string; status?: 'Todo' | 'In_Progress' | 'Done'; priority?: 'Low' | 'Medium' | 'High'; dueDate?: string; assignedUserId?: string; dealId?: string; contactId?: string }): Promise<{ action: 'created' | 'updated'; task: { id: string; title: string; status: string; priority: string; dueDate: string | null; assignedUserId: string | null }; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "general.tasks.update",
+   "toolName": "general_tasks_update",
+   "title": "Update task",
+   "contractVersion": "1.0.0",
+   "description": "Update one existing task the delegated user is allowed to edit (title, description, status, priority, due date, assignee, linked deal or contact). At least one field besides taskId is required.",
+   "domain": "general.tasks",
+   "effect": "write",
+   "scopes": [
+    "general.tasks.write"
+   ],
+   "limits": {
+    "maxInputBytes": 8192,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Updates exactly one task and only the fields present in the call. Tasks the user cannot edit and unknown IDs are rejected. dealId and contactId must be visible to the user and assignedUserId must be an active colleague of the workspace. Tasks cannot be deleted through this function. Confirm the change with the user before calling."
+   },
+   "declaration": "declare function update(args: { taskId: string; title?: string; description?: string; status?: 'Todo' | 'In_Progress' | 'Done'; priority?: 'Low' | 'Medium' | 'High'; dueDate?: string; assignedUserId?: string; dealId?: string | null; contactId?: string | null }): Promise<{ action: 'created' | 'updated'; task: { id: string; title: string; status: string; priority: string; dueDate: string | null; assignedUserId: string | null }; partial: false; completeness: { status: string; reason: string | null } }>;"
+  },
+  {
+   "functionId": "crm.deals.follow",
+   "toolName": "crm_deals_follow",
+   "title": "Follow deal for Claude",
+   "contractVersion": "1.0.0",
+   "description": "Follow or unfollow one deal the delegated user can see. While followed, every stage change of the deal (by anyone) wakes the user's Claude Code Routine with the deal, who moved it, the people who worked on it, and the instruction given here.",
+   "domain": "crm.deals",
+   "effect": "write",
+   "scopes": [
+    "crm.deals.follow.write"
+   ],
+   "limits": {
+    "maxInputBytes": 8192,
+    "maxOutputBytes": 2048,
+    "maxArgumentDepth": 1,
+    "maxBytes": 2048,
+    "maxCallDurationMs": 15000
+   },
+   "completeness": {
+    "total": "not_applicable",
+    "partialPossible": false,
+    "notes": "Follow is idempotent per deal: following again replaces the instruction. Unfollow of a deal that is not followed succeeds with no change. instruction is required to follow. A user follows at most 20 deals. routineConfigured false means nothing will fire until the user sets their routine trigger in Minz; tell them so. Confirm the deal and the instruction with the user before calling."
+   },
+   "declaration": "declare function follow(args: { dealId: string; action?: 'follow' | 'unfollow'; instruction?: string }): Promise<{ action: 'followed' | 'unfollowed'; deal: { id: string; title: string }; instruction: string | null; routineConfigured: boolean; followCount: number; partial: false; completeness: { status: string; reason: string | null } }>;"
+  }
+ ]
+}

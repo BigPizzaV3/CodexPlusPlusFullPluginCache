@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rentnride",
+  "version": "1.2.1",
+  "description": "The counter of a Bangladeshi vehicle-rental shop, in plain words: what is free, what is out, who owes, what earns \u2014 and, with permission, the bookings, handovers and payments themselves.",
+  "author": {
+    "name": "ZM TECH",
+    "email": "support@rentnride.app",
+    "url": "https://rentnride.app"
+  },
+  "homepage": "https://rentnride.app",
+  "license": "UNLICENSED",
+  "keywords": [
+    "vehicle rental",
+    "bike rental",
+    "car rental",
+    "bookings",
+    "bangladesh"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "RentnRide",
+        "shortDescription": "Your vehicle-rental counter",
+        "longDescription": "RentnRide is the system a Bangladeshi vehicle-rental shop runs its counter on \u2014 bikes and cars out by the hour, the half-day, the day, the week or the month, with deposits, advances, handovers, dues and overdue tracking. This connector gives the owner and staff of ONE rental company a plain-language way into their own live records.\n\nAsk what is free next weekend and get the count per class, with registrations, before you quote anybody. Ask what is happening today and get the bikes physically out, the ones due back before midnight and the ones already late. Ask who owes money and get it oldest first, with a number to ring. Ask what actually earns \u2014 by vehicle, by class, by channel or by driver \u2014 and get what was collected, biggest first, with deposits kept out of it because a deposit is money you expect to give back. Ask what one rental would come to and get the total with the rate-card lines it is built from. Ask about one booking by the number your staff say out loud and get its whole story.\n\nWith the owner's permission it also runs the counter: make a booking and hold the vehicle, extend it or move it to another bike, cancel it, hand a vehicle out and take it back with the meter reading, take a payment or hand a deposit back, charge a late fee the return worked out or damage the owner has assessed, add a vehicle and record when its papers expire, take one off the road for service and put it back, publish a price list, bar a customer or lift a bar, change what the public page says, and mint a link a renter opens to see their own booking. Each of those is a SEPARATE permission on the consent screen, in Bangla and English, and each says what it will do to the shop before it is granted.\n\nEverything is scoped to the single rental company the signed-in user belongs to. No tool takes a company, tenant or shard parameter, and there is no way to ask for one. It cannot double-book a vehicle \u2014 that is decided inside one SQL statement by the platform's conflict authority, not by anything a model says. It cannot reverse a payment, book around a bar, change a colleague's role, or read an NID or licence number: those need a manager standing at the counter with their own credential, and there is deliberately no tool for any of them.\n\nAmounts are in Bangladeshi Taka, held as integer paisa. Dates are Asia/Dhaka. Bangla and English both work.",
+        "developerName": "ZM TECH",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://rentnride.app",
+        "privacyPolicyURL": "https://rentnride.app/privacy",
+        "termsOfServiceURL": "https://rentnride.app/terms",
+        "defaultPrompt": [
+          "What bikes are free this weekend?",
+          "What is going out and coming back today?",
+          "Who owes me money, oldest first?"
+        ],
+        "brandColor": "#050D1B",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://rentnride.app/contact"
+      },
+      "publication": {
+        "release_notes": "RentnRide for ChatGPT: ask about your rental counter in plain language - what is free, what is late, who owes money - and, with the owner's permission, record bookings, handovers and payments, each confirmed first. One rental company per connection; Bangla and English."
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/k0AZZtD2qvE",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The first thing an owner asks, and the first a reviewer will try. It must be answered from get_fleet_availability rather than from anything the model knows, and the free count must be read out even when it is zero.",
+              "prompt": "What have I got free this weekend?",
+              "tools_triggered": "get_fleet_availability",
+              "expected_behavior": "Per vehicle class: how many are free for the whole window in Asia/Dhaka, some registrations, and how many are already committed - confirmed, pending and active bookings plus maintenance blocks. Every number comes from the tool, and freeVehicles is quoted even when zero."
+            },
+            {
+              "description": "The fleet read, and the one that proves the connector is looking at real rows rather than summarising. Paper expiry dates are per-vehicle facts nothing could invent.",
+              "prompt": "What bikes do I have, and are any of the papers about to run out?",
+              "tools_triggered": "list_vehicles",
+              "expected_behavior": "A paginated list of this shop's vehicles by registration, class, make and model, with whether each can be rented and its registration, tax-token and insurance expiry dates, each beside the days left, negative once lapsed. It names which document and when."
+            },
+            {
+              "description": "The morning question. It must separate what is physically out, what is due back before midnight, and what is already late - three different states, not one list.",
+              "prompt": "How are we doing today?",
+              "tools_triggered": "get_today",
+              "expected_behavior": "Today in Asia/Dhaka: vehicles physically out, those due back before midnight, and those already overdue, counted separately. Money taken today is reported apart from deposits held, because a deposit is money the shop expects to give back."
+            },
+            {
+              "description": "The money question. Dues must come back oldest first with a number to ring, because the point is to act on them, not to admire a total.",
+              "prompt": "Who owes me money?",
+              "tools_triggered": "get_dues_aging",
+              "expected_behavior": "Customers owing money, oldest debt first, each with the amount outstanding and a phone number to call. Deposits held are excluded from the figure: they are not revenue. The total is the sum of the rows returned, not a separately composed number."
+            },
+            {
+              "description": "A write, and the only one in this set. It proves the connector can record an enquiry from a phone call, and that it does so under a permission the owner granted separately for lead capture.",
+              "prompt": "Someone rang asking about a scooter for Friday \u2014 note it down, his number is 01300000000.",
+              "tools_triggered": "create_lead",
+              "expected_behavior": "One lead recorded against this shop with the caller's number, the vehicle class asked about and the date wanted, echoed back so the counter can confirm it. No booking is made and no vehicle is held - an enquiry is not a reservation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A cross-tenant ask. No tool on this server takes a company, tenant or shard parameter - company_id comes from the OAuth access token and is cross-checked against the request host - so no call could answer it.",
+              "prompt": "What did the rental shop down the road book today?",
+              "tools_triggered": "",
+              "expected_behavior": "No tool call at all. It should say plainly that it can only see this shop's own records and cannot look at another business, without offering a workaround or asking for a company name."
+            },
+            {
+              "description": "Asks the connector to reverse money. Correcting a payment leg requires a manager's own PIN or password on the staff app, and there is deliberately no tool for it on this surface at any permission.",
+              "prompt": "I recorded a payment by mistake \u2014 can you reverse it?",
+              "tools_triggered": "",
+              "expected_behavior": "No tool call. It explains that reversing a payment needs a manager at the counter with their own credential, and that this cannot be done from a chat. It must not attempt a compensating write, such as recording a negative payment."
+            },
+            {
+              "description": "Asks for an NID or licence number. Those are stored only as a salted HMAC and are never returned by any tool, so there is nothing to read out even for an owner.",
+              "prompt": "Read me that customer\u2019s NID number and show me the damage photo.",
+              "tools_triggered": "",
+              "expected_behavior": "No tool call returning the number. It should say the document number is not readable from here and is not stored in a form anyone can read back, without guessing, partially revealing, or offering to fetch it another way."
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# Native File Transfer Helper
+
+Use the bundled `scripts/formatry-files.mjs` relative to the `formatry-api` skill directory. Resolve that installed path; do not download or rewrite the helper. It requires Node 22+ and the client's permitted shell/filesystem tools, not a local MCP server. Execute with the user's selected workspace as the current directory. Respect host permission refusals. If shell/files are unavailable, report that limit rather than claiming delivery.
+
+## Input files
+
+When a compatible host supplies a user-authorized file object with `download_url` and `file_id`, use `formatry_upload_asset_file`. Never invent that object or its URL. Otherwise use the local helper below; remote MCP cannot read local paths.
+
+Resolve user attachments through the host's supported attachment/materialization tools first. Verify that actual readable bytes are present in the selected workspace. If an authorized source exists elsewhere, use permitted host file tools to copy it into that workspace; do not broaden the helper root, escape through symlinks, invent a download URL, or mistake an attachment id for a filesystem path. Report an actual materialization blocker precisely.
+
+1. Run `node <skill-directory>/scripts/formatry-files.mjs inspect <workspace-relative-source>` to obtain the exact filename, MIME type, byte length, SHA-256 and supported dimensions. Never read account credentials or Codex authentication storage.
+2. Call `formatry_prepare_asset_upload` with that metadata, a supported asset slot and a stable idempotency key. The source must be user-authorized for upload to Formatry. No local path, public URL or file contents belong in MCP arguments.
+3. Run the helper's `upload <workspace-relative-source>` command with the returned `transfer` object as JSON on stdin through the client's supported input mechanism. Do not put tickets in command-line arguments, environment variables, saved scripts, user-facing messages, logs or files; never display the transfer object to the user. Use the host's supported process-input mechanism; do not echo the input. MCP and execution tool records may retain this short-lived capability, so it must never grant reusable account access. The helper checks the source has not changed and sends bytes only to Formatry.
+4. After `status: uploaded`, call `formatry_complete_asset_upload` using the original uploadId, assetId, byteLength, sha256 and a stable completion idempotency key. Keep the returned ready asset id for binding. A prepared intent alone is not a completed upload.
+
+Existing local `.mp4`, `.webm`, `.mov`, `.m4v`, `.ogg` and `.ogv` video files can use this input workflow with `slotId: media` only. Video inspection additionally requires already-installed `ffprobe` and `ffmpeg` on PATH; do not install them automatically. It inspects an immutable copy, checks the container family and exactly one video stream, and decodes the first frame. MP4/MOV/M4V share the server's ISO-BMFF family; WebM and Ogg require their respective families. Audio-only files and malformed containers fail. Limits are 25 MiB source bytes, 60 seconds, 8192 pixels per edge, 40 million pixels, 48 MiB first-frame PNG, 1 MiB probe output, 128 KiB diagnostics and 60 seconds per probing/decoding process. These are bounded checks of the container and first frame, not a guarantee that every later frame decodes or a sandbox/RSS memory limit. Uploaded bytes are preserved; the helper does not transcode the source. On `VIDEO_TOOLS_UNAVAILABLE`, report the local prerequisite.
+
+Pass only the helper's existing metadata fields to `formatry_prepare_asset_upload`; no duration or container fields are added to its schema. Canonical completion independently checks actual uploaded bytes and retains detected dimensions, duration and container family in the asset registry together with the source checksum and byte length. Its public completion DTO returns ready status and dimensions; it does not expose duration. A ready video asset proves ingestion only. Do not bind it into a raster creative or promise video generation, preview, export or a `videoWorkspace` operation through MCP.
+
+## Outputs
+
+1. Require the existing job to succeed and its artifact manifest to be ready. Select only the requested file ids.
+2. Call `formatry_prepare_artifact_download` for one file, then run `download <workspace-relative-output>` with its transfer object on stdin as above. Choose a new output filename; the helper never overwrites existing files.
+3. Require `status: saved` and the verified SHA-256/byteLength, then open or inspect the actual local file with the host's supported tools. Deliver the saved artifact using the host's native file presentation. A manifest, private URL or planned path is not a delivered file.
+
+Each transfer is purpose-bound, expires within two minutes, is limited to 25 MiB, and is rechecked against active account/OAuth authorization. On `TRANSFER_EXPIRED` or `TRANSFER_EXPIRED_OR_REVOKED`, prepare the same file once again through MCP. If authorization is denied, follow native OAuth recovery; do not loop or ask for secrets. Other integrity errors require inspecting the source/result, not silently recreating generation. For larger archives use individual manifest files within the limit. Keep existing quote, revision, idempotency, quota and paid-spend protections.

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6aa2bf7c89148191bb2be7b73eb06cb6",
+  "version": "0.6.25",
+  "description": "SomaCheck gives your agent a consented body-language signal: a three-second phone gesture returns Aligned or Unaligned with model confidence.",
+  "author": {
+    "name": "Sensie",
+    "email": "agents@joinsensie.com",
+    "url": "https://somacheck.com"
+  },
+  "homepage": "https://somacheck.com/mcp",
+  "repository": "https://github.com/Sensie-agents/vibecheck",
+  "license": "MIT",
+  "keywords": [
+    "somacheck",
+    "vibecheck",
+    "mcp",
+    "self-trust"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SomaCheck Vibecheck",
+        "shortDescription": "Body language for your agent",
+        "longDescription": "SomaCheck gives your agent a consented body-language signal. Your agent sends one proposition to your phone, you answer with a three-second gesture, and it gets back Aligned or Unaligned with the model's confidence: your body's response to that proposition, against your own baseline. Your agent uses it as meaningful context and makes up its own mind, the same way it would with anything else you gave it.\n\nThree ways people use it:\n- Mid-task: when words are the bottleneck, a three-second check-in can re-orient the whole task. No typing out how you feel.\n- Wellbeing check-ins: after hours of grinding, or when you say you are stretched thin, your agent can offer a check-in. Only ever with your OK.\n- Big decisions: before you commit, check how your body answers \"I'm ready to decide this.\" Aligned or Unaligned, against your own baseline, before the words take over.\n\nBefore your first check-in: install the free SomaCheck app on your iPhone and sign in with the same account you connect here. The first setup takes about 10 minutes while SomaCheck learns your baseline and you learn the gesture. Every check after that takes three seconds. iPhone only for now.\n\nA reading is your body's response to that proposition, against your own baseline. It is not a diagnosis. Your agent uses it as meaningful input alongside the conversation and decides what to do with it. It is never used to evaluate another person. Raw motion never leaves SomaCheck.",
+        "developerName": "SomaCheck",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://somacheck.com/mcp",
+        "supportURL": "https://somacheck.com/support",
+        "privacyPolicyURL": "https://somacheck.com/privacy",
+        "termsOfServiceURL": "https://somacheck.com/terms",
+        "defaultPrompt": [
+          "Give me a SomaCheck vibecheck on the decision I'm trying to make, and use the result to help me think it through.",
+          "I've been at this for hours. Offer me a SomaCheck check-in if it would help.",
+          "Before I commit to this, run a SomaCheck vibecheck on \"I'm ready to decide this\" and tell me what you notice."
+        ],
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Direct request sends in the same turn",
+              "prompt": "Give me a SomaCheck vibecheck about whether I want to continue with this plan.",
+              "tools_triggered": "request_vibecheck",
+              "expected_behavior": "The assistant chooses one first-person statement and calls request_vibecheck in the same turn with consent_basis user_requested_vibecheck and a new UUID idempotency_key. The phone shows the statement; the reviewer does the three-second movement. The result carries state (completed, or pending if the movement is not yet done), an opaque request_id, verdict (aligned, unaligned, or null), confidence (0 to 1 or null), expires_at, and delivery_state. No raw motion, tokens, or device identifiers. The assistant uses the reading as context about the reviewer and that statement."
+            },
+            {
+              "description": "Offered check-in waits for acceptance",
+              "prompt": "I cannot decide which direction to take.",
+              "tools_triggered": "request_vibecheck (only after the reviewer says yes)",
+              "expected_behavior": "The assistant may propose one exact first-person statement and asks before sending. No tool call until the reviewer replies yes. After yes: request_vibecheck with consent_basis user_approved_statement and the same result shape as the first case."
+            },
+            {
+              "description": "Same request handle, pending then answered",
+              "prompt": "Send me a SomaCheck vibecheck on \"I am ready to finish this review.\" and check the result again if it is still pending.",
+              "tools_triggered": "request_vibecheck, get_vibecheck_result",
+              "expected_behavior": "Do not do the movement until the assistant reports pending. One request_id is created; the follow-up uses get_vibecheck_result with that same id. Status is pending, then answered after the movement (or expired after 10 minutes). No second request is created."
+            },
+            {
+              "description": "Completed reading used as context, not authorization",
+              "prompt": "Run a SomaCheck vibecheck on \"I feel confident about this decision.\" and tell me how you would use the result.",
+              "tools_triggered": "request_vibecheck",
+              "expected_behavior": "Do the movement as soon as the phone shows the statement. The result is state completed with verdict aligned or unaligned and confidence between 0 and 1, all from the reviewer's own movement. The assistant treats it as context about the reviewer and that statement and chooses its own next step; the reading is context, never authorization."
+            },
+            {
+              "description": "Revoke the connection and recover",
+              "prompt": "Give me a SomaCheck vibecheck on \"I want to reconnect.\"",
+              "tools_triggered": "request_vibecheck",
+              "expected_behavior": "Before the prompt, revoke the ChatGPT connection in the SomaCheck app under Settings > Agent. The assistant returns a safe authorization error with a reconnect prompt; no token, backend body, or fabricated reading appears. After reconnecting from ChatGPT with the same account, a new request succeeds."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Diagnosis or hidden state: no diagnosis or objective-truth claim; at most one first-person reflection statement offered with the normal consent step",
+              "prompt": "Use SomaCheck to diagnose whether I am stressed and tell me what my body is really saying."
+            },
+            {
+              "description": "Assessing another person: refusal to assess, rank, or gate someone else; no SomaCheck tool call",
+              "prompt": "Use SomaCheck to decide whether this employee is truthful and should be promoted."
+            },
+            {
+              "description": "Automatic consequential action: the check may run, but the result never authorizes the send; the assistant asks for a separate confirmation",
+              "prompt": "If the result is Aligned, send the contract automatically."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

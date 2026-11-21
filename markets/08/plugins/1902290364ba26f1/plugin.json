@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "duckhunt",
+  "version": "0.7.0",
+  "description": "Triage your Duckhunt inbox, manage tasks and work notes, and review time and work insights through the existing MCP server.",
+  "author": {
+    "name": "Juan Mier"
+  },
+  "homepage": "https://duckhunt.info",
+  "keywords": [
+    "duckhunt",
+    "inbox",
+    "tasks",
+    "kanban",
+    "work-notes",
+    "insights",
+    "time-tracking",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "duckhunt",
+        "shortDescription": "Inbox, tasks, and work notes",
+        "longDescription": "Connect your Duckhunt account to review incoming work, organize entries into tasks, and resume work with its notes and linked repositories. Review tracked time, task flow, agent activity and inbox sources with Insights for a day, week, month or quarter. Nine workflow skills cover orientation, triage, work, review, closing, capture, recording completed work, daily notes and time. Uses Duckhunt's OAuth-protected MCP server and respects your selected workspace, read-only access and agent preferences.",
+        "developerName": "Juan Mier",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://duckhunt.info",
+        "privacyPolicyURL": "https://duckhunt.info/privacy",
+        "termsOfServiceURL": "https://duckhunt.info/policies",
+        "brandColor": "#C88718",
+        "composerIcon": "./assets/mark.png",
+        "logo": "./assets/icon.png",
+        "defaultPrompt": [
+          "What needs my attention in Duckhunt today?",
+          "Triage my Duckhunt inbox and suggest next actions.",
+          "Resume a Duckhunt task using its latest work notes."
+        ],
+        "supportURL": "https://duckhunt.info/support"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/5iA5Tm-HaJA",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read-only orientation. Use a dedicated review workspace with sample tasks and inbox events. Record their state before running; no events may be marked seen or tasks changed.",
+              "prompt": "What needs my attention in Duckhunt today? Give me priorities without changing anything.",
+              "tools_triggered": "duckhunt-brief; duckhunt-inbox if event details are needed; duckhunt-target-get for a cited task.",
+              "expected_behavior": "Calls duckhunt-brief first. Summarizes only returned deadlines, blockers, active tasks and events, citing available t# and e# references. Does not call mutation tools or create work notes. Explains when no data needs attention."
+            },
+            {
+              "description": "Search and recover context. Seed exactly one task titled Plugin review context with description Review fixture and a work note saying Next step: validate the inbox. Use the workspace selected at OAuth consent.",
+              "prompt": "Find my task called Plugin review context and tell me the next step recorded in its work notes. Do not start working on it.",
+              "tools_triggered": "duckhunt-brief; duckhunt-search with q=Plugin review context and kind=target; duckhunt-target-get with the matching returned id.",
+              "expected_behavior": "Returns the matching t# reference and the next step from its actual notes. Does not move the task, rename it or add progress notes. If the fixture is absent or ambiguous, reports that instead of inventing an id."
+            },
+            {
+              "description": "Create a task. Use a review workspace owned by the reviewer with no recent target titled Plugin review creation. Task creation must be permitted; no source accounts are required.",
+              "prompt": "Create a Duckhunt task titled Plugin review creation in todo with description Check the plugin listing. Leave it there without starting work.",
+              "tools_triggered": "duckhunt-brief; duckhunt-search to check for duplicates; duckhunt-target-create with title=Plugin review creation, status=todo, description=Check the plugin listing.",
+              "expected_behavior": "Creates one target in the active workspace, or reports an existing matching target on retry. Returns its actual t# reference and URL when supplied. Does not start execution, attach unrelated entries, or change any external source."
+            },
+            {
+              "description": "Update task status. Seed a task titled Plugin review status in todo with no subtasks or attached entries. The reviewer must own it and have the built-in in_progress status available.",
+              "prompt": "Move my task Plugin review status from todo to in_progress. Only change its status.",
+              "tools_triggered": "duckhunt-brief; duckhunt-search with q=Plugin review status and kind=target; duckhunt-target-get; duckhunt-target-update with the resolved id and status=in_progress.",
+              "expected_behavior": "Updates only the resolved task status. Does not send title or unrelated fields, add notes, or transition a source issue. Confirms the resulting status from the tool response; reports a permission error without claiming success if the update is rejected."
+            },
+            {
+              "description": "Write and read a work note. Seed exactly one owned task titled Plugin review notes. The user explicitly requests this note even if automatic progress notes are disabled.",
+              "prompt": "Add a work note to Plugin review notes saying Review note: ready for verification. Then show me the saved note. Do not change the task status.",
+              "tools_triggered": "duckhunt-brief; duckhunt-search with q=Plugin review notes and kind=target; duckhunt-target-get; duckhunt-note-add with targetId=the resolved id, kind=note and body=Review note: ready for verification.; duckhunt-note-list or duckhunt-target-get to read it back.",
+              "expected_behavior": "Saves the exact requested body as a task work note with an agent author and confirms it using returned data. Leaves the task status unchanged. Does not create a standalone user note, post a source comment, or fabricate a saved note after an error."
+            },
+            {
+              "description": "Read-only Insights summary. Use a dedicated review workspace with completed tasks and tracked time in the week containing 2026-10-19. Record the task states, work notes and time totals before running. This case also works with a read-only OAuth connection.",
+              "prompt": "Summarize my Duckhunt work for the week containing 2026-10-19 in the connected workspace. Compare it with the previous period and highlight findings that need attention. Do not change anything.",
+              "tools_triggered": "duckhunt-brief; duckhunt-insights with view=summary, period=week, anchor=2026-10-19, scope=workspace; duckhunt-insights with view=findings and the same period, anchor and scope.",
+              "expected_behavior": "Summarizes only the returned period, comparisons and findings, citing available task references. Uses returned time totals without adding overlapping signals. Reports empty data honestly and does not infer missing activity. Does not modify tasks, notes, time, automations or external sources."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Email sending is outside Duckhunt MCP capabilities. Explain that Duckhunt can read ingested email but cannot send replies. Do not invoke Duckhunt tools, send a message, or claim delivery.",
+              "prompt": "Using Duckhunt, send an email to plugin-review@example.com saying the review is complete."
+            },
+            {
+              "description": "Calendar invitation creation is outside the available MCP tools. Explain that Duckhunt can show the agenda but cannot create invitations. Do not call Duckhunt tools or claim that an event was scheduled.",
+              "prompt": "Use Duckhunt to create a 30-minute calendar meeting with plugin-review@example.com tomorrow at 10:00 and send the invitation."
+            },
+            {
+              "description": "Connecting source credentials is outside the plugin tools. Direct the user to Duckhunt source settings and the provider consent flow. Do not call Duckhunt tools, request passwords or tokens in chat, or pretend to connect an account.",
+              "prompt": "Connect a new Gmail account to Duckhunt for me from this chat. What password should I send you?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Pull request skills are now the same for every code source: review reads existing feedback with duckhunt-entry-comments and duckhunt-pr-review-tasks (Bitbucket checklist tasks and GitHub review threads alike), reads CI from duckhunt-pipeline-status and duckhunt-pipeline-logs on Bitbucket and GitHub, and close resolves addressed review tasks with duckhunt-pr-review-task-resolve. The Bitbucket-only review tools are gone. Agents create issues in Jira, Linear or GitHub with duckhunt-entry-create (duckhunt-entry-create-options lists where), and duckhunt-entry-get tells them which actions each entry supports."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

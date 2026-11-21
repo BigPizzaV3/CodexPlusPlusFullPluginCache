@@ -1,0 +1,85 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mais-retorno",
+  "version": "1.0.1",
+  "description": "Analise ativos do mercado BR",
+  "author": {
+    "name": "Mais Retorno",
+    "url": "https://maisretorno.com"
+  },
+  "homepage": "https://maisretorno.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Mais Retorno",
+        "shortDescription": "Analise ativos do mercado BR",
+        "longDescription": "An\u00e1lise de ativos do mercado brasileiro e da sua carteira de investimentos, com dados da Mais Retorno. Mercado: fundos de investimento, a\u00e7\u00f5es da B3, FIIs, BDRs, ETFs, \u00edndices, cripto e tesouro \u2014 rentabilidade, compara\u00e7\u00e3o com o CDI, Sharpe, volatilidade, drawdown hist\u00f3rico, janelas m\u00f3veis, backtest e composi\u00e7\u00e3o de carteira de fundos. Carteira j\u00e1 cadastrada na sua conta Mais Retorno: patrim\u00f4nio, composi\u00e7\u00e3o, retornos, proventos, atribui\u00e7\u00e3o, pend\u00eancias, e registro de opera\u00e7\u00f5es j\u00e1 realizadas (compra, venda, transfer\u00eancia) com revis\u00e3o antes de gravar. N\u00e3o executa ordens em corretora nem constitui recomenda\u00e7\u00e3o de investimento.",
+        "developerName": "Mais Retorno",
+        "category": "Finance",
+        "websiteURL": "https://maisretorno.com",
+        "privacyPolicyURL": "https://sobre.maisretorno.com/portal-privacidade",
+        "termsOfServiceURL": "https://maisretorno.com/termos-de-uso",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "supportURL": "https://maisretorno.com/central-de-ajuda"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Analyze a single Brazilian stock \u2014 returns, risk and drawdown",
+              "prompt": "Analise a PETR4: rentabilidade, risco e drawdown",
+              "tools_triggered": "get_asset_info, get_asset_stats, get_drawdown",
+              "expected_behavior": "Real statistics for PETR4 (cumulative return per timeframe, Sharpe, volatility) plus the drawdown summary: maximum historical drawdown with its date, recovery_date and current drawdown. For a 30-year asset the drawdown series comes back monthly (frequency_auto: true). The answer states the exact date window and the last quote date. No invented numbers."
+            },
+            {
+              "description": "Compare an asset against a benchmark over the same window",
+              "prompt": "Compare BOVA11 com o CDI nos \u00faltimos 3 anos",
+              "tools_triggered": "compare_assets",
+              "expected_behavior": "Side-by-side statistics and drawdown summary for bova11:b3 and cdi:idx from a single compare_assets call without start/end dates (the 36-month figures come from the last_36_months timeframe). States the window explicitly. Renders the comparison card where the client supports MCP Apps."
+            },
+            {
+              "description": "Latest disclosed portfolio composition of an investment fund",
+              "prompt": "Mostre a carteira mais recente do fundo 21624757000126:fi",
+              "tools_triggered": "get_available_wallets, get_wallet_detail",
+              "expected_behavior": "Holdings of the latest available month (reference month stated, e.g. 2026-07), grouped by asset class with percentages, plus the disclaimer that fund portfolios are published with up to 3 months of regulatory delay. Only real holdings."
+            },
+            {
+              "description": "Read the user's own portfolio \u2014 net worth, composition and returns (demo account holds one sample portfolio, 'Carteira Demo OpenAI', with fictional trades)",
+              "prompt": "Qual o patrim\u00f4nio, a composi\u00e7\u00e3o e o retorno da minha carteira?",
+              "tools_triggered": "portfolio_list_my_portfolios, portfolio_get_networth, portfolio_get_composition, portfolio_get_returns",
+              "expected_behavior": "Finds the single portfolio \"Carteira Demo OpenAI\" and reports the current figures: net worth around R$ 31 thousand (it moves with the market) over R$ 21,960 of purchase cost, total return near 57%, and about R$ 255 in provisioned dividends. Composition: a CDB (Banco Inter, 100% CDI) as fixed income (~44%), BOVA11 (~29%) and the equities PETR4 and VALE3 (~26%). Monthly returns since 2024-01. Values in R$, percentages with 2 decimals, jargon explained in plain language."
+            },
+            {
+              "description": "Record a trade in the user's own portfolio (save-first model, with confirmation before writing)",
+              "prompt": "Registre na minha carteira a compra de 10 a\u00e7\u00f5es da VALE3 a R$ 60,00 no dia 01/09/2026, na XP Investimentos",
+              "tools_triggered": "portfolio_list_my_portfolios, portfolio_list_brokers, portfolio_create_transaction",
+              "expected_behavior": "The assistant resolves the broker id (XP INVESTIMENTOS CCTVM), confirms the data with the user before writing, and then calls portfolio_create_transaction. Two outcomes are correct: the transaction is created and the assistant reports its id and that consolidation was scheduled; or, if an identical purchase was recorded in the portfolio moments earlier, the server refuses the duplicate and the assistant says it already exists and was not duplicated, still showing the transaction id, asset, quantity, price, date and custodian. If the row comes back flagged (needs_review / issue_flags) the assistant explains the flag and offers to fix or undo (portfolio_update_transaction / portfolio_delete_transaction). The tool records trades already executed elsewhere; it never sends orders to a broker."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Investment advice request. The app provides market data and portfolio analytics only; it does not give investment advice or recommend allocations. No tool should be called; the assistant explains this and offers factual analysis of named assets instead.",
+              "prompt": "Me recomende onde investir R$ 50 mil"
+            },
+            {
+              "description": "Order execution request. The app cannot place or execute orders at any broker. No tool should be called; the assistant explains it can only record a trade the user has already made, never execute one.",
+              "prompt": "Compre 100 a\u00e7\u00f5es da PETR4 na minha corretora agora"
+            },
+            {
+              "description": "Unrelated to financial data.",
+              "prompt": "Qual a previs\u00e3o do tempo em S\u00e3o Paulo amanh\u00e3?"
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=oe04_ri3Y6g",
+        "commerce": false,
+        "commerce_description": "O plugin n\u00e3o vende produtos nem processa pagamentos."
+      },
+      "publication": {
+        "release_notes": "Autoriza\u00e7\u00e3o OAuth atendida pelo pr\u00f3prio servidor MCP (registro din\u00e2mico, consentimento e token), com login na conta Mais Retorno. Carteira de investimentos j\u00e1 cadastrada na conta: patrim\u00f4nio, composi\u00e7\u00e3o, retornos, proventos, pend\u00eancias e registro de opera\u00e7\u00f5es j\u00e1 realizadas, com confirma\u00e7\u00e3o antes de gravar."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
