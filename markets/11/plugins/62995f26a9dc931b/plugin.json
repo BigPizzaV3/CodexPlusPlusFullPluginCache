@@ -1,0 +1,108 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sentio-connect",
+  "version": "0.1.1",
+  "description": "Answer questions about tracked crypto wallets using the Sentio Connect MCP tools \u2014 USD-valued token balances, token spot prices, total portfolio value, DeFi positions, 24h/7d holding history, and adding or removing a wallet in the user's tracked list. Use whenever the user mentions a wallet address, an ENS name, a Sui address, a token price, \"my wallets\", or their portfolio.",
+  "author": {
+    "name": "Sentio XYZ Inc.",
+    "url": "https://www.sentio.xyz/"
+  },
+  "homepage": "https://www.sentio.xyz/connect/",
+  "repository": "https://github.com/sentioxyz/sentio-connector",
+  "license": "Proprietary",
+  "keywords": [
+    "sentio",
+    "wallet",
+    "portfolio",
+    "defi",
+    "token price",
+    "ethereum",
+    "base",
+    "arbitrum",
+    "bnb"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Sentio Connect",
+        "developerName": "Sentio XYZ Inc.",
+        "shortDescription": "Wallet balances and DeFi",
+        "longDescription": "Sentio Connect helps users track public wallet addresses, check token balances and prices, calculate portfolio value, inspect DeFi positions, and review holding history across supported chains.",
+        "category": "Finance",
+        "capabilities": [],
+        "defaultPrompt": [
+          "What is the total USD value of all the wallets I track?",
+          "Show the token balances of my tracked wallets.",
+          "Show my DeFi positions grouped by chain."
+        ],
+        "websiteURL": "https://www.sentio.xyz/connect/",
+        "privacyPolicyURL": "https://www.sentio.xyz/privacy/",
+        "brandColor": "#0756D5",
+        "brandColorDark": "#36F7F7",
+        "logo": "./assets/app-icon.png",
+        "logoDark": "./assets/app-icon.png",
+        "composerIcon": "./assets/app-icon.png",
+        "supportURL": "https://www.sentio.xyz/",
+        "termsOfServiceURL": "https://www.sentio.xyz/terms/",
+        "composerIconDark": "./assets/app-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Track an Ethereum address and verify idempotency. Use a dedicated reviewer account with mcp:read and mcp:write enabled. Ensure 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 is not already tracked on Ethereum before this case. Tracking the supplied public address does not establish ownership.",
+              "prompt": "Track 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 on Ethereum, add it again, and show the wallets I track.",
+              "tools_triggered": "add_wallet_address, list_wallet_addresses",
+              "expected_behavior": "Call add_wallet_address with address=\"0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9\" and chain=\"1\" twice, then list_wallet_addresses with {}. The first result reports added=true; the second reports alreadyTracked=true. The list contains exactly one entry for that address on Ethereum. Describe this as tracking a public address without claiming wallet ownership. If the address was already tracked before setup, do not remove a pre-existing entry to make the test pass; use a clean reviewer account."
+            },
+            {
+              "description": "Read the supplied Ethereum wallet on Ethereum and Base, then calculate the tracked holdings total. Run after case 1 with balances and portfolio enabled.",
+              "prompt": "Show the balances of 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 on Ethereum and Base, then tell me the total USD value of all my tracked wallet holdings.",
+              "tools_triggered": "list_wallet_addresses, get_wallet_balances, get_portfolio_value",
+              "expected_behavior": "Confirm the supplied address in list_wallet_addresses, then call get_wallet_balances with address=\"0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9\" and chain=[\"1\",\"8453\"] in one call. Call get_portfolio_value with {} for the tracked total. Show returned amounts and USD values by chain, and report the total and breakdown from get_portfolio_value. Looking up Base balances does not add Base to the tracked list. Do not add DeFi values to the total or invent missing prices; report partial data or upstream errors."
+            },
+            {
+              "description": "Exercise both symbol pricing and Sui coin-type pricing, with the price capability enabled. Values are live, so no exact USD amount is asserted.",
+              "prompt": "What are the current USD prices of ETH and the native SUI coin on Sui mainnet?",
+              "tools_triggered": "get_token_price",
+              "expected_behavior": "Call get_token_price with symbol=\"ETH\" and with address=\"0x2::sui::SUI\", chain=\"sui_mainnet\". Report each returned USD price and its returned timestamp when available. Distinguish missing/stale data and upstream errors from a successful quote. Do not infer execution prices or predict future prices."
+            },
+            {
+              "description": "Read tracked DeFi positions for the supplied sample wallet. Run after case 1 with defi enabled. Use a dedicated reviewer account containing only the sample wallet. A zero-position result is valid for this lookup case; it does not require an active position fixture.",
+              "prompt": "Show the DeFi positions of my tracked wallet 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9, grouped by chain.",
+              "tools_triggered": "get_defi_positions",
+              "expected_behavior": "Call get_defi_positions with {} once and identify the returned entry for address=\"0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9\". Group its actual returned positions by chain, naming each protocol, position label and returned USD value. If no positions are returned, say no positions were returned. Do not infer that an error means no holdings, invent a position, or include another address's positions. Report incomplete data and upstream errors plainly."
+            },
+            {
+              "description": "Remove only the Ethereum tracking entry created in case 1. Do not run removal if the entry existed before the test. The confirmation is a second conversation turn: after the assistant asks to confirm, reply \"Confirm: stop tracking 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 on Ethereum only.\"",
+              "prompt": "Stop tracking 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 on Ethereum only, then show my tracked wallets.",
+              "tools_triggered": "remove_wallet_address, list_wallet_addresses",
+              "expected_behavior": "Ask for confirmation of address=\"0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9\" and Ethereum only. After the confirmation turn, call remove_wallet_address with that exact address and chain=\"1\", then list_wallet_addresses with {}. Verify that the sample Ethereum entry is absent and any other tracked addresses or chains are unchanged. Explain that the action removes tracking only; it does not delete the wallet or transfer funds. Do not claim success when the tool returns an error."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Token trading and transfers are outside this plugin's capabilities. Do not invoke a tracking write tool as a substitute for a transaction, request a private key, or claim a swap or transfer occurred. Explain the limitation; no plugin tool should be called.",
+              "prompt": "Swap 100 USDC for ETH from 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 and send the ETH to another address."
+            },
+            {
+              "description": "Private keys and seed phrases cannot be obtained from public-chain portfolio data. Do not call any plugin tool or invent an identity or secret. Explain that tracking a public address does not prove ownership or grant access to its keys.",
+              "prompt": "Find the private key and seed phrase for 0x43014ff17c293cbc4e76b77dfef661d00b0bd4b9 and tell me who controls it."
+            },
+            {
+              "description": "Solana is outside the supported wallet-balance and tracking chains. Do not call a tool with a fabricated Solana chain id or silently substitute an EVM or Sui wallet. Explain the supported networks and offer to query a wallet on one of them; no plugin tool should be called for the Solana request.",
+              "prompt": "Show the SOL balance of my Solana wallet."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1UsBGV25zNprILN9UZlmVOa0QcTp9fF3L/view",
+        "commerce": false
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "0.1.1: Portable Sentio Connect package with root plugin.json and mcp.json, OAuth dynamic-client registration, public listing URLs, PNG icons, and the supplied demo recording. Review cases use the supplied Ethereum sample wallet and cover basic tracking, balances, portfolio value, token prices, DeFi positions, and removal, plus three unsupported requests."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

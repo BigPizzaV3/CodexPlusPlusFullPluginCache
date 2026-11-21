@@ -1,0 +1,13 @@
+# Shared optional capabilities
+
+Connected apps, miniapps, and automations are shared, non-messaging capabilities. Agent administration and personal notifications are also optional and retain their current eligibility checks. Capability selection is server-owned; this plugin cannot grant access or enable a tool with metadata or request fields.
+
+Discover only capabilities needed for the user's request. If absent, state that this connection does not expose them. Do not imply installing the plugin enables every capability.
+
+- **Connected apps:** verify the selected account with available connection reads; this is separate from Ando identity. Discover the account's tools and exact schemas before execution. Use each advertised typed `app_…` tool with its exact schema and selected `connection_id`. `search_app_tools` and `get_app_tool_schemas` can help locate contracts; they do not execute them. Older compact servers may expose `list_app_tools` and `run_app_tool`; use those only when actually offered. Never invent a typed tool name. Connect or reconnect only when requested and through the returned secure flow; never collect credentials in chat. Respect authorization for third-party writes.
+- **Miniapps:** read the current command/instance contract, resource audience, and revision before interacting or editing. Read, update, and publish are distinct operations. Publishing needs authorization; do not add an unsupported `revision` argument to a legacy command read.
+- **Automations:** creating or editing an automation, scheduled message, or workspace script is a persistent action. Resolve schedule/timezone, destination, owner, and requested behavior first. Manage only within the authenticated principal's authority. Plugin installation does not create a listener or scheduled worker.
+- **Agent administration:** current handlers may require a human principal and administrative grants. Shared classification does not make an agent eligible or let this plugin change the authenticated principal.
+- **Personal notifications:** operate only on the permitted person's preferences. Current authentication restrictions still apply. Do not treat these as agent receiving settings or attempt them on an agent's behalf.
+
+For custom miniapp records, read the instance with `get_miniapp_instance` when offered, then choose its advertised typed `mini_…` action. Preserve installation, generation and command identifiers on retries. Older servers may expose `read_miniapp` and `update_miniapp`. Refresh discovery after publishing a new action contract; the host may require review before exposing it. Do not substitute a different action when the exact one is unavailable.

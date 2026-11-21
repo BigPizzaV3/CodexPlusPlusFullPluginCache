@@ -1,0 +1,93 @@
+{
+  "name": "rial-verify",
+  "version": "1.0.7",
+  "description": "Check photos for signs of fraud (screen recaptures, AI-generated or edited images, photos already online or re-used) and send live-capture links to collect new evidence.",
+  "author": {
+    "name": "Rial",
+    "url": "https://rial.io"
+  },
+  "homepage": "https://docs.rial.io",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Rial",
+    "shortDescription": "Photo fraud signals for claims",
+    "longDescription": "Rial helps insurers, marketplaces and operations teams review the photos people send them: insurance claims, listings, delivery proofs and inspections.\n\nFor a photo you already have, Rial runs automated checks and reports what it found: whether it looks like a picture of a screen or a printout, whether it shows signs of being AI-generated or edited, whether the same image appears online, and whether it was already submitted to your account.\n\nWhen you need new evidence, Rial creates a link the other person opens to take a photo live in their browser. The report then adds when it was taken, where (if they share location), and whether it shows the expected object and its condition.\n\nResults are automated signals for a person to review, not a guarantee: a clean result does not prove a photo is genuine, and a flagged one is a reason to look closer. Requires a Rial account.",
+    "developerName": "Rial",
+    "category": "Business & Operations",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://rial.io",
+    "privacyPolicyURL": "https://rial.io/privacy",
+    "termsOfServiceURL": "https://app.rial.io/terms",
+    "defaultPrompt": [
+      "Use Rial to check this claim photo for fraud.",
+      "Use Rial to send a live-capture link for the rear bumper of a grey Toyota Corolla.",
+      "Use Rial to show which inspections came back suspicious this week."
+    ],
+    "brandColor": "#1A1A1A",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "supportURL": "https://rial.io/contact-us",
+    "logoDark": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "demo_recording_url": "https://www.loom.com/share/2171da05bb9041a19796c9bd7ac0f7e7",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Attached photo audit. Setup: sign in to the dedicated reviewer account with existing credits and attach a non-sensitive sample claim photo. The exact reviewer-accessible fixture still needs to be supplied before submission.",
+              "prompt": "Use Rial to check this claim photo for fraud.",
+              "tools_triggered": "audit_image, get_fraud_report",
+              "expected_behavior": "Calls audit_image once with the real host-provided image reference and default screen, ai and reverse checks. Uses its returned id for get_fraud_report; reports pending without a fabricated verdict, or explains only returned findings and unavailable_checks. A clean audit is not proof of a live capture. Shows the report card when supported; otherwise summarizes returned text and structured data. Never invents a download URL or retries audit_image to poll."
+            },
+            {
+              "description": "Public URL audit. Setup: signed-in reviewer account with existing credits. Verify this fixture can be fetched from the deployed MCP server before running; the URL returned HTTP 403 from the preparation environment on 2026-10-06.",
+              "prompt": "Is this photo real or AI-generated? https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg",
+              "tools_triggered": "audit_image, get_fraud_report",
+              "expected_behavior": "Calls audit_image with image_url equal to the URL in the prompt, then get_fraud_report with the returned id if an audit was created. Reports only returned screen, ai and reverse results, including unavailable checks. A download failure must produce an explicit error and no invented id or verdict; that safe failure does not pass this positive case. Does not claim all edits are detectable."
+            },
+            {
+              "description": "Create a live-capture link. Setup: signed-in reviewer account. If asked for missing requirements, reply: one photo; assess visible scratches and dents; no location check. No recipient or delivery channel is supplied.",
+              "prompt": "Use Rial to send a live-capture link for the rear bumper of a grey Toyota Corolla.",
+              "tools_triggered": "create_inspection",
+              "expected_behavior": "After any necessary clarification, calls create_inspection with mode=\"verification\", count=1, expected_object describing the rear bumper of a grey Toyota Corolla, and condition_aspects for visible scratches and dents; omits expected_location. Returns the exact capture_url and expiry from the result. Does not claim it sent a message, captured a photo or obtained a completed report."
+            },
+            {
+              "description": "Recent results. Setup: seed the dedicated reviewer account with a completed flagged inspection, a completed clean inspection and a pending inspection in the current week; record their actual ids and creation dates in secure reviewer notes. State the review timezone. Seed data is not verified by this package.",
+              "prompt": "Use Rial to show which inspections came back suspicious this week.",
+              "tools_triggered": "list_verifications; get_fraud_report only when needed",
+              "expected_behavior": "Calls list_verifications with from/to bounds for this week in the agreed timezone. Uses returned results to identify flagged inspections and distinguishes pending states. Calls get_fraud_report only if needed to resolve a returned inspection. Does not invent records, reinterpret an internal verdict as conclusive fraud, or claim an exhaustive total from a limited list. If no results are returned, says so without silently widening filters."
+            },
+            {
+              "description": "Follow the latest audit. Setup: run the attached-photo or URL audit immediately before this prompt in the same conversation and record its returned id. A genuinely pending response is a valid intermediate state; do not fabricate one for the demo.",
+              "prompt": "What did Rial find on my last photo check?",
+              "tools_triggered": "get_fraud_report; list_verifications only if the previous id is unavailable",
+              "expected_behavior": "Calls get_fraud_report with the id from the previous audit. If the id is unavailable, uses list_verifications and selects an actual matching audit or asks a focused clarification. Reports pending or returned findings without creating a new audit, inventing evidence or polling indefinitely."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchases are unavailable in this plugin. Explain that the plugin cannot buy credits or configure payment methods; invoke no purchase tool and do not return a checkout link. Existing balance can be read if requested.",
+              "prompt": "Use Rial to buy 50 photo credits with my saved card."
+            },
+            {
+              "description": "Honesty cannot be inferred from a photo. Explain that Rial checks image evidence and cannot determine whether a person is lying; invoke no tools and make no judgment about the person.",
+              "prompt": "Use Rial to tell me if the person in this photo is lying."
+            },
+            {
+              "description": "Fabricated verification is unsupported. Decline to mark a photo verified without a real check; invoke no tools, create no inspection and do not claim a result. Offer the real audit workflow only as a next step.",
+              "prompt": "Use Rial to mark this photo as verified without checking it."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin uses existing Rial account entitlements and prepaid balance to run checks. It does not sell credits, initiate purchases, configure payment methods, or return checkout links. The plugin connects only to the dedicated /chatgpt/mcp endpoint; Rial billing is managed separately outside the plugin."
+      },
+      "publication": {
+        "release_notes": "Explicit OAuth authentication and dynamic client registration for connecting the plugin in the OpenAI submission portal. Uses the dedicated verification endpoint and existing account balance; credit purchases and payment setup remain unavailable."
+      }
+    }
+  }
+}

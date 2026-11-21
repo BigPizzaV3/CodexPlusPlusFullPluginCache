@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "spark-inventory",
+  "version": "1.0.1",
+  "description": "Spark Inventory's remote MCP server: inventory lookup, purchase-order review, replenishment guidance and workspace setup for a Spark Inventory workspace.",
+  "author": {
+    "name": "Spark Inventory",
+    "email": "support@sparkinventory.com",
+    "url": "https://sparkinventory.com/"
+  },
+  "homepage": "https://sparkinventory.com/connect-spark-to-your-assistant/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Spark Inventory",
+        "shortDescription": "Inventory, reorders and POs",
+        "longDescription": "Spark Inventory turns your sales, stock, and supplier data into a purchasing plan you can run from a conversation. Ask what is running low, what to buy, and why. Spark answers from your live workspace with demand forecasts for each SKU, days of supply, lead times, and supplier terms, then drafts the purchase orders. Nothing is issued or emailed to a supplier until you confirm it.\n\nWhat you can do in ChatGPT:\n- Plan purchasing: forecast demand per item, see seasonality, explain why demand changed, find dead stock, and size orders to cover a target date.\n- Run purchase orders end to end: draft, issue, email to suppliers, receive, and review cost and quantity variances.\n- See all your inventory in one place: stock by warehouse and location, inventory value, transfers, and orders synced from Shopify, Amazon, QuickBooks, and more.\n- Handle sales and fulfillment: sales orders, quotes, invoices, returns, and pick, pack, and ship.\n- Make products: bills of materials, manufacturing orders, work orders, machines, labor, and production runs.\n- Get set up fast: import sales and purchase history from spreadsheets or migrate from systems like Fishbowl, then ask whether your data is ready to forecast.\n- Automate with control: review the actions Spark proposes, and draft and test rules before they run.\n\nBuilt for product brands, wholesalers, manufacturers, and 3PLs, including multi-client workspaces.\n\nYou stay in charge. A Spark admin approves every connection and chooses read-only or read-and-write access, and each connection sees only your own workspace. A Spark Inventory account is required to read or change workspace data. New to Spark? Ask to get set up, and Spark gives you a link to create an account in your browser.",
+        "developerName": "Spark Inventory",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://sparkinventory.com/",
+        "supportURL": "https://sparkinventory.com/support/",
+        "privacyPolicyURL": "https://sparkinventory.com/privacy-policy/",
+        "termsOfServiceURL": "https://sparkinventory.com/terms-of-service/",
+        "defaultPrompt": [
+          "What should I reorder this week, and why?",
+          "Which items will run out in the next 30 days?",
+          "Draft purchase orders for the recommended reorders, but don't send anything yet."
+        ],
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Bounded catalog read. The assistant lists exactly five items from the reviewer workspace with SKU and per-warehouse available and on-hand quantities, distinguishes available from on-hand, and changes nothing.",
+              "prompt": "Show five inventory items with their SKUs and warehouse availability.",
+              "tools_triggered": "list_items",
+              "expected_behavior": "Calls list_items with limit 5 and offset 0. Returns five items with SKUs and per-warehouse available and on-hand quantities matching the reviewer workspace. No write tool is called."
+            },
+            {
+              "description": "Getting started without an account, the path this version adds. Run it before linking the reviewer account: choose \"Use without an account\" when adding the plugin. Account creation happens only in the browser, so the conversation never sees an email address, password or verification code.",
+              "prompt": "I'm new to Spark Inventory and don't have an account yet. Help me get set up.",
+              "tools_triggered": "get_setup_guidance, start_account_setup",
+              "expected_behavior": "Calls get_setup_guidance or start_account_setup with no arguments and no sign-in prompt. Replies with the link https://app.sparkinventory.com/mcp-sign-up (no query string) and says to create the account there, then return to this conversation to connect Spark. Does not ask for an email address, password or code in chat, does not mention plans or pricing, and creates no account and sends no email itself."
+            },
+            {
+              "description": "Purchase-order review in the reviewer workspace, which has open and received sample purchase orders from several suppliers.",
+              "prompt": "Show my five most recent purchase orders with their supplier, status and expected arrival.",
+              "tools_triggered": "get_purchase_orders",
+              "expected_behavior": "Calls get_purchase_orders with limit 5. Lists at most five purchase orders, newest first, each with its number, supplier, status, total and expected arrival. Does not confuse purchase orders with sales orders, and changes nothing."
+            },
+            {
+              "description": "Replenishment decision support without side effects. The reviewer workspace has at least one low-stock item with a configured supplier.",
+              "prompt": "What should I reorder now? Show up to five recommendations per category without creating orders.",
+              "tools_triggered": "get_reorder_recommendations",
+              "expected_behavior": "Calls get_reorder_recommendations with limit 5. Presents purchase, manufacturing and transfer recommendations (at most five each) with item, warehouse, current availability and suggested quantity, and labels fallback lead times as estimates. Creates no orders."
+            },
+            {
+              "description": "Workspace setup inspection, read-only.",
+              "prompt": "What setup work remains in my Spark workspace? Do not change anything.",
+              "tools_triggered": "get_onboarding_state",
+              "expected_behavior": "Calls get_onboarding_state (optionally get_data_readiness). Reports the workspace's actual incomplete setup steps and data counts. Imports nothing, changes no configuration and connects no integration."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Absent SKU. The assistant should report that nothing matched and may ask for a corrected SKU; it must not invent or create an item, or describe an empty result as an outage.",
+              "prompt": "Find SKU DIR-NO-SUCH-ITEM-9F27."
+            },
+            {
+              "description": "Over-limit page request. list_items returns at most 500 rows per call; the assistant should explain the limit and offer pagination. If it sends limit 501 the server answers VALIDATION_ERROR: limit must be between 1 and 500 and returns no rows.",
+              "prompt": "Get all 501 items in a single list_items call using limit 501."
+            },
+            {
+              "description": "Request unrelated to inventory. The assistant should answer without calling any Spark Inventory tool, and must not read or change workspace data.",
+              "prompt": "Write a short poem about autumn leaves."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/O6YFDO6MyTs"
+      },
+      "publication": {
+        "release_notes": "Adds getting started without an account: someone new to Spark can ask to get set up and is given a link to create a Spark Inventory account in their browser, then connects their workspace from the same conversation. Reading or changing workspace data still requires an account and an admin-approved connection. Nothing else changes."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

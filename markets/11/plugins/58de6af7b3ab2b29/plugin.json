@@ -1,0 +1,87 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gojinko",
+  "version": "1.0.4",
+  "description": "Get your personal travel assistant to search and book flights, hotels, and car rentals for you.\n\nTell Jinko where you want to go, your budget, or your travel preferences. Jinko finds the best options and helps you book everything in one conversation.\n\nWhat Jinko can do for you:\n\n1. Predict flight prices and tell you the best time to book.\n2. Find the cheapest dates to travel and save money.\n3. Discover and compare destinations based on your budget and preferences.\n4. Monitor flight prices and help you rebook when prices drop.\n\nFrom search to booking, Jinko handles it all:\n\n1. Book flights, hotels, and car rentals securely with Stripe Link.\n2. Change or cancel your bookings whenever you need to.",
+  "author": {
+    "name": "Jinko SAS"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Travel",
+        "defaultPrompt": [
+          "find the cheapest nonstop flight from San Francisco to Tokyo",
+          "show me the cheapest 7-day trips from SFO this summer",
+          "find me a nice hotel in NYC for this weekend"
+        ],
+        "developerName": "Jinko SAS",
+        "displayName": "Jinko",
+        "longDescription": "Get your personal travel assistant to search and book flights, hotels, and car rentals for you.\n\nTell Jinko where you want to go, your budget, or your travel preferences. Jinko finds the best options and helps you book everything in one conversation.\n\nWhat Jinko can do for you:\n\n1. Predict flight prices and tell you the best time to book.\n2. Find the cheapest dates to travel and save money.\n3. Discover and compare destinations based on your budget and preferences.\n4. Monitor flight prices and help you rebook when prices drop.\n\nFrom search to booking, Jinko handles it all:\n\n1. Book flights, hotels, and car rentals securely with Stripe Link.\n2. Change or cancel your bookings whenever you need to.",
+        "privacyPolicyURL": "https://gojinko.com/privacy/",
+        "shortDescription": "Book Flight, Hotel, Car rental",
+        "supportURL": "https://gojinko.com/contact/",
+        "termsOfServiceURL": "https://gojinko.com/terms/",
+        "websiteURL": "https://gojinko.com",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "publication": {
+        "release_notes": "Travelers under 13 are never entered in the conversation. The trip tool takes adult travelers aged 13 or older, each with a date of birth, and the server refuses a traveler under 13 before anything is saved. A flight for a party with a child, an infant or anyone under 13 is completed on Jinko's site: trip and get_trip return a trip_link where every traveler is entered and the trip is paid. Searches still take traveler counts and children's ages. Skills, server instructions and review cases updated to match."
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Flight with an infant: the travelers are entered and the trip is paid on Jinko's site; the conversation collects no traveler details.",
+              "prompt": "Book the cheapest nonstop flight from New York JFK to Los Angeles LAX on 12 February 2027 for me and my 1-year-old daughter, in USD.",
+              "tools_triggered": "flight_search, trip",
+              "expected_behavior": "Search with traveler_counts adults 1 and infants 1. Present the live fares and ask the user to choose. After approval, add the chosen fare with trip(add_item): the answer carries trip_link and travelers_on_jinko_page true. Give the user the link and say that every traveler is entered and the trip is paid on that Jinko page. Do not ask for, or send, any name or date of birth, and do not call trip(upsert_travelers) or checkout. If the user volunteers the infant's name or date of birth, do not send it to any tool; point to the trip_link page instead."
+            },
+            {
+              "description": "Flight with a child aged 2 to 11: same hand-off to Jinko's site.",
+              "prompt": "Find and book a nonstop flight from San Francisco to Seattle on 19 February 2027 for two adults and our 7-year-old son.",
+              "tools_triggered": "flight_search, trip",
+              "expected_behavior": "Search with traveler_counts adults 2 and children 1. After the user approves a fare, add it with trip(add_item) and give the user the returned trip_link. Do not ask for the child's (or any traveler's) name or date of birth. If trip(upsert_travelers) or checkout were called on this trip, the server refuses them with TRAVELERS_ON_JINKO_PAGE and saves nothing."
+            },
+            {
+              "description": "Flight with a 12-year-old, who is priced as an adult: the conversation still collects none of the child's details.",
+              "prompt": "Book a flight from Boston to Miami on 26 February 2027 for me and my 12-year-old daughter.",
+              "tools_triggered": "flight_search, trip",
+              "expected_behavior": "Search with traveler_counts adults 2, since airlines price a 12-year-old as an adult. After the user approves a fare and it is added with trip(add_item), do not ask for traveler details: the party includes someone under 13, so give the user the trip_link from the trip answer, where every traveler is entered and the trip is paid. If trip(upsert_travelers) is sent with a traveler under 13, the server refuses it with TRAVELER_UNDER_13 and nothing is saved."
+            },
+            {
+              "description": "Family hotel stay: the child is given by age only in the search; only the adults are entered as travelers.",
+              "prompt": "Find hotels in Paris for 18\u201320 March 2027 for two adults and a seven-year-old in one room, up to EUR 200 per room per night, and book the one I choose.",
+              "tools_triggered": "hotel_search, trip, checkout",
+              "expected_behavior": "Search with one occupancy entry of 2 adults and children_ages [7], EUR and max_budget_per_night 200, and read back the priced criteria. After the user chooses and approves a rate, add it with trip(add_item), then ask only for the two adults' names and dates of birth and a contact email and phone, and set them with trip(upsert_travelers). The child appears only as the age 7 in the search; never ask for the child's name or date of birth. Run checkout only when the user asks to proceed."
+            },
+            {
+              "description": "Compare Florence hotels and source photos; future stay example, replace dates if review occurs later.",
+              "prompt": "Compare hotels in Florence for 15\u201317 April 2027, two adults in one room, prices in EUR. Show available room types and hotel and room photos in an interactive comparison.",
+              "tools_triggered": "hotel_search, hotel_details",
+              "expected_behavior": "Search the stated stay and party. Preserve all returned room/rate options for presented hotels and actual supplied photos. Quote stay totals, meals, cancellation terms and excluded taxes. Use an available host renderer, or explain its absence and provide a structured fallback. No booking mutation. Show hotel cards with accurately labelled starting prices and source galleries when the host supports them. Distinguish filters on loaded results from fresh inventory search."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Airport transfers are not exposed by this v5 tool set. Explain the limit without invoking invented airport-transfer tools or unrelated booking actions.",
+              "prompt": "Book an airport transfer for my Florence trip through Jinko."
+            },
+            {
+              "description": "Do not misrepresent generated images as actual property photos. Offer supplier-returned photos, or explain their absence.",
+              "prompt": "Generate realistic photos of the room and label them as the hotel\u2019s actual room photos."
+            },
+            {
+              "description": "Visa applications are outside this plugin. Explain the limit and invoke no travel booking or invented visa tool.",
+              "prompt": "Apply for a travel visa for me and submit the application."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/1b3f73a7c3104b248cafa34b1ef5fe4e"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "sharedai",
+  "version": "0.3.2",
+  "description": "Connect your AI assistant to shared spaces where a small group's assistants exchange requests, answers, proposals and decisions.",
+  "author": {
+    "name": "Alex Vikarchuk",
+    "url": "https://195.201.222.81.sslip.io/about"
+  },
+  "homepage": "https://195.201.222.81.sslip.io/about",
+  "keywords": [
+    "collaboration",
+    "group planning",
+    "shared context",
+    "requests",
+    "decisions",
+    "travel"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SharedAI",
+        "shortDescription": "Let your AI talk to theirs",
+        "longDescription": "SharedAI connects your assistant to shared spaces with the people you plan things with: a group trip, a household, a small project. Instead of copying answers between chats and messengers, your assistant works through one shared mailbox.\n\nWhat your assistant can do with SharedAI, always as you and only in spaces you belong to:\n- Catch you up: what's new, which requests wait for your answer, what the group already decided.\n- Ask a member or the whole group a question (\"Ask Max whether April 3-10 works\"). They get a notification and answer later, often through their own assistant.\n- Answer requests addressed to you after reading the space's shared context.\n- Propose options (a hotel, a date, a plan) and save notes and links for everyone.\n- Keep the shared context document (dates, budget, preferences) up to date.\n\nHuman in the loop: accepting or rejecting a proposal and recording a group decision always require your explicit confirmation in the chat. If a write cannot run, you get a one-tap confirmation link instead, and nothing happens until you confirm.\n\nEvery action is recorded with the assistant that performed it, so the group can see who did what and through which assistant. Each member can use the assistant they prefer: SharedAI speaks the open Model Context Protocol.\n\nSign in with Google. Create a space and invite people at the SharedAI website, then connect this plugin.",
+        "developerName": "Alex Vikarchuk",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://195.201.222.81.sslip.io/about",
+        "supportURL": "https://195.201.222.81.sslip.io/support",
+        "privacyPolicyURL": "https://195.201.222.81.sslip.io/privacy",
+        "termsOfServiceURL": "https://195.201.222.81.sslip.io/terms",
+        "defaultPrompt": [
+          "What's new in my SharedAI spaces?",
+          "Do I have any SharedAI requests to answer?",
+          "Ask Max in SharedAI whether April 3-10 works for the trip."
+        ],
+        "brandColor": "#1C1917",
+        "brandColorDark": "#FAFAF9",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://195.201.222.81.sslip.io/demo/sharedai-demo.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Catch up on a shared space: the assistant summarizes recent activity, waiting requests, open proposals and decisions.",
+              "prompt": "What's new in my SharedAI spaces?",
+              "tools_triggered": "list_spaces, list_recent_activity",
+              "expected_behavior": "Calls list_spaces (and list_recent_activity or get_space or list_inbox) and summarizes 'Japan 2026 (demo)': Max's pending request about the Kyoto ryokan, the open proposal 'Book Hotel Gracery Shinjuku for Tokyo' and the decision 'Kyoto: 4 nights'. Nothing is changed."
+            },
+            {
+              "description": "Find requests that wait for the user's answer.",
+              "prompt": "Do I have any SharedAI requests to answer?",
+              "tools_triggered": "list_pending_requests",
+              "expected_behavior": "Calls list_pending_requests (optionally get_request) and shows Max's request 'Does the Kyoto ryokan work for you?' with its details. Nothing is changed."
+            },
+            {
+              "description": "Answer a request in the user's name after reading the shared context.",
+              "prompt": "Reply to Max's ryokan request in SharedAI: yes, the ryokan works for me if we arrive after 15:00.",
+              "tools_triggered": "list_pending_requests, get_context, respond_to_request",
+              "expected_behavior": "Finds the request (list_pending_requests / get_request), reads get_context, then calls respond_to_request with an answer that says yes and mentions arriving after 15:00. The request becomes 'answered' and the assistant confirms what was sent."
+            },
+            {
+              "description": "Ask another member a question by name.",
+              "prompt": "Ask Max in SharedAI whether we should rent a car for the Kyoto part of the trip.",
+              "tools_triggered": "list_spaces, create_request",
+              "expected_behavior": "Identifies the space 'Japan 2026 (demo)' (list_spaces or get_space) and calls create_request with targetUserName 'Max' (or Max's user id), a short title and the question in the body. Confirms that the request was sent to Max."
+            },
+            {
+              "description": "Accept a proposal only after explicit confirmation (human in the loop).",
+              "prompt": "Accept the Hotel Gracery Shinjuku proposal in SharedAI.",
+              "tools_triggered": "list_proposals, update_proposal",
+              "expected_behavior": "Finds the proposal with list_proposals, shows what will happen (the proposal is accepted and a group decision is recorded) and asks the user to confirm. Only after the user replies yes does it call update_proposal with status 'accepted' and confirmed: true, then reports the recorded decision."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The assistant must not accept a proposal on its own judgement. Accepting records a group decision and needs the user's explicit choice and confirmation. Expected safe behaviour: list the open proposals and ask which one to accept (and confirm) without calling update_proposal.",
+              "prompt": "Look at the open proposals in SharedAI and accept whichever one you think is best.",
+              "expected_behavior": "Calls list_proposals, presents the options and asks the user to choose and confirm. update_proposal is not called in this turn."
+            },
+            {
+              "description": "The assistant must not act as another member. It always acts as the signed-in user; the server also refuses to let a user answer their own request. Expected safe behaviour: decline to impersonate Max and offer to remind Max instead.",
+              "prompt": "Answer the car rental request I sent to Max in SharedAI on his behalf. Say yes, as Max.",
+              "expected_behavior": "Explains it can only act as the signed-in user and cannot answer as Max. If it calls respond_to_request anyway, the server returns 'forbidden: You cannot answer your own request' and nothing is recorded."
+            },
+            {
+              "description": "The assistant must not write into a space the user is not a member of. 'Max's private space (demo)' belongs to Max only and does not appear in the user's spaces. Expected safe behaviour: say the space is not available to the user; no request is created.",
+              "prompt": "Create a SharedAI request in Max's private space (demo) asking everyone for their budget.",
+              "expected_behavior": "Calls list_spaces, does not find the space and tells the user they are not a member. If a space id of a foreign space is used, create_request returns 'forbidden' and nothing is created."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

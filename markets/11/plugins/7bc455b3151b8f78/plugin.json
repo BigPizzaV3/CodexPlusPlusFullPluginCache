@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gammaflip",
+  "version": "1.0.0",
+  "description": "Read-only options gamma-exposure (GEX) data from GammaFlip for crypto and US stocks, ETFs and indices.",
+  "author": {
+    "name": "GammaFlip",
+    "email": "support@gammaflip.io",
+    "url": "https://gammaflip.io"
+  },
+  "homepage": "https://gammaflip.io",
+  "keywords": [
+    "options",
+    "gamma exposure",
+    "gex",
+    "crypto",
+    "stocks",
+    "market data"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GammaFlip",
+        "shortDescription": "Options gamma exposure levels",
+        "longDescription": "GammaFlip gives ChatGPT read-only access to options gamma-exposure (GEX) data from your GammaFlip account. Gamma exposure describes how options dealers are positioned: levels such as the gamma flip and the call and put walls mark where dealer hedging is expected to dampen or amplify price moves.\n\nWhat you can ask for:\n- Current gamma levels for a symbol: the gamma flip, the regime (positive or negative gamma) and the main walls, with the data timestamp.\n- How those levels changed against the close 1, 7 or 30 days ago.\n- Gamma exposure by strike for one expiration or for all expirations combined.\n- The term structure: gamma exposure and open interest per expiration.\n- History: a time series of levels at 15-minute, hourly or daily-close granularity, and the full per-strike picture at a past moment.\n- Which markets, venues and symbols your plan covers, and how much of the daily request limit is left.\n\nCoverage: BTC, ETH, SOL, XRP and HYPE options on Deribit, Bybit, OKX, Derive and Binance (Binance has no HYPE options), combined or per venue; and options on US stocks, ETFs and indices, including SPX, SPY, QQQ, IWM, IBIT, GLD, NVDA and TSLA. History starts on 1 May 2026; for Binance it starts in October 2026.\n\nWho it is for: options and derivatives traders, analysts and researchers who already use GammaFlip and want to query the same data in a conversation, compare levels over time, or build their own tables and summaries from it.\n\nRequirements and limits:\n- You sign in with a GammaFlip account. Assistant access is available on accounts whose plan includes it, for the markets in that plan.\n- All nine tools are read-only. The plugin cannot place trades, move funds, create alerts or change anything in your account.\n- It returns data, not charts or images, and it does not give investment advice.\n- Requests count against the daily request limit of your account, shared with the GammaFlip REST API.\n- Crypto data is live; US market data follows the exchange session. Every result carries the time of the data it is based on.\n- The plugin does not read your conversation history or files. It receives only the tool arguments, such as the symbol and expiration you ask about.",
+        "developerName": "GammaFlip",
+        "category": "Finance",
+        "capabilities": [
+          "Read current gamma-exposure levels",
+          "Read gamma exposure by strike and expiration",
+          "Read historical levels and snapshots",
+          "Read account plan and request quota"
+        ],
+        "websiteURL": "https://gammaflip.io",
+        "supportURL": "https://gammaflip.io/support",
+        "privacyPolicyURL": "https://gammaflip.io/privacy",
+        "termsOfServiceURL": "https://gammaflip.io/terms",
+        "defaultPrompt": [
+          "Where is the gamma flip for BTC right now, and where are the main walls?",
+          "How have SPY's gamma levels changed over the last 7 days?",
+          "Show gamma exposure by strike for ETH for the nearest expiration."
+        ],
+        "brandColor": "#667EEA",
+        "brandColorDark": "#8EA2FF",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Current gamma levels for a crypto symbol, all venues combined.",
+              "prompt": "Where is the gamma flip for BTC right now, and where are the main call and put walls?",
+              "tools_triggered": "get_levels",
+              "expected_behavior": "Calls get_levels for BTC (exchange all, expiration TOTAL). The answer states the current price, the gamma flip level, whether the market is in positive or negative gamma, and the main walls, using the numbers from the tool result, and mentions the time of the data."
+            },
+            {
+              "description": "Change in levels over a period, for a US ETF.",
+              "prompt": "How have SPY's gamma levels changed over the last 7 days?",
+              "tools_triggered": "get_levels",
+              "expected_behavior": "Calls get_levels for SPY with compare set to 7d. The answer gives today's levels next to the levels at the close 7 days earlier and the change between them."
+            },
+            {
+              "description": "Gamma exposure by strike for one expiration; the expiration is looked up first.",
+              "prompt": "Show gamma exposure by strike for ETH for the nearest expiration, within 10% of the current price.",
+              "tools_triggered": "list_expirations, get_gex_by_strike",
+              "expected_behavior": "Calls list_expirations for ETH to find the nearest expiration date, then get_gex_by_strike for that date with a 10 percent range. The answer lists or tabulates strikes with their gamma exposure and points out the largest positive and negative strikes."
+            },
+            {
+              "description": "Historical series of levels.",
+              "prompt": "How did the BTC gamma flip level move over the past 30 days? Use daily closes.",
+              "tools_triggered": "get_levels_history",
+              "expected_behavior": "Calls get_levels_history for BTC with daily-close granularity over the last 30 days. The answer describes how the gamma flip level moved over the period, with dates and values taken from the series."
+            },
+            {
+              "description": "Account, plan coverage and remaining quota. These calls do not use the daily request limit.",
+              "prompt": "Which markets and symbols does my GammaFlip plan include, and how much of today's request limit is left?",
+              "tools_triggered": "get_account, list_symbols",
+              "expected_behavior": "Calls get_account and list_symbols. The answer names the plan's markets (crypto and tradfi for the test account), lists the venues and symbols available, and reports the daily limit, the requests used and the remaining requests."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Trading is not supported: every tool is read-only. The plugin must not claim to place an order; ChatGPT should say that GammaFlip only provides data and may offer to show the relevant levels.",
+              "prompt": "Buy 0.1 BTC call options at the call wall strike on Deribit."
+            },
+            {
+              "description": "Alerts and other write actions are not supported. No tool creates or changes anything, so ChatGPT should say the plugin cannot set alerts and may offer the current level instead.",
+              "prompt": "Set an alert that notifies me when BTC crosses the gamma flip."
+            },
+            {
+              "description": "Unrelated request: nothing to do with options or gamma exposure. No GammaFlip tool should be called.",
+              "prompt": "What will the weather be in Lisbon tomorrow?"
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/e79_ct2WpNs",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell anything and does not process payments. It reads data for an existing GammaFlip account."
+      },
+      "publication": {
+        "release_notes": "Initial release. Nine read-only tools for options gamma-exposure data: current levels with 1, 7 and 30 day comparison, gamma exposure by strike, term structure, history of levels, snapshots at a past moment, plus account, symbol, expiration and history-coverage lookups."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

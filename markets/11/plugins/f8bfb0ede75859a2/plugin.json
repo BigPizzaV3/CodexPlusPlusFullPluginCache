@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hoper",
+  "version": "1.0.0",
+  "description": "Helicopter routes from hoper: see if a trip is flown, the distance, flight time and helicopters, and jump straight to booking on flyhoper.com.",
+  "author": {
+    "name": "hoper",
+    "email": "contact@flyhoper.com",
+    "url": "https://flyhoper.com"
+  },
+  "homepage": "https://flyhoper.com/mcp-connector-documentation",
+  "keywords": [
+    "helicopter",
+    "travel",
+    "flights",
+    "charter",
+    "Greece",
+    "France",
+    "Switzerland",
+    "Italy"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "hoper",
+        "shortDescription": "Helicopter routes and booking",
+        "longDescription": "hoper is a helicopter travel marketplace for private and shared flights in Greece, France, Switzerland and Italy: Athens and the Greek islands, the French Alps and the Riviera, Geneva, Zurich and Zermatt, Milan, Rome and Sardinia.\n\nAsk ChatGPT about a helicopter trip, for example \"Can I fly from Athens to Anafi?\" or \"Which helicopters fly Geneva to Courchevel next Tuesday?\". The hoper app tells you:\n\n- if hoper flies the route, as a private flight, a shared flight or both\n- the distance in nautical miles\n- the helicopters available for the date, with passenger seats and an estimated flight time (the time is estimated cruise time, and it depends on the heliport)\n- a link to the destination page and a booking search on flyhoper.com, with the route and date filled in\n\nThe data comes live from hoper's booking engine, so it matches what you see on flyhoper.com. Prices and the free departure times are shown on flyhoper.com, where you also book.\n\nThe app is read-only. It needs no account, and it does not see your conversation beyond the route you ask about.",
+        "developerName": "hoper",
+        "category": "Travel",
+        "capabilities": [
+          "Check helicopter routes",
+          "Helicopter models and estimated flight times",
+          "Booking links to flyhoper.com"
+        ],
+        "websiteURL": "https://flyhoper.com",
+        "supportURL": "https://flyhoper.com/mcp-connector-documentation",
+        "privacyPolicyURL": "https://flyhoper.com/privacy-policy",
+        "termsOfServiceURL": "https://flyhoper.com/terms-of-use",
+        "defaultPrompt": [
+          "Can I fly from Athens to Mykonos by helicopter?",
+          "Which helicopters fly Geneva to Courchevel?",
+          "How long is the helicopter flight from Monaco to Nice?"
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Route facts, no date: a traveller checks if a helicopter route exists and how long it takes.",
+              "prompt": "Can I fly from Athens to Anafi by helicopter? How long is the flight?",
+              "tools_triggered": "get_route",
+              "expected_behavior": "get_route is called with from Athens, to Anafi. Output: supported true, products private true and shared false, distance_nm 141, aircraft_date is tomorrow, and a non-empty aircraft list (for example Airbus EC135 Twin Engine, 6 seats, 65-66 min; Robinson R66, 4 seats, 74-75 min). The answer says the user can book a private flight, gives the time as about 65 to 75 minutes (estimated), and gives a flyhoper.com link (destination page or pre-filled booking search)."
+            },
+            {
+              "description": "Greek input: a Greek-speaking user asks in Greek.",
+              "prompt": "\u03a5\u03c0\u03ac\u03c1\u03c7\u03b5\u03b9 \u03c0\u03c4\u03ae\u03c3\u03b7 \u03bc\u03b5 \u03b5\u03bb\u03b9\u03ba\u03cc\u03c0\u03c4\u03b5\u03c1\u03bf \u03b1\u03c0\u03cc \u0391\u03b8\u03ae\u03bd\u03b1 \u03b3\u03b9\u03b1 \u039c\u03cd\u03ba\u03bf\u03bd\u03bf;",
+              "tools_triggered": "get_route",
+              "expected_behavior": "get_route is called with the Greek place names. The tool resolves them to Athens and Mykonos: supported true, private route, distance_nm 79, aircraft list for example Airbus EC135 Twin Engine, 6 seats, about 38 min (estimated). It is a private route, so the answer says the user can book a private flight, not that a scheduled flight exists, and gives a flyhoper.com link."
+            },
+            {
+              "description": "Specific date: a user asks about a route on a given date.",
+              "prompt": "Is there a helicopter from Aegina to Athens on 24 November 2026?",
+              "tools_triggered": "get_route",
+              "expected_behavior": "get_route is called with from Aegina, to Athens, date 2026-11-24. Output: supported true, aircraft_date 2026-11-24, aircraft Robinson R66 (4 seats) and Robinson R44 (3 seats), about 13 to 16 minutes (estimated) by heliport, and a booking link with departure_date=2026-11-24. The answer does not say that a flight on that date is confirmed. It points to flyhoper.com for times and price."
+            },
+            {
+              "description": "Private and shared: a user on the Riviera asks about a short hop.",
+              "prompt": "How do I get from Monaco to Nice airport by helicopter?",
+              "tools_triggered": "get_route",
+              "expected_behavior": "get_route is called with from Monaco, to Nice. Output: supported true, products private true and shared true, distance_nm 10, aircraft for example Airbus H130, 6 seats, about 4 min (estimated). The answer mentions both shared and private options and gives a flyhoper.com link."
+            },
+            {
+              "description": "Group size: a group of 6 plans a ski transfer.",
+              "prompt": "We are 6 people. Which helicopters can fly us from Geneva to Courchevel on 24 November 2026?",
+              "tools_triggered": "get_route",
+              "expected_behavior": "get_route is called with from Geneva, to Courchevel, date 2026-11-24. Output: supported true, distance_nm 56, aircraft list with 6-seat models Bell 407 Single Engine (about 25 min) and Airbus EC135 P2i (about 28 min), plus smaller models. The answer names the 6-seat helicopters, says times are estimates, and links the pre-filled booking search on flyhoper.com."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Weather and safety advice is out of scope. The app must not give a go/no-go answer. The answer says that hoper and the operator decide on weather and points to flyhoper.com or hoper support.",
+              "prompt": "Is the weather safe for a helicopter flight to Mykonos today?"
+            },
+            {
+              "description": "Booking changes are out of scope. The app cannot see or change bookings, so get_route is not called. The answer points to hoper support (contact@flyhoper.com).",
+              "prompt": "Cancel my helicopter booking for tomorrow."
+            },
+            {
+              "description": "Operational limits are out of scope. The app does not give passenger weight limits, so get_route is not called. The answer points to flyhoper.com or hoper support.",
+              "prompt": "What is the passenger weight limit on a hoper flight?"
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1nQ1lIGZKMOullsL0-mAJHl5f9cl7ld7P/view?usp=sharing",
+        "commerce": false,
+        "commerce_description": "The app does not sell products or take payments. It links to flyhoper.com, where users book and pay."
+      },
+      "publication": {
+        "release_notes": "Initial release: the get_route tool for helicopter routes in Greece, France, Switzerland and Italy."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

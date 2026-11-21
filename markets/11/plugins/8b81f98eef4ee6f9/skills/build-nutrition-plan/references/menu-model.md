@@ -1,0 +1,17 @@
+# The menu document
+
+create_nutrition_plan, validate_nutrition_plan and update_nutrition_plan take one whole menu; get_last_nutrition_plan and get_nutrition_plan return the same shape, so a menu can be read, edited, and submitted again. The draft has no ids and no positions: order is the order of the lists, and every cross reference is by name.
+
+- **Menu:** name, activate, isTemplate (true saves a reusable template of the signed-in user, never for a client), library (the libraries a template is filed under), rules (the notes printed under the menu, as markdown), targets (daily kcal, protein, carbohydrate, and fat in grams; omitted when the menu prescribes none), plannedDays (day variants with their days per week, which total 7 when there are any), slots, weeklyLimits.
+- **Slot:** one meal of the day, in the order of the day: name, an optional time hint as HH:mm, and a note printed under the meal that applies whichever option is taken.
+- **Option:** one alternative for that meal: name, a prepNote about the whole option, an optional plannedDay name when the option applies only on that day variant, and mealId when the option is a meal from the meal library. Do not name an option like its meal. A meal from list_meals already has this exact option shape with its mealId set: use it as it is, so the menu stays linked to the meal and, for a client, Liftory copies the meal into the client's meals.
+- **Group:** a run of lines inside an option. chooseOne false means all of it is eaten; chooseOne true means one line is picked. category is protein, carb, fat, fruit, vegetable, or other, and can be left empty so Liftory infers it from the foods. A group note speaks about that run.
+- **Item:** one food line: name, foodId (from search_food: a catalog food, one of the signed-in user's own foods, or, in a client's menu, one of the client's), amount (free text, stored as written), grams (only when the amount is an exact weight), optional, preferred, and a note about that one food. Foods eaten together as one choice are one item with components, each with its own name, foodId, amount, and grams.
+- **Weekly limit:** name, maxPerWeek, the slots it applies to (empty means every meal), and the options or items it counts, each referenced by slot, option, and item name.
+- **Rationale:** why the menu is set this way, shown in the app with the menu: source (create, digitize, or adapt), goal (LoseFat, Hold, or Build, only as the person said it), goalInWords, traineeRole, mealsPerDay, eatingPattern, foodsLeftOut (preferences, with no reason), trainingDaysPerWeek, notes (the reasoning behind the targets), and locale. It never holds health information: no age, sex, weight, height, allergies, intolerances, or conditions. On update_nutrition_plan, leaving it out keeps the stored one.
+
+What the result means:
+- unknown lists foodIds the catalog rejected, and problems lists references that match nothing or several things, empty names, and bad times. When either is non-empty, nothing was saved.
+- warnings never block: they name lines saved without a foodId (shown, but counted in no figures) and one amount priced two different ways.
+- activate defaults to true and archives the person's other menus. Set it explicitly to what the user chose.
+- update_nutrition_plan keeps the identity of every meal, option, and food whose name is unchanged, so the days already logged against them stay valid. A renamed one counts as new. The menu keeps its status.

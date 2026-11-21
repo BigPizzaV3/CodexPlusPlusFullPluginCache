@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "deepmedchem",
+  "version": "0.2.0",
+  "description": "Search public chemical spaces by molecular similarity or substructure with DeepMedChem.",
+  "author": {
+    "name": "Deep MedChem",
+    "email": "info@deepmedchem.com",
+    "url": "https://deepmedchem.com"
+  },
+  "homepage": "https://github.com/Deep-MedChem/plugin",
+  "license": "MIT",
+  "keywords": [
+    "chemistry",
+    "cheminformatics",
+    "molecules",
+    "similarity search",
+    "substructure search",
+    "drug discovery"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DeepMedChem",
+        "shortDescription": "Similarity & substructure",
+        "longDescription": "Search public make-on-demand chemical spaces, such as Enamine REAL, for purchasable molecules. Find molecules similar to a structure you supply as SMILES, by fingerprint (Morgan/Tanimoto), 3D shape or electrostatic (ESP) similarity. Or run a substructure search: name the scaffolds and groups every hit must contain or must not contain, mark open positions as R groups, and optionally rank the matches by similarity to a reference molecule. Results appear as an interactive structure grid with scores, list prices and a CSV export. Each search runs against one database and returns up to 20 hits. Guest access needs no account. Scores describe structural similarity, not biological activity or safety, and results are a bounded shortlist rather than every match.",
+        "developerName": "Deep MedChem",
+        "category": "Education & Research",
+        "capabilities": [
+          "Read"
+        ],
+        "websiteURL": "https://deepmedchem.com",
+        "supportURL": "https://github.com/Deep-MedChem/plugin/issues",
+        "privacyPolicyURL": "https://cheese.deepmedchem.com/privacy-policy",
+        "termsOfServiceURL": "https://cheese.deepmedchem.com/terms-and-conditions",
+        "defaultPrompt": [
+          "Find 20 molecules similar to aspirin, SMILES CC(=O)Oc1ccccc1C(=O)O, in Enamine REAL.",
+          "Find indoles with a carboxylic acid and no nitro group in Freedom Space, ranked by shape similarity to OC(=O)Cc1c[nH]c2ccccc12.",
+          "Which chemical space databases can I search?"
+        ],
+        "brandColor": "#24265D",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover available databases and guest limits",
+              "prompt": "Which chemical space databases can I search with DeepMedChem?",
+              "tools_triggered": "catalog",
+              "expected_behavior": "List the databases returned by the live catalog, their identifiers, methods, pricing when available, and the current guest limit. Do not invent database names or availability."
+            },
+            {
+              "description": "Fingerprint search, CSV export and saved CHEESE results",
+              "prompt": "Find 20 molecules similar to aspirin, SMILES CC(=O)Oc1ccccc1C(=O)O, in Enamine REAL using Morgan similarity, and show the results grid.",
+              "tools_triggered": "catalog, similarity_search",
+              "expected_behavior": "Resolve the Enamine database ID from catalog and search with method morgan and at most 20 hits. Show the returned molecular grid in a compatible host, with similarity scores, available prices and vendor catalog IDs when supplied. Click CSV to check that it contains the displayed SMILES, platform product IDs, available vendor catalog IDs, scores and prices. Click the exact returned CHEESE job= link and reload it: the stored results should open without another Search action. Scores describe structural similarity, not biological activity."
+            },
+            {
+              "description": "Shape similarity search",
+              "prompt": "Search Enamine REAL for up to 20 shape-similar analogues of c1ccc(CCNc2ncnc3ccccc23)cc1 and show the grid.",
+              "tools_triggered": "catalog, similarity_search",
+              "expected_behavior": "Use the catalog's database ID and method shape for one SMILES and one database. Display up to 20 returned structures with shape similarity scores, preserving result identifiers and missing values. Do not label shape scores as fingerprint Tanimoto or biological activity."
+            },
+            {
+              "description": "Substructure search with required and excluded groups, ranked by a reference",
+              "prompt": "In Chemspace Freedom Space, find up to 20 molecules that contain an indole and a carboxylic acid but no nitro group, ranked by shape similarity to indole-3-acetic acid, SMILES OC(=O)Cc1c[nH]c2ccccc12. Show the grid.",
+              "tools_triggered": "catalog, substructure_search",
+              "expected_behavior": "Resolve the database ID from catalog and call substructure_search with the indole and a carboxylic acid pattern in require, a nitro pattern in exclude, the supplied SMILES as reference_smiles and method shape. The grid lists the conditions under Must contain and Must not contain, states that hits are ranked by shape similarity to the reference, and shows a score per hit. Every displayed structure contains an indole and a carboxylic acid and no nitro group. Explain that the reference only orders the hits and that the list is a bounded shortlist. Click the returned CHEESE job= link: the saved results open without another search."
+            },
+            {
+              "description": "Redisplay an earlier result without searching again",
+              "prompt": "After completing the aspirin Morgan search in this conversation: Show me those aspirin results again.",
+              "tools_triggered": "render_results",
+              "expected_behavior": "Call render_results with the result_id from the earlier aspirin search. Show the same structures, scores and identifiers without calling similarity_search again. If that cached result has expired, explain the error rather than silently starting a new search."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A molecule name alone must not cause an invented structure",
+              "prompt": "Find molecules similar to cetirizine.",
+              "expected_behavior": "Explain that DeepMedChem does not resolve names. Ask for a verified SMILES, or resolve the name using a reliable source available in the host before searching. Never invent a SMILES."
+            },
+            {
+              "description": "Unsupported property, price and flexible-linker constraints",
+              "prompt": "Find molecules with an indole joined to a pyridine by a flexible linker of 2 to 5 atoms, with logP below 1 and price under $50.",
+              "expected_behavior": "Explain before searching that the guest tools do not support flexible linkers, logP filters or price filters; flexible linkers exist only in the CHEESE drawing editor. Offer a substructure search that requires both rings without the linker, logP or price constraint, and do not present its hits as satisfying them."
+            },
+            {
+              "description": "Requests beyond the guest limit",
+              "prompt": "Give me 500 molecules similar to aspirin, SMILES CC(=O)Oc1ccccc1C(=O)O.",
+              "expected_behavior": "Explain the 20-hit guest cap and offer at most 20 results. Do not loop or parallelize searches to bypass the limit."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 0.2.0 adds substructure search: required and excluded SMILES or SMARTS patterns, R-group and blocked positions, and optional ranking of the matches by Morgan, shape or ESP similarity to a reference molecule. The results grid shows the conditions and whether the search completed. Similarity search, the results grid, CSV export and saved CHEESE links are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

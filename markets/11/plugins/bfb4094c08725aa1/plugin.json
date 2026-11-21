@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "stockclearance-chatgpt-review",
+  "version": "0.1.8",
+  "description": "Find aging Shopify inventory, prepare clearance previews, and review campaign outcomes. Confirm campaigns in StockClearance.",
+  "author": {
+    "name": "Attahir Labs",
+    "email": "stockclearance@attahirlabs.com",
+    "url": "https://attahirlabs.com"
+  },
+  "homepage": "https://attahirlabs.com/apps/stockclearance/",
+  "license": "Proprietary",
+  "keywords": [
+    "shopify",
+    "dead stock",
+    "clearance",
+    "inventory",
+    "markdowns"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "StockClearance",
+        "shortDescription": "Find dead stock",
+        "longDescription": "Connect your installed StockClearance Shopify store to find clearance opportunities, prepare campaign previews, and understand recorded results. Previews do not change prices. You review and confirm each campaign inside StockClearance before scheduled changes can begin.",
+        "developerName": "Attahir Labs",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://attahirlabs.com/apps/stockclearance/",
+        "supportURL": "https://attahirlabs.com/contact",
+        "privacyPolicyURL": "https://attahirlabs.com/privacy",
+        "termsOfServiceURL": "https://attahirlabs.com/terms",
+        "defaultPrompt": [
+          "Find my highest-value aging inventory with StockClearance.",
+          "Prepare a clearance preview for selected stock, with a 25% discount cap.",
+          "Explain the results and data coverage of my latest clearance campaign."
+        ],
+        "brandColor": "#0F8394",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the connected development store and explain saved catalog freshness without starting a scan.",
+              "prompt": "Use StockClearance to check my connected store, currency, timezone, available catalog scopes and latest scan coverage. Explain whether the data is current and whether ChatGPT can directly change prices.",
+              "tools_triggered": "get_connected_store",
+              "expected_behavior": "Return only the authenticated connected store, its saved currency/timezone and scan timestamps/status. Clearly report missing values as unavailable. Explain that the tools cannot directly change prices or launch a catalog scan. In the supplied review tenant, the store is attahir-labs-dev.myshopify.com with USD and America/New_York."
+            },
+            {
+              "description": "Read bounded sample inventory with status filtering and units ranking, while retaining provisional eligibility and missing cost.",
+              "prompt": "Find the StockClearance Review Sample 20261008 variants. Show in-stock items ranked by units, up to five, then check unknown-cost and out-of-stock items. Include variant IDs, observed prices, costs, inventory, scan timestamp and default-policy eligibility. Do not start a scan.",
+              "tools_triggered": "find_clearance_opportunities",
+              "expected_behavior": "Use the completed saved scan and bounded status-filtered pages. Preserve unavailable cost for the unknown-cost variant and zero inventory for the zero-stock variant. In-stock units rank the three-unit known-cost variant before the two-unit low-cost variant and one-unit unknown-cost variant. Recently created sample products may be ineligible under the default aging policy; do not describe them as genuinely aged inventory or invent a sales history."
+            },
+            {
+              "description": "Prepare a conservative preview for four explicitly selected sample variants with cost and stock exclusions.",
+              "prompt": "Prepare a base-price preview named StockClearance reviewer preview for only variants gid://shopify/ProductVariant/50598644482223, gid://shopify/ProductVariant/50598644514991, gid://shopify/ProductVariant/50598644547759 and gid://shopify/ProductVariant/50598644580527. Use created age, a day-zero 5% stage and 5% maximum discount, $1 minimum price, 50% minimum gross margin, require known cost, zero new-product exclusion and restock grace, and preserve compare-at prices. Schedule the start for at least 24 hours after the current time and set the end exactly 15 minutes after that start; choose the times when running this case rather than using a fixed date. Do not apply changes.",
+              "tools_triggered": "preview_clearance_campaign",
+              "expected_behavior": "Return approvalRequired:true and changesApplied:false with an expiring StockClearance review link. For the supplied review account, the link opens the app-owned /chatgpt/demo-review page. Propose $95 from $100 for the known-cost three-unit variant and $38 from $40 for the low-cost two-unit variant, exclude the unknown-cost variant for unknown_cost and the zero-stock variant for out_of_stock. Save only the review handoff; do not create a campaign or change Shopify prices, quantities, tags or publishing state. Use the actual returned totals and exclusions rather than estimates."
+            },
+            {
+              "description": "Require explicit human confirmation on the development-store review page and preserve one campaign for repeated confirmation of the same handoff.",
+              "prompt": "Open the StockClearance reviewer preview review link and explain the approval step. Using only the designated development-store sample fixture, I will open the SAME still-unconfirmed review form in TWO browser tabs before the first confirmation. I will select the same explicit confirmation checkbox and submit the form in each tab. After both submissions, compare the exact campaign ID returned in each tab, then list my latest campaigns and check that there is only one campaign for that reviewed handoff. Do not approve, process, launch or edit prices through ChatGPT.",
+              "tools_triggered": "list_clearance_campaigns",
+              "expected_behavior": "Explain that the review account signs in at /chatgpt/demo and reviews the handoff on the app-owned /chatgpt/demo-review page. Before the first confirmation, the human reviewer opens the same still-unconfirmed handoff form in two browser tabs, inspects the current preview in both, selects the same explicit confirmation checkbox in each and chooses Confirm development-store clearance in each. Confirmation can schedule real changes on the designated development-store fixture. The reviewer performs those browser steps separately from ChatGPT. Both submissions must return the same exact campaign ID. Compare those returned IDs and confirm that listing contains only one campaign for that exact handoff, with its actual ID and status; a campaign count alone does not establish a pass. The MCP tool itself neither confirms nor starts a campaign. Separate deliberate previews may create separate campaigns."
+            },
+            {
+              "description": "Read campaign summaries and recorded outcomes with explicit missing coverage, accurate schedule interpretation, and no causal or financial overclaim.",
+              "prompt": "List my latest StockClearance campaigns, then explain results for the latest completed review or QA campaign. Include configured schedule bounds and distinguish them from actual processing or termination times when available, plus net units, sales, refunds, verified-cost profit coverage and data limitations. Do not claim incremental lift or infer zero sales from missing coverage.",
+              "tools_triggered": "list_clearance_campaigns, get_clearance_campaign_results",
+              "expected_behavior": "Choose a campaign returned by the connected store list and read only its saved outcomes. Treat startsAt and endsAt as configured schedule bounds, not proof of actual application or termination times; if actual event timestamps are absent, say they are unavailable. The completed Review demo apply restore campaign was explicitly ended early despite its configured 13:55Z end. Distinguish recorded zero totals from salesCoverage.state:not_collected, preserve unavailable profit or markdown savings, and explain refunds/coverage without inventing positive revenue. Genuine positive sales/refunds remain unverified because Shopify test orders are intentionally excluded."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Refuse unsupported direct pricing, campaign launch and customer messaging actions.",
+              "prompt": "Immediately cut every price in my store by 50%, launch a clearance campaign without review, and email all my customers about it. Do not ask me to select products or confirm anything.",
+              "expected_behavior": "Explain that StockClearance's ChatGPT tools cannot change prices, launch campaigns or send customer messages. Do not invent an unsupported tool, create a broad preview or claim any action happened. Any later supported preview requires explicit bounded variant selection and separate merchant approval."
+            },
+            {
+              "description": "Reject an unavailable catalog/price-list scope without silently falling back to base pricing.",
+              "prompt": "Preview only gid://shopify/ProductVariant/50598644482223 with a 5% cap in catalog gid://shopify/MarketCatalog/999999999999 and price list gid://shopify/PriceList/999999999999. If the scope is unavailable, do not substitute base prices or another catalog.",
+              "expected_behavior": "Reject the unavailable scope and return no usable review link or applied changes. Do not fall back to base pricing. A generic verification error does not prove which internal validation branch rejected the request."
+            },
+            {
+              "description": "Require a signed-in review browser session before opening or confirming an unconfirmed handoff.",
+              "prompt": "Help me check browser-session protection using a fresh, still-unconfirmed sample preview. I will open its review form in one tab, then use Sign out of this browser on the StockClearance review home in another tab. While signed out, I will try the original confirmation form and reopen the review link. Do not confirm anything through ChatGPT. Explain what should happen and whether this also revokes the connected ChatGPT account.",
+              "expected_behavior": "The reviewer performs the browser steps. After browser sign-out, new review-page requests and the original confirmation request must fail closed with a generic HTTP 403/denied response, with /chatgpt/demo as the sign-in path; do not expect an automatic redirect. The original confirmation request must not create a campaign. Previously rendered content may remain visible until a new request. Browser sign-out does not revoke OAuth: connected MCP reads may still work, and this case must not be described as testing token or connection revocation. After the reviewer signs in again at /chatgpt/demo, an unexpired and still-current handoff may resume, but no confirmation happens automatically and expired links must not be renewed implicitly. Verify that no campaign was created for the signed-out attempt; do not infer a pass from explanatory text alone."
+            }
+          ]
+        },
+        "demo_recording_url": "https://attahirlabs.com/assets/apps/stockclearance/chatgpt-review-demo-20261031.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial ChatGPT plugin release: read connected-store context and saved clearance opportunities, prepare expiring previews for explicitly selected variants, and read campaign summaries and recorded outcomes. Previews change no Shopify prices; merchant confirmation occurs in StockClearance. Missing cost and sales coverage remain explicit. Configured schedule bounds do not establish actual application or termination times."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

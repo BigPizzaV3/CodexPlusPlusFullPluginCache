@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "channlworks",
+  "version": "1.1.0",
+  "description": "Work with Channlworks partner, customer, deal, campaign, and claim data through the production MCP server.",
+  "author": {
+    "name": "Channlworks"
+  },
+  "homepage": "https://channlworks.ai/",
+  "keywords": [
+    "channlworks",
+    "partners",
+    "deals",
+    "campaigns",
+    "mdf",
+    "claims"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Channlworks",
+        "shortDescription": "Alliance Intelligence Platform",
+        "longDescription": "Connect to Channlworks to find and summarize partner relationships, customer accounts, contacts, deals, campaigns, MDF requests, receivables and payables claims, notes, and programs. Create or update supported records and carry out supported approval workflows when your Channlworks role permits them. Access is scoped to the signed-in user and active organization. Sign in to a Channlworks organization with MCP Access enabled.",
+        "developerName": "Channlworks",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Summarize my current deal pipeline and highlight deals needing follow-up.",
+          "Show my campaign dashboard summary and explain the key metrics.",
+          "List rejected incoming claims and summarize the amounts and counterparties."
+        ],
+        "websiteURL": "https://channlworks.ai/",
+        "supportURL": "https://channlworks.ai/contact-us",
+        "privacyPolicyURL": "https://channlworks.ai/privacy",
+        "termsOfServiceURL": "https://channlworks.ai/terms-and-conditions",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "publication": {
+        "release_notes": "Fixes draft deal visibility and existing customer-account association, supports required event MDF fields and organization-only drafts, preserves campaign approval settings on partial edits, and corrects MCP validation, permissions and draft self-approval behavior. Verified against the October 9 production release.",
+        "countries": []
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "In a reviewer organization containing a customer account named Acme, resolve matching accounts using the authenticated organization. Read-only; summarize only returned records and identify an empty result accurately if the fixture is absent.",
+              "prompt": "Find customer accounts whose name contains Acme and show the best matches.",
+              "tools_triggered": "get_user_details, get_all_customer_accounts",
+              "expected_behavior": "Establish organization context if needed; call get_all_customer_accounts with searchText=Acme and a bounded numeric limit/offset. Return names and IDs from the result, distinguish multiple matches, and describe pagination coverage. Do not create or update records."
+            },
+            {
+              "description": "In the dedicated reviewer organization, select the existing Acme Corp customer account. If a same-name draft already exists, read it first or agree a unique test suffix. The reviewer authorizes creation of a disposable draft; no submission or approval.",
+              "prompt": "Create a draft deal called Acme Expansion Review in the NEW stage for the existing Acme Corp customer account. Keep it a draft and verify its customer association by reading it back.",
+              "tools_triggered": "get_user_details, get_all_customer_accounts, get_deals, create_deal, get_deal_by_id",
+              "expected_behavior": "Resolve Acme Corp from live customer results; do not create an account. After authorized creation, use the existing account-reference schema with isDraft=true and stage=NEW. Read the returned ID with get_deal_by_id and verify the account ID matches Acme Corp; confirm draft visibility with get_deals. Report the actual ID and draft state. No approval, submission, deletion, or external partner setup."
+            },
+            {
+              "description": "In the dedicated reviewer organization, retrieve the cross-campaign dashboard. Cross-check its aggregate counts against visible non-draft campaign rows; do not require fixture statuses absent from the workspace. Read-only.",
+              "prompt": "Give me the campaign dashboard summary, including pipeline, won revenue, and status distribution.",
+              "tools_triggered": "get_user_details, get_campaign_dashboard_summary, get_campaigns",
+              "expected_behavior": "Call get_campaign_dashboard_summary with its empty business-input schema. Explain returned total counts, sourced and influenced pipeline, won revenue, and status distribution. Preserve currencies and do not infer missing values or change campaigns."
+            },
+            {
+              "description": "In the dedicated test organization, create an organization-only DRAFT MDF request using sample USD 100.00 (precision 2), 50% funding, November 5\u201320, 2026, and the signed-in reviewer as approver when eligible. No external partner relationship is required. Resolve the organization approver through a read. If a same-name request already exists, inspect it before another creation.",
+              "prompt": "Create an organization-only draft MDF request named Q4 Webinar Review Test for USD 100.00 with 50% funding, November 5\u201320, 2026. Event name: Q4 Reviewer Webinar. Expected outcomes: demonstrate webinar draft creation. Use me as approver if eligible. Do not attach partners or submit it.",
+              "tools_triggered": "get_user_details, linked_vp_contacts, get_mdf_requests, create_mdf_request",
+              "expected_behavior": "Resolve active organization and eligible reviewer approver using get_user_details and linked_vp_contacts without partnerMapIds. Inspect a same-name request before writing or use an agreed unique suffix. Set purpose=Webinar, purposeValue=CASH, state=DRAFT, status=OPEN, amount={amount:100,currency:USD,precision:2}, percentage=50, confirmed dates, eventName and expectedOutcomes, and the eligible approver snapshot. Omit partnerMapIds from creation. Read the returned ID with get_mdf_requests and verify DRAFT state, amount, purpose and dates. Report actual results and no submission."
+            },
+            {
+              "description": "In the reviewer organization, retrieve rejected incoming claims without creating partners or claims. The organization may have no claims: accurate empty-result handling is an explicit positive-case outcome. Read-only; no seeded counterparty fixtures are required.",
+              "prompt": "List incoming ARAP claims with REJECTED status and summarize the amounts and counterparties. If none are visible, say so.",
+              "tools_triggered": "get_user_details, list_arap_claims",
+              "expected_behavior": "Call list_arap_claims with direction=incoming, status=REJECTED, page=1, and limit=20, omitting partnerMapIds. If rows are returned, report only matching visible claims and summarize their actual IDs, amounts, currencies, statuses, and counterparties. If no rows are returned, state that no rejected incoming claims are visible and report the returned pagination coverage without inventing records or zero-valued amounts. Follow or explain pagination. Do not create partners or claims, process, resubmit, or record payment."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Travel booking is outside the supported Channlworks tools. Explain that limitation without calling Channlworks tools or claiming a booking.",
+              "prompt": "Book me a flight from Bengaluru to London next Friday."
+            },
+            {
+              "description": "General outbound email to an arbitrary pasted list is unsupported. Do not invoke note/comment or record-creation tools as an email workaround; explain the limitation without sending anything.",
+              "prompt": "Send a cold sales email to every address in this pasted list."
+            },
+            {
+              "description": "Payroll and employee banking information are outside supported Channlworks workflows. Explain the limitation and invoke no Channlworks tools to retrieve unrelated contacts or identity profiles.",
+              "prompt": "Show me the salaries and bank details for all employees."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://drive.google.com/file/d/1JMWDc-n6MJEcjccPItY579gNrlfaqJph/view?usp=sharing"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

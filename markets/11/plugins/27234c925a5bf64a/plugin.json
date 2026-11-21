@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "comeback",
+  "version": "1.1.0",
+  "description": "Read loyalty data, update customers, set point balances, create rewards and prepare campaigns with Comeback.",
+  "author": {
+    "name": "Comeback",
+    "email": "hola@comeback.es",
+    "url": "https://comebackloyalty.com"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Comeback",
+        "shortDescription": "Manage customer loyalty",
+        "longDescription": "For existing Comeback customers. Find customers and balances; inspect activity, loyalty rules, rewards, signup links and reports; update customer contact details; set loyalty point balances with an audit reason; create points-based rewards; save audiences; prepare campaign drafts; and review campaign performance. Requires Comeback sign-in and existing permissions. Customer, points and reward writes update live records and run standard integrations. Campaigns are reviewed and sent from the Comeback admin panel.",
+        "developerName": "Comeback",
+        "category": "Productivity",
+        "capabilities": [
+          "Customer lookup and updates",
+          "Loyalty activity and point balance updates",
+          "Reward creation",
+          "Signup links",
+          "Reporting",
+          "Audience segments and campaign drafts"
+        ],
+        "websiteURL": "https://comebackloyalty.com",
+        "supportURL": "https://comebackloyalty.com/contact",
+        "privacyPolicyURL": "https://comebackloyalty.com/legal/privacy",
+        "termsOfServiceURL": "https://comebackloyalty.com/legal/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "defaultPrompt": [
+          "Find a customer and help me correct their contact details.",
+          "Help me set a customer\u2019s loyalty balance after checking their current points.",
+          "Create a points-based reward for one of my locations."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://comebackloyalty.com/images/videos/comeback-plugin-walkthrough.mp4",
+        "commerce": false,
+        "commerce_description": "The plugin reads loyalty data and saves segments and campaign drafts. It does not sell products or process payments.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Inspect an accessible loyalty program and create a new points-based reward.",
+              "prompt": "Show my Comeback organizations, loyalty rules, rewards and registration links. In the sample organization, create a reward with a 250-cent discount costing 10 points at an authorized sample location.",
+              "tools_triggered": "list_organizations, get_loyalty_program, list_promotions, list_signup_pages, create_promotion",
+              "expected_behavior": "Resolve the organization, point type and authorized location. Require configAccess for rewards and designAccess for signup links, filtering allowed passes. Call create_promotion with discountAmount 250 and pointsRequired 10. Use the existing promotion service without supplying an existing reward ID, and return the new ID and admin link. Each call creates a new reward; inspect existing rewards before retrying an uncertain outcome."
+            },
+            {
+              "description": "Read a sample customer, update contacts and set an audited points balance using existing services.",
+              "prompt": "Find a sample customer and show their loyalty balances. Change their surname to MCP reviewer and set their points balance to 25 for the reason MCP review at an authorized sample location. Show their five most recent points entries, visits, orders and redeemed rewards.",
+              "tools_triggered": "list_organizations, search_customers, get_customer, update_customer, set_customer_points, get_customer_activity",
+              "expected_behavior": "Resolve an accessible customer and point type. Read current surname and supply it as expected when updating the surname; preserve other fields and marketing consent. Read current points and supply expectedPoints when calling set_customer_points with points 25, concept MCP review and an authorized locationId. Delegate to the existing customer and points services and return the observed balance. Inspect all four activity types with limit 5, enforcing customer passes and allowed locations. Do not claim database compare-and-swap, atomic balance/audit commits or request-ID deduplication."
+            },
+            {
+              "description": "Read aggregate registration, loyalty, order, visit, redemption and rating performance.",
+              "prompt": "Show last month\u2019s registrations, points earned, orders, visits, reward redemptions and customer rating averages.",
+              "tools_triggered": "list_organizations, get_report",
+              "expected_behavior": "Call get_report for customers, points, orders, visits, promotions and ratings using inclusive UTC dates within 366 days. Enforce reportAccess and allowed locations. Return aggregates only, explain cents for monetary values, and exclude Google reviews and individual customer records."
+            },
+            {
+              "description": "Create an audience from a supported inactivity filter.",
+              "prompt": "Save an audience named Inactive 60 days for customers whose last visit was more than 60 days ago.",
+              "tools_triggered": "list_organizations, create_segment",
+              "expected_behavior": "Create a segment using lastVisitDate and minimumDaysSinceDate with value 60. Use a new requestId and return the saved segment's ID and admin URL. Reusing the requestId returns the same segment without overwriting later edits."
+            },
+            {
+              "description": "Review campaign performance and prepare an unsent campaign draft for a saved audience.",
+              "prompt": "Show my latest sent campaign and its results. Prepare a WhatsApp draft for my Inactive 60 days segment, inviting customers to visit us again.",
+              "tools_triggered": "list_organizations, list_campaigns, get_campaign_performance, list_segments, create_campaign_draft",
+              "expected_behavior": "Resolve the latest sent campaign within the organization and read aggregate performance when location permissions allow. Resolve an owned saved segment, clarify missing subject or message details, and create an unsent WhatsApp draft with a fresh requestId and admin editor URL. Reusing that requestId returns the same draft. Never send or schedule."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Organization and customer pass access must apply to both customer lookup and activity.",
+              "prompt": "Update contact details and set points for a customer outside my organization or allowed passes.",
+              "expected_behavior": "Deny customer lookup and writes before applying changes. Do not disclose inaccessible customer data, edit contact details or adjust balances. Ask for an accessible organization and customer if needed."
+            },
+            {
+              "description": "Campaign delivery is not exposed in this release.",
+              "prompt": "Send the campaign draft immediately to all customers.",
+              "expected_behavior": "Explain that sending must be reviewed and completed in the Comeback admin panel. Do not claim delivery succeeded, schedule messages, or invoke unrelated tools to send the campaign."
+            },
+            {
+              "description": "A user with report location restrictions cannot request another location's data.",
+              "prompt": "Set points at a location I cannot access and show its order performance.",
+              "expected_behavior": "Deny both the balance update and report for the unauthorized location before invoking the write service or reading report data. Do not replace the requested location with another or bypass restrictions."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Version 1.1.0 adds seven tools for customer activity, loyalty rules, rewards, signup links, contact updates, point balance updates and reward creation. Reports also cover visits, redemptions and Comeback ratings. All sixteen tools enforce current account permissions and delegate to existing service methods. Campaign writes remain unsent drafts."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

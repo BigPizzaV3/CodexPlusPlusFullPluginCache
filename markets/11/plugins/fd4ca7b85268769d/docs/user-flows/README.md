@@ -1,0 +1,59 @@
+# Simulator.Company User Flows
+
+This document provides an overview of common user flows in the Simulator.Company platform, illustrating how different API endpoints are used together to accomplish specific tasks.
+
+## User Flow Overview
+
+The Simulator.Company platform provides a comprehensive API for managing business processes, graph structures, forms, and financial tracking:
+
+1. **Form Management** - Creating custom form templates and actor instances
+2. **Graph Management** - Creating and managing actors, links, and layers
+3. **Financial Management** - Managing accounts, transactions, and transfers
+4. **Smart Forms (Applications)** - Building, versioning, deploying, and serving interactive apps
+
+## User Flow Documentation
+
+### Form Management
+
+- [Custom Car Form](custom-car-form.md) - Creating a custom form, instantiating actors from it, and attaching financial accounts
+
+### Graph Management
+
+- [Graph Functionality](graph-functionality.md) - Creating and managing actors, links, and layers in graph structures
+- [Actor Graph Management](actor-graph-management.md) - Managing actors on graphs: creating links, organizing on layers, searching and filtering
+
+### Smart Forms (Applications / CDU)
+
+- [Smart Forms](smart-forms.md) - Full lifecycle and behaviour of Smart Forms: catalog & install, project editing, file history, deploy/release, rollback, and serving pages to end users
+- [CDU Page Protocol](cdu-page-protocol.md) - The runtime page JSON contract: `get`/`send` protocol & response codes, the Page/grid/forms/sections/component model, the `changes` patch protocol, templating (`viewModel`/`locale`/`definitions`/`contentLoop`/`bbcode`), the full component catalogue, and server-side save validation
+- [CDU Rendered-DOM Reference](cdu-dom-tree-reference.md) - The styling counterpart to the page protocol: the actual tag tree and class names each config element renders to, stable styling hooks (semantic class / `data-class` / `styleClass`) vs. volatile hashed classes, per-component DOM maps (incl. all table types), page skeleton & theme classes, and which components need backend data to render
+- [App Generation](app-generation.md) - Generating a whole multi-page app from a set of existing Corezoid processes: deriving each process's real input/output contract from its `api_rpc_reply` nodes, designing the page map, the bridging middleware process skeleton, and the end-to-end test-payload catalogue
+
+## Related Entity Documentation
+
+For detailed information about the entities used in these user flows, please refer to:
+
+- [Actors](../entities/actors.md) - Core entity representing nodes in a business process graph
+- [Forms](../entities/forms.md) - Reusable data structure templates for actors
+- [Links](../entities/links.md) - Connections between actors forming graph structures
+- [Layers](../entities/layers.md) - Visual organization of actors and edges
+- [Accounts](../entities/accounts.md) - Financial tracking for actors
+- [Transactions](../entities/transactions.md) - Financial operations within accounts
+- [Transfers](../entities/transfers.md) - Movement of funds between accounts
+- [Attachments](../entities/attachments.md) - File storage system for actors
+
+## Authentication
+
+All API requests carry an `Authorization` header. Which scheme depends on the credential:
+
+```
+Authorization: Simulator <jwt>    # OAuth2 login — token in ACCESS_TOKEN
+Authorization: Bearer <key>       # workspace API key — in SIMULATOR_API_SECRET
+```
+
+Both are set from environment variables and applied automatically by the MCP server; you never
+build this header yourself. `SIMULATOR_API_SECRET` takes precedence over `ACCESS_TOKEN`.
+
+## API Documentation
+
+For the full API reference see [doc.simulator.company](https://doc.simulator.company).

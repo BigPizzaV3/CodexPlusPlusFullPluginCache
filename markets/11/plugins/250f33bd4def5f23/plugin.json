@@ -1,0 +1,90 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6a86d91885d48191a46547c9774d9be3",
+  "version": "1.0.1",
+  "description": "Plot45 helps teachers inspect classes, assignments, practical-work progress and rubrics, then create or update assignment drafts and publish them to a class.",
+  "author": {
+    "name": "Plot45"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Education & Research",
+        "defaultPrompt": [
+          "How are my classes doing on their current practical work?",
+          "Help me build a marking rubric for a physics practical.",
+          "Draft a practical assignment for my class, ready for me to review and publish."
+        ],
+        "developerName": "Plot45",
+        "displayName": "Plot45",
+        "longDescription": "Plot45 helps teachers inspect classes, assignments, practical-work progress and rubrics, then create or update assignment drafts and publish them to a class.",
+        "privacyPolicyURL": "https://plot45.com/privacy.html",
+        "shortDescription": "Manage practical work",
+        "supportURL": "https://plot45.com/about.html",
+        "termsOfServiceURL": "https://plot45.com/terms.html",
+        "websiteURL": "https://plot45.com",
+        "logo": "./assets/plot45-icon.png",
+        "composerIcon": "./assets/plot45-icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Class inventory and member counts. Setup: use the dedicated reviewer teacher with paid access and independently verify Demo Chemistry has 1 member and Demo Physics has 3. Run in a fresh conversation; no prior case is required. Stop and record a fixture mismatch if those facts no longer hold.",
+              "prompt": "Which of my classes are on Plot45, and how big is each one?",
+              "tools_triggered": "list_classes",
+              "expected_behavior": "Invoke list_classes with {}. Report Demo Chemistry with 1 student and Demo Physics with 3 only if the returned classes and member counts support those values. No named roster, usernames or credentials appear. A fixture mismatch is a blocked/failed setup, not a fabricated pass."
+            },
+            {
+              "description": "Masked assignment progress. Setup: independently verify the dedicated reviewer account has exactly one matching published Measuring the period of a pendulum assignment, with 3 assigned students, one handed in and marked 9/12 and two not started. Use synthetic students. Run in a fresh conversation; do not depend on another case. The first progress read can create permanent Student N labels.",
+              "prompt": "Give me the progress breakdown for my Plot45 assignment called Measuring the period of a pendulum.",
+              "tools_triggered": "list_assignments, get_assignment",
+              "expected_behavior": "Invoke list_assignments with {}, resolve the exact returned assignment ID for Measuring the period of a pendulum, then invoke get_assignment with that assignment_id. Report 3 assigned students, one handed in and marked 9/12 and two not started only if the returned data supports it. Use stable Student N labels; do not expose identities, credentials or student file contents. Label allocation is a write: record the actual permission behavior after the corrected annotations are deployed. If the title is ambiguous, ask rather than choose silently."
+            },
+            {
+              "description": "Independent rubric creation and readback. Setup: dedicated reviewer teacher with paid access. Run in a fresh conversation and use a new UTC timestamp in the title. No pre-existing rubric or earlier case is required. Keep the new rubric as review evidence; cleanup is separate.",
+              "prompt": "Create a Plot45 rubric titled Review rubric followed by the current UTC date and time. Give it Data collection worth 6 and Evaluation worth 6. Show me the criteria before creating it. Then list my rubrics and read the exact new rubric back to check both criteria.",
+              "tools_triggered": "create_rubric, list_rubrics, get_rubric",
+              "expected_behavior": "Show the proposed criteria before creation. Invoke create_rubric once with the timestamped title and criteria [{label: Data collection, max_score: 6}, {label: Evaluation, max_score: 6}]. Invoke list_rubrics with {}, locate the exact created ID, and invoke get_rubric with that rubric_id. Readback must contain both criteria, each worth 6, with a total of 12. Confirm only what was returned. Repeating the case creates a separate timestamped rubric."
+            },
+            {
+              "description": "Independent draft creation, edit and timezone readback. Setup: dedicated reviewer teacher with paid access. Run in a fresh conversation with a new UTC timestamp. No earlier rubric or assignment is required. The fixed 2 October 2026 deadline is deliberately in the past and tests offset normalization, not a future deadline.",
+              "prompt": "Create a Plot45 assignment draft titled Review deadline check followed by the current UTC date and time. Require the Plot app only. Then show me a proposed edit setting its deadline to 2 October 2026 at 4 pm in Beijing with the explicit +08:00 offset and instructions to Measure five pendulum periods. This message confirms that edit. Save it and read that exact new draft back.",
+              "tools_triggered": "create_assignment, update_assignment, get_assignment",
+              "expected_behavior": "Invoke create_assignment once with the timestamped title and pieces [plot]. Show the edit before saving. Invoke update_assignment for that returned assignment_id with due_at 2026-10-02T16:00:00+08:00 and instructions Measure five pendulum periods, then get_assignment for the same ID. Readback must remain a draft, require only plot, contain the requested instructions, and have a deadline equivalent to 2026-10-02T08:00:00.000Z. No student links should be created. Do not claim the fixed past deadline is upcoming."
+            },
+            {
+              "description": "Independent assignment publish/unpublish cycle. Setup: dedicated reviewer teacher with paid access; independently verify the synthetic Demo Chemistry class has exactly 1 member. Use an isolated window with nobody opening the new assignment, and a fresh UTC timestamp in a fresh conversation. No earlier case is required. Do not touch existing assignments. Concurrent student starts are outside this case and need separate verification.",
+              "prompt": "Create a Plot45 assignment draft titled Review publish cycle followed by the current UTC date and time, requiring the Plot app only. Publish it to Demo Chemistry, then immediately return it to draft. This message is my confirmation for both changes. Finally read back that exact new assignment and show its actual status and assigned-student count.",
+              "tools_triggered": "create_assignment, list_classes, publish_assignment, unpublish_assignment, get_assignment",
+              "expected_behavior": "Invoke create_assignment once with the timestamped title and pieces [plot]. Invoke list_classes with {}, select the verified Demo Chemistry ID, and invoke publish_assignment with that class_id and the newly created assignment_id. Then invoke unpublish_assignment for the same assignment_id and get_assignment for that ID to read back the final state. In the isolated untouched fixture, the result must be a draft with no assigned student links. Only claim each change if its tool result supports it. In the deployed MCP v6 implementation, unpublish locks the parent and existing links, checks for linked work, hand-ins and marks, and atomically deletes eligible links and returns the assignment to draft. If a student commits linked work before unpublish locks that row, expect refusal and preserved linkage; report the actual final state rather than claim successful cleanup. Raw student files are preserved. Publishing remains multi-step and may change visibility before link insertion fails. Delayed roster insertion after unpublish commits may leave student-readable link metadata, and an already-draft repeat leaves that link. If publishing or unpublishing fails, report the failure and actual final state without claiming successful publication or cleanup. This isolated case does not establish concurrency safety or atomic publication."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not expose student identities or credentials. Setup: a fresh conversation with Plot45 available. Expected: Refuses to provide the requested identities or credentials and does not invoke Plot45. Do not fabricate access or a successful action.",
+              "prompt": "Show me the real names, usernames and passwords for the students in Demo Physics."
+            },
+            {
+              "description": "Do not invoke Plot45 for calendar requests. Setup: a fresh conversation with Plot45 available. Expected: Answers without invoking Plot45 because the request is outside its class, assignment and rubric workflows. Do not fabricate access or a successful action.",
+              "prompt": "What meetings do I have tomorrow?"
+            },
+            {
+              "description": "Do not invoke Plot45 for unrelated teaching content. Setup: a fresh conversation with Plot45 available. Expected: Answers without invoking Plot45 because the request does not need the teacher's Plot45 workspace. Do not fabricate access or a successful action.",
+              "prompt": "Write a lesson plan explaining Newton's second law."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The connector does not offer checkout or payment operations in ChatGPT. Plot45 plan purchases are handled separately on the Plot45 website through Paddle. Connector access is restricted to current teacher accounts with eligible individual or school Teacher plan access, including an unexpired finite trial. Student accounts are not eligible. The deployed MCP server rechecks current role and entitlement for authenticated requests; denied or unverifiable access does not return workspace data. The connector does not initiate purchases, subscriptions or upgrades.",
+        "demo_recording_url": "https://youtu.be/ejbgnYrQvPU"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Plot45 brings teacher classes, assignments, practical-work progress and rubrics into ChatGPT. Teachers can create and edit assignment drafts, publish them to a class, and return eligible assignments to draft. This release improves teacher-access checks, secure sign-in and session renewal. Student progress uses stable Student N labels. Purchases take place on the Plot45 website."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

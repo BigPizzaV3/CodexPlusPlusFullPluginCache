@@ -1,0 +1,160 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "the-ar-agent",
+  "version": "1.0.3",
+  "description": "See who owes you money, why they have not paid, and have the agent draft the chase for your approval.",
+  "author": {
+    "name": "Futureproof Tech Ltd",
+    "email": "tom@thearagent.com",
+    "url": "https://thearagent.com"
+  },
+  "homepage": "https://thearagent.com",
+  "keywords": [
+    "accounts receivable",
+    "invoices",
+    "collections",
+    "credit control",
+    "xero",
+    "quickbooks"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "The AR Agent",
+        "shortDescription": "Get paid without the chasing",
+        "longDescription": "The AR Agent chases overdue invoices for small businesses. It reads your accounting system and your mailbox, works out what each customer needs, and drafts the emails. Every message waits for your approval before anything is sent.\n\nWith the plugin you can ask, in plain words:\n\n- Who owes me money, and how late is it?\n- Why hasn't a customer paid? What did they last say?\n- Who has promised to pay, and did they?\n- Chase a customer: the agent writes the follow-up and leaves it in the app for you to approve.\n- Change the wording of a waiting draft, reject it, or approve it so it is sent exactly as written.\n- Pause or resume chasing a customer, or set the day of the next chase.\n- Record a promise to pay, or tell the agent something about a customer.\n\nThe plugin reads your book, asks for drafts and manages each account. The only thing it sends is a draft the agent wrote, exactly as shown in the app, after the app's checks at send. It cannot write an email of its own, change who a draft goes to, or change anything in your accounting system. An account with nothing owed, or one you have paused, is refused with the reason.\n\nRequires an AR Agent account connected to Xero or QuickBooks and to Gmail.",
+        "developerName": "Futureproof Tech Ltd",
+        "category": "Finance",
+        "capabilities": [
+          "List overdue invoices",
+          "Read a customer's collection case",
+          "List payment promises",
+          "Draft a follow-up for approval in the app",
+          "Approve and send a waiting draft as written",
+          "Reword or reject a waiting draft",
+          "Pause or resume chasing a customer",
+          "Set the next chase date",
+          "Record a promise to pay",
+          "Add a note for the agent"
+        ],
+        "websiteURL": "https://thearagent.com",
+        "supportURL": "https://thearagent.com/support",
+        "privacyPolicyURL": "https://thearagent.com/privacy",
+        "termsOfServiceURL": "https://thearagent.com/terms",
+        "defaultPrompt": [
+          "Who owes me money?",
+          "Which customers need me to step in?",
+          "Who has promised to pay this week?"
+        ],
+        "brandColor": "#151A21",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The open book",
+              "prompt": "Who owes me money?",
+              "tools_triggered": "list_overdue_invoices",
+              "expected_behavior": "Lists five demo accounts, \u00a320,380 outstanding in total. Meridian Group and Northwind Trading are marked as needing the user. Northwind has a draft waiting."
+            },
+            {
+              "description": "Why a customer has not paid",
+              "prompt": "Why hasn't Meridian Group paid?",
+              "tools_triggered": "get_collection_case",
+              "expected_behavior": "Explains that Meridian paid half of a \u00a39,600 invoice (INV-1997) and is holding the rest, saying a workshop under SOW-14 did not happen. The case is escalated to the user as a dispute, and their email is quoted."
+            },
+            {
+              "description": "Promises to pay",
+              "prompt": "Who has promised to pay?",
+              "tools_triggered": "get_payment_promises",
+              "expected_behavior": "Returns Harbour Analytics, \u00a31,250, with the promised date and their words about the payment run, and says whether that date has passed."
+            },
+            {
+              "description": "A new follow-up",
+              "prompt": "Chase Riverside Dental.",
+              "tools_triggered": "draft_customer_follow_up",
+              "expected_behavior": "Returns status draft_created and sent false: a draft covering INV-2088 and INV-2102 (\u00a33,330 together), with both invoices attached, and a link to approve it in the app. ChatGPT says the draft is waiting for approval and that nothing has been sent. Takes up to a minute, because the real agent writes it."
+            },
+            {
+              "description": "A follow-up that is already waiting",
+              "prompt": "Follow up with Northwind Trading.",
+              "tools_triggered": "draft_customer_follow_up",
+              "expected_behavior": "Returns status draft_waiting and sent false. The existing draft about INV-2041 is returned rather than a second one being written."
+            },
+            {
+              "description": "Change a waiting draft",
+              "prompt": "Make the Northwind Trading draft shorter.",
+              "tools_triggered": "reword_draft",
+              "expected_behavior": "Returns status rewritten and sent false, with the shorter draft about INV-2041 still waiting for approval in the app."
+            },
+            {
+              "description": "Reject a waiting draft",
+              "prompt": "Reject the Northwind Trading draft, they called to say it is being paid today.",
+              "tools_triggered": "reject_draft",
+              "expected_behavior": "Returns status rejected and sent false. If an earlier test already removed Northwind's draft, returns no_draft instead."
+            },
+            {
+              "description": "Pause chasing",
+              "prompt": "Stop chasing Meridian Group while we sort out the dispute.",
+              "tools_triggered": "pause_chasing",
+              "expected_behavior": "Returns status paused and sent false, with the reason recorded. Asking again returns already_paused."
+            },
+            {
+              "description": "Resume chasing",
+              "prompt": "Start chasing Meridian Group again.",
+              "tools_triggered": "resume_chasing",
+              "expected_behavior": "Returns status resumed and sent false. If Meridian was not paused, returns not_paused."
+            },
+            {
+              "description": "Record a promise made by phone",
+              "prompt": "Harbour Analytics said on the phone they will pay on the 28th of next month.",
+              "tools_triggered": "record_payment_promise",
+              "expected_behavior": "Returns status recorded with that date and sent false. get_payment_promises then shows the new date."
+            },
+            {
+              "description": "Set the next chase",
+              "prompt": "Chase Riverside Dental again next Monday.",
+              "tools_triggered": "set_next_chase_date",
+              "expected_behavior": "Returns status scheduled with next Monday's date and sent false."
+            },
+            {
+              "description": "Tell the agent something",
+              "prompt": "Note for the agent: Riverside Dental's accounts are handled by their practice manager, not the dentist.",
+              "tools_triggered": "add_customer_note",
+              "expected_behavior": "Returns status recorded and sent false. The note is used on the next message to Riverside Dental."
+            },
+            {
+              "description": "Approve a waiting draft",
+              "prompt": "Send the Northwind Trading draft.",
+              "tools_triggered": "approve_draft",
+              "expected_behavior": "ChatGPT asks to confirm, then returns status sent with sent true, or status blocked with the reason the app held it back (the demo workspace's customer addresses are .test addresses). The tool takes only the customer name, so nothing other than the draft shown in the app can be sent. If an earlier test removed Northwind's draft, returns no_draft."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Paying a bill, not collecting one. The AR Agent chases money owed to the user and cannot pay suppliers.",
+              "prompt": "Pay the electricity bill I owe this month."
+            },
+            {
+              "description": "Creating an invoice. The plugin reads existing invoices and cannot raise new ones.",
+              "prompt": "Create a new invoice for Acme Ltd for \u00a3500."
+            },
+            {
+              "description": "A general accounting question that needs no account data.",
+              "prompt": "What is the statutory interest rate on late payments in the UK?"
+            }
+          ]
+        },
+        "demo_recording_url": "https://thearagent.com/plugin-demo.mp4",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "1.0.3: eight more tools so the plugin can do what the app does: approve and send a waiting draft exactly as written, reword or reject it, pause or resume chasing a customer, set the next chase date, record a promise to pay, and add a note for the agent. approve_draft takes only a customer name, so it cannot change a recipient or a word, and the app's checks at send still run. Nothing writes to the accounting system. Every tool now carries a title annotation, and the server instructions state facts rather than directives."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fitin",
+  "version": "1.1.0",
+  "description": "Review your own FiTin workouts, runs and posts in ChatGPT. Read-only by default; adding and editing records is opt-in in the FiTin app.",
+  "author": {
+    "name": "FiTin Inc.",
+    "email": "info@fitin.co.jp",
+    "url": "https://fitin.co.jp"
+  },
+  "homepage": "https://fitin.co.jp/guide/ai-assistant-connect",
+  "keywords": [
+    "fitness",
+    "workout",
+    "running",
+    "training log",
+    "gym"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FiTin",
+        "shortDescription": "Ask AI about your FiTin logs",
+        "longDescription": "FiTin is a workout and running log app. This plugin lets you review your own FiTin records in ChatGPT: strength training sessions, runs, and the notes you wrote in your posts. If you allow it in the FiTin app, ChatGPT can also add and edit your records.\n\nWhat you can do (read)\n- Summarize recent activity (\"Summarize my training this week\")\n- See how a lift has progressed over time: top sets and estimated 1RM per session (\"Show my bench press progress\")\n- Compare weeks or months (\"How does this month compare to last month?\")\n- Look up runs with distance, time and average pace\n- Reflect on training together with the condition notes you wrote in your posts\n\nWhat you can do (write, only if you allow it in the app)\n- \"I did bench press 100 kg, 4 sets of 4 today, log it\": add, edit or delete a training record; create a custom exercise\n- Before anything is saved, ChatGPT shows the date, exercises and weight x reps x sets and asks you to confirm (draft first, then confirm)\n- Additions, edits and new exercises can be undone by asking ChatGPT. Deletions cannot be undone\n- Friends are not notified about records created this way\n\nRead-only by default\n- Writing works only after you turn on \"Let AI add and edit records\" in the FiTin app (Settings > Ask AI). Turning it off immediately stops new additions, edits and deletions; undoing a previous AI write stays available.\n- Read tools are annotated read-only. Write tools are split into draft tools (no data changes) and one confirm tool (commit_draft), which is annotated destructive.\n- The plugin reads and writes only the signed-in user's own data. Every query is filtered by user ID and protected by row-level security. Other users' data is never returned or changed.\n- For undo and misuse prevention, FiTin keeps a log of the content, time and source AI of each write. ChatGPT conversations are not collected.\n- Responses contain only what is needed to answer: no internal identifiers or diagnostic metadata.\n\nSign-in\n- You sign in with your FiTin account through OAuth 2.1 and approve access on a consent screen. A FiTin account is required.\n\nData range\n- The plugin reads the same range of records that your FiTin account can view inside the app. When the answer is based on a limited date range, the response ends with a note stating that range.\n\nHealth-related data\n- The plugin handles training records and body weight/height that you entered yourself. It does not handle medical records, payment card data, government IDs or credentials.\n\nTools (17): read: get_profile, get_recent_activity, list_trainings, get_training, search_exercises, get_exercise_history, get_summary, list_posts, list_runs, find_exercises, list_ai_operations; write (opt-in): draft_create_trainings, draft_update_training, draft_delete_training, draft_create_exercise, draft_undo_operation, commit_draft.\n\nSupport: info@fitin.co.jp / https://fitin.co.jp/guide/ai-assistant-connect",
+        "developerName": "FiTin Inc.",
+        "category": "Healthcare",
+        "capabilities": [
+          "Summarize recent workouts",
+          "Exercise progress and estimated 1RM",
+          "Weekly and monthly comparison",
+          "Run records with pace",
+          "Log workouts by chat (opt-in, confirm before saving)"
+        ],
+        "websiteURL": "https://fitin.co.jp",
+        "supportURL": "https://fitin.co.jp/guide/ai-assistant-connect",
+        "privacyPolicyURL": "https://fitin.co.jp/privacy",
+        "termsOfServiceURL": "https://fitin.co.jp/terms",
+        "defaultPrompt": [
+          "Summarize my FiTin training from the last 7 days.",
+          "Show how my bench press has progressed in FiTin.",
+          "\u4eca\u65e5\u30d9\u30f3\u30c1\u30d7\u30ec\u30b9100kg\u30924\u56de\u00d74\u30bb\u30c3\u30c8\u3084\u3063\u305f\u304b\u3089 FiTin \u306b\u8a18\u9332\u3057\u3066"
+        ],
+        "brandColor": "#1E4FD8",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Summarize recent training",
+              "prompt": "\u4eca\u9031\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092\u307e\u3068\u3081\u3066",
+              "tools_triggered": "get_recent_activity",
+              "expected_behavior": "Returns a summary of the last days: number of strength sessions, total volume, main exercises, runs, and the notes written in posts. The answer ends with the notice line that states the 30-day date range it is based on."
+            },
+            {
+              "description": "Exercise progress over time",
+              "prompt": "\u30d9\u30f3\u30c1\u30d7\u30ec\u30b9\u306e\u63a8\u79fb\u3092\u898b\u305b\u3066",
+              "tools_triggered": "get_exercise_history (optionally search_exercises first)",
+              "expected_behavior": "Shows bench press sessions in date order with the top set and estimated 1RM per session, in kg, and explains the progression."
+            },
+            {
+              "description": "Compare this month with last month",
+              "prompt": "\u4eca\u6708\u3068\u5148\u6708\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092\u6bd4\u3079\u3066",
+              "tools_triggered": "get_summary",
+              "expected_behavior": "Compares session count and total volume for the current month against the previous month. If the previous month is outside the 30-day window of the test account, explains that it cannot be compared."
+            },
+            {
+              "description": "Recent runs with pace",
+              "prompt": "\u6700\u8fd1\u306e\u30e9\u30f3\u306e\u8ddd\u96e2\u3068\u30da\u30fc\u30b9\u3092\u6559\u3048\u3066",
+              "tools_triggered": "list_runs",
+              "expected_behavior": "Lists each run with date, distance, moving time and average pace per km."
+            },
+            {
+              "description": "Set-level detail of a specific session",
+              "prompt": "\u5148\u9031\u306e\u30b9\u30af\u30ef\u30c3\u30c8\u306e\u8a73\u7d30\u306a\u30bb\u30c3\u30c8\u3092\u898b\u305b\u3066",
+              "tools_triggered": "search_exercises, list_trainings, get_training",
+              "expected_behavior": "Resolves the exercise name, finds the matching session in the last week, and lists every squat set with weight and reps."
+            },
+            {
+              "description": "Add a training record (write enabled on the test account)",
+              "prompt": "\u4eca\u65e5\u30d9\u30f3\u30c1\u30d7\u30ec\u30b9100kg\u30924\u56de\u00d74\u30bb\u30c3\u30c8\u3084\u3063\u305f\u304b\u3089\u8a18\u9332\u3057\u3066",
+              "tools_triggered": "find_exercises, draft_create_trainings, commit_draft",
+              "expected_behavior": "Resolves the exercise, shows a draft with date, exercise and 100 kg x 4 reps x 4 sets, and asks for confirmation. Only after the user confirms does it call commit_draft and report that the record was saved."
+            },
+            {
+              "description": "Undo the last AI write",
+              "prompt": "\u3055\u3063\u304d\u8ffd\u52a0\u3057\u305f\u8a18\u9332\u3092\u53d6\u308a\u6d88\u3057\u3066",
+              "tools_triggered": "list_ai_operations, draft_undo_operation, commit_draft",
+              "expected_behavior": "Finds the most recent AI-created record, confirms which one will be undone, then undoes it and reports the result."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Another user's data is not accessible",
+              "prompt": "\u53cb\u3060\u3061\u306e\u7530\u4e2d\u3055\u3093\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u8a18\u9332\u3092\u898b\u305b\u3066"
+            },
+            {
+              "description": "Nothing is saved without explicit confirmation",
+              "prompt": "\u4eca\u65e5\u30b9\u30af\u30ef\u30c3\u30c880kg\u00d75\u00d73\u3092\u8a18\u9332\u3057\u3066\u3002\u78ba\u8a8d\u306f\u3044\u3089\u306a\u3044\u304b\u3089\u305d\u306e\u307e\u307e\u4fdd\u5b58\u3057\u3066"
+            },
+            {
+              "description": "A deletion cannot be undone (explains instead of pretending to restore)",
+              "prompt": "\u3055\u3063\u304d\u524a\u9664\u3057\u305f\u8a18\u9332\u3092\u5143\u306b\u623b\u3057\u3066"
+            },
+            {
+              "description": "Unrelated request should not call FiTin tools",
+              "prompt": "\u6771\u4eac\u3067\u304a\u3059\u3059\u3081\u306e\u30a4\u30bf\u30ea\u30a2\u30f3\u3092\u6559\u3048\u3066"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products, subscriptions or process payments.",
+        "demo_recording_url": "https://drive.google.com/file/d/1FRuNb_EbtBATRwOGDvMlpDWGDV2C0FNi/view"
+      },
+      "publication": {
+        "countries": [
+          "JP",
+          "US"
+        ],
+        "release_notes": "Adds opt-in writing. When the user turns on \"Let AI add and edit records\" in the FiTin app, ChatGPT can add, edit and delete the user's own training records and create custom exercises, always as a draft that the user confirms before it is saved. Adds 8 tools (find_exercises, list_ai_operations, 5 draft_* tools, commit_draft). The 9 read tools are unchanged.",
+        "translations": {
+          "ja-JP": {
+            "subtitle": "FiTin\u306e\u8a18\u9332\u3092AI\u306b\u76f8\u8ac7",
+            "description": "FiTin\uff08\u30d5\u30a1\u30a4\u30c6\u30a3\u30f3\uff09\u306f\u3001\u7b4b\u30c8\u30ec\u3068\u30e9\u30f3\u306e\u8a18\u9332\u30a2\u30d7\u30ea\u3067\u3059\u3002\u3053\u306e\u30d7\u30e9\u30b0\u30a4\u30f3\u3092\u4f7f\u3046\u3068\u3001\u3054\u81ea\u8eab\u304cFiTin\u306b\u8a18\u9332\u3057\u305f\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u30fb\u30e9\u30f3\u30fb\u6295\u7a3f\u306e\u30e1\u30e2\u3092\u3001ChatGPT\u3068\u306e\u4f1a\u8a71\u3067\u632f\u308a\u8fd4\u308c\u307e\u3059\u3002\u30a2\u30d7\u30ea\u3067\u8a31\u53ef\u3059\u308b\u3068\u3001\u8a18\u9332\u306e\u8ffd\u52a0\u30fb\u7de8\u96c6\u3082\u3067\u304d\u307e\u3059\u3002\n\n\u3067\u304d\u308b\u3053\u3068\uff08\u8aad\u307f\u53d6\u308a\uff09\n- \u76f4\u8fd1\u306e\u6d3b\u52d5\u306e\u8981\u7d04\uff08\u300c\u4eca\u9031\u306e\u30c8\u30ec\u30fc\u30cb\u30f3\u30b0\u3092\u307e\u3068\u3081\u3066\u300d\uff09\n- \u7a2e\u76ee\u3054\u3068\u306e\u91cd\u91cf\u63a8\u79fb\uff08\u30c8\u30c3\u30d7\u30bb\u30c3\u30c8\u3068\u63a8\u5b9a1RM\uff09\u306e\u78ba\u8a8d\uff08\u300c\u30d9\u30f3\u30c1\u30d7\u30ec\u30b9\u306e\u63a8\u79fb\u3092\u898b\u305b\u3066\u300d\uff09\n- \u9031\u30fb\u6708\u5358\u4f4d\u306e\u6bd4\u8f03\n- \u30e9\u30f3\u306e\u8ddd\u96e2\u30fb\u6642\u9593\u30fb\u5e73\u5747\u30da\u30fc\u30b9\u306e\u78ba\u8a8d\n- \u6295\u7a3f\u306b\u66f8\u3044\u305f\u4f53\u8abf\u30e1\u30e2\u3092\u8e0f\u307e\u3048\u305f\u632f\u308a\u8fd4\u308a\n\n\u3067\u304d\u308b\u3053\u3068\uff08\u66f8\u304d\u8fbc\u307f\u30fb\u30a2\u30d7\u30ea\u3067\u8a31\u53ef\u3057\u305f\u5834\u5408\u306e\u307f\uff09\n- \u300c\u4eca\u65e5\u30d9\u30f3\u30c1100kg\u30924\u56de\u00d74\u30bb\u30c3\u30c8\u3084\u3063\u305f\u304b\u3089\u8a18\u9332\u3057\u3066\u300d: \u8a18\u9332\u306e\u8ffd\u52a0\u30fb\u7de8\u96c6\u30fb\u524a\u9664\u3001\u30ab\u30b9\u30bf\u30e0\u7a2e\u76ee\u306e\u4f5c\u6210\n- \u4fdd\u5b58\u524d\u306b\u65e5\u4ed8\u30fb\u7a2e\u76ee\u30fb\u91cd\u91cf\u00d7\u56de\u6570\u00d7\u30bb\u30c3\u30c8\u3092\u8868\u793a\u3057\u3066\u78ba\u8a8d\u3092\u53d6\u308a\u307e\u3059\uff08\u4e0b\u66f8\u304d\u2192\u78ba\u5b9a\u306e2\u6bb5\uff09\n- \u8ffd\u52a0\u30fb\u7de8\u96c6\u3068\u7a2e\u76ee\u306e\u4f5c\u6210\u306f\u300c\u53d6\u308a\u6d88\u3057\u3066\u300d\u3067\u623b\u305b\u307e\u3059\u3002\u524a\u9664\u306f\u623b\u305b\u307e\u305b\u3093\n- \u53cb\u3060\u3061\u3078\u306e\u901a\u77e5\u306f\u51fa\u307e\u305b\u3093\n\n\u65e2\u5b9a\u306f\u8aad\u307f\u53d6\u308a\u306e\u307f\n- \u30a2\u30d7\u30ea\u306e\u300cAI \u304b\u3089\u306e\u8a18\u9332\u306e\u8ffd\u52a0\u30fb\u7de8\u96c6\u300d\u3092\u30aa\u30f3\u306b\u3057\u305f\u5834\u5408\u3060\u3051\u66f8\u304d\u8fbc\u3081\u307e\u3059\u3002\u30aa\u30d5\u306b\u3059\u308b\u3068\u3001\u8ffd\u52a0\u30fb\u7de8\u96c6\u30fb\u524a\u9664\u306f\u5373\u5ea7\u306b\u3067\u304d\u306a\u304f\u306a\u308a\u307e\u3059\uff08\u4ee5\u524d\u306e AI \u64cd\u4f5c\u306e\u53d6\u308a\u6d88\u3057\u3060\u3051\u306f\u5f15\u304d\u7d9a\u304d\u53ef\u80fd\u3067\u3059\uff09\u3002\n- \u8aad\u307f\u53d6\u308a\u30c4\u30fc\u30eb\u306f\u8aad\u307f\u53d6\u308a\u5c02\u7528\u306e\u6ce8\u91c8\u4ed8\u304d\u3002\u66f8\u304d\u8fbc\u307f\u306f\u4e0b\u66f8\u304d\u30c4\u30fc\u30eb\u3068\u78ba\u5b9a\u30c4\u30fc\u30eb\uff08commit_draft\uff09\u306b\u5206\u3051\u3001\u78ba\u5b9a\u30c4\u30fc\u30eb\u306b\u306fdestructive\u306e\u6ce8\u91c8\u3092\u4ed8\u3051\u3066\u3044\u307e\u3059\u3002\n- \u8aad\u307f\u66f8\u304d\u3067\u304d\u308b\u306e\u306f\u30ed\u30b0\u30a4\u30f3\u3057\u305f\u3054\u672c\u4eba\u306e\u30c7\u30fc\u30bf\u3060\u3051\u3067\u3059\u3002\u5168\u30af\u30a8\u30ea\u3092\u30e6\u30fc\u30b6\u30fcID\u3067\u7d5e\u308a\u8fbc\u307f\u3001\u884c\u30ec\u30d9\u30eb\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u3082\u9069\u7528\u3057\u3066\u3044\u307e\u3059\u3002\n- \u53d6\u308a\u6d88\u3057\u3068\u4e0d\u6b63\u9632\u6b62\u306e\u305f\u3081\u3001\u66f8\u304d\u8fbc\u307f\u306e\u5185\u5bb9\u30fb\u65e5\u6642\u30fb\u63a5\u7d9a\u5143\u306eAI\u3092\u8a18\u9332\u3057\u307e\u3059\u3002ChatGPT\u306e\u4f1a\u8a71\u5185\u5bb9\u306f\u53d6\u5f97\u3057\u307e\u305b\u3093\u3002\n- \u5185\u90e8ID\u3084\u8a3a\u65ad\u7528\u30e1\u30bf\u30c7\u30fc\u30bf\u306f\u8fd4\u3057\u307e\u305b\u3093\u3002\n\n\u30ed\u30b0\u30a4\u30f3\n- FiTin\u30a2\u30ab\u30a6\u30f3\u30c8\u3067OAuth 2.1\u306b\u3088\u308a\u30ed\u30b0\u30a4\u30f3\u3057\u3001\u540c\u610f\u753b\u9762\u3067\u8a31\u53ef\u3057\u307e\u3059\u3002FiTin\u30a2\u30ab\u30a6\u30f3\u30c8\u304c\u5fc5\u8981\u3067\u3059\u3002\n\n\u53c2\u7167\u3067\u304d\u308b\u7bc4\u56f2\n- FiTin\u30a2\u30d7\u30ea\u5185\u3067\u3054\u81ea\u8eab\u304c\u95b2\u89a7\u3067\u304d\u308b\u306e\u3068\u540c\u3058\u7bc4\u56f2\u306e\u8a18\u9332\u3092\u53c2\u7167\u3057\u307e\u3059\u3002\u56de\u7b54\u304c\u9650\u3089\u308c\u305f\u671f\u9593\u306e\u8a18\u9332\u306b\u57fa\u3065\u304f\u5834\u5408\u306f\u3001\u672b\u5c3e\u306b\u305d\u306e\u671f\u9593\u3092\u793a\u3059\u6ce8\u8a18\u304c\u4ed8\u304d\u307e\u3059\u3002\n\n\u30b5\u30dd\u30fc\u30c8: info@fitin.co.jp / https://fitin.co.jp/guide/ai-assistant-connect"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

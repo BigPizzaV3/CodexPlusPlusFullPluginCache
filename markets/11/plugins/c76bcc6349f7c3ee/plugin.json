@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "postminion",
+  "version": "1.0.3",
+  "description": "A social media scheduler to draft, schedule, and publish posts through the accounts connected to Postminion.",
+  "author": {
+    "name": "PT Kronusa Teknologi Digital",
+    "email": "support@postminion.com",
+    "url": "https://postminion.com"
+  },
+  "homepage": "https://postminion.com/mcp",
+  "keywords": [
+    "social media scheduler",
+    "social media scheduling",
+    "schedule post",
+    "schedule content",
+    "post scheduling",
+    "social media publishing",
+    "social media planner",
+    "post scheduler",
+    "content scheduler",
+    "schedule social media posts",
+    "schedule Instagram posts",
+    "schedule LinkedIn posts",
+    "schedule Threads posts",
+    "schedule Facebook posts",
+    "publish social media posts",
+    "cross posting"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Postminion",
+        "shortDescription": "Social media scheduler",
+        "longDescription": "Postminion is a social media scheduler for Instagram, TikTok, YouTube, Threads, Facebook, and LinkedIn. Use ChatGPT to draft, schedule posts for a date and time in your time zone, publish them, check their status, edit them, or cancel scheduled posts through the social accounts connected to Postminion.\n\nAttach photos to your message and Postminion adds them to the post, resizing them when a network needs it. Media at a public link works too. Every draft and scheduled post comes with a link that opens it in the Postminion editor.\n\nPostminion checks each post against the network's rules before saving it. For TikTok, ChatGPT asks you to choose the privacy level and disclosure settings for every post, as TikTok requires. Publishing happens in the background, and ChatGPT can report each network's result.\n\nYou sign in with your Postminion account and choose the workspace and the permissions to allow; immediate publishing is a separate permission. You can review or revoke access at any time under AI Agents in Postminion.\n\nRequires a Postminion account with at least one connected social account. Postminion reaches only the accounts in the workspace you approve, and it cannot delete posts.",
+        "developerName": "PT Kronusa Teknologi Digital",
+        "category": "Productivity",
+        "capabilities": [
+          "Draft posts",
+          "Schedule posts",
+          "Publish posts",
+          "Check post status",
+          "Update and cancel scheduled posts",
+          "Import attached photos"
+        ],
+        "websiteURL": "https://postminion.com",
+        "supportURL": "https://postminion.com/support",
+        "privacyPolicyURL": "https://postminion.com/privacy-policy",
+        "termsOfServiceURL": "https://postminion.com/tos",
+        "defaultPrompt": [
+          "Which social accounts are connected to my Postminion?",
+          "Draft a LinkedIn post announcing our new feature and save it in Postminion.",
+          "Schedule this photo for Instagram tomorrow at 9 AM."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List connected accounts. Setup for all cases: use the dedicated reviewer workspace with exactly one connected Threads account, username @postminionapp, ready to post, and no pre-existing scheduled posts. Approve accounts:read, posts:read, posts:draft, posts:update, posts:schedule, posts:cancel, and media:write; do not grant immediate publishing. Run the cases in order in one conversation.",
+              "prompt": "Which social accounts are connected to my Postminion?",
+              "tools_triggered": "list_social_accounts",
+              "expected_behavior": "Calls list_social_accounts with no workspace override. Reports exactly the returned Threads account @postminionapp and its returned readiness. Does not expose credentials or infer readiness."
+            },
+            {
+              "description": "Create an unpublished text-only Threads draft on the sole connected account Threads @postminionapp from case 1.",
+              "prompt": "Draft a Thread post \"Hello world for ChatGPT demo\"",
+              "tools_triggered": "list_social_accounts, create_draft",
+              "expected_behavior": "Uses the returned connectionId for Threads @postminionapp and passes the exact caption to create_draft with a fresh requestId. Expects an accepted draft with published=false, contentId, revision, and editUrl. Reports that the draft is saved and not published, with the editor link. Does not call schedule_post or publish_post_now."
+            },
+            {
+              "description": "Schedule the draft created in case 2 in a named time zone. Resolve next Monday relative to the date this case is run.",
+              "prompt": "Schedule that draft for next monday at 7pm new york time",
+              "tools_triggered": "get_post, update_post",
+              "expected_behavior": "Calls get_post on the case 2 draft for its current revision, then following any required host confirmation calls update_post with that contentId, expectedRevision, status=scheduled, and a schedule of the next Monday date, hour=19, minute=0, timezone=America/New_York. Expects accepted=true, state=scheduled, published=false. Repeats the resolved local date/time and does not claim the post is published."
+            },
+            {
+              "description": "Check the scheduled status of the post scheduled in case 3.",
+              "prompt": "What posts do I have scheduled on Threads?",
+              "tools_triggered": "list_posts",
+              "expected_behavior": "Calls list_posts filtered to scheduled posts, following pagination if needed. Lists exactly the post \"Hello world for ChatGPT demo\" with its returned scheduled time for @postminionapp. Does not report drafts or cancelled posts as scheduled."
+            },
+            {
+              "description": "Cancel the post scheduled in case 3. Reseed by rerunning cases 2 and 3 before repeating this case because cancellation consumes the post.",
+              "prompt": "Cancel my scheduled Threads post",
+              "tools_triggered": "list_posts, get_post, cancel_scheduled_post",
+              "expected_behavior": "Finds the single scheduled Threads post with list_posts, calls get_post for its current revision, then following any required host confirmation calls cancel_scheduled_post with its contentId, expectedRevision, and a fresh requestId. Expects accepted=true and state=cancelled. Reports that the post was cancelled and not published, and makes no changes to other posts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Instagram is not connected; the workspace has only Threads @postminionapp. The plugin must not post to another account. A read-only list_social_accounts call is allowed to verify connections; it must explain that Instagram is not connected and suggest connecting it in Postminion first. It must not create a draft, schedule, or publish anything.",
+              "prompt": "Post \"hello\" to my Instagram account now."
+            },
+            {
+              "description": "Deleting posts is unsupported. Run after positive case 5, so the post is cancelled. Expected: read-only list_posts or get_post calls to find the post are allowed; explain that Postminion cannot delete posts through the available actions and that the post stays cancelled, not published. Must not call any mutation tool, claim deletion, or alter any post.",
+              "prompt": "Delete the Threads post \u201cHello world for ChatGPT demo.\u201d"
+            },
+            {
+              "description": "Plan upgrades and billing are outside this plugin. Expected: explain that plan changes are managed in Postminion's billing settings on the website. Make no Postminion tool calls, initiate no checkout, promote no upgrade, and do not claim the plan changed.",
+              "prompt": "Please upgrade my postminion subscription plan"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Payments occur only on the Postminion website. This plugin accesses existing account entitlements and does not offer checkout, initiate subscriptions, process payments, or promote upgrades in ChatGPT.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=cEkrqqs_LVM"
+      },
+      "publication": {
+        "release_notes": "Initial public release: draft, schedule, publish, update, and cancel posts on accounts connected to Postminion, with photo attachments. Includes reproducible review scenarios and website-only payments. Version 1.0.3 expands relevant keywords for social media planning, scheduling, publishing, and supported networks.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

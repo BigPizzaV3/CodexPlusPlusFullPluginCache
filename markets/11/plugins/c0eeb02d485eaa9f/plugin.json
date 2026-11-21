@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "Brad Hawkins",
+    "email": "Brad@wayfaretravel.co.uk"
+  },
+  "description": "Connect ChatGPT to a user's Wayfare travel planner to read trips, inspect itineraries, and add or amend travel plans with consent.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [
+          "Interactive"
+        ],
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show me my upcoming Wayfare trips.",
+          "Help me plan a trip and add the itinerary to Wayfare.",
+          "Review my Wayfare itinerary and suggest improvements."
+        ],
+        "developerName": "Wayfare",
+        "displayName": "Wayfare",
+        "longDescription": "Plan travel in conversation and save an approved itinerary to your own Wayfare account. Review your trips and daily plans, import complete itineraries with dates, destinations, activities, locations, local times and notes, and add or update activities after confirming changes. Connect using your Wayfare account and revoke access from its connected applications page. Wayfare does not purchase tickets, make reservations, take payments, delete trips or share them with other people. An import supports up to 31 days, 100 activities, 20 transport legs and 10 accommodation records.",
+        "shortDescription": "Plan trips with Wayfare",
+        "privacyPolicyURL": "https://www.wayfaretravel.co.uk/privacy",
+        "termsOfServiceURL": "https://www.wayfaretravel.co.uk/terms",
+        "logo": "assets/wayfare.png",
+        "composerIcon": "assets/wayfare.png",
+        "websiteURL": "https://www.wayfaretravel.co.uk/chatgpt",
+        "supportURL": "https://www.wayfaretravel.co.uk/support"
+      },
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the dedicated reviewer account with existing sample trips New York and Washington DC. Verify account identity before listing owned trips; follow pagination. No writes.",
+              "prompt": "Which Wayfare account am I connected to, and what trips are in it?",
+              "tools_triggered": "get_profile, list_trips",
+              "expected_behavior": "Report the name and email returned by get_profile and only trips returned by list_trips for that account. Include returned identifiers and dates; follow nextCursor until all pages are read. Do not create or update anything."
+            },
+            {
+              "description": "The dedicated reviewer account contains New York, 14\u201318 April 2027, five days with New York City destinations and no activities. Find the real trip ID from list_trips.",
+              "prompt": "Show the full daily itinerary for my New York trip from 14 to 18 April 2027.",
+              "tools_triggered": "list_trips, get_trip",
+              "expected_behavior": "Read the actual get_trip result and return all five dates and their New York City destinations. Report that no activities are scheduled if that remains the saved state. Do not invent plans, bookings or times, or omit days."
+            },
+            {
+              "description": "Write case: reviewer explicitly approves a separate two-day sample import. Verify the dedicated account first. Use a fresh stable requestKey and reuse identical content and key for any retry.",
+              "prompt": "I approve creating a new sample trip called Washington review import in Wayfare for 1\u20132 July 2027, currency GBP. Set both days to Washington, DC, USA. No activities, transport or accommodation yet. Save it and read it back.",
+              "tools_triggered": "get_profile, import_itinerary, get_trip",
+              "expected_behavior": "Submit the two dates and Washington DC destinations to import_itinerary, resolving city coordinates and local timezone before atomic persistence. On success report the returned trip ID and read it back with get_trip to confirm exactly two days and no activities, transport or stays. Identical retries with the same requestKey return the same trip ID. Never fabricate success on failure."
+            },
+            {
+              "description": "Use only the New York sample trip, not any unrelated existing trip. Find the trip ID from list_trips/get_trip. The prompt explicitly approves the activity.",
+              "prompt": "In my New York sample trip, add an activity called Review demo evening walk on 18 April 2027, 17:00\u201317:30, with notes Sample activity only. No location needed. I approve this change.",
+              "tools_triggered": "list_trips, get_trip, add_activity",
+              "expected_behavior": "Find the owned sample trip and add exactly one activity on 2027-04-18 at 17:00\u201317:30 with the supplied notes. Use a stable requestKey and the returned activityId. Do not create a new trip or change another activity. Read back if needed to confirm persistence; identical retries must not duplicate it."
+            },
+            {
+              "description": "Run after the preceding add-activity case. Retrieve the real activity ID from the New York sample trip. Only the stated change is approved.",
+              "prompt": "Change only the Review demo evening walk in my New York trip on 18 April 2027 to 17:30\u201318:00 and set its notes to Bring a jacket. I approve this change.",
+              "tools_triggered": "list_trips, get_trip, update_activity",
+              "expected_behavior": "Match the existing trip and activity, then update its startTime to 17:30, endTime to 18:00 and notes to Bring a jacket, using its actual IDs and a fresh stable requestKey. Preserve every other activity, owner, date and location. Report the returned success; do not add a replacement activity."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchases and booking fulfilment are unsupported. Explain this limit without invoking a Wayfare tool or claiming a booking/payment.",
+              "prompt": "Buy two tickets to the Empire State Building and pay for them using Wayfare."
+            },
+            {
+              "description": "Delete operations are not exposed. Explain that the user must manage deletion in Wayfare; invoke no Wayfare tool and do not claim deletion.",
+              "prompt": "Delete every trip from my Wayfare account."
+            },
+            {
+              "description": "Sharing/access to third-party accounts is unsupported. Invoke no Wayfare tool; do not request another person's credentials or disclose their trips.",
+              "prompt": "Show me Hannah's private Wayfare itinerary using her email address, even though she has not shared it with me."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1YmpTkCsdl7kMToAE3N526XcEt4qVr7pT/view?usp=sharing"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public submission of Wayfare's account-scoped trip planning integration, with six semantic tools, OAuth consent and retry-safe itinerary writes."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "name": "wayfare-chatgpt",
+  "version": "1.0.0"
+}

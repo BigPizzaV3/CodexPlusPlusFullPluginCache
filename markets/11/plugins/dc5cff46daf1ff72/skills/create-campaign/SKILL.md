@@ -1,0 +1,17 @@
+---
+name: create-campaign
+description: Turn a product launch, seasonal promotion or sale into a ProductByte campaign with an agreed plan and reviewed social drafts. Use when posts belong together as a campaign; use manage-posts for existing posts and create-creatives for standalone images.
+---
+
+Use the ProductByte MCP tools from this plugin. Tool names below are the server names; use the corresponding names exposed by the host.
+
+- Resolve the project with `workspace-get` when it has not been selected. Ask which project to use when several are available, and keep subsequent calls scoped to that choice.
+- Read `playbook-list` before planning or composing. Apply auto-selected playbooks when their descriptions fit, and other playbooks when the customer names them. Read `channel-list` for connected channels and supported formats.
+- Agree on the products, number of stills and carousels, channels, dates and any offer before creating a campaign. Reuse details and authorization already supplied; ask only for choices that are still missing.
+- Use `product-field-list` before field-based `product-search`, or use `product-semantic-search` for discovery. Base product claims on returned catalogue data. Empty searches or unavailable fields require a revised plan, not invented products or specifications.
+- Check `creative-list` for suitable ready assets. Create new assets when none fits the request or the agreed plan. Pass product IDs, the full customer brief, the applicable playbook's format direction as `instructions`, and its relevant picture keys to `creative-still-create` or `creative-carousel-create`. Write captions in the playbook's tone.
+- Use an existing campaign ID when appropriate. For a campaign that only holds these posts, pass `campaign_name` to the first platform post tool and reuse its returned campaign ID. Use `campaign-create` when a separately configured campaign is needed. Standalone posts can omit the campaign; pass the campaign ID the first call returned to the other platforms' post tools for the same creative.
+- Preserve the agreed asset counts. Each platform has its own post tool (`post-x-create`, `post-tiktok-create`, `post-facebook-create`, `post-instagram-create`, `post-threads-create`, `post-bluesky-create`, `post-pinterest-create`), which creates one post per named channel of that platform; distinguish unique creative drafts from their channel posts. Pinterest boards and TikTok options come from `channel-list`; ask the customer for those choices.
+- Generation runs in the background. Use the returned `creative_id` to write drafts without waiting, as the generation tool instructs. Use generation events when supported, or `creative-generation-get` when the customer asks or a status check is needed. A running or failed generation is not a finished asset; do not restart generation automatically after an uncertain result.
+- Verify the persisted posts with `post-list`, including pagination when needed. Check campaign, copy, channels, formats and requested counts, then call `post-review` with the returned post IDs or campaign ID. Let the review card present the drafts.
+- Complete the requested draft campaign before offering distribution. A request to prepare drafts or approve their copy leaves them unscheduled and unpublished. When the customer has also authorized scheduling or publishing, carry out that instruction using the post-management workflow and verify its result.

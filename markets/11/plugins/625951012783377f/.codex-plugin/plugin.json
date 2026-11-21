@@ -1,0 +1,445 @@
+{
+  "name": "doofinder",
+  "version": "1.0.0",
+  "description": "Connect Doofinder to ChatGPT to manage your store's search experience without leaving the chat. Ask about your catalog and search data, request edits and configuration changes, all without switching tabs or logging into a separate dashboard.",
+  "author": {
+    "name": "Doofinder",
+    "email": "developers@doofinder.com",
+    "url": "https://www.doofinder.com/"
+  },
+  "homepage": "https://support.doofinder.com/integrations/management-mcp",
+  "keywords": [
+    "search",
+    "ecommerce",
+    "site search",
+    "analytics",
+    "merchandising"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Doofinder",
+    "shortDescription": "AI Search & Discovery platform",
+    "longDescription": "Connect Doofinder to ChatGPT to manage your store's search experience without leaving the chat. Ask about your catalog and search data, request edits and configuration changes, all without switching tabs or logging into a separate dashboard.",
+    "developerName": "Doofinder",
+    "category": "Business & Operations",
+    "capabilities": [
+      "Preview search results",
+      "Review search analytics",
+      "Manage synonyms and redirections",
+      "Manage excluded results",
+      "Manage blocked IP ranges"
+    ],
+    "websiteURL": "https://www.doofinder.com/",
+    "supportURL": "https://support.doofinder.com/",
+    "privacyPolicyURL": "https://www.doofinder.com/en/privacy-policy",
+    "termsOfServiceURL": "https://www.doofinder.com/en/terms-and-conditions",
+    "defaultPrompt": [
+      "Why does a search on my store return poor results?",
+      "Show my search metrics for the last 30 days.",
+      "Which products get the most clicks from search?"
+    ],
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the stores and search engines available to the authenticated merchant.",
+              "prompt": "Show the stores and search engines in my Doofinder account.",
+              "tools_triggered": "account_info",
+              "expected_behavior": "Returns the merchant's two stores (example.com and example.co.uk) and their search engines, with each engine's hashid, language and currency (EUR and GBP), needed for later requests."
+            },
+            {
+              "description": "Diagnose a product-search issue using the production-equivalent preview.",
+              "prompt": "Search my example.com store for 'barbie' and show the first results with brand and price facets.",
+              "tools_triggered": "search",
+              "expected_behavior": "Returns a read-only preview of matching results (about 66), totals, and brand and price facets, without recording analytics. Barbie DreamCamper appears first because a custom result pins it for 'barbie', and doll products from other brands appear because a 'doll \u2194 barbie' synonym is configured."
+            },
+            {
+              "description": "Inspect existing synonym rules before proposing a search change.",
+              "prompt": "List the synonyms on my example.com search engine, including disabled rules.",
+              "tools_triggered": "list_synonyms",
+              "expected_behavior": "Returns the engine's 8 synonym rules with their enabled state: 6 enabled (e.g. 'doll, barbie', 'car, truck => hot wheels, matchbox' and 'sneakers, trainers') and 2 disabled ('baby toy => fisher price, vtech, playskool' and 'anime, manga')."
+            },
+            {
+              "description": "Review search performance for a selected reporting period.",
+              "prompt": "Show my search metrics for the last 30 days on my example.com search engine.",
+              "tools_triggered": "metrics",
+              "expected_behavior": "Returns account-scoped aggregate metrics for the period (sessions, searches, clicks, CTR, conversion rate and sales), each rate alongside the counts behind it."
+            },
+            {
+              "description": "Apply a requested, bounded search configuration change.",
+              "prompt": "Create an equivalent synonym between 'sneakers' and 'trainers' on my UK search engine.",
+              "tools_triggered": "create_synonyms",
+              "expected_behavior": "Creates the synonym on the example.co.uk engine (en-GB, GBP) and reports that a reindex was requested. The engine already has a 'sneakers, running shoes' rule, which the assistant may mention when it checks the existing synonyms first."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for an unrelated calendar request. The app should not be invoked because calendar management is outside its supported workflows.",
+              "prompt": "What meetings do I have tomorrow?"
+            },
+            {
+              "description": "Do not trigger for general web research. The app should not be invoked because it cannot research or recommend products across the web.",
+              "prompt": "Find the best wireless headphones to buy this year."
+            },
+            {
+              "description": "Do not trigger for unrelated account administration. The app should not be invoked because credential management is outside its supported workflows.",
+              "prompt": "Reset my company email password."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1UAa_DaRg15XaN9kTCviUrdVJ6jjU8D1J/view?usp=sharing",
+        "commerce": false,
+        "commerce_description": "The plugin manages the merchant's site-search configuration and analytics. It does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Tool annotations now match each tool's behavior: add_blocked_ips, update_redirection, update_synonym, toggle_redirection, exclude_by_rule and update_excluded_results_settings declare destructiveHint true. create_redirection no longer disables other redirections: it refuses an enabled redirection whose terms collide with an enabled one. Adds delete_redirection."
+      }
+    }
+  },
+  "tools": {
+    "account_info": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists only the authenticated account's stores and search engines without changing them.",
+        "open_world_justification": "Reads private Doofinder account data and does not act on public or third-party systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "add_blocked_ips": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Adds specified IP ranges to the authenticated store's private blocked-IP configuration.",
+        "open_world_justification": "Changes security settings only within the authenticated merchant's Doofinder store.",
+        "destructive_justification": "Blocks live search traffic from the specified IP ranges, potentially cutting off legitimate users."
+      }
+    },
+    "create_redirection": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Creates a search redirection rule in the authenticated merchant's search-engine configuration.",
+        "open_world_justification": "Changes private Doofinder configuration and does not publish content or contact external systems.",
+        "destructive_justification": "Adds a new redirection without modifying existing redirections. An enabled redirection with terms colliding with an enabled one is refused."
+      }
+    },
+    "create_synonyms": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Creates synonym rules on the authenticated merchant's search engine and requests a reindex.",
+        "open_world_justification": "Changes private Doofinder search configuration and does not affect public internet state.",
+        "destructive_justification": "Creates new rules without deleting or overwriting existing rules."
+      }
+    },
+    "delete_synonym": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Deletes a selected synonym rule from the authenticated merchant's search engine and requests a reindex.",
+        "open_world_justification": "Changes only the authenticated merchant's private Doofinder configuration.",
+        "destructive_justification": "Permanently deletes the selected synonym rule, which cannot be recovered through this tool."
+      }
+    },
+    "exclude_by_rule": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Adds a filter-based excluded-results rule to the authenticated merchant's search engine.",
+        "open_world_justification": "Changes private Doofinder search configuration and does not publish to external systems.",
+        "destructive_justification": "Hides all products matching the rule, including products indexed later, from live search results when exclusions are enabled."
+      }
+    },
+    "exclude_item": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Adds an individual product exclusion to the authenticated merchant's search engine.",
+        "open_world_justification": "Changes private Doofinder search configuration and does not act on external systems.",
+        "destructive_justification": "Creates a new exclusion entry without deleting or overwriting existing configuration."
+      }
+    },
+    "items": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves per-product engagement, sales and product-page visit analytics for an authenticated store or search engine without changing data.",
+        "open_world_justification": "Queries Doofinder's internal analytics service within the authenticated account scope.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "list_boosting_rules": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists manual and automatic boosting settings without changing search configuration.",
+        "open_world_justification": "Reads private Doofinder configuration without affecting external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "list_custom_results": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists pinned and hidden custom-result rules without modifying them.",
+        "open_world_justification": "Reads private Doofinder configuration without acting on public or third-party systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "list_excluded_results": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists item and filter-based exclusions without changing the search engine.",
+        "open_world_justification": "Reads private Doofinder configuration without affecting external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "list_redirections": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists configured search redirections without changing them.",
+        "open_world_justification": "Reads private Doofinder configuration and does not act on external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "list_synonyms": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Lists synonym rules for a search engine without modifying them.",
+        "open_world_justification": "Reads private Doofinder configuration without affecting public or third-party systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "metrics": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves aggregate search metrics for an authenticated search engine without changing data.",
+        "open_world_justification": "Queries Doofinder's internal analytics service within the authenticated account scope.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "query_terms": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves search-query analytics for an authenticated search engine without changing data.",
+        "open_world_justification": "Queries Doofinder's internal analytics service within the authenticated account scope.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "read_security_settings": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Reads blocked IP ranges and CORS settings for an authenticated store without changing them.",
+        "open_world_justification": "Reads private store security configuration without acting on external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "remove_blocked_ips": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Removes selected blocked IP ranges from the authenticated store's security configuration.",
+        "open_world_justification": "Changes security settings only within the authenticated merchant's Doofinder store.",
+        "destructive_justification": "Removes IP-block protections and requires a separate write to restore them."
+      }
+    },
+    "remove_excluded_result": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Deletes a selected excluded-results entry from the authenticated search engine.",
+        "open_world_justification": "Changes only the authenticated merchant's private Doofinder configuration.",
+        "destructive_justification": "Permanently removes the selected exclusion entry, which cannot be recovered through this tool."
+      }
+    },
+    "search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Runs an untracked preview search and returns results without changing the search engine.",
+        "open_world_justification": "Queries the authenticated merchant's Doofinder search service without changing public or third-party state.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "time_series": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves time-series analytics for an authenticated search engine without changing data.",
+        "open_world_justification": "Queries Doofinder's internal analytics service within the authenticated account scope.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or make an irreversible change."
+      }
+    },
+    "toggle_redirection": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Changes whether a selected search redirection is active on the authenticated search engine.",
+        "open_world_justification": "Changes private Doofinder configuration and does not publish to external systems.",
+        "destructive_justification": "Changes live redirection behavior; enabling a rule can silently disable other enabled redirections with colliding terms."
+      }
+    },
+    "update_excluded_result": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Replaces one excluded-results entry in the authenticated search engine.",
+        "open_world_justification": "Changes only the authenticated merchant's private Doofinder configuration.",
+        "destructive_justification": "Overwrites the prior exclusion entry, which cannot be restored through this tool."
+      }
+    },
+    "update_excluded_results_settings": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      },
+      "justifications": {
+        "read_only_justification": "Changes whether the authenticated search engine applies its configured excluded-results list.",
+        "open_world_justification": "Changes private Doofinder configuration and does not act on external systems.",
+        "destructive_justification": "Changes whether the entire exclusion list applies, potentially hiding previously visible products or exposing previously excluded products."
+      }
+    },
+    "update_redirection": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Updates a selected search redirection in the authenticated merchant's search-engine configuration.",
+        "open_world_justification": "Changes private Doofinder configuration and does not publish content or contact external systems.",
+        "destructive_justification": "Overwrites existing redirection configuration and can silently disable enabled redirections with colliding terms."
+      }
+    },
+    "update_synonym": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Updates a selected synonym rule or its enabled state on the authenticated search engine and requests a reindex.",
+        "open_world_justification": "Changes private Doofinder search configuration and does not affect public internet state.",
+        "destructive_justification": "Overwrites an existing synonym rule or its enabled state and requests a full reindex."
+      }
+    },
+    "delete_redirection": {
+      "annotations": {
+        "readOnlyHint": false,
+        "openWorldHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Deletes a selected redirection from the authenticated merchant's search engine without requesting a reindex.",
+        "open_world_justification": "Changes only the authenticated merchant's private Doofinder configuration.",
+        "destructive_justification": "Permanently deletes the selected redirection. The response echoes the deleted record so a separate create_redirection call can recreate its configuration; colliding redirections disabled earlier stay disabled."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

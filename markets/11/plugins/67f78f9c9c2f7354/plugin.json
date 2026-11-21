@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hfield",
+  "version": "0.2.3",
+  "description": "Connect HField accounts to carrier truck management, load analytics, and broker order creation.",
+  "author": {
+    "name": "Hfield"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hfield",
+        "developerName": "Hfield",
+        "websiteURL": "https://hfield.net",
+        "privacyPolicyURL": "https://hfield.net/privacy-policy",
+        "category": "Business & Operations",
+        "shortDescription": "Post loads and manage trucks",
+        "longDescription": "HField helps brokers post freight loads and carriers manage their trucks directly in ChatGPT.\n\nFor brokers:\nShare shipment details as text, a screenshot, or a file. ChatGPT asks for any missing required information before creating your order in HField.\nOpen the HField order link to review matched trucks, view truck details and prices, compare available offers, and book the truck that best fits your shipment.\n\nFor carriers:\nView your trucks, assigned drivers, locations, availability, and active status. Update truck location and availability, pickup radius, distance limits, and state restrictions. Review loads, revenue, and payment reports, and get suggestions on where to move a truck for more loads.\n\nInstall HField in ChatGPT and connect your HField account to get started. Load posting is available only to broker accounts. Available features depend on your account\u2019s role and permissions.",
+        "defaultPrompt": [
+          "List my trucks and show which are active.",
+          "Show my loads and revenue for the past seven days.",
+          "Where should I move my truck for more loads?"
+        ],
+        "logo": "./assets/hfield-logo-light.png",
+        "composerIcon": "./assets/hfield-logo-light.png",
+        "supportURL": "https://hfield.net/contact",
+        "termsOfServiceURL": "https://hfield.net/terms-and-conditions",
+        "logoDark": "./assets/hfield-logo.png",
+        "composerIconDark": "./assets/hfield-logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/ciL5yKS4M0c",
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List trucks available to the connected reviewer carrier account. No particular truck name is required.",
+              "prompt": "List my trucks and tell me which are active.",
+              "tools_triggered": "list_trucks",
+              "expected_behavior": "Call list_trucks. Show only returned trucks and their active status. If the roster is empty, clearly report that no trucks were found; do not invent a truck."
+            },
+            {
+              "description": "Read the reviewer carrier account report for the default reporting period. The account does not need existing loads; an empty report is a valid result.",
+              "prompt": "Show my loads, revenue, and payment report for the past seven days.",
+              "tools_triggered": "get_loads_report",
+              "expected_behavior": "Call get_loads_report with omitted dates for its default period, from seven days ago through today in New York time. Summarize the returned report. If there are no loads, clearly say so. Use only figures returned by the tool, and do not treat unavailable data or an API error as a zero-valued report."
+            },
+            {
+              "description": "Request move suggestions for a semi truck in ZIP 10001. No named truck is needed. Live recommendation availability may vary.",
+              "prompt": "For a semi truck currently in ZIP 10001, where should I move for more loads?",
+              "tools_triggered": "where_to_move",
+              "expected_behavior": "Call where_to_move with current_zip 10001 and truck_type_id 5. Show only recommendations returned by the tool, or accurately report its no-results or missing-input status. Do not invent locations."
+            },
+            {
+              "description": "Change only the pickup radius of a truck in the dedicated reviewer account. The account must contain at least one non-production test truck. If asked to select a truck, select that test truck from the returned roster. No particular truck name is required.",
+              "prompt": "Set the pickup radius for my truck to 120 miles. If I have more than one truck, ask me which one.",
+              "tools_triggered": "list_trucks, update_truck_params",
+              "expected_behavior": "Identify the truck from list_trucks. If multiple trucks are returned, ask the reviewer to select one before making a change. Call update_truck_params with the selected returned truck_id and radius 120; do not change other fields. Confirm only from a successful result. If there is no truck, explain that no change can be made; the test requires a test truck. Do not automatically retry an unverified write."
+            },
+            {
+              "description": "Disable New York for one truck in the dedicated reviewer account. The account must contain a non-production test truck. If asked to select a truck, choose it from the returned roster. No particular truck name is required.",
+              "prompt": "Disable New York for my truck. If I have more than one truck, ask me which one.",
+              "tools_triggered": "list_trucks, update_truck_states",
+              "expected_behavior": "Identify the truck from a fresh list_trucks result. If multiple trucks are returned, ask which one before making a change. Call update_truck_states with the selected truck_id and add_states containing NY. Preserve all other restrictions and settings. Confirm only from a successful result; do not automatically retry an unverified write. If no truck is available, explain that the change cannot be made."
+            },
+            {
+              "description": "Create one sample shipment using a dedicated reviewer broker account authorized for order creation. This writes an order, so use test data and a test account.",
+              "prompt": "Create an order from ZIP 10001 to ZIP 60601, pickup ASAP, using a semi truck. Notes: plugin review test shipment.",
+              "tools_triggered": "create_order",
+              "expected_behavior": "Call create_order with the supplied shipment details in text. For created with a visible order card, reply with only the clickable order link and its expiration if provided. Keep the shipment details and matching truck count in the card. If the card is unavailable, show the returned message and order link, including the matching truck count when available. Ask the returned clarification for needs_info. For rejected, error, or unverified results, report the outcome without claiming creation or automatically retrying."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Booking a load is unsupported. Explain that Hfield cannot book the load and do not call any Hfield tool or claim a booking was placed.",
+              "prompt": "Book a load for my truck from New York to Chicago."
+            },
+            {
+              "description": "Sending a message to a driver is unsupported. Explain the limit without calling a Hfield tool or claiming that a message was sent.",
+              "prompt": "Text my driver that the pickup time changed."
+            },
+            {
+              "description": "Creating a truck is unsupported. Explain that the current Hfield tools can list and update existing trucks but cannot create one; do not call a tool or claim a truck was created.",
+              "prompt": "Add a new truck to my Hfield fleet."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Update the order creation instructions so the chat reply shows only the order link and its expiration when the order card is visible."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

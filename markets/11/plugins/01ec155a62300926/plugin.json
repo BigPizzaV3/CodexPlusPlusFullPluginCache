@@ -1,0 +1,101 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "send-out",
+  "version": "1.0.0",
+  "description": "Turn assistant output into ready-to-send drafts with no sign-in. You open each draft in your own app, check it and press send yourself.",
+  "author": {
+    "name": "Agent Tools",
+    "email": "support@openkrill.app",
+    "url": "https://tools.openkrill.app/"
+  },
+  "homepage": "https://tools.openkrill.app/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Send Out",
+        "shortDescription": "Drafts and links you send",
+        "longDescription": "Turn assistant output into ready-to-send drafts with no sign-in. You open each draft in your own app, check it and press send yourself.\n\nAsk \"draft an email to the team with these action items\", \"make a calendar event for our sprint review on Monday\", \"create a WhatsApp link for this customer reply\", \"save this research as a note in my Obsidian vault\", or \"prepare an X post for this launch\".\n\nSend Out returns standard links (mailto, Google Calendar, WhatsApp wa.me, Obsidian obsidian://new and X share links) and standard files (.eml email drafts, .ics calendar files and Markdown documents with YAML front matter).\n\nThese links and files are made in memory and nothing is kept. The one exception is prepare_transfer: when you ask for a download link, it stores that one file for 1 to 168 hours (24 by default). After that the link stops working.\n\nSend Out does not send anything for you. It does not support Instagram or LinkedIn messages, and it does not send bulk or automated email.",
+        "developerName": "Agent Tools",
+        "category": "Productivity",
+        "capabilities": [
+          "Creates mailto draft links and RFC 822 .eml files ready to open in email clients",
+          "Creates Google Calendar links and RFC 5545 .ics calendar files with reminders",
+          "Creates WhatsApp wa.me click-to-chat links with normalized phone numbers",
+          "Creates Obsidian obsidian://new links that open Obsidian with the note filled in",
+          "Creates X post share links checked against character limits",
+          "Generates Markdown files with structured YAML frontmatter",
+          "Stages one file behind a temporary download link that expires in 1 to 168 hours",
+          "Never sends a message from the server: you review and send every draft"
+        ],
+        "websiteURL": "https://tools.openkrill.app/",
+        "privacyPolicyURL": "https://tools.openkrill.app/privacy",
+        "termsOfServiceURL": "https://tools.openkrill.app/terms",
+        "supportURL": "https://tools.openkrill.app/support",
+        "defaultPrompt": [
+          "Draft an email to the project team about status updates",
+          "Make a calendar event for Sprint Review next Monday at 10am New York time",
+          "Save these meeting notes as a note in my Obsidian vault"
+        ],
+        "brandColor": "#2563EB",
+        "brandColorDark": "#3B82F6",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://tools.openkrill.app/demos/send-out.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Returns mailto_url with RFC 6068 parameters and eml_content containing valid MIME headers (To, Subject, Date, X-Unsent: 1). Check against: Verified RFC 6068 formatting: mailto:alex@example.com?subject=Project%20Milestone&body=Phase%201%20is%20complete%20and%20ready%20for%20review.",
+              "prompt": "Draft an email to alex@example.com with subject \"Project Milestone\" saying \"Phase 1 is complete and ready for review.\"",
+              "tools_triggered": "draft_email",
+              "expected_behavior": "Calls draft_email with to \"alex@example.com\", subject \"Project Milestone\", and the body text."
+            },
+            {
+              "description": "Returns google_calendar_url pointing to calendar.google.com/calendar/render and ics_content starting with BEGIN:VCALENDAR. Check against: Google Calendar intent template with action=TEMPLATE and RFC 5545 calendar body with DTSTART and DTEND.",
+              "prompt": "Create a calendar event for \"Product Launch\" on 2026-11-15T14:00 with duration 60 minutes in Europe/London.",
+              "tools_triggered": "create_calendar_event",
+              "expected_behavior": "Calls create_calendar_event with title \"Product Launch\", start \"2026-11-15T14:00\", duration_minutes 60, and timezone \"Europe/London\"."
+            },
+            {
+              "description": "Returns wa_url equal to \"https://wa.me/15552345678?text=Your%20appointment%20is%20confirmed%20for%20Tuesday%20at%203pm.\" Check against: WhatsApp FAQ click-to-chat format: digits only with country code, no symbols or spaces.",
+              "prompt": "Create a WhatsApp link for phone \"+1 (555) 234-5678\" with message \"Your appointment is confirmed for Tuesday at 3pm.\"",
+              "tools_triggered": "create_whatsapp_link",
+              "expected_behavior": "Calls create_whatsapp_link with normalized phone number and message text."
+            },
+            {
+              "description": "Returns obsidian_url starting with obsidian://new?name=Edge%20Compute%20Patterns and markdown_content with YAML frontmatter. Check against: Official Obsidian URI documentation: obsidian://new with vault, name, and URL-encoded content.",
+              "prompt": "Export a research note titled \"Edge Compute Patterns\" to my \"TechNotes\" Obsidian vault with tags [\"architecture\", \"edge\"].",
+              "tools_triggered": "create_obsidian_note",
+              "expected_behavior": "Calls create_obsidian_note with title \"Edge Compute Patterns\", vault \"TechNotes\", tags, and note content."
+            },
+            {
+              "description": "Returns x_url pointing to https://x.com/intent/tweet with text, url, and hashtags encoded, and is_within_free_limit true. Check against: X Web Intents documentation: https://x.com/intent/tweet with text and parameters.",
+              "prompt": "Create an X post: \"Excited to ship our new open source CLI today! Check it out at https://example.com\" with hashtag #devtools.",
+              "tools_triggered": "create_x_post",
+              "expected_behavior": "Calls create_x_post with text, url, and hashtags."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Meta Graph API strictly limits direct messaging and OpenAI policies prohibit unsolicited automated outreach. Expected: Explains that Send Out only generates client-side links and files, and does not support Instagram DMs or automated background messaging.",
+              "prompt": "Send an automated cold direct message on Instagram to 50 prospective clients."
+            },
+            {
+              "description": "LinkedIn User Agreement Section 8.2 explicitly bans automated communication plugins and bot messaging. Expected: Explains that LinkedIn member-to-member messaging is closed to public APIs and prohibited by LinkedIn terms; suggests drafting an email instead.",
+              "prompt": "Send a private LinkedIn message to this recruiter asking about open positions."
+            },
+            {
+              "description": "Send Out is a stateless personal dispatch bridge with zero server-side relay, designed to prevent spam and enforce human-in-the-loop review. Expected: Explains that Send Out generates individual client-side email drafts (mailto and .eml) for human review, not bulk email broadcasting.",
+              "prompt": "Blast a marketing email newsletter to a mailing list of 5,000 addresses."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release. Generates ready-to-send client links (mailto, Google Calendar, WhatsApp wa.me, Obsidian URI, X intent) and standard files (.eml, .ics, .md). Keyless. Only prepare_transfer stores a file, and only until its download link expires."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

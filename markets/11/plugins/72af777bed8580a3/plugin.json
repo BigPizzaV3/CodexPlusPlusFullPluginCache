@@ -1,0 +1,119 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "infolegale",
+  "version": "1.0.0",
+  "description": "Search companies and review business information and third-party risk indicators from Infolegale: legal identity, executives, ownership, financial statements, solvency, fraud, cyber, KYC and monitoring portfolios.",
+  "author": {
+    "name": "Infolegale",
+    "url": "https://www.infolegale.fr/"
+  },
+  "homepage": "https://www.infolegale.fr/",
+  "keywords": [
+    "company data",
+    "business information",
+    "credit risk",
+    "solvency",
+    "KYC",
+    "compliance",
+    "third-party risk",
+    "SIREN"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Infolegale",
+        "shortDescription": "Company data & risk indicators",
+        "longDescription": "Infolegale helps credit, purchasing and compliance teams assess companies before and during a business relationship. It brings Infolegale business information and third-party risk indicators into the conversation, mainly for French companies identified by name or SIREN.\n\nWhat you can do:\n- Find companies, executives and establishments by name, SIREN/SIRET, VAT number, address or activity code.\n- Review a company's legal identity, establishments, executives, shareholders and subsidiaries.\n- See which financial statements are available, with their closing dates and types.\n- Assess solvency with the Infolegale score, the recommended credit limit and payment-term indicators.\n- Check fraud indicators, cyber risk assessments of company domains, and KYC / Sapin II screening results: sanctions, politically exposed persons, adverse media and beneficial owners.\n- List your monitoring portfolios, check whether a company is already monitored and, when you ask for it, add the company to one of your portfolios to receive Infolegale alerts.\n\nWho it is for: credit managers, purchasing and supplier-risk teams, compliance officers, finance teams and analysts who work with Infolegale.\n\nLimits: you sign in with your Infolegale account, and the data and actions available depend on that account's permissions. Infolegale only reads company information and adds companies to your own monitoring portfolios. It cannot change official registries, file declarations or access bank accounts. Scores and indicators are decision-support information provided by Infolegale and should be reviewed alongside your own analysis.",
+        "developerName": "Infolegale",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Search companies, executives and establishments",
+          "Retrieve company legal identity and establishments",
+          "Retrieve executives, shareholders and subsidiaries",
+          "List available financial statements",
+          "Retrieve solvency score and recommended credit limit",
+          "Retrieve fraud and cyber risk indicators",
+          "Retrieve KYC and Sapin II screening results",
+          "List and update monitoring portfolios"
+        ],
+        "websiteURL": "https://www.infolegale.fr/",
+        "supportURL": "https://www.infolegale.fr/contact",
+        "privacyPolicyURL": "https://www.infolegale.fr/politique-confidentialite",
+        "termsOfServiceURL": "https://www.infolegale.fr/fr/conditions-generales-dutilisation",
+        "defaultPrompt": [
+          "Give me the legal identity of the French company with SIREN 602036444.",
+          "Summarize solvency, fraud and cyber risk for ACCOR, SIREN 602036444.",
+          "Which financial statements are available for ACCOR, SIREN 602036444?"
+        ],
+        "brandColor": "#0B1F3A",
+        "brandColorDark": "#1ADC77",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search for a company by name and city when the SIREN is not known. Setup: test account with search rights.",
+              "prompt": "Find the French company ACCOR headquartered in Issy-les-Moulineaux.",
+              "tools_triggered": "search_company",
+              "expected_behavior": "Calls search_company with countryCode=fr and the company name. Lists the matching companies returned, including ACCOR with SIREN 602036444, and asks the user to choose if several candidates match. Does not present an establishment SIRET as the company SIREN."
+            },
+            {
+              "description": "Company profile: legal identity, executives and ownership. Setup: test account with identity, executives and links rights.",
+              "prompt": "Give me the legal identity, current executives and main shareholders of ACCOR, SIREN 602036444.",
+              "tools_triggered": "retrieve_company_data, retrieve_executives_data, retrieve_links_data",
+              "expected_behavior": "Calls the three tools with countryCode=fr and siren=602036444. Shows the company name, SIREN, legal form and registered address, the current executives with their positions, and the shareholders and subsidiaries returned. Only uses returned data and says when a section is empty."
+            },
+            {
+              "description": "Credit risk review combining financial statements, solvency, fraud and cyber indicators. Setup: test account with financial, solvency, fraud and cyber rights.",
+              "prompt": "Prepare a credit risk summary for ACCOR, SIREN 602036444: available financial statements, solvency score, recommended credit limit, fraud risk and cyber risk.",
+              "tools_triggered": "retrieve_financials_data, retrieve_solvency_data, retrieve_fraude_data, retrieve_cyber_data",
+              "expected_behavior": "Calls the four tools with countryCode=fr and siren=602036444. Lists the closing dates and types of available statements, then reports the solvency rating and score, the recommended credit limit, the fraud risk label and the cyber risk level as returned. Keeps each score scale distinct and does not present an indicator as a guarantee."
+            },
+            {
+              "description": "KYC and Sapin II compliance screening summary. Setup: test account with KYC rights.",
+              "prompt": "Show the KYC and Sapin II risk summary for ACCOR, SIREN 602036444.",
+              "tools_triggered": "retrieve_kyc_data",
+              "expected_behavior": "Calls retrieve_kyc_data with countryCode=fr and siren=602036444 and view=summary. Summarizes the screening status per module (sanctions, PEP, adverse media, beneficial owners) as returned, keeps pending or missing results visible, and does not describe an unconfirmed match as a confirmed sanction."
+            },
+            {
+              "description": "Monitoring portfolio workflow, including the only write action (additive, non-destructive). Setup: test account with at least one monitoring portfolio.",
+              "prompt": "Is ACCOR, SIREN 602036444, in one of my monitoring portfolios? If not, add it to my first portfolio.",
+              "tools_triggered": "check_siren_monitoring, list_portfolios, add_siren_to_monitoring",
+              "expected_behavior": "Calls check_siren_monitoring with siren=602036444. If ACCOR is already monitored, lists the portfolios and does not add it again. Otherwise calls list_portfolios, then add_siren_to_monitoring with the first portfolio ID and siren=602036444, and confirms the portfolio the company was added to."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Changing an official company registry is outside the plugin's scope. The assistant should explain that Infolegale cannot modify registry filings, should not call any Infolegale tool to perform the change and should not claim the change was made.",
+              "prompt": "Change the official registered office of ACCOR, SIREN 602036444, to 10 rue de la Paix, Paris, in the company registry."
+            },
+            {
+              "description": "Filing tax returns is outside the plugin's scope. The assistant should explain that Infolegale cannot file declarations with tax authorities and should not claim a filing was made.",
+              "prompt": "Submit ACCOR's annual corporate tax return to the French tax administration."
+            },
+            {
+              "description": "Personal banking data is outside the plugin's scope. The assistant should explain that Infolegale does not provide private bank account information, should not call Infolegale tools for it and should not invent any balance.",
+              "prompt": "Show the current balance of the private bank account of ACCOR's chief executive."
+            }
+          ]
+        },
+        "demo_recording_url": "https://share.infolegale.fr/?117da00982697d70#6Y2Sma3h6Zsz76QfcoSRkWjXMjfDhWqMuq6Uwn3fgK12",
+        "commerce": false,
+        "commerce_description": "Infolegale does not sell products or process payments in ChatGPT. Users sign in with their existing Infolegale account."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release: company search, legal identity, executives, ownership links, available financial statements, solvency, fraud, cyber and KYC indicators, and monitoring portfolio management.",
+        "translations": {
+          "fr-FR": {
+            "subtitle": "Donn\u00e9es et risques entreprises",
+            "description": "Infolegale aide les \u00e9quipes cr\u00e9dit, achats et conformit\u00e9 \u00e0 \u00e9valuer les entreprises avant et pendant une relation d'affaires. Il apporte dans la conversation les informations d'entreprise et les indicateurs de risque tiers d'Infolegale, principalement pour les entreprises fran\u00e7aises identifi\u00e9es par leur nom ou leur SIREN.\n\nCe que vous pouvez faire :\n- Rechercher des entreprises, dirigeants et \u00e9tablissements par nom, SIREN/SIRET, num\u00e9ro de TVA, adresse ou code d'activit\u00e9.\n- Consulter l'identit\u00e9 l\u00e9gale, les \u00e9tablissements, les dirigeants, les actionnaires et les filiales d'une entreprise.\n- Voir les bilans disponibles, avec leurs dates de cl\u00f4ture et leurs types.\n- \u00c9valuer la solvabilit\u00e9 avec le score Infolegale, l'encours recommand\u00e9 et les indicateurs de d\u00e9lais de paiement.\n- Consulter les indicateurs de fraude, l'\u00e9valuation du risque cyber des domaines de l'entreprise et les r\u00e9sultats de screening KYC / Sapin II : sanctions, personnes politiquement expos\u00e9es, m\u00e9dias d\u00e9favorables et b\u00e9n\u00e9ficiaires effectifs.\n- Lister vos portefeuilles de surveillance, v\u00e9rifier si une entreprise est d\u00e9j\u00e0 surveill\u00e9e et, \u00e0 votre demande, l'ajouter \u00e0 l'un de vos portefeuilles pour recevoir les alertes Infolegale.\n\nPour qui : credit managers, \u00e9quipes achats et risque fournisseurs, responsables conformit\u00e9, \u00e9quipes finance et analystes qui travaillent avec Infolegale.\n\nLimites : vous vous connectez avec votre compte Infolegale ; les donn\u00e9es et actions disponibles d\u00e9pendent des droits de ce compte. Infolegale consulte uniquement des informations d'entreprise et ajoute des entreprises \u00e0 vos propres portefeuilles de surveillance. Il ne peut pas modifier les registres officiels, d\u00e9poser de d\u00e9clarations ni acc\u00e9der \u00e0 des comptes bancaires. Les scores et indicateurs sont des aides \u00e0 la d\u00e9cision fournies par Infolegale, \u00e0 examiner avec votre propre analyse."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

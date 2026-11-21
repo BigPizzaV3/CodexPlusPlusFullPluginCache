@@ -1,0 +1,1 @@
+Badger assets come from the current gobadger.app sand logo. The composer icon uses the same artwork resized to 96 pixels. Light and dark variants preserve the approved artwork; the host supplies their surrounding background.

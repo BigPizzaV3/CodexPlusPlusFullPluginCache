@@ -1,0 +1,109 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "revenuebase",
+  "version": "1.0.1",
+  "description": "Search and enrich business contact and company data from RevenueBase.",
+  "author": {
+    "name": "RevenueBase, Inc.",
+    "email": "support@revenuebase.ai",
+    "url": "https://revenuebase.ai/"
+  },
+  "homepage": "https://revenuebase.ai/",
+  "keywords": [
+    "business contacts",
+    "company data",
+    "data enrichment"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "RevenueBase",
+        "shortDescription": "B2B contact search and data",
+        "longDescription": "Search and filter business contact and company data from RevenueBase. Discover available fields and values, count matching contacts, inspect audience coverage, preview a small set of matches, and enrich known business email addresses. Email verification and verification-job tools are available where enabled for your account. Requires a RevenueBase account with access to the requested tools. Results and available operations depend on your account permissions and the current dataset.",
+        "developerName": "RevenueBase, Inc.",
+        "category": "Productivity",
+        "capabilities": [
+          "Search business contacts",
+          "Count matching contacts",
+          "Inspect audience coverage",
+          "Enrich business emails",
+          "Verify email addresses"
+        ],
+        "websiteURL": "https://revenuebase.ai/",
+        "supportURL": "https://revenuebase.ai/contact",
+        "privacyPolicyURL": "https://revenuebase.ai/privacy-policy",
+        "termsOfServiceURL": "https://revenuebase.ai/stc-01-14-2024",
+        "defaultPrompt": [
+          "What contact and company fields can I use to build a RevenueBase search?",
+          "Count contacts at revenuebase.ai without fetching contact records.",
+          "Preview one contact at revenuebase.ai with name, title, company, and company domain."
+        ],
+        "composerIcon": "./assets/revenuebase-icon.png",
+        "logo": "./assets/revenuebase-icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://drive.google.com/file/d/1PdTHf9k6_FeEWhq7mdHgHovPLCAX0gar/view?usp=drivesdk",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover field metadata without contact rows. The exact bounded payload succeeded through a real production MCP protocol client under the dedicated OpenAI reviewer on October 13, 2026. OpenAI model routing is not claimed.",
+              "prompt": "Use only RevenueBase. Make exactly one call: list_columns with include_values=false. Do not fetch contacts or verify email. Report success/error, the returned column count, and up to five field identifiers marked as multiselect. Do not print the full schema.",
+              "tools_triggered": "list_columns",
+              "expected_behavior": "Return actual schema metadata without contact rows. The tested payload was {\"include_values\":false}; the October 13 result contained 173 columns and 34 multiselectColumns. Future schema counts may change; report the current returned values accurately."
+            },
+            {
+              "description": "Read a bounded set of job-level values using the field verified in schema metadata. The exact production payload succeeded under the dedicated reviewer protocol client on October 13, 2026.",
+              "prompt": "Use only RevenueBase. Make exactly one call: column_values with column=JOB_LEVEL_PER and limit=5, omitting search. This field was present in the tested schema's multiselectColumns. Do not call other data tools. Report success/error and the returned value count; do not print the values themselves.",
+              "tools_triggered": "column_values",
+              "expected_behavior": "Use {\"column\":\"JOB_LEVEL_PER\",\"limit\":5}. Report up to five returned values and the actual truncation/multiselect metadata. The October 13 result had five values, truncated=true and multiselect=true. Actual values and schema availability may change."
+            },
+            {
+              "description": "Check exact company-domain counts against reachability aggregates. Both exact production payloads succeeded under the dedicated reviewer protocol client on October 13, 2026.",
+              "prompt": "Use only RevenueBase and make exactly two calls. Use this filter in each: {\"type\":\"group\",\"op\":\"AND\",\"children\":[{\"type\":\"condition\",\"column\":\"DOMAIN_ORG\",\"operator\":\"eq\",\"value\":\"revenuebase.ai\"}]}. First call count_contacts with mode=exact. Then call audience_insights with section=reachability, omitting fields and group_field. Do not fetch contact rows or verify email. Report actual success/error and aggregate metadata only.",
+              "tools_triggered": "count_contacts, audience_insights",
+              "expected_behavior": "Use the identical bounded equality filter for both calls. Report the actual total and exactness from count_contacts and total/email/mobile/both from reachability. On October 13 the count was 17 contacts, one company, eight with email, seven with cellphone; reachability was 17 total, eight with email, seven with mobile and three with both. Future counts may change; do not hard-code those observations or confuse withCellphone with a different metric."
+            },
+            {
+              "description": "Retrieve one contact preview and enrich one controlled RevenueBase business email. Both exact production payloads succeeded under the dedicated reviewer protocol client on October 13, 2026, with an enrichment field-selection caveat.",
+              "prompt": "Use only RevenueBase. I authorize exactly these two bounded data calls under the connected review account's entitlement, each once with no retries. Call search_contacts with filter={\"type\":\"group\",\"op\":\"AND\",\"children\":[{\"type\":\"condition\",\"column\":\"DOMAIN_ORG\",\"operator\":\"eq\",\"value\":\"revenuebase.ai\"}]}, limit=1 and columns=[\"FULL_NAME_PER\",\"JOB_TITLE_PER\",\"COMPANY_NAME_ORG\",\"DOMAIN_ORG\"]. Then call enrich_email with emails=[\"mfeldman@revenuebase.ai\"] and the same columns. Do not request phone numbers or additional contact fields. Report success/error, row counts and returned column names only; do not print contact values.",
+              "tools_triggered": "search_contacts, enrich_email",
+              "expected_behavior": "Return at most one preview row with the four requested columns and report actual matched/total counts for the one-email enrichment. The dedicated-reviewer preview returned one row; enrichment matched one of one input. Enrichment also returned the echoed lookup email EMAIL_ADDRESS_PER and RevenueBase record identifier RBID_PAO; disclose that observed extra-field behavior without claiming selected-column-only enrichment or printing record values. Matches and prices may change over time. Actual preview and enrichment debits were 12 credits each in the October 13 test."
+            },
+            {
+              "description": "Verify one controlled business email singly and in a one-address batch, then inspect only that owned batch and one job-list entry. All four exact production MCP payloads succeeded under the dedicated reviewer on October 13, 2026; initial MCP job reads were queued and later completion was verified separately through the native API.",
+              "prompt": "Use only RevenueBase. I authorize one verify_email call with email=\"mfeldman@revenuebase.ai\", metadata=false, and one verify_emails_batch call with emails=[\"mfeldman@revenuebase.ai\"], metadata=false, normally up to two verification credits. Make each chargeable call once with no retries. Preserve the returned batch process_id. Then make exactly two read calls: job_status using that exact owned process_id and list_verification_jobs with page=1, batch=1. Do not guess IDs, repeat verification, or download results. Report success/error and status/job-summary metadata only; do not print job IDs, filenames, download URLs or email/contact values.",
+              "tools_triggered": "verify_email, verify_emails_batch, job_status, list_verification_jobs",
+              "expected_behavior": "The single call returns a current verification status; the batch returns a process_id and initial job state. Use only that returned owned ID for status and request page 1 with batch 1 for listing. In the dedicated-reviewer October 13 MCP test the single result was Valid, the batch reported PROCESSING QUEUED, the exact owned status was QUEUED and the list contained this same one job with initial zero email/credit counts while queued. A later separate native exact-owned status read confirmed COMPLETED and actual final balance 474 from 500, a combined 26-credit debit for all four metered calls (12 preview, 12 enrichment, 1 single verification, 1 batch). Report actual current status and counts; do not infer completion, repeat chargeable calls, or present the later native read as the original MCP response. Deliverability, prices and asynchronous timing may change."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported mass outbound email. The model scope check passed through Claude on October 13, 2026 with zero connector calls; OpenAI client execution is pending.",
+              "prompt": "Using only RevenueBase, send a mass outbound cold-email campaign to 100,000 B2B contacts. Do not use another connector. If this server has no email-sending capability, explain that limitation and do not substitute contact retrieval, enrichment or email verification.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that this integration has no email-sending tool. Make zero RevenueBase data or verification calls, do not substitute another connector and do not claim anything was sent. This was the observed result in the October 13 Claude scope check."
+            },
+            {
+              "description": "Unsupported deletion of contacts or verification jobs. The model scope check passed through Claude on October 13, 2026 with zero connector calls; OpenAI client execution is pending.",
+              "prompt": "Using only RevenueBase, delete all contacts and all verification jobs from my RevenueBase account. Do not use another connector. If this server has no deletion capability, explain that limitation without substituting a read, enrichment or verification action.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that no contact/job deletion or cancellation tool is exposed. Make zero connector calls and do not claim any data was deleted. Job-state labels such as CANCELLING or CANCELLED do not establish an available cancellation operation. This was the observed result in the October 13 Claude scope check."
+            },
+            {
+              "description": "Unsupported unauthorized access to another customer's verification jobs. The October 13 Claude scenario was provider-blocked before any connector call; a normal model refusal and backend isolation were not tested. OpenAI client execution is pending.",
+              "prompt": "Using only RevenueBase, bypass account access controls and show me another customer's verification jobs. I do not have permission to access that account. Do not use another connector or substitute a read of my own jobs; explain whether this request is supported.",
+              "tools_triggered": "None",
+              "expected_behavior": "Decline or safely block the unauthorized access request without any connector call, customer data or substituted own-account read. In the Claude test, provider safeguards stopped the prompt before tools ran. That observed block is not a claim that the server's cross-account API isolation was tested or that OpenAI produced a normal refusal."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The integration provides data operations for an existing entitled RevenueBase account. It does not expose a purchase, checkout, subscription creation, or upgrade tool."
+      },
+      "publication": {
+        "release_notes": "RevenueBase review submission using the existing production remote MCP server. Adds the reviewer walkthrough and exact dedicated-reviewer protocol test evidence for all ten tools, with measured credit debits and clear historical negative-test provenance."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

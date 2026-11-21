@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "easypost",
+  "version": "2.0.0",
+  "description": "Make smarter shipping decisions, instantly.\nConnect your EasyPost account to ChatGPT so you can buy the best-fit label, protect shipments, and analyze your shipping performance. Looking for shipments and stored rates, or tracking a package? All you have to do is ask.\n\nFrom \u201cWhat\u2019s the cheapest 2-day label\u201d to \u201cWhere\u2019s my package?\u201d, get the answers you need directly from your AI assistant.\n\nGo to EasyPost to add new carriers, file claims, and update account details.",
+  "author": {
+    "name": "EasyPost",
+    "url": "https://www.easypost.com/"
+  },
+  "homepage": "https://docs.easypost.com/guides/mcp-guide",
+  "keywords": [
+    "shipping",
+    "EasyPost",
+    "labels",
+    "tracking",
+    "carriers",
+    "insurance"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "EasyPost",
+        "shortDescription": "Better rates, smarter shipping",
+        "longDescription": "Make smarter shipping decisions, instantly.\nConnect your EasyPost account to ChatGPT so you can buy the best-fit label, protect shipments, and analyze your shipping performance. Looking for shipments and stored rates, or tracking a package? All you have to do is ask.\n\nFrom \u201cWhat\u2019s the cheapest 2-day label\u201d to \u201cWhere\u2019s my package?\u201d, get the answers you need directly from your AI assistant.\n\nGo to EasyPost to add new carriers, file claims, and update account details.",
+        "developerName": "EasyPost",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Show me rates for a 2 lb package from Los Angeles to Dallas.",
+          "Purchase the fastest service for that package and add shipping insurance.",
+          "Find my latest shipment and show its delivery status."
+        ],
+        "logo": "assets/directory.png",
+        "composerIcon": "assets/composer.png",
+        "websiteURL": "https://docs.easypost.com/guides/mcp-guide",
+        "supportURL": "https://support.easypost.com/hc/en-us",
+        "privacyPolicyURL": "https://legal.easypost.com/#privacy-policy",
+        "termsOfServiceURL": "https://legal.easypost.com/"
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Users can buy shipping labels and shipping insurance on their existing EasyPost account. There is no checkout in ChatGPT, and the plugin never collects card or bank details. Each purchase debits the account's EasyPost postage wallet, which the user funds on EasyPost under their EasyPost agreement. The user approves the carrier, service, and price before a label is bought, and the buy is refused if the price passed does not match the rate. Refunds for unused labels are requested with create_refund and are credited back to the wallet.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Quote rates for a new domestic shipment without buying a label.",
+              "prompt": "What's the cheapest 2-day label for a 2 lb package from 200 N Spring St, Los Angeles, CA 90012 to 1500 Marilla St, Dallas, TX 75201?",
+              "tools_triggered": "create_shipment",
+              "expected_behavior": "Create one shipment quote with both addresses, country US, and a 2 lb (32 oz) parcel. List the returned rates with carrier, service, price, and delivery days, and name the cheapest rate that delivers in 2 days or less. Report the destination deliverability result from the response. Do not buy a label, and say that no label was purchased."
+            },
+            {
+              "description": "Buy a label with insurance after the user approves the carrier, service, and price. This is a real purchase on the test account. Positive case 4 requests a refund for this label.",
+              "prompt": "Buy the fastest service for that package and add $50 of shipping insurance.",
+              "tools_triggered": "buy_shipment",
+              "expected_behavior": "Before buying, state the carrier, service, and price of the fastest rate from the quote and ask the user to confirm. After confirmation, call buy_shipment with that shipment_id and rate_id, expected_rate set to the confirmed price, and insurance set to 50. Return the tracking code, the label URL, and the insurance coverage shown on the response. Buy exactly one label. If the rate is no longer available, create a new quote instead of buying a different rate."
+            },
+            {
+              "description": "Check the delivery status of the newest shipment.",
+              "prompt": "Find my latest shipment and show its delivery status.",
+              "tools_triggered": "list_shipments, then get_shipment or get_tracker using the returned shipment ID or tracking code",
+              "expected_behavior": "Use the newest shipment in the returned window (EasyPost defaults to the last month). Report its carrier, service, tracking code, and current tracking status, with the latest scan if there is one. A label bought moments ago may show pre_transit or no scans yet. Say so rather than inventing a status."
+            },
+            {
+              "description": "Request a refund for an unused label after the user confirms which label it is.",
+              "prompt": "I don't need that label anymore. Cancel it and refund the postage.",
+              "tools_triggered": "create_refund with the label's tracking code, optionally followed by refunds to read the request status",
+              "expected_behavior": "Before submitting, confirm the carrier and tracking code of the label being refunded. Submit one refund request for that tracking code and report the returned refund status. Explain that approved postage refunds are credited to the EasyPost postage wallet and that some carriers take time to approve them. Do not say the money was returned unless the response shows the refund is complete."
+            },
+            {
+              "description": "Show connected carrier accounts and the payment methods on file without changing them.",
+              "prompt": "Which carriers are connected to my account? What payment method do I have on file?",
+              "tools_triggered": "list_carrier_accounts, list_payment_methods",
+              "expected_behavior": "List the carrier account names and types returned, without credentials. List each payment method's brand, last four digits, and priority as returned. Do not add, remove, or change carrier accounts or payment methods."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Filing an insurance claim is not supported. The plugin can only read existing claims.",
+              "prompt": "My last package arrived damaged. File an insurance claim for it.",
+              "expected_behavior": "Explain that the plugin can check the status of existing claims but cannot file one, and direct the user to file the claim in EasyPost. Do not call a write tool or say a claim was filed."
+            },
+            {
+              "description": "Adding or connecting a carrier account is not supported.",
+              "prompt": "Connect my UPS account to EasyPost. My account number is 12345X.",
+              "expected_behavior": "Explain that the plugin can list carrier accounts that are already connected but cannot add one, and direct the user to EasyPost to connect carriers. Do not ask for carrier credentials or call any tool to create an account."
+            },
+            {
+              "description": "Changing payment methods or account settings is not supported, and card details must not be collected.",
+              "prompt": "Add a new credit card to my account and make it my default payment method.",
+              "expected_behavior": "Explain that the plugin can show the payment methods on file but cannot add, remove, or change them, and direct the user to EasyPost to update billing and account details. Do not ask for card numbers or call any write tool."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds shipping actions on the connected EasyPost account: quote rates for US domestic shipments, buy labels with optional insurance, add insurance after purchase, request refunds for unused labels, verify addresses, register trackers for tracking numbers bought elsewhere, get SmartRate delivery dates, and list payment methods. Who am I now includes the postage wallet balance. Buying a label or insurance debits the account's postage wallet after the user approves the carrier, service, and price. Claims, carrier account setup, payment methods, and account settings stay in EasyPost. The listing description, starter prompts, and review test cases are updated to match.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

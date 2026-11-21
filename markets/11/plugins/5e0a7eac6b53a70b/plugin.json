@@ -1,0 +1,88 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "renderworks",
+  "version": "0.1.0",
+  "description": "Manage your own freelance projects, schedules, clients and To-Do items in Render (renderworks.jp).",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Render (renderworks.jp)",
+        "shortDescription": "Projects, schedules and tasks",
+        "longDescription": "Connect your Render (renderworks.jp) account to review freelance projects, schedules, outstanding To-Do items and expected payments. Create and edit projects, create and remove calendar events, update project schedules and client details, and complete or reschedule existing To-Do items. Changes are saved to your Render account. Requires a Render account. This plugin is for the freelance project management service at renderworks.jp and does not manage Render.com cloud hosting.",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Show my unpaid projects in Render.",
+          "Help me plan next week's work from my Render schedule.",
+          "Show my overdue To-Do items in Render."
+        ],
+        "websiteURL": "https://www.renderworks.jp",
+        "supportURL": "https://www.renderworks.jp/help",
+        "privacyPolicyURL": "https://www.renderworks.jp/privacy",
+        "termsOfServiceURL": "https://www.renderworks.jp/terms",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/srC2wEg4iow",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "The reviewer account holds 4 projects. 26001001 is named \u4f1a\u793e\u7d39\u4ecb\u52d5\u753b\u306e\u5236\u4f5c (\u30b5\u30f3\u30d7\u30eb), status \u5b8c\u4e86, with a memo, 2 expenses (115,000 JPY total) and a gross profit of 334,055 JPY. All data is fictional.",
+              "prompt": "Render \u306e\u4f1a\u793e\u7d39\u4ecb\u52d5\u753b\u306e\u30e1\u30e2\u3068\u7d4c\u8cbb\u3092\u898b\u305b\u3066\u3002",
+              "tools_triggered": "list_projects, get_project",
+              "expected_behavior": "Resolve the project from list_projects, then call get_project with code 26001001. Show the memo, the two expenses and the gross profit. Do not invent values."
+            },
+            {
+              "description": "Same account. Project 26002002 (\u63a1\u7528\u30b5\u30a4\u30c8\u7528\u30a4\u30f3\u30bf\u30d3\u30e5\u30fc\u52d5\u753b, status \u7de8\u96c6\u4e2d) already has a memo. memo_append adds to the end; memo replaces the whole field.",
+              "prompt": "Render \u306e\u63a1\u7528\u30b5\u30a4\u30c8\u7528\u30a4\u30f3\u30bf\u30d3\u30e5\u30fc\u52d5\u753b\u306e\u30e1\u30e2\u306e\u672b\u5c3e\u306b\u300c\u97f3\u697d\u306f\u6b21\u56de\u6253\u3061\u5408\u308f\u305b\u3067\u6c7a\u5b9a\u300d\u3092\u8ffd\u8a18\u3057\u3066\u3002",
+              "expected_behavior": "Read the current memo with get_project, then call update_project on 26002002 with memo_append. The existing memo must remain and the new line must follow it.",
+              "tools_triggered": "list_projects, get_project, update_project"
+            },
+            {
+              "description": "The account has no event on 2026-11-05. Existing November events are on the 6th, 9th, 20th, 27th and 30th.",
+              "prompt": "Render \u306e\u30ab\u30ec\u30f3\u30c0\u30fc\u306b\u30012026\u5e7411\u67085\u65e514\u6642\u304b\u308915\u6642\u307e\u3067\u300c\u6253\u3061\u5408\u308f\u305b\u300d\u3092\u767b\u9332\u3057\u3066\u3002",
+              "tools_triggered": "add_event",
+              "expected_behavior": "Call add_event with date 2026-11-05, start_time 14:00 and end_time 15:00. The reply states the event was created and gives its id."
+            },
+            {
+              "description": "The account has one overdue To-Do: \u8acb\u6c42\u66f8\u306e\u63a7\u3048\u3092\u307e\u3068\u3081\u308b dated 2026-10-06, not repeating. A second To-Do dated 2026-11-18 is not yet due.",
+              "prompt": "Render \u3067\u671f\u9650\u3092\u904e\u304e\u305f To-Do \u3092\u6559\u3048\u3066\u3002\u305d\u308c\u3092\u5b8c\u4e86\u306b\u3057\u3066\u3002",
+              "tools_triggered": "list_tasks, update_task",
+              "expected_behavior": "list_tasks returns only the 2026-10-06 item. update_task marks that id complete. The 2026-11-18 item is left alone."
+            },
+            {
+              "description": "26001002 (\u65b0\u5546\u54c1\u306e\u30d7\u30ed\u30e2\u30fc\u30b7\u30e7\u30f3\u52d5\u753b) is invoiced but unpaid, payment due 2026-09-30, so it is overdue. 26001001 is already paid. The other two are not yet invoiced.",
+              "prompt": "Render \u3067\u3001\u652f\u6255\u671f\u65e5\u3092\u904e\u304e\u305f\u672a\u5165\u91d1\u306e\u6848\u4ef6\u3092\u898b\u305b\u3066\u3002",
+              "tools_triggered": "list_projects",
+              "expected_behavior": "Call list_projects with payment \"unpaid\" and payment_due_to set to today. Only 26001002 is returned. Do not include the paid project."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Render.com cloud hosting is a different product. Explain that distinction; invoke no Render tools and claim no deployment.",
+              "prompt": "Render.com \u306b GitHub \u306e\u30a2\u30d7\u30ea\u3092\u30c7\u30d7\u30ed\u30a4\u3057\u3066\u3002"
+            },
+            {
+              "description": "No banking or payment execution tool exists. Explain the limit; do not call update_project to mark paid or claim money moved.",
+              "prompt": "Render \u306e\u8acb\u6c42\u984d\u3092\u9280\u884c\u53e3\u5ea7\u304b\u3089\u30af\u30e9\u30a4\u30a2\u30f3\u30c8\u3078\u632f\u308a\u8fbc\u3093\u3067\u3002"
+            },
+            {
+              "description": "No email delivery tool exists. Explain the limitation; invoke no Render tool and do not claim an invoice email was sent.",
+              "prompt": "\u3053\u306e\u8acb\u6c42\u66f8 PDF \u3092 Render \u304b\u3089\u30af\u30e9\u30a4\u30a2\u30f3\u30c8\u306b\u30e1\u30fc\u30eb\u9001\u4fe1\u3057\u3066\u3002"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial public submission preparation for Render (renderworks.jp). OAuth account connection and 15 project, schedule, client and To-Do tools.",
+        "translations": {
+          "ja-JP": {
+            "subtitle": "\u81ea\u5206\u306e\u6848\u4ef6\u30fb\u4e88\u5b9a\u30fbTo-Do \u3092\u7ba1\u7406",
+            "description": "Render\uff08renderworks.jp\uff09\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u63a5\u7d9a\u3057\u3066\u3001\u6848\u4ef6\u30fb\u4e88\u5b9a\u30fb\u672a\u5165\u91d1\u6848\u4ef6\u30fb\u671f\u9650\u3092\u904e\u304e\u305f To-Do \u3092\u78ba\u8a8d\u3067\u304d\u307e\u3059\u3002\u6848\u4ef6\u306e\u767b\u9332\u30fb\u7de8\u96c6\u3001\u4e88\u5b9a\u306e\u767b\u9332\u30fb\u524a\u9664\u3001\u30af\u30e9\u30a4\u30a2\u30f3\u30c8\u60c5\u5831\u306e\u66f4\u65b0\u3001\u65e2\u5b58 To-Do \u306e\u5b8c\u4e86\u30fb\u65e5\u4ed8\u5909\u66f4\u306b\u5bfe\u5fdc\u3057\u307e\u3059\u3002\u5909\u66f4\u306f\u81ea\u5206\u306e Render \u30a2\u30ab\u30a6\u30f3\u30c8\u306b\u4fdd\u5b58\u3055\u308c\u307e\u3059\u3002Render \u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u304c\u5fc5\u8981\u3067\u3059\u3002Render.com \u306e\u30af\u30e9\u30a6\u30c9\u30db\u30b9\u30c6\u30a3\u30f3\u30b0\u3092\u64cd\u4f5c\u3059\u308b\u30d7\u30e9\u30b0\u30a4\u30f3\u3067\u306f\u3042\u308a\u307e\u305b\u3093\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

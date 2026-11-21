@@ -1,0 +1,114 @@
+{
+  "name": "notifly",
+  "version": "1.1.0",
+  "description": "Read your Notifly workflows, subscribers, topics and delivery history, and trigger a workflow after an explicit confirmation.",
+  "author": {
+    "name": "Devino Solutions",
+    "email": "hello@devino.ca",
+    "url": "https://notifly.io"
+  },
+  "homepage": "https://notifly.io/",
+  "repository": "https://github.com/DevinoSolutions/claude-plugins",
+  "license": "MIT",
+  "mcpServers": "./.mcp.json",
+  "keywords": [
+    "notifly",
+    "notifications",
+    "workflows",
+    "subscribers",
+    "delivery"
+  ],
+  "interface": {
+    "displayName": "Notifly",
+    "shortDescription": "Manage notification workflows",
+    "longDescription": "Notifly is notification infrastructure: workflows, subscribers, topics, and delivery across the email, SMS, push, chat, and in-app channels you configure. The Notifly plugin lets ChatGPT read that setup and its delivery history, and, when you allow it, trigger a workflow so a real notification goes out.\n\nWhat it can do:\n- List the organizations and environments your account can use.\n- List your workflows and open one to see its steps, channels and payload schema.\n- List your subscribers and look one up with their channels and attributes.\n- List your topics.\n- Read the notification activity feed: what was sent, to whom, on which channels, and whether it delivered.\n- Trigger a workflow for a subscriber, after you confirm exactly what will be sent.\n\nTools: eight named tools. Seven are read-only (list_organizations, list_workflows, get_workflow, list_subscribers, get_subscriber, list_topics, list_notifications) and one sends (trigger_workflow).\n\nSending is deliberately hard to do by accident. Connecting uses OAuth 2.1 with PKCE and a consent screen, the scopes an assistant receives are derived from your own account permissions, and consent is re-checked at the moment a tool runs. trigger_workflow carries three further gates: an organization-level dangerous-operations toggle that is off by default, a two-step confirmation token bound to the exact organization, user, client, tool and arguments, so the assistant has to show you what will be sent before it can commit, and a caller-supplied transaction id for idempotency.\n\nWho it is for: teams that run their product notifications on Notifly and want to check workflows and delivery, or send a notification, from a conversation.\n\nLimitations: notifications go out only through the channel providers your organization has already configured, to your own subscribers, using your own templates. The plugin cannot create or edit workflows or subscribers, and it does not produce analytics charts. You can review and revoke a connected assistant at any time from Connected AI apps in your Notifly settings. The plugin processes no payments, generates no media, and serves no ads.",
+    "developerName": "Devino Solutions",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read notification workflows",
+      "Look up subscribers and topics",
+      "Read delivery history",
+      "Trigger a workflow with confirmation"
+    ],
+    "websiteURL": "https://notifly.io/",
+    "supportURL": "https://app.notifly.io/support",
+    "privacyPolicyURL": "https://notifly.io/privacy",
+    "termsOfServiceURL": "https://notifly.io/terms",
+    "defaultPrompt": [
+      "Which notification workflows do we have, and what channels do they use?",
+      "Did anything go out to subscriber wc-1020 recently, and did it deliver?",
+      "Send the order-confirmation workflow to subscriber wc-1020."
+    ],
+    "brandColor": "#E5484D",
+    "brandColorDark": "#FFFFFF",
+    "composerIcon": "./assets/icon.png",
+    "composerIconDark": "./assets/icon-dark.png",
+    "logo": "./assets/logo.png",
+    "logoDark": "./assets/logo-dark.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the seeded workflows. Read-only.",
+              "prompt": "List the notification workflows in this environment.",
+              "tools_triggered": "list_organizations, list_workflows",
+              "expected_behavior": "The five seeded workflows, all active, each with its workflowId, name, tags and status: back-in-stock, order-confirmation, payment-failed, shipment-dispatched and welcome-email. Nothing is created or changed."
+            },
+            {
+              "description": "Open one workflow's definition. Read-only.",
+              "prompt": "Show me the steps and channels of the back-in-stock workflow.",
+              "tools_triggered": "list_workflows, get_workflow",
+              "expected_behavior": "That single workflow's full definition: its steps, its channels, its payload schema and its status. The only channel provider configured on this organization is the in-app feed, so no email or SMS step shows a live provider behind it."
+            },
+            {
+              "description": "Look up a subscriber's channels. Read-only.",
+              "prompt": "List the first five subscribers, then show me the full record for wc-1020 including their channels and attributes.",
+              "tools_triggered": "list_subscribers, get_subscriber",
+              "expected_behavior": "The list returns subscribers with subscriberId, email, first and last name and channels; the follow-up returns the full record for wc-1020, Rosa Vega, with her configured channels and data attributes. Nothing is created or changed."
+            },
+            {
+              "description": "Topics and delivery history. Read-only.",
+              "prompt": "List our topics, then show me the recent notification activity.",
+              "tools_triggered": "list_topics, list_notifications",
+              "expected_behavior": "The three seeded topics with their key and name (vip-customers, holiday-promo-2026 and warehouse-ops), followed by the activity feed of past sends with workflow, subscriber, channels, transaction id and delivery status per event, newest first. The feed is paginated (hasMore true)."
+            },
+            {
+              "description": "Two-step confirmed send. Sends one in-app notification to a seeded test subscriber.",
+              "prompt": "Trigger the order-confirmation workflow for subscriber wc-1020 with order id REVIEW-TEST-1.",
+              "tools_triggered": "trigger_workflow (called twice: preview, then commit with the confirmToken)",
+              "expected_behavior": "The first call sends nothing: it returns CONFIRMATION_REQUIRED with a short-lived confirmToken and the exact workflow, recipient and payload that would be sent, and the assistant asks for a yes. After the yes it re-sends the same arguments plus the token, the notification is dispatched with a transaction id, and the new event appears in the activity feed. Only an in-app provider is configured, so nothing reaches a real inbox or phone."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Authoring or editing a workflow. The plugin has no tool that creates or edits workflows.",
+              "prompt": "Create a new workflow that emails customers when a refund is issued.",
+              "expected_behavior": "No workflow is created. The assistant explains that the Notifly plugin can read and trigger existing workflows but cannot create or edit them, and points to the Notifly dashboard."
+            },
+            {
+              "description": "Creating or editing subscribers. The plugin has no tool that writes subscriber records.",
+              "prompt": "Add dana@example.com as a new subscriber and set her phone number.",
+              "expected_behavior": "No subscriber is created or changed. The assistant explains that the plugin can only look up existing subscribers."
+            },
+            {
+              "description": "Deliverability analytics and charts. The plugin reads an event feed, not aggregated analytics.",
+              "prompt": "How many of our emails bounced last month? Chart the open rate by channel.",
+              "expected_behavior": "The assistant does not invent analytics. It explains that the plugin returns a list of notification events rather than aggregated bounce or open-rate metrics, and may offer to show recent events instead."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1AswaelK-tdOzny3Yy32hV7d-eaQKXS2R/view",
+        "commerce": false,
+        "commerce_description": "The Notifly plugin does not sell products or process payments."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Every operation is now exposed as its own named tool with a description, input schema and annotations, as requested in the review of version 1.0.0."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

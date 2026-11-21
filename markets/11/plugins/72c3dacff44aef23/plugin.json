@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cognee",
+  "version": "1.0.0",
+  "description": "Persistent memory for ChatGPT: remember facts and documents into your Cognee workspace, recall them with graph-aware search, and forget what you no longer need.",
+  "author": {
+    "name": "Cognee",
+    "email": "social@cognee.ai",
+    "url": "https://www.cognee.ai"
+  },
+  "homepage": "https://docs.cognee.ai/cognee-cloud/connections/cloud-mcp",
+  "keywords": [
+    "memory",
+    "knowledge graph",
+    "search",
+    "notes",
+    "productivity"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Cognee",
+        "shortDescription": "Long-term memory for ChatGPT",
+        "longDescription": "Cognee gives ChatGPT a memory that lasts beyond one conversation. Everything you ask it to remember goes into your own Cognee Cloud workspace, where it is turned into a knowledge graph: entities, relationships and summaries, not just stored text. Later, in any conversation and from any client connected to the same workspace, ChatGPT can recall it with search that uses that structure, so answers draw on how facts connect rather than on keyword matches alone.\n\nFour tools:\n- remember: store text, or a file up to 10 MB, into a dataset. Cognee ingests it, extracts entities and relationships, and builds the graph.\n- recall: search your memory with a natural-language question. Cognee routes it to the right retrieval strategy and returns an answer with the supporting memories, or the raw matching passages if you ask for them.\n- forget: delete one item, one dataset, or everything you own.\n- cognify_status: check on ingestion that was started in the background.\n\nMemories are organised into datasets. By default ChatGPT writes to a dataset of its own, so what ChatGPT remembers stays separate from what your other tools remember, while recall searches across all of them. Name a dataset in the conversation to use a specific one.\n\nYou sign in with your Cognee account; no API key is pasted anywhere. Each call runs against your workspace with your own identity and permissions. Workspaces that have been idle go to sleep; the first call after a quiet period wakes one and can take about a minute.\n\nCognee is open source (github.com/topoteretes/cognee). This plugin is the hosted version of the Cognee MCP server, run by Cognee for Cognee Cloud workspaces. A Cognee Cloud account with a workspace is required.",
+        "developerName": "Cognee",
+        "category": "Productivity",
+        "capabilities": [
+          "Remember facts and documents into a personal knowledge graph",
+          "Recall memories with graph-aware search",
+          "Check the status of background ingestion",
+          "Forget single items, whole datasets, or everything"
+        ],
+        "websiteURL": "https://www.cognee.ai",
+        "supportURL": "https://www.cognee.ai/community",
+        "privacyPolicyURL": "https://www.cognee.ai/privacy-notice",
+        "termsOfServiceURL": "https://www.iubenda.com/terms-and-conditions/30110453",
+        "defaultPrompt": [
+          "Remember this: my main project this quarter is the Q4 launch, and I prefer concise answers with sources.",
+          "What have I asked you to remember about my projects?",
+          "Recall what the onboarding handbook says about expense approvals."
+        ],
+        "brandColor": "#101010",
+        "brandColorDark": "#F8F8F8",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Recall over a stored document. The test workspace's dataset 'review_notes' already contains an onboarding handbook with an expense-approval section.",
+              "prompt": "What does the onboarding handbook say about expense approvals?",
+              "tools_triggered": "recall",
+              "expected_behavior": "ChatGPT calls recall and answers with the handbook's expense-approval rules (manager approval above 200 EUR, receipts within 14 days), citing the supporting memories returned by the tool."
+            },
+            {
+              "description": "Remember text into a named dataset.",
+              "prompt": "Remember in dataset review_scratch: the reviewer tested Cognee from ChatGPT today.",
+              "tools_triggered": "remember",
+              "expected_behavior": "ChatGPT calls remember with dataset_name 'review_scratch' and the supplied text, without session_id. It accurately reports the tool's result: completed permanent ingestion or queued/background processing, without claiming the graph is ready before completion."
+            },
+            {
+              "description": "Check ingestion for review_scratch after remember. If it is still processing, repeat this check until completion before running the next recall case; errors are failures, not successful ingestion.",
+              "prompt": "Check the ingestion status of my review_scratch dataset in Cognee.",
+              "tools_triggered": "cognify_status",
+              "expected_behavior": "ChatGPT calls cognify_status with dataset_name 'review_scratch' and reports the returned state. Wait for DATASET_PROCESSING_COMPLETED with no background errors before the next case. If processing fails, report the failure rather than claiming completion."
+            },
+            {
+              "description": "Recall what was remembered after cognify_status confirms that review_scratch finished processing.",
+              "prompt": "Recall from dataset review_scratch: what did the reviewer do today?",
+              "tools_triggered": "recall",
+              "expected_behavior": "ChatGPT calls recall with datasets 'review_scratch' and answers that the reviewer tested Cognee from ChatGPT today, supported by the stored memory. Paraphrasing is acceptable."
+            },
+            {
+              "description": "Forget a dataset (run last; it removes the scratch dataset created above).",
+              "prompt": "Forget the Cognee dataset review_scratch.",
+              "tools_triggered": "forget",
+              "expected_behavior": "ChatGPT obtains any confirmation required by the client, then calls forget with dataset 'review_scratch'; the tool reports that the dataset was deleted. It must not set everything=true or delete review_notes."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payments are unsupported. Explain that Cognee cannot transfer money; do not call any Cognee tool or claim that a payment was made.",
+              "prompt": "Use Cognee to transfer 100 EUR to my colleague."
+            },
+            {
+              "description": "Sending messages is unsupported. Explain that Cognee cannot email the team; do not call Cognee tools to attempt delivery or claim that an email was sent.",
+              "prompt": "Email the onboarding handbook summary to my whole team through Cognee."
+            },
+            {
+              "description": "Other users' workspaces are outside this connection's scope. Explain this access boundary without calling Cognee tools to search another account, requesting their credentials, or claiming access.",
+              "prompt": "Show me what other Cognee users have remembered in their workspaces."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://youtu.be/z0PwYEnYVXQ"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: remember, recall, forget and cognify_status against the user's own Cognee Cloud workspace, with Cognee account sign-in."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

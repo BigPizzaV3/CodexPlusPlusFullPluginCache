@@ -1,0 +1,11 @@
+# Persistence for protocol 2
+
+The basic lesson path is open_lesson, teaching in the same chat, then complete_lesson. No save_session_report, prepare_lesson_session, confirm_lesson_note_presented, save_learning_route_review or reading-receipt cycle is required for a protocol-2 lesson. Do not call the old finish_lesson for a protocol-2 lesson.
+
+Save a theory explanation once through save_lesson_theory AFTER showing that exact Markdown in the conversation. Send lesson_id, title and body_markdown; use a stable topic_key when useful. The server creates safe HTML. Do not generate a duplicate HTML body or a separate presentation acknowledgment. Reconstructed historical reference material uses content_origin=reconstructed; never pretend it was the exact explanation previously shown. Existing saved theory can be reused without another write.
+
+Call save_learning_memory only for new information likely to improve future teaching. scope=global is at most 2000 Unicode characters for general preferences; scope=course is at most 4000 for the selected program's current difficulties and useful future focus. Replace and improve the current text, using its own expected_revision. Remove obsolete details; do not append a lesson journal. Omit unchanged memories. Global memory must not copy one language's private subject history into the other language. A memory conflict does not invalidate a completed lesson.
+
+On an unfinished STOP or deliberate transfer, pause_lesson stores only a stage and next_step of at most 500 Unicode characters. No copied dialogue or exercises. Without such a saved hint, do not claim exact recovery of an unseen conversation.
+
+Vocabulary remains complete: at least four valid translated examples and eight required cards per new expression, all modes/versions/answers/choices. More useful examples/cards and additional requested words are allowed. Prefer response_format=compact on save_vocabulary_bundle and publish_vocabulary_bundle when advertised. It only removes echoed content from responses, not the saved material or required input. Keep full local drafts until publication is confirmed; use full reads only for recovery or inspection. Do not set an arbitrary quota or drop words to meet a token budget; process all requested words in valid batches and state honest progress.

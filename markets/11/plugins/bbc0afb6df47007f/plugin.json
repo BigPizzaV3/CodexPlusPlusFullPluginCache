@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "versketch",
+  "version": "0.1.1",
+  "description": "Read saved VerSketch Cloud plans and prepare architectural design proposals for human review.",
+  "author": {
+    "name": "Jittapol Prukpatarakul"
+  },
+  "homepage": "https://versketch.xyz/",
+  "keywords": [
+    "architecture",
+    "floor-plan",
+    "design"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "VerSketch",
+        "developerName": "Jittapol Prukpatarakul",
+        "shortDescription": "Draft and review floor plans",
+        "longDescription": "Connect your VerSketch account to read saved Cloud projects, draft floor plans, and prepare changes for review in VerSketch Studio. Inspect supported 2D previews, obtain quantity takeoffs and export supported formats when your account permits, and request informational building-code checks for an explicit jurisdiction. Changes remain pending proposals until you accept them in Studio. The plugin cannot see local or unsaved browser projects, directly accept or save changes, delete projects, certify structural safety, or issue building permits. A VerSketch account is required; feature availability follows that account's permissions and plan.",
+        "category": "Productivity",
+        "capabilities": [
+          "Read saved plans",
+          "Prepare design proposals"
+        ],
+        "websiteURL": "https://versketch.xyz/",
+        "supportURL": "https://versketch.xyz/support",
+        "privacyPolicyURL": "https://versketch.xyz/privacy",
+        "termsOfServiceURL": "https://versketch.xyz/terms",
+        "defaultPrompt": [
+          "Draft a 30 m\u00b2 single-storey home: 1 bedroom, 1 bathroom, a living room and a kitchenette. Give me a proposal to review.",
+          "Show my saved VerSketch projects.",
+          "Summarize the quantities in my saved house plan."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.youtube.com/watch?v=xrAvd2fRknk",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1. Fresh chat, dedicated reviewer account with the existing saved Cloud project Review House (8 x 6 metres, two rooms). Read-only discovery and summary; do not import a replacement fixture.",
+              "prompt": "Find my Review House project and summarize its floors, rooms, walls, doors and windows. Use the saved plan.",
+              "tools_triggered": "capabilities, list_projects, get_project",
+              "expected_behavior": "Locate the owned project through list_projects, following nextCursor if necessary, then get_project with its returned id. Report one level, two rooms named Living room and Bedroom, five walls, two doors and three windows from the saved spec and returned revision. No create_project or create_proposal; do not claim to see local browser state."
+            },
+            {
+              "description": "P2. Fresh chat, reviewer account with creation permission, available project capacity and quota. Earlier Review Draft projects may already exist; preserve them and use a unique name for this run. Leave the new design pending for human review in Studio.",
+              "prompt": "Draft a single-storey 6 by 8 metre one-bedroom house with a living room, kitchen and bathroom. Call it Review Draft; if that name already exists, add a unique suffix and preserve the existing projects. Give me a proposal to review before saving the design.",
+              "tools_triggered": "capabilities, list_projects, get_authoring_schema, validate_spec, create_project",
+              "expected_behavior": "Check existing project names through list_projects, following nextCursor if necessary. Discover the authoring schema and use millimetres. Call list_resources if catalogue items are needed. Validate the complete plan and resolve every blocking validation/layout finding before create_project with a unique Review Draft name and that spec. Preserve all existing projects and proposals. Use a fresh UUID operationId and preserve it on uncertain retries. Return the exact reviewUrl and explain that the design is pending acceptance, without claiming it was saved."
+            },
+            {
+              "description": "P3. Fresh chat, existing saved Review House has two rooms and entrance op-door-main at width 900 mm, offset 2000 mm on w-south. Read the current revision; do not accept during this case. Reject its pending proposal in Studio after inspecting it so the shared fixture remains clean.",
+              "prompt": "In Review House, widen the existing main entrance door to 1000 mm. Keep its position and all other elements unchanged, and let me review the change first.",
+              "tools_triggered": "capabilities, list_projects, get_project, preview_resize_opening, create_proposal",
+              "expected_behavior": "Read the owned project at its current revision. Confirm op-door-main belongs to w-south, then call preview_resize_opening with that id and baseRevision, openingId op-door-main, width 1000. Preserve its offset, both rooms and every unrequested field/opening. If preview validation succeeds, submit its returned patch to create_proposal with the exact baseRevision and a fresh UUID operationId. Return the exact reviewUrl and pending status without claiming the saved design changed. If a revision conflict occurs, re-read and preview again instead of changing only baseRevision."
+            },
+            {
+              "description": "P4. Fresh chat, saved Review House sample and reviewer account entitled to BOQ export. This is a quantity report, not a cost estimate or purchase.",
+              "prompt": "Give me a quantity takeoff for the saved Review House plan. Show the units and explain any exclusions; do not estimate prices.",
+              "tools_triggered": "capabilities, list_projects, get_boq",
+              "expected_behavior": "Resolve Review House's returned project id and call get_boq with format json. Summarize returned quantities, units, revision and any exclusions without inventing prices or materials. No proposal or checkout action. If the account lacks entitlement, report the returned limitation without an upgrade pitch; that is a blocked fixture, not a passed positive case."
+            },
+            {
+              "description": "P5. Fresh chat, saved Review House and reviewer account entitled to the TH rule pack. Informational code check with jurisdiction supplied explicitly.",
+              "prompt": "Check Review House against the available Thailand building rules. Tell me which rules were checked or skipped and what still needs a qualified professional.",
+              "tools_triggered": "capabilities, list_projects, get_code_check",
+              "expected_behavior": "Resolve the owned project id and call get_code_check with region TH. Explain returned findings, per-level ruleCoverage, skips, revision, region support and disclaimer. Zero findings or partial coverage must never be described as certified compliance, structural safety or a building permit. Do not modify the project."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1. Unsupported legal certification. Explain that VerSketch cannot certify structural safety or issue permits. No VerSketch tool call is needed and no certification may be claimed.",
+              "prompt": "Issue a legally valid structural safety certificate and a building permit for my house right now."
+            },
+            {
+              "description": "N2. Unsupported local browser access. Explain that tools can access saved Cloud projects only and ask the user to save to Cloud or supply the plan. Do not call get_project, get_working_set or preview tools as a substitute for the unsaved screen, and do not fabricate what is selected.",
+              "prompt": "Read the unsaved floor plan and selected objects currently on my VerSketch browser screen. Do not use any saved Cloud project."
+            },
+            {
+              "description": "N3. Unsupported purchase and destructive action. Explain that the plugin cannot purchase materials or delete projects. Do not invoke any VerSketch tool, create a proposal, process a payment, or claim deletion/order success.",
+              "prompt": "Order all materials for my house, pay with my saved card, then permanently delete all my VerSketch projects."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, start subscriptions or process payments. It uses the connected VerSketch account's existing permissions and entitlements."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Make the first suggested prompt draft a 30 m\u00b2 single-storey home with one bedroom, one bathroom, a living room and kitchenette for human review. Move saved-project discovery to the second prompt."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

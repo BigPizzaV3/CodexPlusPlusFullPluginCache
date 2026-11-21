@@ -1,0 +1,82 @@
+---
+name: google-ads-manager
+description: Manages a client's Google Ads through the Agency Autopilot connector — performance reports, search-term hygiene, negative keywords, budgets, bidding strategies, conversion tracking set-up, extensions (sitelinks, callouts, snippets, call assets), pausing or enabling, building new search campaigns with ad groups, keywords and responsive search ads, Demand Gen campaigns (YouTube, Discover, Gmail) with image or video ads, changing an ad's landing page, and the free waste scan across every account. Use for "how are the ads doing", "what did we spend", "add negatives", "raise the budget", "pause that campaign", "build a campaign for X", "where is our ad money being wasted", "run the waste scan". Every write is validated by Google and previewed before it applies. Requires the Google Ads tools on the connector.
+---
+
+# Google Ads management
+
+## Always
+- `ads_list_accounts` first; take `customer_id` from it, never from memory.
+- Name the date range in every number.
+- Costs come back in micros: divide by 1,000,000. Say "$" figures only.
+
+## Reporting (`ads_report`, GAQL)
+- Campaigns: `SELECT campaign.name, campaign.status, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions, metrics.cost_per_conversion FROM campaign WHERE segments.date BETWEEN '<start>' AND '<end>' ORDER BY metrics.cost_micros DESC`
+- Search terms: `FROM search_term_view` with `search_term_view.search_term, metrics.cost_micros, metrics.clicks, metrics.conversions`.
+- Keywords: `FROM keyword_view` with `ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, metrics.*`.
+- State of one campaign, including whether its budget is shared: `ads_campaign_state`.
+Report spend, clicks, conversions and cost per conversion; then the three search terms wasting the most money and the three earning the most.
+
+## The waste scan — every account at once
+`ads_waste_scan` checks every Google Ads account the agency's logins reach (manager accounts' clients included, up to 15 with spend), no client needed. Per account: how much of the last 30 days' spend went to searches that never converted and are plainly not buyers (jobs, DIY, plans) or cost more than a lead costs that account (judged only with 3+ conversions), plus Display inside Search campaigns, and the fixes (negatives to add, out-of-area clicks, disapproved ads, auto-applied recommendations, broken tracking). An account whose tracking records nothing is not judged; say so rather than calling it clean. It runs in the background on first connect; `refresh: true` runs it again. Use it for "where is our money going", a new agency's first look, or before a pitch to a client running their own ads. Fix per account with the steps below (negatives previewed first).
+
+## Changes — preview, confirm, apply
+Every write tool runs as a validated preview unless `confirm: true`. Show the preview, get an explicit yes, then call again with `confirm: true`.
+- Negatives: `ads_add_negative_keywords` (campaign level). Build the list from search terms with spend and no conversions, and from informational or DIY terms.
+- Budgets: `ads_set_campaign_budget`. Increases over 50% in one step are refused by the connector until the person acknowledges the size; say so and ask before retrying.
+- Status: `ads_set_campaign_status`, `ads_set_ad_status`, `ads_set_keyword_status`. Enabling resumes spend; say that in the preview.
+
+## Conversion tracking — check before anything else
+`ads_list_conversion_actions`. If there is no ENABLED primary action, the account is blind: every campaign reports 0 conversions no matter how many leads arrive, and Smart Bidding has nothing to learn from. Say that first. Then offer `ads_create_conversion_action` (WEBPAGE for a form / thank-you page — it returns the tag to install; AD_CALL for calls from the ad; WEBSITE_CALL for calls from the site) and tell the person exactly where the tag goes. On a WordPress site connected here you can install it yourself with `wp_install_tracking`: `ads_id` is the `AW-…` from the tag, `conversion_label` is the part after the slash in `send_to`, and `conversion_path` is the thank-you page. It installs by ID only and previews the exact tags first. `ads_update_conversion_action` fixes status, primary flag, name, value or counting (leads count ONE_PER_CLICK: one person sending the form twice is one lead). `ads_diagnose` flags the setups that quietly break bidding: a lead counted every time, a page view set as primary, the Ads tag and an imported GA4 lead both primary (each lead counted twice), and a conversion rate over 50% (a tag firing on a page everyone sees).
+
+## Who the campaigns reach, and what Google won't show
+- `ads_diagnose` → "Campaign settings", judged on the account's own numbers: clicks from people outside the service area (Google's default reaches anyone "in, or interested in" it), Display inside a Search campaign, or Search Partners that cost money without a lead. Out-of-area or partner clicks that convert are kept. Propose the change with those numbers through `ads_campaign_settings` (location PRESENCE, display false, search_partners false); it changes who sees the ads, so it waits for the person. New campaigns from `ads_create_campaign` start with people in the area, partners and Display off.
+- "Disapproved ads": ads and assets Google won't show, with the policy named. Write a compliant replacement, then pause the old one.
+- Keywords: a keyword naming a service the client sells ("fence company salem") isn't waste until its clicks should have brought about 3 conversions at the account's own rate, or it has cost twice the account's cost per lead, whichever comes first. Before that, improve its ad and landing page; after that, it's waste like any other.
+
+## Tracking on a site that is not WordPress
+`wp_install_tracking` only works on a connected WordPress site. For any other site, use the client's Google Tag Manager container: `gtm_list_containers` → `gtm_tracking_status` (what is already there) → `gtm_install_tracking` with `ga4_id`, and `ads_id` + `phone_click_label` for phone taps, `ads_id` + `conversion_label` + `conversion_path` for form leads. Preview first; `confirm: true` creates the tags in the workspace; add `publish: true` only when the person says to make it live. The GTM-… snippet must already be on the site — `site_check` shows whether it is. If it is not, and you have your own connector for the site's builder that can edit its header code, add the snippet (or the `tracking_spec` snippets) through it after the person agrees, then `site_check` again; otherwise the site's editor has to add it. These tools appear only once the account's Google login has granted the Tag Manager permission (reconnect Google on the dashboard).
+
+## "Install call tracking" for a client
+One prompt, this order, each write previewed then confirmed:
+1. `ads_create_conversion_action` type **AD_CALL** ("Calls from ads"), then `ads_add_extensions` kind CALL with the client's lead number — calls placed from the ad are counted with no site code.
+2. `ads_create_conversion_action` type **WEBSITE_CALL** ("Calls from the website") and type **WEBPAGE** named "Phone click". Note each label.
+3. `wp_tracking_status`, then ONE `wp_install_tracking` call: `ads_id` (the AW- id), `phone_number` (exactly as shown on the site), `phone_clicks: "on"`, `phone_click_label` (the Phone click label), `call_conversion_label` (the website-call label), and `ga4_id` if Analytics is not already on the page. Preview shows the exact tags; confirm.
+4. Tell them to purge any page cache, tap the number on the site once, and that Ads shows the test within a few hours.
+
+## Form leads (thank-you page)
+`ads_create_conversion_action` type WEBPAGE ("Quote form submitted"), then `wp_install_tracking` with `ads_id`, `conversion_label` and `conversion_path` (the thank-you page, e.g. `/thank-you/`). That page then fires the Ads conversion **and** a GA4 `generate_lead` event, which is what the reports and client dashboards count as a lead. It fires nowhere else.
+🔴 It only works if the form actually sends the visitor to that page. A form embedded in an iframe (HighLevel and many form builders) redirects inside the iframe, so the page never changes and nothing fires — one client showed 0 conversions on 42 paid clicks for exactly this reason. After installing, have the person submit the form once and confirm the browser lands on the thank-you URL. If it does not, the form's redirect must target the top window, or the form must fire an event on success.
+If the site is not connected with an Administrator password or the Bridge is older than 1.2.0, the tool says so — relay it; those are one-time steps for the agency.
+
+## Bidding
+`ads_campaign_bidding` shows the strategy and the last 30 days of conversions. Rules of thumb for a local-service account: under ~30 conversions a month, Maximize conversions with no target, or Maximize clicks with a CPC ceiling; a target CPA only once volume exists, set near the recent actual cost per lead. `ads_set_bidding_strategy` previews the before/after and warns when a target is premature.
+
+## Extensions
+`ads_list_extensions` lists sitelinks, callouts, structured snippets and call assets with a `gaps` list. A finished search campaign has 4+ sitelinks (service pages), 4+ callouts (licensed, free estimates, financing, warranty), one structured snippet (Services: …) and a call asset with the client's lead line. `ads_add_extensions` adds them per campaign or account-wide; `ads_remove_extension` retires an old one. A phone number change is add the new, then remove the old.
+
+## Where the ads send people — look before you build
+Before any new campaign, ad, sitelink or landing page change, call `landing_evidence` for the client (add `url` and your planned ad text to check a page). It pulls 90 days of Google Ads clicks and conversions by landing page and sitelink, Analytics paid sessions and leads by landing page on every property, Search Console clicks per page and hosted-form leads, and names the page paid visitors convert on. Decide from those numbers, not from Google's landing-page rating alone, and quote them in the plan.
+Every campaign should start on a **dedicated landing page**: one service, the area it serves, the offer, proof, and the form and phone number above the fold. If there isn't one, offer to build it (`wp_write_post`, type page, left as a draft on WordPress; a brief plus `tracking_spec` for a site built in code) and keep the ads on the page that converts today until the new one has proved itself.
+`ads_create_ad`, sitelinks and `ads_create_campaign` return a `landing_check`: warnings when the page has no paid conversion history while another converts, isn't a dedicated page, or contradicts the ad (prefab vs built on site, towns, timelines, prices, "free"). Show every warning with its numbers. For an ad or sitelink, confirm on that page only with the person's yes, passing `acknowledge_landing: true`.
+
+## Building a search campaign
+1. Research: `ads_find_locations` for the service area; `ads_keyword_ideas` for volumes; `landing_evidence` for where it should land.
+2. `ads_create_campaign` — daily budget, geo targets, bidding. Its preview asks **where the campaign should land** (`landing_page_question`: the client's pages with their paid conversion numbers, and how to build a dedicated page). Ask the person and offer to build the page if needed, then call again with `landing_page`. If they don't know yet, create it without one. It previews with the monthly equivalent; confirm to create. Campaigns are created **paused**.
+3. `ads_create_ad_group` → `ads_add_keywords` (phrase match by default, exact for the strongest terms) → `ads_create_ad` (responsive search ad: 8–15 headlines, 4 descriptions, final URL = the campaign's landing page; every claim must be on that page).
+4. `ads_add_negative_keywords` with the informational list.
+5. `ads_add_extensions`: sitelinks, callouts, a structured snippet and the call asset.
+6. Tell the person the campaign is paused and what must be checked before enabling: conversion tracking (`ads_list_conversion_actions`), phone number and landing pages. `ads_set_campaign_status` with ENABLED returns `landing_pages`, every page the ads and sitelinks land on: show them and ask whether they look good, offer to change any, and confirm on their yes.
+
+## Demand Gen (YouTube, Discover, Gmail, Display)
+- `ads_create_demand_gen_campaign` builds the budget, campaign, ad group with its locations and the first image or video ad in one step, created **paused**. The preview sends the exact request to Google to check; show the budget, its monthly equivalent, the locations and the ad word for word, then confirm on a yes.
+- Videos must already be on YouTube. Add more ads with `ads_create_demand_gen_ad` (paused, previewed).
+- Demand Gen finds people before they search; judge it on leads from the landing page, not clicks, and keep it smaller than Search for a local service business until it proves itself.
+
+## Changing where an ad sends people
+`ads_set_ad_url` changes an existing ad's landing page (Search, Demand Gen and other types Google allows); the ad keeps its history. Find `ad_id` with an `ads_report` query on `ad_group_ad`, run `landing_evidence` first, preview, then confirm.
+
+## Rules
+- Never enable spend without an explicit instruction that names the campaign.
+- If a preview comes back with a Google validation error, report the field it names and fix the input; do not retry blindly.
+- If the account is not linked to a client on the dashboard, the connector refuses; say how to link it.

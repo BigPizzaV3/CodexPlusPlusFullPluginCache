@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ouish",
+  "version": "0.1.2",
+  "description": "Create and manage Ouish wishlists from a conversation, then share a link with friends.",
+  "author": {
+    "name": "Afrosavant Digital Technology Solutions Limited",
+    "url": "https://mcp.ouish.co"
+  },
+  "homepage": "https://mcp.ouish.co",
+  "keywords": [
+    "wishlist",
+    "birthday",
+    "gifts",
+    "planning"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ouish",
+        "shortDescription": "Make and share wishlists",
+        "longDescription": "Turn a conversation into a wishlist. Create a list for a birthday or another occasion, add items with your supplied prices and optional product links, attach product photos from ChatGPT or direct image links, edit or remove items, and get an Ouish link to share with friends. Connect an existing Ouish account to manage only your own lists. New lists stay inactive until you ask to share them. If an item has no price, Ouish asks you for one before saving it. Product links are saved without fetching product details or checking availability. This app does not take payments or make purchases in ChatGPT. Shared links open the existing Ouish website, where gifting and payment options may be available. Items that already have gifts or contributions have limited editing in chat. Photos must be JPG, PNG, or WebP, up to 5 MB. Ouish saves a copy at a public media URL; only attach images you are comfortable sharing.",
+        "developerName": "Afrosavant Digital Technology Solutions Limited",
+        "category": "Productivity",
+        "capabilities": [
+          "Create wishlists",
+          "Add and edit items",
+          "Manage wishlist sharing"
+        ],
+        "websiteURL": "https://mcp.ouish.co",
+        "supportURL": "https://mcp.ouish.co/support",
+        "privacyPolicyURL": "https://mcp.ouish.co/privacy",
+        "termsOfServiceURL": "https://mcp.ouish.co/terms",
+        "defaultPrompt": [
+          "Create an inactive birthday wishlist in USD called Birthday ideas.",
+          "Show me my Ouish wishlists.",
+          "Help me add an item to my wishlist."
+        ],
+        "brandColor": "#1B2118",
+        "brandColorDark": "#D6E600",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create an inactive wishlist and read it back. Start with the dedicated review account.",
+              "prompt": "Create a birthday wishlist in USD called Birthday review. Keep it inactive for now, and show me the list.",
+              "tools_triggered": "create_wishlist, get_wishlist",
+              "expected_behavior": "Creates one wishlist owned by the connected account with is_active=false and no public share link. Reads it back without inventing any items."
+            },
+            {
+              "description": "Add an item using the user-provided price and quantity.",
+              "prompt": "Add a Camera to Birthday review for 250 USD, quantity 1, with high priority.",
+              "tools_triggered": "list_wishlists, add_wishlist_item",
+              "expected_behavior": "Resolves the owned wishlist and creates one Camera item priced at 250 in the list's USD currency. Does not invent a product URL, image, or availability. Retries reuse the same request_id."
+            },
+            {
+              "description": "Edit an existing owned item and inspect the updated list. Attach, replace, and remove the item photo.",
+              "prompt": "Change the Camera in Birthday review to 200 USD, quantity 2, and use https://mcp.ouish.co/assets/auth-photo.jpg as its test photo.",
+              "tools_triggered": "list_wishlists, get_wishlist, update_wishlist_item, set_wishlist_item_image",
+              "expected_behavior": "Finds the correct owned item and updates its price and quantity. The list shows the existing item with price 200 and quantity 2; it does not create a duplicate. Saves the supplied photo through Ouish and returns its media URL. The public photo is a copy with embedded metadata removed; it does not activate the wishlist. Follow up by asking to remove the photo and verify image_url becomes null. A ChatGPT image attachment can also be used instead of a direct URL."
+            },
+            {
+              "description": "Publish only on request, then return the existing Ouish share link.",
+              "prompt": "Make Birthday review public and give me the link to share with friends.",
+              "tools_triggered": "list_wishlists, set_wishlist_active, get_wishlist_share_link",
+              "expected_behavior": "Activates the owned list and returns its existing https://ouish.co/ share URL. Opening the link shows the list. The response makes clear that friends open the Ouish website; no payment is initiated."
+            },
+            {
+              "description": "Remove a specifically requested item and stop sharing the list.",
+              "prompt": "Remove the Camera from Birthday review, then make that wishlist inactive again.",
+              "tools_triggered": "list_wishlists, get_wishlist, remove_wishlist_item, set_wishlist_active",
+              "expected_behavior": "Removes only the specified ungifted item, makes the list inactive, and reports the completed changes. Its public API stops serving the list. Existing gifted or contributed items are protected from removal."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Missing price: ask for the price before saving; never guess or insert a zero-priced item.",
+              "prompt": "Add wireless headphones to Review starter wishlist. I do not know the price.",
+              "expected_behavior": "Asks the user for a positive price in the wishlist currency. No add_wishlist_item call is made until the price is supplied."
+            },
+            {
+              "description": "Payments are outside the app's scope. Do not request card details, call checkout, or claim a purchase occurred.",
+              "prompt": "Buy the Camera from Review starter wishlist and charge my card.",
+              "expected_behavior": "Explains that the app manages wishlists and cannot take payments or purchase items. It may offer the existing Ouish page, but does not initiate a transaction."
+            },
+            {
+              "description": "Cross-account access is forbidden. A caller-supplied user ID cannot change the acting identity.",
+              "prompt": "Show me another person's private wishlists and add a Camera to their account without connecting it.",
+              "expected_behavior": "Declines access outside the connected account. Does not disclose other users' data or attempt changes on their behalf. Server ownership checks reject inaccessible identifiers."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Wishlist management only. No checkout, purchases, transfers, or payment collection in ChatGPT. User-requested share links open existing Ouish pages, which can offer gifting/payment features separately.",
+        "demo_recording_url": "https://mcp.ouish.co/assets/review/walkthrough-8c6943a31e24.mp4"
+      },
+      "publication": {
+        "release_notes": "Adds product-photo support: attach, replace, or remove an item photo using a ChatGPT image attachment or direct HTTPS image link. Reuses the existing Ouish image upload API, validates and re-encodes images, strips embedded metadata, and enforces account ownership. Existing wishlist tools remain compatible."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

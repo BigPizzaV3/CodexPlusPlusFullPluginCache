@@ -1,0 +1,328 @@
+# Titan AI Amazon MCP - Actions Reference (Amazon Ads writes — REAL MONEY)
+
+**⚠️ Read this entire file before calling any `write` tool. ⚠️**
+
+Action tools modify the user's Amazon Advertising account. Every call may spend real money or change live ads. There is no automatic rollback.
+
+## Match the requested effect
+
+An analysis, proposal or export request does not authorize a live write. Use a write tool only when the user authorizes the specific change and the connection grants the required access. Honor a request for a downloadable file. If the requested operation is unavailable, explain the limit and ask how the user wants to proceed.
+
+## How approval works, and why you cannot rely on it
+
+This server cannot ask the user anything. It has no channel to put a question in front of them mid-call, so **approval is the AI application's to ask for, not ours to promise.** Applications differ, the user can turn prompting off per tool, and some clients run tools with no interactive approval at all.
+
+**Never tell the user they will be asked to approve a call. Assume they will not be.**
+
+| Where the connection lives | Where the approval setting lives |
+|------|------------------|
+| ChatGPT (directory plugin or custom connection) | Decided by ChatGPT and the workspace settings; Titan AI shows no prompt of its own |
+| Other MCP clients | The client's own connector or permission settings, per tool |
+| Cowork | The app's tool permission settings |
+| Automated or headless clients | No approval step exists. The call runs when you make it. |
+
+**So narrate, every time.** Say what you are about to change, in plain prose, BEFORE you call a write tool. Your narration is the only safeguard you control, and on a client that never prompts it is the only one there is. When you bundle several writes into one response, narrate all of them first: nothing gets to interrupt you mid-batch.
+
+## DANGER: "Always Allow" is your enemy
+
+Where an application does offer a per-tool "Always Allow", turning it on removes the one check that application had. **Assume it may already be on, or that the application never asked in the first place.** A single misread sales report could spawn 10 campaigns at $500/day each, draining the user's ad budget overnight.
+
+**Always tell users**: "I recommend reviewing every action call. Do NOT enable Always Allow for the write tools."
+
+## Action execution mode (`dryRun` field)
+
+Amazon Ads writes execute live by default. Treat every call as a real change before execution; do not infer simulation from the environment name. First-party writes can have different response shapes, as described below.
+
+If `dryRun: true`, state that this was a simulation and no Amazon-side change occurred. Do not describe a simulated result as an applied change. If `dryRun: false`, inspect the per-item outcome before reporting a live change. If the result is unverified or UNKNOWN, say that the outcome is unknown and follow the tool's verification guidance before retrying.
+
+Use plain words for the result. Do not expose raw flags or internal transport details unless they are needed to explain an error.
+
+Never assume dry-run mode is on. Your narration and the user's explicit yes in the conversation are the only safeguards before real spend.
+
+## Multi-status responses
+
+Every action returns:
+
+```json
+{
+  "dryRun": true,
+  "correlationId": "uuid",
+  "success": [{ "index": 0, "<entityIdField>": "..." }],
+  "error":   [{ "index": 1, "code": "...", "details": "..." }],
+  "entityType": "sp.campaign"
+}
+```
+
+The `<entityIdField>` name varies per tool — see `WIRE_FORMATS.md`. A mixed batch can contain confirmed changes, refusals and unknown outcomes. UNKNOWN items may have applied; verify them before retrying. Narrate per-item: "Created campaign A (id 12345). Item 2 failed: duplicate name."
+
+In dry-run mode most tools echo `dry-run-<index>` as the entity id. `update_sponsored_display_campaign` is an exception — it echoes the actual `campaignId` you passed (different dry-run shape upstream). In either case, disclose simulation and do not report an applied change.
+
+## Result presentation
+
+Write-tool responses come back as a programmatic envelope in one of two shapes. The normal one is `{ dryRun, correlationId, success: [...], error: [...], entityType }`. When no item has a confirmed success you can get `{ correlationId, success: false, error: "<CODE>", message, ... }` instead — `success` is the boolean `false` and `error` is a CODE STRING rather than a list, so `error.length` tells you nothing. The per-item rows are still there but NOT at the top-level `error` key, and **where** they moved differs by tool. Do not guess, and do not go hunting: the `message` names the exact key to open, and also says whether upstream refused the batch or the outcome is UNKNOWN. Open the key it names and nothing else. **The user never sees either envelope.** Field names, raw API enums, post-read confirmations, and correlation IDs are diagnostic plumbing — they belong in audit logs, not in chat.
+
+The post-call message uses natural prose to describe the confirmed changes, refused items, simulated results, or unknown outcomes. Include enough detail to distinguish them.
+
+### Good
+
+- "Top of Search modifier raised to 25%. Product Pages stays at 10%."
+- "Top of Search modifier removed. The campaign now uses the default bid for that placement."
+- "Bid raised from $1.50 to $1.75."
+- "Paused 3 keywords; 2 succeeded, 1 failed (duplicate name)."
+- "Created campaign 'Brand Defense'."
+
+These examples describe confirmed live outcomes only. For simulation, say "This was a simulation; no Amazon-side change occurred." For an unverified result, say "The change is not confirmed; the outcome is unknown."
+
+### Forbidden — never appears in user-facing prose
+
+| Don't write | Why | Write instead |
+|---|---|---|
+| `dryRun: false ✓ real write` | Field-name leak with checklist framing — looks like a debug dump | Describe only the confirmed result; disclose simulation or an unknown outcome when applicable |
+| `error: [] ✓ no failures` | Same | Inspect every item and describe confirmed results or uncertainty |
+| `success: [...]`, "the success array shows..." | Field-name leak | Describe the change in plain English |
+| `correlationId: 8e827507-...` | Diagnostic ID — only surface if user asks how to escalate | Omit by default. If they ask, frame as "support reference: 8e827507". |
+| `PLACEMENT_TOP`, `PLACEMENT_PRODUCT_PAGE`, `PLACEMENT_REST_OF_SEARCH` | Raw API enum | "Top of Search", "Product Pages", "Rest of Search" |
+| `LEGACY_FOR_SALES`, `AUTO_FOR_SALES`, `MANUAL` | Raw bidding-strategy enum | "the campaign's current bidding strategy" / "automatic for sales" / "manual bidding" |
+| `ENABLED`, `PAUSED`, `ARCHIVED` | Raw state enum | "active", "paused", "archived" (lowercase, prose form) |
+| "Post-read confirms ..." / "verified against Amazon's response" / "the multi-status response shows..." | Internal verification plumbing — the user does not need to know there's a post-read | State the new value only if confirmed. For `WRITE_VERIFICATION_FAILED`, say the change is not confirmed |
+| `entityType: sp.campaign` | Internal taxonomy | (omit) |
+| "envelope returned..." / "dispatch result was..." | Internal jargon | Describe the outcome |
+
+**The shape of every post-call message:** [confirmed changes or refusals], [simulation disclosure when applicable], [unknown outcomes when verification is incomplete]. Never claim an unverified change applied or did not apply.
+
+**Errors get the same treatment.** If the response carries `error: 'CAMPAIGN_NOT_FOUND'`, the user reads "I couldn't find that campaign in your account — can you double-check the id?" — not "tool returned `error: 'CAMPAIGN_NOT_FOUND'`".
+
+This section governs the *post-call* prose. For pre-call prose, briefly acknowledge what you're about to do (one sentence is fine), then call the tool.
+
+## Placement bid modifiers — use the dedicated tool
+
+Placement bid modifiers — the percentage adjustments for Top of Search, Product Pages, and Rest of Search — write through the dedicated tool **`update_sponsored_products_campaign_placement_modifiers`** (re-enabled 2026-05-07). Do **NOT** try to use `update_sponsored_products_campaign` for these — its schema rejects any `bidding`/`dynamicBidding` fields and routes you to the dedicated tool instead.
+
+When a user asks to change a placement modifier:
+
+1. Source the campaign's current `biddingStrategy` (and current placement values for context) from `search_for_ppc_campaigns({campaignIds: [id]})`.
+2. Call `update_sponsored_products_campaign_placement_modifiers` with `{campaignId, dynamicBidding: {strategy, placementBidding: [...]}}`. **Strategy is REQUIRED** by Amazon — pass the existing one unless you intend to change it.
+3. Trust Amazon's merge-by-placement-key semantic: send only the placements you want to change; placements not mentioned are preserved (verified 2026-05-07). Send `{placement, percentage: 0}` to **remove** a single placement. `placementBidding: []` and omitting the key entirely are both no-ops — to clear all modifiers, send `0` for each currently-set placement.
+
+The tool reads the campaign before and after the write and only records SUCCESS in `action_logs` when the post-read confirms the change landed (D2 mitigation). Watch for `ARCHIVED_NOT_EDITABLE` (the campaign is archived, and archiving is permanent, so it cannot be changed) or `WRITE_VERIFICATION_FAILED` (Nexus 200 but post-read disagrees — forensics in `action_logs`).
+
+**Forbidden:**
+
+- If the user authorizes a placement-modifier change through Titan AI, use the dedicated tool. Honor requests for manual instructions.
+- Do **NOT** propose creative workarounds like encoding the modifier value in the campaign name (e.g. renaming to "...100 TOS"). The encoded name does not affect bidding behavior.
+- Do **NOT** put placement fields on `update_sponsored_products_campaign`. Use `update_sponsored_products_campaign_placement_modifiers`.
+
+## Marketplace handling
+
+By default, `marketplace` resolves to the active seller's default storefront (`mainSalesChannel`, e.g. `"Amazon.com"`, `"Amazon.co.uk"`) — so for a single-marketplace seller, **omit it**.
+
+For a multi-marketplace account (one seller spanning e.g. Amazon.co.uk + Amazon.de), to act on a **non-default** marketplace:
+
+1. Call `get_marketplaces` to list the seller's connected storefronts.
+2. Pass the exact storefront string (e.g. `"Amazon.de"`) as `marketplace` on the `write` / `get_sp_bid_recommendations` / `update_sponsored_products_campaign_placement_modifiers` / `get_ppc_negative_targets` call.
+
+Omit `marketplace` to use the default. A value that isn't one of the seller's connected marketplaces returns `MARKETPLACE_NOT_AVAILABLE` (with the valid list in `available`) — re-issue with a listed storefront. Campaign / ad-group / keyword IDs are marketplace-specific: target the marketplace the IDs belong to.
+
+## Keyword Relevancy dataset writes (`account:write` — NOT Amazon Ads)
+
+Five writes touch the seller's Titan Tools **Keyword Relevancy datasets** instead of their Amazon Advertising account: `create_relevancy_dataset`, `add_relevancy_dataset_asins`, `remove_relevancy_dataset_asins`, `update_relevancy_rankings`, `purge_relevancy_cache`. They behave differently from the Amazon Ads writes above:
+
+- **No dry-run, no delete.** Upstream `/v1/tools/relevancy/*` has no dry-run, so these execute the moment you call them — in EVERY environment, including staging. A created dataset CANNOT be removed via the API (there is no delete endpoint). Confirm intent before calling, and label throwaway/test datasets clearly (they leave permanent residue).
+- **Not multi-status.** They return the raw `{ datasetId }` (create — a NUMBER, e.g. `187798`) or `{ success: true }` (add/remove/ranking-update/cache-purge), plus a `correlationId`. There is no `success[]`/`error[]` array — a thrown upstream error surfaces as a structured `{ error, message, hint }`. Five upstream refusals are FINAL and carry `retryable: false`, which means do not send the same call again; follow the hint, which says whether to re-read first. Each is answered only on the writes it can come from. `RELEVANCY_DATASET_EXISTS` (create only; the create may itself have just made the dataset with no competitors, so read `availableDatasets` and add competitors to a new one with `competitorCount` 0 rather than creating another), `RELEVANCY_RANKING_DAILY_LIMIT` (ranking update only; already recomputed today; try tomorrow), `RELEVANCY_DATASET_ASIN_LIMIT` (add and create; the dataset would exceed its ASIN cap; `details` names the cap and the count), `RELEVANCY_ASIN_NO_DATA` (any relevancy write; Titan's keyword relevancy service has no data for the ASIN in `details.asin`) and `RELEVANCY_DATASET_UPDATE_FAILED` (add only; upstream gives no reason and names no ASIN, and it usually means no data). The member must never be told an ASIN with no data does not exist. On an add, a refused list has already been sent one ASIN at a time by the tool (see below), so the error lists every refused ASIN with its reason in `details.refused`; a refusal of a one-ASIN add is about the ASIN you sent. Do not resend refused ASINs as they are. On a create, read `availableDatasets` before anything else, because the create may still have made a dataset, and if the named ASIN is the product's own, no dataset can be built for it yet. Any other relevancy failure (timeout, 5xx, 401, 429) keeps its transport code, names Titan's keyword relevancy service, never Amazon Ads, and its hint names the read that verifies that write: `availableDatasets` for a create, the dataset for an add or remove, `get_relevancy_ranking_status` for a ranking update; a cache purge has no such read and is safe to send once more.
+- **One no-data competitor no longer sinks the write (TIT-1006).** If upstream refuses an add batch (`Failed to update dataset.` or `No data found for ASIN X`), `add_relevancy_dataset_asins` re-reads the dataset and sends each ASIN in the call that is not already on it, one at a time, never anything the call did not name, and returns `{ success: true, added, alreadyPresent, refused: [{ asin, reason }] }` when at least one lands (`unconfirmed` / `notSent` appear only if a single add got no clear answer: re-read before resending those). Pass the product `asin` as well so it can re-read; it is never sent upstream. If none lands, the error is `RELEVANCY_DATASET_UPDATE_FAILED` or `RELEVANCY_ASIN_NO_DATA` with every refused ASIN in `details.refused`. `create_relevancy_dataset` first checks which competitors Titan Tools already holds data for (TIT-1019). When some are and some are not, the create carries only those and the others are then added to the new dataset one at a time, so one competitor with no data cannot leave an empty dataset; an ASIN Titan Tools holds no data for is still sent, never dropped. That create, and one that errors but made its dataset anyway (the product's datasets are read before and after), return `{ created: true, datasetId, name, competitorCount, competitors: { added, sentInCreate, alreadyPresent, refused } }`, where `added` is every competitor now on the dataset: report it as created, not as already existing. Each refused entry carries a `code` and a `reason`: tell the member that reason, which is either no data in Titan's keyword relevancy service or the dataset already holding its maximum number of ASINs (then remove competitors before adding more), never that an ASIN is invalid, and do not resend a refused ASIN as it is.
+- **Auth is handled server-side** — no re-link needed. The write runs under the user's OAuth grant when it carries write access, otherwise it transparently falls back to the server credential. (Upstream requires `account:write`; the OAuth client cannot grant that scope yet — raised with upstream 2026-06-11 — so the server-credential fallback is currently the active path.)
+- **Body shapes** (see `WIRE_FORMATS.md`): create takes `{ datasetName, asin, competitorAsins:[1-10], marketplace }`; add/remove take `{ dataSetId, asins:[1-10], marketplace }` — note `dataSetId` is **camelCase** (capital S), unlike the `datasetId` the read tool returns. sellerId is injected from the active seller. `marketplace` is REQUIRED and is the storefront the dataset is written on: pass a value from `get_marketplaces` verbatim. A storefront the seller is not connected to is refused with `MARKETPLACE_NOT_AVAILABLE` and the valid list — it is never rerouted. **It must also be the storefront the session is pinned to** (or the home storefront when nothing is pinned): the relevancy READS take no marketplace of their own, so a write anywhere else could not be read back, and is refused with `MARKETPLACE_NOT_READABLE` naming both storefronts. To work on another one, call `set_active_seller({ storeName, marketplace })` first, then pass that same value here.
+- **`update_relevancy_rankings` is a REAL recompute, once per 24h, ASYNC.** It returns `{ success }` immediately but the recompute runs in the background — poll `get_relevancy_ranking_status` (`{ ongoing }`) until false, then re-read `get_keyword_relevancy` / `get_keyword_families`. Body: `{ datasetId, marketplace }` — the marketplace you pass is the one recomputed. **The poll and the re-reads take NO marketplace**: they follow the session pin, else the home storefront. That is why the write refuses a storefront the session is not pointed at — otherwise the poll would query a storefront where nothing is running, return `ongoing:false` on the first call, and you would report a recompute that never happened. **`purge_relevancy_cache`** drops the dataset's cached ranking results (`{ datasetId }` — **NO marketplace**); returns `{ success }`.
+
+Result presentation: same natural-prose rule as the Amazon Ads writes — e.g. "Created a relevancy dataset for B0… seeded with 3 competitors." Never surface the raw envelope or correlationId.
+
+## Keyword Rank Tracker writes (`account:write` — NOT Amazon Ads)
+
+Five writes manage what the seller tracks in the **Keyword Rank Tracker** (`/v1/krt/*`): `track_keywords`, `untrack_keywords`, `set_keyword_label`, `add_keyword_tag`, `remove_keyword_tags`. They behave differently from both the Amazon Ads writes and the relevancy writes:
+
+- **No dry-run, but REVERSIBLE.** Upstream has no dry-run (they execute the moment you call them, every environment), but each is undoable: untrack reverses track, a `null` label clears a label, remove-tag reverses add-tag. The tool description says "REAL, IMMEDIATE, but reversible" — distinct from the relevancy writes' "IRREVERSIBLE".
+- **Partial-success batches (NOT multi-status).** They return `{ items: [{ key, status, error? }], summary: { succeeded, skipped, failed } }` + a `correlationId`. This is NOT the Amazon Ads `success[]`/`error[]` shape. Inspect each item: `track_keywords` per-item status ∈ `SUCCESS | ALREADY_TRACKED | ERROR` (ALREADY_TRACKED counts under `summary.skipped`); the others ∈ `SUCCESS | ERROR`. The connector writes one `action_logs` row per item.
+- **`track_keywords` does NOT return the new id.** `items[].key` echoes the *phrase*, not the new `keywordRankTrackerId`. To label/tag a just-added keyword, re-call `get_keyword_ranks` (with `search`) to resolve its id first.
+- **Auth is handled server-side** — same user-OAuth-first → server-credential fallback as the relevancy writes.
+- **Body shapes** (see `WIRE_FORMATS.md`): `track_keywords` is asin-scoped — `{ asin, phrases:[1-500], marketplace }`, where `marketplace` is REQUIRED and is the storefront the keywords are tracked on (US/DE/UK/CA only). It is validated against the seller's connected marketplaces and refused with `MARKETPLACE_NOT_AVAILABLE` if they do not have it. NOTE the write does NOT read the session marketplace pin — on a pinned session, name the pinned storefront yourself. There is no omit-for-home fallback: the field is required, so a call without it is rejected before it runs. The other four are by-id and take NO marketplace: `untrack_keywords` `{ keywordRankTrackerIds:[1-500] }`; `set_keyword_label` `{ keywordRankTrackerIds, labelId }` (`labelId: null` clears); `add_keyword_tag` `{ keywordRankTrackerIds, tag }`; `remove_keyword_tags` `{ tagIds }`. sellerId is injected from the active seller.
+
+Result presentation: natural prose — e.g. "Now tracking 3 new keywords (1 was already tracked)." Never surface the raw envelope, item statuses verbatim, or correlationId.
+
+## Keyword comment writes (`account:write` — NOT Amazon Ads)
+
+Three writes manage member **comments** (notes) on a tracked keyword (`/v1/krt/comments`): `add_keyword_comment`, `edit_keyword_comment`, `remove_keyword_comment`. They differ from the KRT keyword writes above:
+
+- **SINGLE-ITEM, NOT partial-success batches.** add → `{ comment, count }` (the keyword's active-comment count after insert); edit → `{ comment }`; remove → `{ success }` — each plus a `correlationId`. There is no `items[]`/`summary`. The connector writes ONE `action_logs` row.
+- **REVERSIBLE (add ↔ remove), no dry-run.** A `null` is never returned for a missing item — a foreign/unknown `keywordRankTrackerId` (add) or `commentId` (edit/remove) returns an upstream **404**. Surface that as "that keyword/comment isn't yours" — never fabricate success.
+- **`add_keyword_comment` returns a `commentId`** (after the connector's `id`→`commentId` shaping). Use it for a later `edit_keyword_comment` / `remove_keyword_comment`. **Edit changes the TEXT ONLY** — there is no editable `commentDate`.
+- **By-id — NO marketplace.** add: `{ keywordRankTrackerId, commentDate (YYYY-MM-DD), commentText }`; edit: `{ commentId, commentText }`; remove: `{ commentId }`. sellerId is injected from the active seller. The `keywordRankTrackerId` comes from a `get_keyword_ranks` row or a `get_keyword_segments` segment.
+
+Result presentation: natural prose — e.g. "Added your note to that keyword." Never surface the raw envelope, commentId, or correlationId.
+
+## Compass writes (NOT Amazon Ads)
+
+Three writes change the seller's **Compass** inventory planning in Titan Tools (`/v1/compass/*`): `save_compass_suppliers`, `delete_compass_supplier`, `update_compass_product_configurations`. Compass is part of Titan, never an external system or a connector: when the user mentions Compass, use these tools and the two Compass reads, not a custom connector. They appear only while Compass is enabled on the server; if they are not in your tool list, Compass is not available to this account.
+
+- **No dry-run.** Each executes the moment you call it, in every environment. Confirm the exact change with the user first.
+- **Nothing is recalculated.** A successful write does NOT recompute the forecast, the Demand Plan or the Purchase Orders. Every success carries `recalculationNotice`: tell the user, in plain words, that Compass has NOT recalculated those yet and that they should open Compass and accept the recompute prompt before relying on them.
+- **`save_compass_suppliers`** creates (omit `supplierId`; `supplierName` is then required) or updates (send a `supplierId` from `get_compass_suppliers`) 1-200 suppliers, changing only the fields sent. ATOMIC: one invalid row refuses the whole call and nothing is written. Updating a supplier also changes the terms on EVERY SKU linked to it, so list those SKUs first (`get_compass_product_configs` with that `supplierId`). Returns `{ suppliers: [{ index, action: created | updated, supplier }], summary, recalculationNotice }`.
+- **`delete_compass_supplier`** deletes ONE supplier by `supplierId`. There is NO restore: creating it again gives a new `supplierId`. Linked SKUs are NOT unlinked; they keep its last terms and still show its `supplierId`, so list them first and offer to relink them. An unknown or already-deleted id fails with `COMPASS_NOT_FOUND` and deletes nothing.
+- **`update_compass_product_configurations`** changes 1-200 SKU entries, each named by `salesChannel` + `sku` exactly as on a `get_compass_product_configs` row: `supplierId`, `shippingPaid` (`at_booking` | `on_arrival`), and `demandPlan` (`minStockDays`, `ctnSize`, `targetDaysOfStock`, `moq`, `lowPriceTierMoq`; `null` clears one). A SKU can be relinked but NEVER unlinked, and its config cannot be deleted. PARTIAL SUCCESS inside one successful call: read `results[i].status` for EVERY entry and never say an entry changed unless it is `SUCCESS`. `concurrencyConflict: true` means NOT applied (re-read that SKU, then resend it); `NO_RESULT` means it MAY have applied (re-read before resending). If no entry succeeded, the call fails with `WRITE_ALL_ITEMS_FAILED`.
+- **Auth is handled server-side**, the same user-OAuth-first then server-credential fallback as the KRT writes. `sellerId` is injected from the active seller; there is no `marketplace` field.
+
+Result presentation: natural prose, e.g. "Set the MOQ for that SKU on Amazon.com to 500. Compass has not recalculated your forecast, Demand Plan or Purchase Orders yet, so open Compass and accept the recompute prompt before relying on them." Never surface the raw envelope, `supplierId`, or `correlationId`.
+
+## Verified status (post-audit, 2026-05-05 — adds 9 negative-keyword UPDATE + negative-target CRUD tools)
+
+| Tool | Result | Notes |
+|------|--------|-------|
+| `create_sponsored_products_portfolio` | ✅ | State ∈ {ENABLED} only. Probed 2026-09-23: Amazon answers any other value with `Member must satisfy enum value set: [ENABLED]`. A portfolio is created enabled and cannot be created paused. |
+| `update_sponsored_products_portfolio` | ✅ | State ∈ {ENABLED} only. Amazon refuses PAUSED here: `Member must satisfy enum value set: [ENABLED]` (probed 2026-09-22). A portfolio cannot be paused through this tool. |
+| `create_sponsored_products_campaign` | ✅ | Use `budget.budget`, not `budget.amount`. State ∈ {ENABLED, PAUSED}. |
+| `update_sponsored_products_campaign` | ✅ | **No `startDate` and no `tags` on update** (verified rejected with 400). For placement bid modifiers, use `update_sponsored_products_campaign_placement_modifiers`. |
+| `update_sponsored_products_campaign_placement_modifiers` | ✅ | **NEW 2026-05-07.** Single-campaign target. Full upstream `dynamicBidding` shape — `strategy` REQUIRED, `placementBidding[]` optional. Amazon merges by placement key; `percentage: 0` removes the placement; `placementBidding: []` and omitting the key are no-ops. Pre-read rejects ARCHIVED + captures `oldValue`; post-read verifies the modifier landed. action_logs row written with both pre/post snapshots; `WRITE_VERIFICATION_FAILED` if observed ≠ requested (D2 mitigation). |
+| `create_sponsored_products_campaign_negative_keyword` | ✅ | State must be `"ENABLED"` only. success.campaignNegativeKeywordId. |
+| `update_sponsored_products_campaign_negative_keyword` | ✅ | **NEW 2026-05-05.** UPPERCASE state (ENABLED/PAUSED). success.campaignNegativeKeywordId. State-only update. |
+| `create_sponsored_products_ad_group` | ✅ | State ∈ {ENABLED, PAUSED}. |
+| `update_sponsored_products_ad_group` | ✅ | UPPERCASE state. Pause / change defaultBid / change name. |
+| `create_sponsored_products_keyword` | ✅ | State must be `"ENABLED"` only — use update to pause after create. |
+| `update_sponsored_products_keyword` | ✅ | UPPERCASE state. Pause / change bid. |
+| `create_sponsored_products_ad_group_negative_keyword` | ✅ | State must be `"ENABLED"` only. success.keywordId. |
+| `update_sponsored_products_ad_group_negative_keyword` | ✅ | **NEW 2026-05-05.** UPPERCASE state (ENABLED/PAUSED). success.**negativeKeywordId** (NOT keywordId). State-only. |
+| `create_sponsored_products_campaign_negative_target` | ✅ | **NEW 2026-05-05.** Wrapper key `campaignNegativeTargetingClauses`. UPPERCASE_SNAKE expression types (`ASIN_SAME_AS`/`ASIN_BRAND_SAME_AS`); expression SINGULAR. State `ENABLED` only. success.**campaignNegativeTargetingClauseId** (long-form). |
+| `update_sponsored_products_campaign_negative_target` | ✅ | **NEW 2026-05-05.** UPPERCASE state (ENABLED/PAUSED). State-only. |
+| `create_sponsored_products_ad_group_negative_target` | ✅ | **NEW 2026-05-05.** Wrapper key `negativeTargetingClauses`. UPPERCASE_SNAKE expression types; expression SINGULAR. State `ENABLED` only. success.targetId (short-form). |
+| `update_sponsored_products_ad_group_negative_target` | ✅ | **NEW 2026-05-05.** UPPERCASE state (ENABLED/PAUSED). State-only. |
+| `create_sponsored_products_target` | ✅ | State must be `"ENABLED"` only. |
+| `update_sponsored_products_target` | ✅ | ASIN/category targets only — keyword IDs go through `update_sponsored_products_keyword`. |
+| `create_sponsored_products_product_ad` | ✅ | State ∈ {ENABLED, PAUSED}. |
+| `update_sponsored_products_product_ad` | ✅ | UPPERCASE state. |
+| `update_sponsored_brands_campaign` | ✅ | UPPERCASE state. **No `startDate` on update** (verified rejected). |
+| `update_sponsored_brands_ad_group` | ✅ | UPPERCASE state ∈ {ENABLED, PAUSED} only (no ARCHIVED). **No `defaultBid`** (verified rejected). |
+| `update_sponsored_brands_ad` | ✅ | UPPERCASE state ∈ {ENABLED, PAUSED} only. |
+| `update_sponsored_brands_keyword` | ✅ | **lowercase** state. Items require `keywordId` + `adGroupId` + `campaignId`. |
+| `update_sponsored_brands_target` | ✅ | **NEW 2026-05-02. lowercase** state. Items require `targetId` + `adGroupId` + `campaignId`. |
+| `create_sponsored_brands_ad_group_negative_keyword` | ✅ | **NEW 2026-05-02. matchType is camelCase** (`negativeExact`/`negativePhrase`) — DIFFERENT from SP. No `state` field. |
+| `update_sponsored_brands_ad_group_negative_keyword` | ✅ | **NEW 2026-05-05. lowercase** state. Items require `keywordId` + `adGroupId` + `campaignId`. Flat-array response (same shape as SB keyword UPDATE). |
+| `create_sponsored_brands_ad_group_negative_target` | ✅ | **NEW 2026-05-05.** Body key `negativeTargets`; per-item field `expressions` (PLURAL). camelCase types (`asinSameAs`/`asinBrandSameAs`). No `state` field — implicit ENABLED. Envelope shape `{createTargetSuccessResults, createTargetErrorResults}` — adapter normalizes to canonical multi-status. |
+| `update_sponsored_brands_ad_group_negative_target` | ✅ | **NEW 2026-05-05. lowercase** state. Items require `targetId` + `adGroupId`. Envelope shape `{updateTargetSuccessResults, updateTargetErrorResults}` — same adapter as create. |
+| `archive_sponsored_products_campaign` | ✅ | **NEW 2026-09-26. PERMANENT.** `campaigns:[{campaignId}]`, max 1000. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_campaign_negative_keyword` | ✅ | **NEW 2026-09-26. PERMANENT.** `campaignNegativeKeywords:[{keywordId}]`, max 1000. success.campaignNegativeKeywordId. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_campaign_negative_target` | ✅ | **NEW 2026-09-26. PERMANENT.** `campaignNegativeTargetingClauses:[{targetId}]`, max 1000. success.campaignNegativeTargetingClauseId. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_ad_group` | ✅ | **NEW 2026-09-26. PERMANENT.** `adGroups:[{adGroupId}]`, max 1000. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_keyword` | ✅ | **NEW 2026-09-26. PERMANENT.** `keywords:[{keywordId}]`, max 1000. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_ad_group_negative_keyword` | ✅ | **NEW 2026-09-26. PERMANENT.** `negativeKeywords:[{keywordId}]`, max 1000. success.**negativeKeywordId**. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_target` | ✅ | **NEW 2026-09-26. PERMANENT.** `targets:[{targetId}]`, max 1000. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_ad_group_negative_target` | ✅ | **NEW 2026-09-26. PERMANENT.** `negativeTargetingClauses:[{targetId}]`, max 1000. success.targetId. Items key and id field match the entity's update tool. |
+| `archive_sponsored_products_product_ad` | ✅ | **NEW 2026-09-26. PERMANENT.** `productAds:[{adId}]`, max 1000. Items key and id field match the entity's update tool. |
+| `archive_sponsored_brands_campaign` | ✅ | **NEW 2026-09-26. PERMANENT.** `campaigns:[{campaignId}]`, **max 10** (an eleventh id fails the whole batch). Items key and id field match the entity's update tool. |
+| `update_sponsored_display_campaign` | ✅ | **lowercase** state — fixed 2026-05-02 (was incorrectly UPPERCASE in our schema). **No `startDate` on update**. |
+| `update_sponsored_display_ad_group` | ✅ | **lowercase** state. Flat-array response. |
+| `update_sponsored_display_product_ad` | ✅ | **lowercase** state. Flat-array response. |
+| `update_sponsored_display_target` | ✅ | **NEW 2026-05-02. lowercase** state. Just `targetId` + optional state/bid. |
+| `get_sp_bid_recommendations` | ✅ | Read-only; p50 ≈ 40s |
+| `create_relevancy_dataset` | ✅ | **NEW 2026-06-11.** `account:write`. `{datasetName, asin, competitorAsins:[1-10], marketplace}` — marketplace required, ownership-validated. Returns numeric `datasetId`. NO dry-run, NO delete. Check `availableDatasets` in `get_keyword_relevancy` first: a create on a product that already has a dataset may be refused with `RELEVANCY_DATASET_EXISTS` (`retryable: false`). When it adds some competitors after the create (the ones Titan Tools holds no data for yet), or errors but made the dataset anyway, it returns `created: true` with the dataset and the per-competitor `added` / `refused` lists. |
+| `add_relevancy_dataset_asins` | ✅ | **NEW 2026-06-11.** `{dataSetId, asins:[1-10], marketplace, asin?}` (camelCase `dataSetId`; marketplace required, ownership-validated; `asin` = the product, for the re-read). Returns `{success}`; after a refused batch, `{success, added, alreadyPresent, refused}` from adding one at a time. |
+| `remove_relevancy_dataset_asins` | ✅ | **NEW 2026-06-11.** `{dataSetId, asins:[1-10], marketplace}` (marketplace required, ownership-validated). Returns `{success}`. |
+| `track_keywords` | ✅ | **NEW 2026-06-15.** `account:write`. asin-scoped: `{asin, phrases:[1-500], marketplace}` — required, ownership-validated, US/DE/UK/CA. Does NOT read the pin. Partial-success `{items,summary}`; per-item SUCCESS/ALREADY_TRACKED/ERROR. `items[].key`=phrase (NOT the new id). REVERSIBLE. |
+| `untrack_keywords` | ✅ | **NEW 2026-06-15.** by-id: `{keywordRankTrackerIds:[1-500]}` (no marketplace). Reverses track. |
+| `set_keyword_label` | ✅ | **NEW 2026-06-15.** PATCH. `{keywordRankTrackerIds, labelId}` — `labelId:null` clears. |
+| `add_keyword_tag` | ✅ | **NEW 2026-06-15.** `{keywordRankTrackerIds, tag}` (≤120 chars; creates tag if new). |
+| `remove_keyword_tags` | ✅ | **NEW 2026-06-15.** `{tagIds}` (from a `get_keyword_ranks` row's `tags[].tagId`). |
+| `add_keyword_comment` | ✅ | **NEW 2026-06-19.** `account:write`. SINGLE-ITEM (not batch): `{keywordRankTrackerId, commentDate, commentText}` (no marketplace) → `{comment, count}`; comment carries a `commentId`. REVERSIBLE; 404 on a foreign id. |
+| `edit_keyword_comment` | ✅ | **NEW 2026-06-19.** `{commentId, commentText}` — text ONLY, no date → `{comment}`. 404 on a foreign/unknown id. |
+| `remove_keyword_comment` | ✅ | **NEW 2026-06-19.** `{commentId}` → `{success}`. Reverses add. 404 on a foreign/unknown id. |
+| `update_relevancy_rankings` | ✅ | **NEW 2026-06-19.** `account:write`. `{datasetId, marketplace}` (required, ownership-validated) → `{success}`. REAL recompute, once/24h, ASYNC — poll `get_relevancy_ranking_status` (`{ongoing}`). |
+| `purge_relevancy_cache` | ✅ | **NEW 2026-06-19.** `{datasetId}` (**NO marketplace**) → `{success}`. Drops cached ranking results. |
+
+### State case quirks (read this carefully)
+
+State casing varies by route. Mismatch fails at Zod validation before any network call.
+
+| Tools | State case |
+|-------|------------|
+| **lowercase** | `update_sponsored_brands_keyword`, `update_sponsored_brands_target`, `update_sponsored_brands_ad_group_negative_keyword`, `update_sponsored_brands_ad_group_negative_target`, `update_sponsored_display_campaign`, `update_sponsored_display_ad_group`, `update_sponsored_display_product_ad`, `update_sponsored_display_target` |
+| UPPERCASE 2 values (ENABLED/PAUSED; archive with the matching `archive_*` tool, never `state: ARCHIVED`) | Every other SP update, `update_sponsored_brands_campaign` |
+| UPPERCASE 2 values (ENABLED/PAUSED only) | `create_sponsored_products_campaign`, `create_sponsored_products_ad_group`, `create_sponsored_products_product_ad`, `update_sponsored_brands_ad_group`, `update_sponsored_brands_ad` |
+| `"ENABLED"` only on UPDATE | `update_sponsored_products_portfolio` (probed 2026-09-22; PAUSED is refused, so there is no way to pause a portfolio) |
+| `"ENABLED"` only on CREATE, too | `create_sponsored_products_portfolio` (probed 2026-09-23; both portfolio routes take ENABLED and nothing else) |
+| `"ENABLED"` only on create | `create_sponsored_products_keyword`, `create_sponsored_products_target`, `create_sponsored_products_campaign_negative_keyword`, `create_sponsored_products_ad_group_negative_keyword`, `create_sponsored_products_campaign_negative_target`, `create_sponsored_products_ad_group_negative_target` |
+| No `state` field at all (state implicit ENABLED) | `create_sponsored_brands_ad_group_negative_keyword`, `create_sponsored_brands_ad_group_negative_target` |
+
+### Archiving is its own tool, and it is permanent
+
+Amazon refuses `state: ARCHIVED` on every SP update and on `update_sponsored_brands_campaign`. Archive through the ten `archive_*` tools instead: SP campaigns, ad groups, keywords, targets, product ads, both levels of negative keywords and negative targets, and SB campaigns. Each takes the same items key and id field as that entity's update tool. Portfolios cannot be archived at all. Sponsored Display and the lowercase SB keyword, target and negative updates are unchanged by this: their schemas still take a lowercase `state` that includes `archived`.
+
+There is no unarchive. For campaigns, ad groups, keywords, targets, product ads and SB campaigns, offer `state: PAUSED` first when the member's goal is to stop spend: a paused item stops serving and can be re-enabled. The four SP negative archives (`archive_sponsored_products_campaign_negative_keyword`, `archive_sponsored_products_campaign_negative_target`, `archive_sponsored_products_ad_group_negative_keyword`, `archive_sponsored_products_ad_group_negative_target`) run the other way: a negative keyword keeps ads off its search terms and a negative target keeps ads off its products and brands, so archiving one does not stop spend. An archived negative stops blocking its search terms, or its products and brands, so ads can show and spend on them again, and it can never be re-enabled. To lift a block reversibly, pause the negative with its update tool (`state: PAUSED`) instead. In every case, only archive what the member explicitly asked to archive, and name every item in the batch before proposing it.
+
+### Negative-keyword matchType case quirk
+
+| Tool | `matchType` case |
+|------|------------------|
+| `create_sponsored_products_campaign_negative_keyword` | UPPERCASE: `NEGATIVE_EXACT` / `NEGATIVE_PHRASE` |
+| `create_sponsored_products_ad_group_negative_keyword` | UPPERCASE: `NEGATIVE_EXACT` / `NEGATIVE_PHRASE` |
+| `create_sponsored_brands_ad_group_negative_keyword` | **camelCase**: `negativeExact` / `negativePhrase` |
+
+> The matchType case-quirk only applies to CREATE — UPDATEs are state-only and do not carry `matchType`.
+
+### Negative-target expression-type case quirk
+
+| Tool | `expression[].type` case | Field name |
+|------|--------------------------|-----------|
+| `create_sponsored_products_campaign_negative_target` | UPPERCASE_SNAKE: `ASIN_SAME_AS` / `ASIN_BRAND_SAME_AS` | `expression` (singular) |
+| `create_sponsored_products_ad_group_negative_target` | UPPERCASE_SNAKE: `ASIN_SAME_AS` / `ASIN_BRAND_SAME_AS` | `expression` (singular) |
+| `create_sponsored_brands_ad_group_negative_target` | **camelCase**: `asinSameAs` / `asinBrandSameAs` | **`expressions`** (PLURAL) |
+
+## Failure modes
+
+| Result | Meaning | What to do |
+|--------|---------|-----------|
+| `MUST_SET_ACTIVE_ACCOUNT` | No Titan Tools account active | Call `list_accounts` → `switch_account` first |
+| `NO_ACTIVE_SELLER` | No seller selected | Call `list_seller_accounts` → `set_active_seller` |
+| `OAUTH_REFRESH_FAILED` | Refresh token rotated/expired | Tell the user to reconnect at <https://titanconnect.titannetwork.com> |
+| `OAUTH_REFRESH_REVOKED` | Upstream rejected the refresh as invalid/expired | Same as above — re-link |
+| `OAUTH_REFRESH_NETWORK` | Transient network/5xx during refresh | Retry once; if persists, surface error to user |
+| `INSUFFICIENT_SCOPE` | OAuth grant lacks `tools:write` (Amazon Ads writes only — the relevancy dataset writes auto-fall-back to the server credential and do not surface this) | Ask the user to re-link (`link_account`) with the missing scope |
+| `NEXUS_CALL_FAILED` | Nexus 5xx or transport error | Surface the error message; do NOT retry without LIST-ing first to verify state |
+| `error[i].errorCode` starts `ADS_` | Amazon refused that item for a named reason: `ADS_DUPLICATE` (it already exists), `ADS_INELIGIBLE` (product cannot be advertised), `ADS_INVALID_VALUE`, `ADS_NOT_FOUND` (stale or wrong id), `ADS_INVALID_DATE` | Follow that row's `hint`. Never resend an `ADS_` item unchanged. A duplicate keyword or negative keyword already exists but may be PAUSED and not serving: say it already exists, never that it is in place, and if it should serve, read it and enable it rather than adding it again |
+| `ADS_DATE_IN_PAST` | A campaign `startDate` is in the past; nothing was sent | Ask the member for a start date of today or later, then propose again |
+| `ADS_NEGATIVE_PHRASE_TOO_LONG` | A phrase-match negative keyword has more than 4 words, which Amazon refuses; nothing was sent | Shorten each item in `itemErrors` to 4 words or fewer, or ask the member whether an exact-match negative fits, then propose again |
+| `skipped[]` present | Keywords or negative keywords NOT sent. `ALREADY_EXISTS`: an enabled copy exists (`existingId`), so it is in place and counts as done. `EXISTS_PAUSED`: a paused copy exists (`existingId`); it is NOT serving and does not count as done. `DUPLICATE_IN_REQUEST`: it repeats another item in the request (`duplicateOf`), whose outcome is its outcome. On a batch where `success` is false they are under `data.skipped`. | Follow that row's `hint`. Report `ALREADY_EXISTS` as already in place; for `EXISTS_PAUSED` say it exists but is paused and offer to enable it, never that it is in place. Do not propose any of them again as a new item |
+| `error.length > 0` | Partial multi-status failure | Narrate per-item; some items succeeded, some failed |
+| `WRITE_ALL_ITEMS_FAILED` | No item has a confirmed success — `success` is `false` and `error` is this string, not a list | Read `message` first: it names the key the per-item rows moved to, and says whether upstream refused the batch or the outcome is UNKNOWN. Never report the batch as applied, and on UNKNOWN never report it as not applied either |
+
+## Common rollback recipes
+
+| Action | How to undo |
+|--------|-------------|
+| Created campaign | `update_sponsored_products_campaign` with `state: PAUSED` (reversible), or `archive_sponsored_products_campaign` (permanent) |
+| Created keyword | `update_sponsored_products_keyword` with `state: PAUSED` (reversible), or `archive_sponsored_products_keyword` (permanent); other entities have a matching `archive_*` tool |
+| Updated budget | Re-`update_sponsored_products_campaign` with the prior budget value |
+| Added neg keyword | `archive_sponsored_products_campaign_negative_keyword` / `archive_sponsored_products_ad_group_negative_keyword` (or `update_sponsored_brands_ad_group_negative_keyword` with `state: archived` for SB). |
+| Added neg target | `archive_sponsored_products_campaign_negative_target` / `archive_sponsored_products_ad_group_negative_target` (or `update_sponsored_brands_ad_group_negative_target` with `state: archived` for SB). |
+
+A rollback is a write like any other. Narrate it before you call it, and do not assume anything will ask the user first.
+
+## Critical rules summary (in priority order)
+
+1. **Stay within the requested task.** Retrieve Titan knowledge only when the requested task needs Titan guidance. A direct, authorized action does not require an unrelated knowledge call.
+2. **Bundle only after narrating all of it.** Multiple `write` calls in one response are fine for batch negation / batch pausing / multi-step plans, but nothing is guaranteed to interrupt you between them. Say what the whole batch will change before the first call, not after the last.
+3. **Acknowledge before acting.** Briefly say what you're about to do (one sentence is fine), then proceed.
+4. **No "Always Allow" nudge.**
+5. **Inspect the multi-status `error[]`.** Empty `error` is the only success — but first check that `error` IS a list. A top-level `success: false` means `error` is a code string and the rows have moved to the key the `message` names; see the envelope shapes above.
+6. **No fabricated IDs** — campaignId, adGroupId, keywordId, targetId all come only from this turn's tool results.
+7. **Marketplace defaults to the active seller's storefront** — omit `marketplace` unless you're targeting a connected non-default marketplace, in which case pass its exact storefront string from `get_marketplaces` (see "Marketplace handling").
+8. **Inspect the outcome on every response.** If `dryRun` is present, disclose simulation when it is true. Report a live change only when its result confirms it; describe an unverified or UNKNOWN result as unknown.
+
+If a `write` tool returns `MUST_SET_ACTIVE_ACCOUNT`, call `switch_account` first, then `set_active_seller`, then re-attempt the propose call.
+
+## Alert read-state actions (OAuth `tools:write` — NOT Amazon Ads writes)
+
+`mark_alerts` and `mark_alerts_by_filter` change an alert's READ/UNREAD state. They are write tools (OAuth `tools:write`/`mcp` scope, same gating as the `write` tools above) but they are a different class entirely: **no money, no live-ad change, no `dryRun` field, no multi-status `success[]`/`error[]` envelope.** They execute immediately (not proposals) and are fully **reversible** — re-mark with the opposite `state` to undo. The `write` dryRun / multi-status / "Always Allow" protocol does NOT apply to these two tools.
+
+| Tool | Effect |
+|------|--------|
+| `mark_alerts` | Mark specific alerts read/unread. Params: `state` (READ/UNREAD), `alerts` (array of `{ alertId, alertDate }`, max 500). `alertId` = `items[].id` from `get_alerts`; `alertDate` = the YYYY-MM-DD slice of that alert's `datetime`. Returns `{ results: [{ id, status }] }` with per-alert `SUCCESS`/`ERROR` — partial success, one bad id does not fail the batch. |
+| `mark_alerts_by_filter` | Bulk-mark every alert in a window + filter read/unread. Params: `state` (READ/UNREAD), `startDate`, `endDate` (≤180 days counting both endpoints, so endDate is at most 179 days after startDate), + the same filters as `get_alerts`. Returns `{ updatedCount, failedDates }` — `updatedCount` is alerts whose flag actually changed; re-issue to retry `failedDates` (idempotent). Can be slow over wide ranges. |
+
+Confirm intent before bulk-marking a wide range, but no per-item approval dance is needed — these are low-stakes and reversible. Read the alerts first via `get_alerts` (a data tool) to get the `alertId`/`alertDate` pairs.

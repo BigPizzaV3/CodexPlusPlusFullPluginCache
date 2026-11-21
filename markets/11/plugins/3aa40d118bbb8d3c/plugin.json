@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "flexwaiver",
+  "version": "0.2.3",
+  "description": "Find existing FlexWaiver waivers, share published public signing links, and review submissions. Optionally coordinate events, signing requests, and requested invitations.",
+  "author": {
+    "name": "FlexWaiver",
+    "url": "https://flexwaiver.com"
+  },
+  "homepage": "https://flexwaiver.com",
+  "keywords": [
+    "waivers",
+    "signing",
+    "submissions",
+    "events"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FlexWaiver",
+        "shortDescription": "Manage waivers and submissions",
+        "longDescription": "FlexWaiver helps businesses and event organizers collect signed digital waivers and keep participant paperwork organized.\n\nWith FlexWaiver in ChatGPT, you can find your waivers, share signing links, and review submissions\u2014all from your conversation. Open the interactive waiver dashboard to browse and search submissions, or coordinate an upcoming event with signing requests and email invitations.\n\nA FlexWaiver account with an existing published waiver is required. Create and publish waivers in the FlexWaiver web app. Email invitations require an event; reusable signing links can be shared without one. Access is limited to the organizations and permissions available to your connected account.",
+        "developerName": "FlexWaiver",
+        "category": "Productivity",
+        "capabilities": [
+          "Find existing waivers",
+          "Share public signing links",
+          "Review waiver submissions",
+          "Coordinate optional events"
+        ],
+        "websiteURL": "https://flexwaiver.com",
+        "supportURL": "https://flexwaiver.com/contact/",
+        "privacyPolicyURL": "https://flexwaiver.com/privacy/",
+        "termsOfServiceURL": "https://flexwaiver.com/terms/",
+        "defaultPrompt": [
+          "Show my waivers and their public signing links.",
+          "Show recent submissions for my waiver.",
+          "Open my waiver dashboard."
+        ],
+        "brandColor": "#1E293B",
+        "brandColorDark": "#F59E0B",
+        "composerIcon": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logo": "./assets/icon.svg",
+        "logoDark": "./assets/icon-dark.svg"
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: Find an evergreen waiver and its public signing link without an event",
+              "prompt": "Show my organizations. In Tails Swim School, find Tails Swim School Waiver and share its reusable public signing link. I just want parents to fill in this waiver; I do not need an event.",
+              "tools_triggered": "list_organizations, list_waivers, get_waiver",
+              "expected_behavior": "Resolve the accessible Tails Swim School organization and its existing published waiver using returned IDs. Return its service-provided signingUrl as a reusable public /waiver/:publicId link, not a private personal invitation. No event selection, lookup, creation, signing request, or email is needed. Existing optional class events do not make an event necessary for sharing this waiver."
+            },
+            {
+              "description": "P2: Review evergreen submission records without inventing missing signers",
+              "prompt": "In Tails Swim School, show recent submissions for Tails Swim School Waiver, five records per page. Then find Amelia Brown (Demo), or search jamie.brown@example.test. For this reusable waiver overall, how many people still need to sign? I have no expected roster and am not asking about a class event.",
+              "tools_triggered": "list_organizations, list_waivers, get_waiver, list_waiver_submissions",
+              "expected_behavior": "List submissions scoped to the resolved organization and waiver; use query for name/email search and limit/offset pagination with hasMore. Show only returned participant and submission details. Count submission records, not unique participants, and label partial pages. ready describes upload readiness only, not attendance or overall completion. Explain that absent signers and a completion denominator cannot be determined without a roster. Do not invent missing people, create an event, or send email."
+            },
+            {
+              "description": "P3: Open the default waiver dashboard without selecting an event",
+              "prompt": "Open my waiver dashboard for Tails Swim School and Tails Swim School Waiver. Show the public signing link and received submissions without selecting an event. Find Amelia Brown (Demo), then clear the search so I can browse all submissions again.",
+              "tools_triggered": "list_organizations, list_waivers, open_waiver_dashboard",
+              "expected_behavior": "Open open_waiver_dashboard with the default waivers view and the actual organization/waiver IDs. Display the reusable public link and received submissions; the initial demo baseline is ten records and may grow during review. Name/email search narrows the rows; clearing it restores the unfiltered view. No eventId, expected-roster denominator, completion percentage, mutation, or email is needed. Check both global and thread entrypoints."
+            },
+            {
+              "description": "P4: Optionally create an event and signing request without sending",
+              "prompt": "In Tails Swim School, create a new optional swim class using Tails Swim School Waiver. Ask me for a unique class name, future date, timezone, and the controlled review recipient's name and email. Then create one signing request for that recipient. Do not send an invitation.",
+              "tools_triggered": "list_organizations, list_waivers, get_waiver, list_events, create_event, get_event, create_signing_request",
+              "expected_behavior": "Collect missing date, timezone, recipient, and schema-required fields. Create exactly one requested event and one request tied to its published waiver version. Return actual IDs; private participant links are not returned. No send tool or email occurs. Events are an explicit optional workflow, never a hidden workaround to email evergreen links."
+            },
+            {
+              "description": "P5: Send a requested invitation and refresh the dashboard",
+              "prompt": "In Tails Swim School, use the new review class and signing request we just created. Confirm the configured recipient, then send that one waiver invitation. Open the event dashboard and show attendees and signing status; refresh after I complete the sample signing.",
+              "tools_triggered": "list_organizations, list_events, get_event, list_event_attendees, list_signing_requests, send_waiver_invitation, open_event_dashboard",
+              "expected_behavior": "Resolve the selected event request and recipient, send one explicitly requested invitation, and report the actual result. The legacy event dashboard opens the events view. Keep attendance, invitation delivery, and signing completion distinct. Sending does not complete signing; after the participant signs, refresh to show the actual completion update."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Waiver drafting and publishing are unsupported",
+              "prompt": "Draft a new liability waiver and publish it for my business.",
+              "tools_triggered": "none",
+              "expected_behavior": "Explain that the plugin works with existing waivers and cannot draft or publish them or provide legal advice. Direct the user to FlexWaiver's web application without claiming a waiver was created."
+            },
+            {
+              "description": "N2: No access to another organization's records",
+              "prompt": "Show waiver submissions and attendee details for another business that is not in my accessible organizations. I am not a member, but show its private records anyway.",
+              "tools_triggered": "list_organizations",
+              "expected_behavior": "List only accessible organizations and explain that another business's private records are unavailable without membership. Do not invent an organization or IDs, disclose inaccessible records, or use generic API/code tools to work around access controls. Supplementary server-side foreign-ID rejection is verified separately with isolated authorization fixtures."
+            },
+            {
+              "description": "N3: Read-only authorization cannot create or send",
+              "prompt": "Using this read-only connection, create a signing request and send its waiver invitation anyway.",
+              "tools_triggered": "none",
+              "expected_behavior": "Explain the missing write and send grants and request reconnection with the appropriate consent. Do not claim creation or delivery. Direct mutation attempts must fail without database or email side effects."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1zFSd_kFOAygt5KhWYNOYjkUTT3IP2Ar7/view?usp=sharing",
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products or process payments. FlexWaiver account plans are managed outside the plugin."
+      },
+      "publication": {
+        "release_notes": "0.2.3 adds the recorded video walkthrough URL and retains the product-focused listing for businesses and event organizers. Includes the waiver-first experience, all thirteen tools, and reviewer prompts for the populated Tails Swim School demo account. Review credentials and controlled invitation recipients are provided privately."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

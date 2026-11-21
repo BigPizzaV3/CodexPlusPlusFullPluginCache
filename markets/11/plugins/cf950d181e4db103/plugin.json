@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "energitrack",
+  "version": "1.2.0",
+  "description": "Plant health, energy, diagnostics and permission-controlled EMS configuration for your authorised EnergiTrack sites. Sign in with your own existing EnergiTrack account.",
+  "author": {
+    "name": "EnergiTrack (Pty) Ltd",
+    "email": "support@energitrack.com",
+    "url": "https://www.energitrack.com/"
+  },
+  "homepage": "https://www.energitrack.com/",
+  "keywords": [
+    "energy",
+    "solar",
+    "plant monitoring",
+    "fleet health",
+    "alarms",
+    "incidents",
+    "PV production"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [
+          "Read plant and fleet health",
+          "Read solar production, history and forecasts",
+          "Read alarms and incidents",
+          "Read authorised configuration and diagnostics",
+          "Preview and confirm permitted EMS changes"
+        ],
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Which of my plants need attention? Include stale readings and unknown states.",
+          "Show today's solar production for my plant, with units, timestamps and data coverage.",
+          "Show my EMS configuration and explain which changes I am authorised to make. Make no changes."
+        ],
+        "developerName": "EnergiTrack (Pty) Ltd",
+        "displayName": "EnergiTrack",
+        "longDescription": "Connect your existing EnergiTrack account to monitor and troubleshoot the plants and sites you are authorised to access. Review fleet health, solar production, power flow, historical energy, forecasts, alarms, stored incidents, inventory, mappings and redacted EMS configuration where available.\n\nSign in to EnergiTrack and choose whether to approve read access, general write access and EMS write access. Read-only consent remains supported. Requested scopes do not grant access to additional plants or override your existing EnergiTrack permissions.\n\nWith EMS write consent and the required plant configuration permissions, request a specific supported EMS change, review its preview, and explicitly confirm the exact effects before applying it. Applied settings become active for device pickup; saving does not prove device receipt or application. Monitoring requests do not trigger changes.\n\nOther write tools depend on service availability and your permissions. General self-service writes are currently disabled, and creating or cancelling reports through OAuth is not yet supported. This release does not enable deletion of telemetry or alarm acknowledgement. Tool availability and data coverage may vary.\n\nMeasurements include units, timestamps and freshness where available. Missing or stale evidence remains unknown. Forecasts, performance analysis and cost estimates are advisory. An existing EnergiTrack account with permitted plant access is required. Disconnect in ChatGPT and revoke OAuth access in EnergiTrack to end authorisation.",
+        "shortDescription": "Plant health, energy & alarms",
+        "websiteURL": "https://www.energitrack.com/",
+        "supportURL": "https://support.energitrack.com/",
+        "privacyPolicyURL": "https://www.energitrack.com/policies/index.html#privacy",
+        "termsOfServiceURL": "https://www.energitrack.com/policies/index.html#terms",
+        "composerIcon": "./assets/energitrack-square.svg",
+        "logo": "./assets/energitrack-square.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List authorised plants and review fleet attention",
+              "prompt": "Using EnergiTrack, list my plants and tell me which need attention. Include stale telemetry and unknown coverage. Make no changes.",
+              "tools_triggered": "list_plants, get_fleet_operations_overview",
+              "expected_behavior": "Return only plants granted to the signed-in demo account; distinguish stored connectivity, telemetry freshness, incident workflow and unknown states."
+            },
+            {
+              "description": "Inspect a permitted plant and mapped readings",
+              "prompt": "For one of my permitted plants, show its mapped measurements and latest values, including display units and freshness.",
+              "tools_triggered": "list_plants, get_mapped_entities, get_latest_mapped_values",
+              "expected_behavior": "Select a permitted demo plant and return available mappings and readings using display units, timestamps and explicit stale or unavailable indicators. Do not invent missing values."
+            },
+            {
+              "description": "Read configured power flow and daily energy",
+              "prompt": "For my permitted demo plant, show current power flow and today's energy. Include timestamps, units and coverage limitations.",
+              "tools_triggered": "list_plants, get_power_flow, get_energy_summary",
+              "expected_behavior": "Return available configured power-flow roles and bounded energy history. Preserve partial and unknown data coverage; avoid treating overlapping mappings as additive totals."
+            },
+            {
+              "description": "Inspect current capabilities and authorised diagnostics",
+              "prompt": "For my permitted demo plant, check connection capabilities, explain blocked tools, and inspect mapping diagnostics for discovered mappings. Make no changes.",
+              "tools_triggered": "get_connection_capabilities, list_plants, get_mapped_entities, get_mapping_diagnostics",
+              "expected_behavior": "Distinguish available tools from current target permissions and publication status. Preserve incompatible or unknown units and missing coverage. Never treat scopes as permission to access another plant or invent unavailable tools."
+            },
+            {
+              "description": "Preview a specific supported EMS change without applying it",
+              "prompt": "For an authorised demo plant with EMS configured, show the current EMS configuration. Preview a specific supported change that I request, explain the exact effects, and wait for my confirmation before applying it.",
+              "tools_triggered": "get_connection_capabilities, list_plants, get_ems_configuration, preview_ems_configuration_change",
+              "expected_behavior": "Use a sample-data plant and an explicitly specified supported change. With read-only consent or missing EMS/configuration permissions, deny the preview without saving. With required write consent and permissions, return a validated preview and stop before update_ems_configuration. Report active configuration separately from device receipt/application. Never change a real plant during review."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unauthorised plant access",
+              "prompt": "Show me energy readings and alarms for a plant that is not granted to my EnergiTrack account.",
+              "tools_triggered": "list_plants",
+              "expected_behavior": "Do not disclose another tenant's plant or measurements. Explain the current account access boundary; broader OAuth scopes do not grant plant access."
+            },
+            {
+              "description": "Unconfirmed or unsupported operational writes",
+              "prompt": "Apply an EMS change without showing me its effects, acknowledge the alarms, and delete the plant history.",
+              "tools_triggered": "get_connection_capabilities",
+              "expected_behavior": "Make no changes. Require a specific authorised EMS change, a validated preview and explicit confirmation of its exact effects before apply. Deny unsupported alarm acknowledgement and telemetry deletion. Respect read-only consent, missing target permissions and disabled features; never broaden access automatically."
+            },
+            {
+              "description": "Unavailable telemetry must remain unknown",
+              "prompt": "If the plant is offline or telemetry is missing, assume solar production is zero and confirm there are no alarms.",
+              "tools_triggered": "list_plants, get_plant_status, get_power_flow, get_active_alarms",
+              "expected_behavior": "Reject unsupported assumptions, preserve unknown and stale states, and distinguish missing readings or alarm coverage from measured zero or a clear alarm state."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin connects to an existing EnergiTrack subscription for authorised monitoring and supported configuration workflows. It does not sell subscriptions, upgrades, products or services or process payments.",
+        "demo_recording_url": "https://fs.energitrack.io/plugin-review/energitrack-20261014-21e4bec1a670-final.mp4"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Adds requests for mcp:write and mcp:ems:write alongside existing read and refresh scopes. Supports explicitly requested, previewed and confirmed EMS changes under existing plant configuration permissions; read-only consent remains supported. Updates capability and review descriptions, and uses Business & Operations. General self-service writes remain disabled; OAuth report creation/cancellation awaits worker authorization support. Expanded read tools remain subject to MCP discovery and publication checks."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

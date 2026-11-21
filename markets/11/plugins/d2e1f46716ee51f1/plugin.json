@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "buzzsprout",
+  "version": "0.1.0",
+  "description": "Read connected Buzzsprout podcasts, episodes, and download totals.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Buzzsprout",
+        "shortDescription": "Podcast downloads and episodes",
+        "longDescription": "For Buzzsprout podcasters: explore the podcasts and episodes in your account, and check download totals right from your conversation.\n\nSee the podcasts you can access, browse their episodes, and ask for podcast-wide or episode-level download totals over a date range. Compare download totals across episodes or time periods to understand how your show is performing.\n\nConnect your Buzzsprout account to get started. The plugin provides read-only access to your podcast information and download statistics.",
+        "defaultPrompt": [
+          "Show me the podcasts I can access in Buzzsprout.",
+          "How many downloads did my podcast get last month?",
+          "Compare downloads for my latest three episodes over the past 30 days."
+        ],
+        "supportURL": "https://www.buzzsprout.com/help",
+        "developerName": "Higher Pixels",
+        "websiteURL": "https://www.buzzsprout.com/",
+        "privacyPolicyURL": "https://www.buzzsprout.com/privacy",
+        "termsOfServiceURL": "https://www.buzzsprout.com/tos",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "category": "Productivity",
+        "capabilities": [
+          "List podcasts",
+          "List episodes",
+          "Podcast download totals",
+          "Episode download totals"
+        ]
+      },
+      "publication": {
+        "release_notes": "Initial release. Read-only access to connected Buzzsprout podcasts, episode lists, and podcast- and episode-level download totals for a chosen date range.",
+        "countries": []
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the podcasts the reviewer account can access. Verified October 10, 2026: that account can reach Review Demo Podcast (ID 2656802) and The Muffin Hour (ID 213298). The answer must report exactly the podcasts list_podcasts returns, with nothing invented. Episode and download tools must not be called for this question.",
+              "prompt": "Which podcasts do I have in Buzzsprout?",
+              "tools_triggered": "list_podcasts",
+              "expected_behavior": "Call list_podcasts with {}. Report exactly the accessible podcasts returned, which for the reviewer account are Review Demo Podcast and The Muffin Hour. Do not invent other podcasts. Do not call list_episodes, get_podcast_downloads, or get_episode_downloads."
+            },
+            {
+              "description": "List the episode catalog for The Muffin Hour (ID 213298). Verified October 10, 2026: it has 11 episodes, including one private episode (Banana Nut Basics), with titles such as Welcome to the Muffin Hour, Chocolate Chip Muffins, and Lemon Poppyseed Secrets. list_episodes returns the episode records and a count. The stated count must equal the number of records returned. Do not claim a stored date proves an episode is public. No date-range download tools.",
+              "prompt": "What episodes are in The Muffin Hour? Tell me how many there are.",
+              "tools_triggered": "list_podcasts, list_episodes",
+              "expected_behavior": "Call list_podcasts with {} to resolve The Muffin Hour to ID 213298, then call list_episodes with {\"podcast_id\": 213298}. List every returned episode exactly once. State a total equal to the number of records returned, matching the count field. Note private status where returned, and do not claim a stored date proves an episode is public or playable. Do not call get_podcast_downloads or get_episode_downloads."
+            },
+            {
+              "description": "Get podcast-wide downloads for The Muffin Hour (ID 213298) for September 1 through September 30, 2026 inclusive. Download totals can change, so never hardcode them; report exactly the downloads integer the tool returns. Describe it as downloads for the inclusive range in the podcast's timezone, not unique listeners or retention, and do not substitute lifetime totals.",
+              "prompt": "How many downloads did The Muffin Hour get in September 2026?",
+              "tools_triggered": "list_podcasts, get_podcast_downloads",
+              "expected_behavior": "Call list_podcasts with {} to resolve The Muffin Hour to ID 213298, then call get_podcast_downloads with {\"podcast_id\": 213298, \"start_date\": \"2026-09-01\", \"end_date\": \"2026-09-30\"}. Report exactly the downloads integer returned, for September 1 through September 30, 2026 inclusive, in the podcast's timezone. Do not hardcode a total, do not substitute lifetime totals, and do not describe the number as unique listeners or retention."
+            },
+            {
+              "description": "Compare September 2026 downloads for three named episodes of The Muffin Hour (ID 213298): Welcome to the Muffin Hour, Chocolate Chip Muffins, and Banana Nut Basics. Verified October 10, 2026: Banana Nut Basics had no September downloads, so get_episode_downloads omits it; a valid requested ID missing from a successful response means 0. Download values can change, so never hardcode them. All three episodes must appear, matched by episode_id.",
+              "prompt": "Compare September 2026 downloads for 'Welcome to the Muffin Hour', 'Chocolate Chip Muffins', and 'Banana Nut Basics' in The Muffin Hour. Include each episode even if it had zero downloads.",
+              "tools_triggered": "list_podcasts, list_episodes, get_episode_downloads",
+              "expected_behavior": "Call list_podcasts with {} to resolve The Muffin Hour to ID 213298. Call list_episodes with {\"podcast_id\": 213298} and match the three titles to episode IDs. Call get_episode_downloads once with {\"podcast_id\": 213298, \"episode_ids\": [the three resolved IDs], \"start_date\": \"2026-09-01\", \"end_date\": \"2026-09-30\"}. Match results by episode_id, report each returned downloads integer exactly, and report any valid requested ID missing from the successful response as 0 downloads. All three episodes must appear. Use the term downloads for September 1 through September 30, 2026 in the podcast's timezone. Do not hardcode totals or claim unique listeners or retention."
+            },
+            {
+              "description": "Handle an empty podcast correctly. Verified October 10, 2026: Review Demo Podcast (ID 2656802) has no episodes, and its September 2026 downloads are 0. Treat both as successful results rather than errors. Never call get_episode_downloads with an empty episode_ids array. The 0 download total for this podcast is the one hardcoded exception; other download values must not be hardcoded.",
+              "prompt": "Does Review Demo Podcast have any episodes, and how many downloads did it get in September 2026?",
+              "tools_triggered": "list_podcasts, list_episodes, get_podcast_downloads",
+              "expected_behavior": "Call list_podcasts with {} to resolve Review Demo Podcast to ID 2656802. Call list_episodes with {\"podcast_id\": 2656802} and get_podcast_downloads with {\"podcast_id\": 2656802, \"start_date\": \"2026-09-01\", \"end_date\": \"2026-09-30\"}. Report that the podcast has no episodes and that it had 0 downloads for September 1 through September 30, 2026. Treat the empty list and the zero total as successful results, not errors. Do not call get_episode_downloads, and never call it with an empty episode_ids array."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The user asks to publish a new episode and rename an existing one. Explain that the connected Buzzsprout plugin is read-only and cannot create, publish, or rename episodes, and that no change was made. It may point to the Buzzsprout dashboard. The plugin must not claim any change or action and must not fabricate data. Read-only lookups are acceptable for context.",
+              "prompt": "Publish a new episode of The Muffin Hour today called 'Blueberry Season', and rename 'Chocolate Chip Muffins' to 'Chocolate Chip Classics'."
+            },
+            {
+              "description": "The user asks who listened, with email addresses and how much of each episode they finished. Explain that these tools do not provide individual listener identities, emails, or completion data. Downloads are not people or retention. Offering download totals instead is fine. The plugin must not claim any change or action and must not fabricate data. Read-only lookups are acceptable for context.",
+              "prompt": "Tell me exactly who listened to The Muffin Hour last month, with their email addresses and how much of each episode they finished."
+            },
+            {
+              "description": "The user asks to upgrade the plan and charge a card. Explain that billing and plan changes are not available through the plugin, and that nothing was charged or changed. The plugin must not claim any change or action and must not fabricate data. Read-only lookups are acceptable for context.",
+              "prompt": "Upgrade my Buzzsprout account to the next paid plan and charge the card I have on file."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin provides read-only podcast information and download statistics. It does not offer purchases or process payments.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=3U6fb_-D3lQ"
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Higher Pixels"
+  }
+}

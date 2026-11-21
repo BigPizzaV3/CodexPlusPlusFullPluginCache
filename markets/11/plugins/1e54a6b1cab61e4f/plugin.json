@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "polyarchy-companies",
+  "version": "1.0.0",
+  "description": "Read-only reference for figures Japanese companies disclose in annual securities reports (EDINET): key indicators, employees, segments and regions, exactly as filed, with sources.",
+  "author": {
+    "name": "Kenichi Okamura",
+    "url": "https://docs.polyarchy.net/"
+  },
+  "homepage": "https://docs.polyarchy.net/companies",
+  "keywords": [
+    "japan",
+    "edinet",
+    "securities-report",
+    "financial-data",
+    "xbrl"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Polyarchy Company Filings",
+        "shortDescription": "Japanese company filings data",
+        "longDescription": "Polyarchy Company Filings is a read-only reference service for figures that Japanese companies disclose in their annual securities reports filed on EDINET (Financial Services Agency of Japan). It covers the \"key management indicators\" table, employee information, segment information and regional information.\n\nWhat it returns: values exactly as written in the filing (XBRL), with the document ID, filing date, element name and a link to the filing. Consolidated and non-consolidated figures are separate series and every value says which one it is. Segment and regional tables are returned with the company's own categories and labels.\n\nWhat it does not do: for a single company it does not compute derived figures such as margins or growth rates, and it does not map a company's own categories onto a common scheme. If an item is not disclosed, it returns found=false with the reason and the list of items the company does disclose, rather than a neighbouring item or period. Many companies do not report \"net sales\": IFRS companies, banks and holding companies report a different top-line item, and the service says which.\n\nScreening across companies (screen_companies, screen_trend) is the one place where the server computes derived values, using fixed formulas and returning the disclosed inputs and their sources for every row. Companies that cannot be compared are returned as exclusions with a reason and a count.\n\nIt does not provide stock prices, forecasts or investment advice. Values belong to each filing company; check the original filing. Tool descriptions and results are in Japanese. Tool arguments are logged for 30 days for quality improvement; conversation content is not collected.",
+        "developerName": "Kenichi Okamura",
+        "category": "Data & Analytics",
+        "capabilities": [
+          "Identify a filing company by name, securities code or EDINET code",
+          "Look up a disclosed figure by company, item and fiscal period, with its source filing",
+          "Return segment tables with the company's own segments and labels",
+          "Return regional (geographic) tables as disclosed",
+          "Screen companies by disclosed items or fixed-formula metrics, with inputs and sources per row",
+          "Screen companies by multi-year conditions such as consecutive revenue growth"
+        ],
+        "websiteURL": "https://docs.polyarchy.net/companies",
+        "supportURL": "https://docs.polyarchy.net/",
+        "privacyPolicyURL": "https://docs.polyarchy.net/privacy",
+        "termsOfServiceURL": "https://docs.polyarchy.net/terms",
+        "defaultPrompt": [
+          "\u65e5\u7acb\u88fd\u4f5c\u6240\u306e\u58f2\u4e0a\u53ce\u76ca\u3068\u89aa\u4f1a\u793e\u682a\u4e3b\u306b\u5e30\u5c5e\u3059\u308b\u5f53\u671f\u7d14\u5229\u76ca\u3092\u3001\u76f4\u8fd1 5 \u671f\u5206\u3001\u51fa\u5178\u3064\u304d\u3067\u8868\u306b\u3057\u3066",
+          "\u4efb\u5929\u5802\u306e\u5730\u57df\u5225\u306e\u58f2\u4e0a\u9ad8\u3092\u76f4\u8fd1 2 \u671f\u3067",
+          "\u6d77\u5916\u58f2\u4e0a\u6bd4\u7387\u304c 90% \u4ee5\u4e0a\u306e\u975e\u88fd\u9020\u696d\u306e\u4f1a\u793e\u3092\u6319\u3052\u3066"
+        ],
+        "brandColor": "#7A4A12",
+        "brandColorDark": "#C98A3C",
+        "composerIcon": "./assets/composer-icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Single-company lookup of disclosed figures over several fiscal years (IFRS company).",
+              "prompt": "\u65e5\u7acb\u88fd\u4f5c\u6240\u306e\u58f2\u4e0a\u53ce\u76ca\u3068\u89aa\u4f1a\u793e\u682a\u4e3b\u306b\u5e30\u5c5e\u3059\u308b\u5f53\u671f\u7d14\u5229\u76ca\u3092\u3001\u76f4\u8fd1 5 \u671f\u5206\u3001\u51fa\u5178\u3064\u304d\u3067\u8868\u306b\u3057\u3066",
+              "tools_triggered": "find_company, lookup_company_facts",
+              "expected_behavior": "Identifies Hitachi, Ltd. (EDINET code E01737) and returns the two items for the five most recent fiscal years (years ended March 2022 to March 2026), as consolidated IFRS figures, with the source filing (document ID and filing date; the tool result also carries the filing URL). The tool returns the disclosed values in yen. ChatGPT may display them in millions or hundreds of millions of yen and may add a chart or comparisons of its own. For the year ended 2025-03 the revenue (\u58f2\u4e0a\u53ce\u76ca) is 9,783,370,000,000 yen (9,783,370 million yen). The tool does not estimate or fill in any value."
+            },
+            {
+              "description": "Fail-closed behavior: the requested item is not disclosed by this company, and the tool says so instead of substituting a near item.",
+              "prompt": "\u30c8\u30e8\u30bf\u81ea\u52d5\u8eca\u306e 2025 \u5e74 3 \u6708\u671f\u306e\u58f2\u4e0a\u9ad8\u306f\uff1f",
+              "tools_triggered": "find_company, lookup_company_facts",
+              "expected_behavior": "lookup_company_facts with item=net_sales returns found=false (reason item_not_disclosed) together with a suggestion: Toyota discloses its top-line item as \u55b6\u696d\u53ce\u76ca (operating revenues, a company-defined element). The answer explains that Toyota does not disclose an item called \u58f2\u4e0a\u9ad8, then gives the \u55b6\u696d\u53ce\u76ca figure after re-querying with the suggested element, labelled as \u55b6\u696d\u53ce\u76ca and not as \u58f2\u4e0a\u9ad8."
+            },
+            {
+              "description": "Segment table returned with the company's own segments and labels.",
+              "prompt": "\u65e5\u7acb\u88fd\u4f5c\u6240\u306e 2025 \u5e74 3 \u6708\u671f\u306e\u30bb\u30b0\u30e1\u30f3\u30c8\u5225\u306e\u58f2\u4e0a\u53ce\u76ca\u3092\u3001\u4f1a\u793e\u306e\u533a\u5206\u306e\u307e\u307e\u8868\u306b\u3057\u3066",
+              "tools_triggered": "find_company, lookup_segments",
+              "expected_behavior": "Returns the segment table for the year ended 2025-03 with the segments and labels defined by the company, the reconciling item (\u5168\u793e\u53ca\u3073\u6d88\u53bb) and the reportable-segment total, with the source filing. Hitachi regrouped its segments in the following year, so the segment list depends on which filing the answer uses, and the answer says which. The report filed in June 2026 (prior-year column, the tool's default) lists \u30c7\u30b8\u30bf\u30eb\u30b7\u30b9\u30c6\u30e0\uff06\u30b5\u30fc\u30d3\u30b9, \u30a8\u30ca\u30b8\u30fc, \u30e2\u30d3\u30ea\u30c6\u30a3, \u30b3\u30cd\u30af\u30c6\u30a3\u30d6\u30a4\u30f3\u30c0\u30b9\u30c8\u30ea\u30fc\u30ba and \u305d\u306e\u4ed6. The report filed in June 2025 lists \u30c7\u30b8\u30bf\u30eb\u30b7\u30b9\u30c6\u30e0\uff06\u30b5\u30fc\u30d3\u30b9, \u30b0\u30ea\u30fc\u30f3\u30a8\u30ca\u30b8\u30fc\uff06\u30e2\u30d3\u30ea\u30c6\u30a3, \u30b3\u30cd\u30af\u30c6\u30a3\u30d6\u30a4\u30f3\u30c0\u30b9\u30c8\u30ea\u30fc\u30ba and \u305d\u306e\u4ed6. Either is correct. In both, the reportable-segment total is 10,408,803 million yen, the reconciling item is -625,433 million yen and consolidated revenue is 9,783,370 million yen. Segments are not mapped to any cross-industry scheme, and old and new segments are not mapped onto each other."
+            },
+            {
+              "description": "Regional (geographic) table returned as disclosed.",
+              "prompt": "\u4efb\u5929\u5802\u306e\u5730\u57df\u5225\u306e\u58f2\u4e0a\u9ad8\u3092\u76f4\u8fd1 2 \u671f\u3067",
+              "tools_triggered": "find_company, lookup_regions",
+              "expected_behavior": "Identifies Nintendo Co., Ltd. and returns the regional sales table as disclosed in the securities report (\u65e5\u672c, \u7c73\u5927\u9678 with \u7c73\u56fd as an 'of which' figure, \u6b27\u5dde, \u305d\u306e\u4ed6 and \u5408\u8a08) for the two most recent fiscal years (ended March 2025 and March 2026), with the source filing. For the year ended 2026-03 the total is 2,313,051 million yen. The tool returns the table cells as disclosed and computes no ratio. ChatGPT may add year-on-year changes or shares that it calculates from the disclosed cells."
+            },
+            {
+              "description": "Cross-company screening over multiple years, with exclusions reported.",
+              "prompt": "\u5c0f\u58f2\u696d\u3067 10 \u5e74\u4ee5\u4e0a\u9023\u7d9a\u3067\u5897\u53ce\u306e\u4f1a\u793e\u3092\u6319\u3052\u3066",
+              "tools_triggered": "list_metrics, screen_trend",
+              "expected_behavior": "Calls screen_trend with the top-line revenue item, the streak_up aggregate and min=10, limited to the retail industry (\u5c0f\u58f2\u696d). Returns matching companies (for example \u682a\u5f0f\u4f1a\u793e\u30d9\u30eb\u30af and \u682a\u5f0f\u4f1a\u793e\u30d0\u30ed\u30fc\u30db\u30fc\u30eb\u30c7\u30a3\u30f3\u30b0\u30b9) with the yearly disclosed values and source filings per company, and states the period used. Companies that cannot be compared (change of accounting standard, irregular fiscal period, insufficient history, and so on) are reported as exclusions with reasons and counts."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Stock prices are out of scope. The plugin holds figures from annual securities reports only, so it should not be used to answer; if it is consulted, the answer must say that stock prices are not available here and must not present any figure from the plugin as a price.",
+              "prompt": "\u30c8\u30e8\u30bf\u81ea\u52d5\u8eca\u306e\u4eca\u65e5\u306e\u682a\u4fa1\u3092\u6559\u3048\u3066"
+            },
+            {
+              "description": "Investment advice is out of scope. The plugin has no tool that recommends buying or selling and must not be presented as giving advice. If the plugin is explicitly selected, ChatGPT may call find_company to identify the company, but the plugin returns no recommendation. Any view on buying or selling in the answer is ChatGPT's own and is not attributed to the plugin.",
+              "prompt": "\u4efb\u5929\u5802\u306e\u682a\u306f\u4eca\u304c\u8cb7\u3044\u6642\uff1f \u8cb7\u3046\u3079\u304d\u304b\u3069\u3046\u304b\u7d50\u8ad6\u3060\u3051\u6559\u3048\u3066"
+            },
+            {
+              "description": "Unrelated request. The plugin should not be triggered at all.",
+              "prompt": "\u6765\u9031\u306e\u51fa\u5f35\u306e\u6301\u3061\u7269\u30ea\u30b9\u30c8\u3092\u4f5c\u3063\u3066"
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/JEBatpjQalU",
+        "commerce": false
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release.",
+        "translations": {
+          "ja-JP": {
+            "subtitle": "\u6709\u4fa1\u8a3c\u5238\u5831\u544a\u66f8\u306e\u5024\u3092\u516c\u8868\u3069\u304a\u308a\u306b",
+            "description": "\u6709\u4fa1\u8a3c\u5238\u5831\u544a\u66f8\uff08EDINET\u30fb\u91d1\u878d\u5e81\uff09\u306b\u66f8\u304b\u308c\u305f\u5024\u3092\u3001\u516c\u8868\u3069\u304a\u308a\u306b\u53c2\u7167\u3059\u308b\u8aad\u307f\u53d6\u308a\u5c02\u7528\u306e\u30b5\u30fc\u30d3\u30b9\u3067\u3059\u3002\u5bfe\u8c61\u306f\u300c\u4e3b\u8981\u306a\u7d4c\u55b6\u6307\u6a19\u7b49\u306e\u63a8\u79fb\u300d\u30fb\u5f93\u696d\u54e1\u306e\u72b6\u6cc1\u30fb\u30bb\u30b0\u30e1\u30f3\u30c8\u60c5\u5831\u30fb\u5730\u57df\u5225\u306e\u60c5\u5831\u3067\u3059\u3002\n\n\u8fd4\u3059\u3082\u306e\uff1d\u66f8\u985e\u306b\u66f8\u304b\u308c\u305f\u3068\u304a\u308a\u306e\u5024\uff08XBRL\uff09\u3068\u51fa\u5178\uff08\u66f8\u985e\u7ba1\u7406\u756a\u53f7\u30fb\u63d0\u51fa\u65e5\u30fb\u8981\u7d20\u30fbURL\uff09\u3002\u9023\u7d50\u3068\u5358\u4f53\u306f\u5225\u306e\u7cfb\u5217\u3068\u3057\u3066\u8fd4\u3057\u3001\u3069\u3061\u3089\u306e\u5024\u304b\u3092\u5fc5\u305a\u793a\u3057\u307e\u3059\u3002\u30bb\u30b0\u30e1\u30f3\u30c8\u5225\u30fb\u5730\u57df\u5225\u306e\u8868\u306f\u3001\u4f1a\u793e\u304c\u5b9a\u7fa9\u3057\u305f\u533a\u5206\u3068\u30e9\u30d9\u30eb\u306e\u307e\u307e\u8fd4\u3057\u307e\u3059\u3002\n\n\u3057\u306a\u3044\u3053\u3068\uff1d\u5358\u793e\u306e\u53c2\u7167\u3067\u306f\u5229\u76ca\u7387\u30fb\u524d\u5e74\u6bd4\u306a\u3069\u306e\u6d3e\u751f\u5024\u3092\u8a08\u7b97\u3057\u307e\u305b\u3093\u3002\u958b\u793a\u304c\u7121\u3051\u308c\u3070 found=false \u3068\u7406\u7531\u3001\u305d\u306e\u4f1a\u793e\u304c\u958b\u793a\u3057\u3066\u3044\u308b\u9805\u76ee\u306e\u4e00\u89a7\u3092\u8fd4\u3057\u3001\u96a3\u306e\u9805\u76ee\u3084\u8fd1\u3044\u6c7a\u7b97\u671f\u306e\u5024\u3067\u306f\u57cb\u3081\u307e\u305b\u3093\u3002\n\n\u4f1a\u793e\u3092\u307e\u305f\u3050\u7d5e\u308a\u8fbc\u307f\uff08screen_companies\u30fbscreen_trend\uff09\u306b\u9650\u308a\u3001\u56fa\u5b9a\u306e\u5f0f\u3067\u6d3e\u751f\u5024\u3092\u8a08\u7b97\u3057\u3001\u884c\u3054\u3068\u306b\u5165\u529b\u306e\u958b\u793a\u5024\u3068\u51fa\u5178\u3092\u6dfb\u3048\u307e\u3059\u3002\u6bd4\u8f03\u3067\u304d\u306a\u3044\u4f1a\u793e\u306f\u3001\u9664\u5916\u306e\u7406\u7531\u3068\u4ef6\u6570\u3067\u8fd4\u3057\u307e\u3059\u3002\n\n\u682a\u4fa1\u30fb\u696d\u7e3e\u4e88\u60f3\u30fb\u6295\u8cc7\u52a9\u8a00\u306f\u6271\u3044\u307e\u305b\u3093\u3002\u5024\u306f\u5404\u63d0\u51fa\u4f1a\u793e\u306e\u958b\u793a\u306b\u5e30\u5c5e\u3057\u307e\u3059\uff08\u539f\u5178\u3067\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\uff09\u3002\u30c4\u30fc\u30eb\u306e\u5f15\u6570\u306f\u54c1\u8cea\u6539\u5584\u306e\u305f\u3081 30 \u65e5\u9593\u8a18\u9332\u3057\u307e\u3059\uff08\u4f1a\u8a71\u306e\u672c\u6587\u306f\u53d6\u5f97\u3057\u307e\u305b\u3093\uff09\u3002"
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

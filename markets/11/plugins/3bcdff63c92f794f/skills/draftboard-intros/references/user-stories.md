@@ -1,0 +1,168 @@
+# User-story playbook
+
+How to solve each documented customer pain with the Draftboard MCP. ✅ = supported today,
+🟡 = partial / workaround, 🚧 = not exposed by the Integration API.
+
+### 1. ✅ Map paths through specific people who I know will intro for me
+For a **named connector**, get their connector id (the `connectorId` on a connection, or a
+supporter's id) and call `get_connector_intros` — it lists exactly who that person can introduce you
+to, with scores and shared-history reasons. For **teammates**, use `find_top_paths` with their
+`ownerIds`.
+
+### 2. ✅ I have target accounts (companies) but no people — find intros to those accounts
+Two modes now. **Already have people at those companies?** `list_accounts` gives the account-level
+view — every company where you have targets, with 1st-/2nd-degree reach — and you can filter targets
+to one company (`accountId`) or to a title/role (`title`). **Don't have the names yet?** Company-first
+discovery is now in the API: `search_accounts({ companies, titles })` starts a
+search whose people are normally added as targets automatically (up to a limit per company, paths
+charged) → `find_top_paths` for warm intros to them; the rest wait in `list_pool` (by its `campaignId`)
+for `confirm_pool` / `reject_pool`.
+
+### 3. 🟡 Build a target list from my ICP description
+Closer now. If your ICP is "these roles at these companies", `search_accounts({ companies, titles })`
+discovers matching people and normally adds them as targets automatically (paths charged); the
+rest wait in the pool for `confirm_pool`. You still bring the
+company list and the titles (there is no free-text-ICP → company inference). If the ICP is "these roles,
+reachable through people I know", `search_supporters({ supporters, titles })` searches those
+people's networks instead; everyone it finds waits in `list_pool` (by its `campaignId`) and nothing is
+charged until you `confirm_pool` the ones you want — confirming takes them on and charges their paths. You can also
+`import_targets` known LinkedIn URLs directly. Generating the company/target list from a pure text ICP
+is not something the API does. A text ICP *can* score the people a supporter search finds — see story 14.
+
+### 4. ✅ See if teammates are connected to prospects without them doing anything
+`get_target_connections` (or `find_top_paths`) returns `owners` — the team members whose network
+each path comes from. Filter by `ownerIds` to focus on specific teammates. They must be in the same
+Draftboard org with their networks already scanned.
+
+### 5. ✅ Map paths through my colleagues' networks (mine is weak)
+`find_top_paths` with `ownerIds` set to your colleagues' team member ids. Get those ids from `get_me`
+— `customer.teamMembers[]` is the roster, each with a name and the `id` you pass as `ownerIds`.
+(Connections also carry an `owners[]` list showing which teammates can make a given intro.)
+
+### 6. ✅ Exclude connections I'm not close enough to ask
+Rate them 1 star: `set_connector_tier` with `rating: 1` ("don't ask") drops that connector from
+warm-path results and hides them from the default `list_network_connections`. Review who you hid with
+`list_network_connections({ ratings: [1] })`, and un-hide by rating them 2–5 (or `tier: 0` to clear).
+*(Legacy: `set_connector_excluded` reaches the same hidden state, but its sync runs one way —
+`excluded: false` does **not** clear a `rating: 1`, so re-rate rather than un-exclude.)*
+(WRITE — the host approves the call.)
+
+### 7. ✅ Mark my closest connections and only see paths through them
+Closeness is a **star rating, 1..5, higher is better**: **5 = ★★★★★ "ask anytime" (closest)**, down to
+**1 = ★ "don't ask"**. The rating *is* the star — nothing else in this API is.
+
+- **SET** — `set_connector_tier` with `rating` (`5` = closest, `1` = don't ask, `tier: 0` = clear).
+  This is what "star this person", "rate them" and "prioritize them as a supporter" all mean
+  (WRITE — host-approved).
+- **SEARCH** — `list_network_connections`: every supporter carries its `rating`, and `ratings: [5]` (or
+  `[4,5]`) is "only my warmest".
+- **PATHS** — `find_top_paths` with `ratings: [4,5]` is "my best intros, only through people I would
+  actually ask", in one call; for one person, `get_target_connections` with `ratings`. Each path
+  carries your rating (`connectorRating` / `rating`). Never rebuild this by crossing a starred list
+  against targets by hand.
+
+Note that `rating: 1` also **hides** the connector, so the default listing omits them — `ratings: [1]`
+is how you review who you hid. A rating filters; it does not reorder — `find_top_paths` still ranks
+by relationship strength within whatever the filter keeps. `tier` is the same setting spelled as
+the raw wire number (0..5, **lower is better**: 1 = "ask anytime" … 5 = "don't ask", 0 = clear) and
+still works everywhere; send exactly one of the two, and never describe a tier in stars.
+
+*(Legacy: `set_connector_preferred` sets, and `list_network_connections` with `preferred` searches, a separate
+boolean flag — not a rating, and not the same axis. `set_connector_tier` never writes it, so
+`rating: 5` does not mark someone preferred. Prefer the rating.)*
+
+### 8. ✅ Am I already connected to the prospects I upload?
+`check_if_connected` with the LinkedIn URLs. Returns per-URL `directlyConnected` (true when you/a
+teammate already know them directly — `degree` "1st"), `hasPaths`, `pathsCount`, `topConnector`,
+`topRank`. Newly uploaded people may need a moment for enrichment.
+
+For **one** person, `resolve_target` with their `linkedinUrl` is the single call: it says whether
+they are a target and hands back the `targetId`, then `get_target_connections` gives the connectors.
+Either way, never page `list_targets` to look someone up.
+
+### 9. ✅ Show me my top paths right now
+`find_top_paths` — one ranked, server-floored call, already excluding paths you've requested. This
+is the headline use case; scope with `accountId`/`tagNames`/`title`/`ownerIds` when the user means a
+specific subset rather than the whole book.
+
+### 10. ✅ Cold email that name-drops a mutual connection
+`find_top_paths` with `includeRankDetails: true`. For the chosen target, take its one returned
+connector and weave a real `rankDetails` fact ("you both worked at Apalon") into the opener. Only use
+facts the tool actually returned, and check `basis`: for `other_quality_signal` there is no
+work/school overlap to name-drop — draw the line from `rankDetails` instead and don't imply a shared
+employer or school.
+
+### 11. ✅ Track and update the status of requested intros
+`intro_status_overview` → counts of `new` / `completed` / `stopped`, optionally per tag. You can also
+**drive** an intro's lifecycle with `set_intro_status` (`requested` → `completed` / `declined`, with
+an optional decline reason). (WRITE — host-approved.)
+
+### 12. 🟡 History of my intro requests to a given connection (last asked, hit rate, responsiveness)
+`get_connector_intros` shows the current connector-first view — everyone a given connector can
+introduce you to. But per-connector **history/analytics** (last asked, response rate, hit rate) is
+not exposed by the Integration API.
+
+### 13. ✅ Prioritise the connectors who actually work with the target right now
+`find_top_paths` returns only the strongest path per target — for SEVERAL connectors on the SAME
+target, use `get_target_connections` instead. Either way, each result carries `relationships` — zero
+or more of `current_colleague`, `former_colleague`, `university_classmate` — plus
+`relationshipDetails`, the structured records behind the shared history (shared `employment` with an
+overlap window, shared `education`, or `mutualConnections.count`). When you have several connectors
+for one target, sort so `current_colleague` comes first, then `former_colleague` with the most recent
+`overlapEndDate`, then the rest, and open the ask with a fact you can point at ("you two are both at
+Acme in Engineering").
+
+**But read the silence correctly.** Both keys are present when Draftboard holds that signal for the
+pair and **absent when it does not** — read them as `relationships ?? []`. A connector without
+`relationships` is **not** a connector without a relationship; it is one whose tie we haven't
+classified. So **promote on the signal, never demote on its absence**: lead with the ones carrying a
+current-colleague signal, never demote or hide the rest, and always fall back to `scoreDetails` for
+the warm line (it carries the human-readable summary, and is itself omitted when there is nothing to
+say — read it as `scoreDetails ?? []`). Say what you sorted on, e.g. "3 of these 12 are flagged as
+current colleagues — the other 9 aren't classified, not disqualified."
+
+### 14. ✅ Find VPs of Sales through my investors at B2B SaaS companies in the US
+Three parts: *who to ask* (the investors), *which role* (VP of Sales), *what kind of company* (the
+ideal customer). Launch once:
+`search_supporters({ supporters: [the investors' linkedin.com/in/… URLs], titles: ["VP of Sales"],
+icp: { industry: "B2B SaaS", location: "US" } })` and keep the `campaignId`. Put in `icp` only what the
+user said — here industry and location; do not guess a company size they never gave, and do not add
+`companies` (the tool refuses `icp` with `companies`). Launching charges nothing and hides nobody:
+everyone found waits in the pool, each scored against the ideal customer.
+
+Later, `list_pool({ campaignId, minIcpFit: 50 })` returns the people who fit (a `percent` of 50 or
+more is the product's threshold — do not invent another), each with a `reason`. People the search
+could not assess are left out of that filtered list — they are not a poor fit, and a plain
+`list_pool({ campaignId })` still shows them. Show the user the fits with their reasons, say that the
+rest scored lower or could not be assessed, tell them confirming takes those people on as targets and
+charges their paths, and `confirm_pool` only the `ids` they pick. Empty soon after launch = not ready
+yet, not "nobody fits".
+
+### 15. ✅ Work through a group: my investors, my close friends
+**Label who people are, then use the group.** "Show me paths to Stripe through our investors":
+`list_accounts({ query: "Stripe" })` → `find_top_paths({ accountId, connectorLabels: ["investor"] })`.
+Several groups at once: `connectorLabels: ["investor", "advisor"], connectorLabelsMatch: "any"`.
+Each path carries `connectorLabels`, so the answer can say why that connector ("Anna — Investor").
+
+- **How many first** — "how many investors do I know?" is `get_label_counts`, one call; its number
+  equals the `count` that `list_network_connections({ labels: ["investor"] })` returns next. A count of
+  0 means nobody has been labelled yet — offer to label people, never say "you know no investors".
+- **Label a person** — `set_connector_labels({ connectorId, add: ["close_friend"] })`. Close friend,
+  family and mentor are the caller's own; investor, customer, advisor, partner and do-not-contact
+  are shared with the team. "Make her a supporter" is a rating (`set_connector_tier`), not a label.
+- **Label a company** — "Sequoia is an investor": `find_network_companies({ query: "Sequoia" })` →
+  show every row with its `connectorsCount` → `set_company_labels({ companyId, add: ["investor"] })`
+  for the rows the user picks. Everyone in the network who works there now carries the label.
+- **Do not contact** marks people and hides nobody. Add `excludeConnectorLabels: ["do_not_contact"]`
+  (or `excludeLabels` on the network list) only when the user asks to leave them out.
+
+(WRITES — the host approves each call.)
+
+---
+
+**Coverage honesty.** Outcome tools return a `telemetry` block — read it before claiming
+completeness. `find_top_paths` reports `total`/`returned`/`truncated` (e.g. "returned 20 of 142
+qualifying paths" — raise `limit` or narrow with `accountId`/`tagNames`/`title` when `truncated` is
+true); `intro_status_overview` reports `total`/`counted`/`truncated`; `check_if_connected` reports
+`checked`/`resolved`/`importRequested`/`importPending`. Don't present a partial or still-unresolved
+answer as exhaustive or final.

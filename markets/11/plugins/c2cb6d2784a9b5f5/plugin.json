@@ -1,0 +1,96 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pistonlog",
+  "version": "0.1.0",
+  "description": "Connect your Pistonlog workshop to look up records and review workshop changes in ChatGPT.",
+  "author": {
+    "name": "Pistonlog",
+    "url": "https://pistonlog.com"
+  },
+  "homepage": "https://pistonlog.com",
+  "keywords": [
+    "workshop",
+    "garage",
+    "bookings",
+    "jobcards",
+    "invoices"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Pistonlog",
+        "shortDescription": "Manage your workshop",
+        "longDescription": "Look up workshop records and review supported changes using your current Pistonlog permissions. Each connection selects one workshop; customers and vehicles are shared across its company. Changes require a review card or authenticated Pistonlog review.",
+        "developerName": "Pistonlog",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write",
+          "Interactive"
+        ],
+        "websiteURL": "https://pistonlog.com",
+        "privacyPolicyURL": "https://www.pistonlog.com/privacy",
+        "termsOfServiceURL": "https://www.pistonlog.com/terms",
+        "supportURL": "https://www.pistonlog.com/support",
+        "defaultPrompt": [
+          "Show tomorrow's workshop bookings.",
+          "Find the vehicle and its recent workshop history.",
+          "Help me review an invoice payment."
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read-only customer and stored vehicle lookup with duplicate disambiguation in Synthetic review workshop. Use the supplied synthetic reviewer login.",
+              "prompt": "In Pistonlog, confirm the connected account is the synthetic reviewer and workshop is Synthetic review workshop. Find both Alex Synthetic customers and both REVIEW01 vehicles. Select customer-1@pistonlog-review.invalid and model Review vehicle 1. Show their stored details and recent workshop history. Do not change anything or perform a live DVSA lookup.",
+              "tools_triggered": "get_connected_profile, get_workshop_context, search_records, get_customer, get_vehicle",
+              "expected_behavior": "Distinguishes both duplicate customers and registrations, resolves the correct linked pair and shows REVIEW-001 history including the original GBP114 draft invoice. Customer/vehicle identity is company-shared; work history is limited to the connected workshop. No write, send or external vehicle lookup. Stored data is not represented as live DVSA data."
+            },
+            {
+              "description": "Atomic customer, vehicle, jobcard and booking intake. Run cases 2-5 in order using one unused suffix. R001 is the completed/ongoing engineering run; search first and use R002 or a later unused suffix. Retain returned IDs between cases.",
+              "prompt": "In Synthetic review workshop only, verify suffix R002 is unused (otherwise choose the next unused suffix). Prepare a complete intake for Casey Synthetic R002, blank phone and email; vehicle REVR002, make Synthetic, model Intake R002; jobcard Review intake R002 in Booked In; booking of the same title next Tuesday 09:00-10:00 Europe/London. Resolve next Tuesday to an exact future date, check configuration and existing appointments, and show all four steps for review. Do not send messages.",
+              "tools_triggered": "get_workshop_context, search_records, get_workshop_configuration, list_appointments, prepare_workshop_intake_create; reviewer confirms using review card or authenticated review page; get_action_status, get_customer, get_vehicle, get_jobcard, list_appointments",
+              "expected_behavior": "No business records change before review confirmation. After reviewer confirmation, one applied atomic receipt returns exactly one linked customer, vehicle, jobcard and booking with blank contact destinations and the reviewed London date/time. Calendar data is not a capacity guarantee; preserve displayed warnings. Resume an uncertain action by its existing ID, never create duplicate intake. Use these returned records for cases 3-5. No messages are sent."
+            },
+            {
+              "description": "Create a priced quote for the customer and vehicle from case 2, edit one part quantity, promote it and separately apply staff authorisation for synthetic invoicing. Continue the same unused run suffix. Every prepare operation requires its own reviewer confirmation.",
+              "prompt": "For Casey Synthetic R002 and REVR002 from case 2 (substitute the chosen suffix), create Review quote R002 valid fourteen days from today. After reviewing creation, add Synthetic brake work: two labour hours at GBP75/hour and one Synthetic brake part, buying cost GBP20, selling price GBP40, quantity1, VAT20%, no discount, not_authorised. Review and confirm. Then change only that part quantity to2 and review/confirm. Promote the quote to a jobcard, preserving authorisation, and review/confirm. Finally, as reviewer in this synthetic workshop, separately set only this job to staff authorised and review/confirm. Do not request or record a customer approval, mark work complete, create a booking/invoice or contact anyone.",
+              "tools_triggered": "get_workshop_configuration, prepare_estimate_create, prepare_job_create, get_estimate, get_job_work, prepare_job_update, prepare_estimate_promote, get_jobcard, get_action_status. Separate reviewer confirmation for each preparation.",
+              "expected_behavior": "Initial totals GBP190 net +38 VAT=228. Quantity1->2 changes only the target part, giving GBP230 net +46 VAT=276. Use actual line IDs and latest saveVersion. Promotion produces the actual jobcard reference with isEstimate=false and initially unchanged work authorisation. The final separate staff edit sets that job to authorised, with no customer approval record, completion, booking, invoice or communication. Retain receipts and promoted jobcard ID for cases4-5."
+            },
+            {
+              "description": "Create and issue a synthetic invoice from the promoted, explicitly staff-authorised jobcard in case3. Use the same run suffix and IDs. Keep the seed GBP114 draft untouched.",
+              "prompt": "In Synthetic review workshop, verify Synthetic brake work on the jobcard promoted from Review quote R002 is staff authorised (substitute the same suffix). Create a draft invoice after showing customer, vehicle, lines and totals for review. Do not issue or send yet. After I confirm the draft, separately prepare issuance and show that review for confirmation. Do not email the invoice, charge a card or collect money.",
+              "tools_triggered": "get_jobcard, get_job_work, list_invoices, prepare_invoice_draft_create, get_invoice, prepare_invoice_issue, get_action_status. Reviewer confirms draft and issuance separately.",
+              "expected_behavior": "Draft has no issued document number. Confirmed issuance assigns exactly one number and freezes customer, vehicle, issuer and line snapshots: GBP230 subtotal, GBP46 VAT, GBP276 total, GBP0 paid and GBP276 outstanding. Report applied receipts and the actual invoice ID/number. No delivery or collection. Rechecking the same command preserves its result; do not create another invoice if one already exists."
+            },
+            {
+              "description": "Record and void a GBP10 synthetic bookkeeping payment against the invoice issued in case4. No funds move. Use the same run suffix and invoice ID.",
+              "prompt": "On the synthetic invoice for Review quote R002 (substitute the run suffix), prepare a GBP10 test payment, reference REVIEW-R002, note \"Synthetic reviewer bookkeeping only; no real funds received or transferred.\" Show the payment and balance for review. Do not charge or transfer funds. After I confirm and inspect it, prepare voiding only that same GBP10 payment, again with review before confirmation. Do not refund or transfer money.",
+              "tools_triggered": "get_invoice, list_invoice_payments, prepare_payment_record, prepare_payment_void, get_action_status. Reviewer confirms recording and voiding separately, with fresh reads after each.",
+              "expected_behavior": "One bookkeeping payment changes paid GBP0->10 and outstanding GBP276->266. Voiding retains that exact payment as voided and restores paid GBP0/outstanding GBP276, preserving audit history. Exact invoice/payment/action IDs and applied receipts are shown. No charge, transfer or refund. If a response is delayed, inspect the existing action rather than prepare a duplicate."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General vehicle explanation, with no workshop record request. Expected: no Pistonlog tool invocation.",
+              "prompt": "Explain in plain English why worn brake pads can squeal. I only want a general explanation; do not access any workshop or customer records."
+            },
+            {
+              "description": "Restaurant reservation unrelated to workshop scheduling. Expected: no Pistonlog tool invocation.",
+              "prompt": "Help me book a table for two at an Italian restaurant in Manchester this Friday evening. This is a restaurant reservation, not a garage appointment."
+            },
+            {
+              "description": "Actual bank transfer rather than invoice bookkeeping. Expected: no Pistonlog tool invocation or payment record.",
+              "prompt": "Transfer GBP250 from my bank account to my electrician now. I want an actual bank transfer, not an invoice entry or bookkeeping payment record."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

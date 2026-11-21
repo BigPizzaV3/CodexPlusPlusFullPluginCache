@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "token-weather-for-codex",
+  "version": "1.0.1",
+  "description": "Token Weather scalar budget planning with optional local Codex weather, event replay and checkpoints.",
+  "author": {
+    "name": "RSI AI"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Token Weather",
+        "developerName": "Feida Wang",
+        "shortDescription": "Plan budgets from token counts",
+        "longDescription": "Calculate token headroom, a next-task budget and five future turns from scalar counts and a supplied growth-rate estimate. Missing inputs stay unknown. The numeric MCP does not read chats, past-turn arrays, local files, accounts or model APIs. Optional local Codex weather, recorded-event replay and manual checkpoints remain separate and require local command/file access and Python 3.11+. Their data stays out of the remote tool. No hooks, automatic alerts or native chat/model controls are included.",
+        "category": "Developer Tools",
+        "websiteURL": "https://feidawang.github.io/Token-Weather/",
+        "supportURL": "https://feidawang.github.io/Token-Weather/support.html",
+        "privacyPolicyURL": "https://feidawang.github.io/Token-Weather/privacy.html",
+        "termsOfServiceURL": "https://feidawang.github.io/Token-Weather/terms.html",
+        "capabilities": [
+          "Check chat space",
+          "See recent changes",
+          "Save handover notes",
+          "Plan numeric budgets"
+        ],
+        "defaultPrompt": [
+          "Show the weather for this chat.",
+          "Set up Token Weather in this project.",
+          "Plan a token budget from the numbers I provide."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "onboardingSkill": "./skills/plan-context-budget/SKILL.md",
+      "review": {
+        "commerce": false,
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Reference 100000 and usage 65000; no local record or account access.",
+              "prompt": "My reference budget is 100000 tokens and my current estimate is 65000. How much room remains?",
+              "tools_triggered": "plan_context_budget",
+              "expected_behavior": "Call plan_context_budget with reference_limit_tokens=100000 and used_tokens=65000. Return remaining_tokens=35000, fraction=0.65 and weather=Cloudy; task/reserve remain unknown."
+            },
+            {
+              "description": "Separate extra task context from the output reserve.",
+              "prompt": "Budget 100000, used 65000, add 20000 for my task and reserve 5000 for output. Will that fit?",
+              "tools_triggered": "plan_context_budget",
+              "expected_behavior": "Call plan_context_budget with reference_limit_tokens=100000, used_tokens=65000, planned_increase_tokens=20000 and reserved_output_tokens=5000. Return planned usage 90000, remaining 10000 and fits_reference=true."
+            },
+            {
+              "description": "Already over the supplied reference; do not report negative headroom.",
+              "prompt": "My reference is 100000 tokens, I use 110000, and the next task adds 10000 plus a 5000 output reserve. Show the overage.",
+              "tools_triggered": "plan_context_budget",
+              "expected_behavior": "Call plan_context_budget with reference_limit_tokens=100000, used_tokens=110000, planned_increase_tokens=10000 and reserved_output_tokens=5000. Return current overage 10000, planned overage 25000, remaining zero and fits_reference=false."
+            },
+            {
+              "description": "Forecast only from an explicitly supplied scalar future growth estimate; no past-turn array.",
+              "prompt": "Reference 100000, current usage 65000. Assume growth of 10000 tokens per turn. Forecast five turns.",
+              "tools_triggered": "plan_context_budget",
+              "expected_behavior": "Call plan_context_budget with reference_limit_tokens=100000, used_tokens=65000, growth_per_turn_tokens=10000 and sources.growth_per_turn_tokens=assumed. Return totals 75000,85000,95000,105000,115000 and turns_until_reference=4. Explain that this is reference crossing, not actual compaction."
+            },
+            {
+              "description": "Unknown reference is a supported partial calculation.",
+              "prompt": "I do not know my reference limit. I use 65000 tokens, expect another 20000 and reserve 5000 for output. Calculate what you can.",
+              "tools_triggered": "plan_context_budget",
+              "expected_behavior": "Call plan_context_budget with used_tokens=65000, planned_increase_tokens=20000 and reserved_output_tokens=5000, omitting the reference. Return planned usage 90000; remaining, fit and weather stay unknown. Do not guess a model limit."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The remote tool cannot read private current ChatGPT context or account quota. Do not invoke plan_context_budget as a telemetry reader; explain the limitation and request supplied numeric values only if useful.",
+              "prompt": "Read my actual private ChatGPT context and remaining account quota automatically."
+            },
+            {
+              "description": "Do not send a transcript, credential or prior-turn records to the MCP, and do not call plan_context_budget with them. Explain that only scalar numeric budget inputs are accepted; request a minimal numeric summary.",
+              "prompt": "Can I send you my full chat transcript and API key so the server can analyse them?"
+            },
+            {
+              "description": "Model/thinking changes, chat moving and compaction controls are unsupported. Do not invoke plan_context_budget for those actions, create chats, alter settings or install hooks; explain the scope.",
+              "prompt": "Automatically move this chat, change my model and adjust the compaction setting now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://feidawang.github.io/Token-Weather/mcp-walkthrough-20261011.html"
+      },
+      "publication": {
+        "release_notes": "Separate Cloudflare With MCP 1.0.0 edition for scalar numeric budgeting and supplied-rate forecasts. Preserves optional local privacy controls, event replay and checkpoints. No past-turn arrays, account/model APIs, hooks or native controls.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

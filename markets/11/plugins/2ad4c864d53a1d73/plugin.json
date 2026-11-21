@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "leaseswap",
+  "version": "0.1.4",
+  "description": "Find NYC rental apartments, compare listing facts, and get a link to finish setting up an alert on Buzzedin.",
+  "author": {
+    "name": "Dabudage LLC",
+    "url": "https://buzzedin.com/"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Buzzedin",
+        "developerName": "Dabudage LLC",
+        "shortDescription": "NYC rental apartments & alerts",
+        "longDescription": "Find NYC rental apartments that match your budget, bedrooms, neighborhoods, commute and amenities. Browse apartment cards in the chat, compare estimated deal scores and neighborhood rents, and see useful features such as laundry, outdoor space, pets and natural light when available. Ask for more results or expand the cards to compare apartments. Includes lease takeovers posted directly by tenants. Search does not require a Buzzedin account. If you want notifications, get a link to sign in on Buzzedin and finish saving your search as an alert. A link does not create an alert. Listing details, availability, enrichment and deal scores are estimates or source-reported information; confirm details on the listing page. Buzzedin does not find sublets, contact landlords, book viewings, submit rental applications or take payments in the chat.",
+        "defaultPrompt": [
+          "Find a one-bedroom in Astoria under $3,200.",
+          "Find lease takeovers in the East Village under $4,000.",
+          "Help me set up an alert for a one-bedroom in Astoria under $3,200."
+        ],
+        "websiteURL": "https://buzzedin.com/",
+        "supportURL": "https://buzzedin.com/support",
+        "privacyPolicyURL": "https://buzzedin.com/privacy",
+        "termsOfServiceURL": "https://buzzedin.com/terms",
+        "logo": "assets/logo.png",
+        "composerIcon": "assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Budget, bedroom and neighborhood search with pagination. Start a fresh chat with Buzzedin selected; no Buzzedin sign-in is needed. After the first response, ask 'Show the next page.' Inventory is live, so counts and listings may change.",
+              "prompt": "Find a one-bedroom in Astoria under $3,200.",
+              "tools_triggered": "search_listings",
+              "expected_behavior": "Call search_listings with beds=1, maxPrice=3200 and neighborhoods containing Astoria, initially page=1 or omitted. Display only returned apartment facts and listing links; returned listings must have one bedroom, price at most 3200 and an Astoria neighborhood. Display a score or amenity only if supplied, preserving missing facts as unknown. On the follow-up, call search_listings with the same filters and page=2. Do not direct the user to /search to browse. If a page has no listings, state that result without inventing apartments."
+            },
+            {
+              "description": "Studio and amenity filters, including the LES neighborhood alias. Use a fresh chat with Buzzedin selected; no sign-in needed. An empty response is valid and must not silently relax the requested filters.",
+              "prompt": "Find a studio in the LES under $3,500 with a dishwasher.",
+              "tools_triggered": "search_listings",
+              "expected_behavior": "Call search_listings with beds='studio', maxPrice=3500, neighborhoods containing Lower East Side and hasDishwasher=true. Show only returned listings with beds=0 and price at most 3500; keep the dishwasher filter in the call. Report no matches accurately if empty, offering an explicit broader search or an alert instead of substituting a one-bedroom or dropping the amenity."
+            },
+            {
+              "description": "A specific public landmark and transit commute constraint. Use a fresh chat; no sign-in needed. Ground the commute constraint in the tool result and any warnings, rather than promising a precise door-to-door time.",
+              "prompt": "Find a one-bedroom under $4,000 within a 30-minute transit commute of Grand Central Terminal.",
+              "tools_triggered": "search_listings",
+              "expected_behavior": "Call search_listings with beds=1, maxPrice=4000 and commuteFilter containing destination='Grand Central Terminal', maxMinutes=30 and mode='transit'. Show returned one-bedroom listings priced at most 4000. If the tool cannot apply the commute filter or returns a warning, disclose that limitation and do not call unconstrained results commute matches. Acknowledge empty inventory without inventing apartments."
+            },
+            {
+              "description": "Lease takeover inventory. Use a fresh chat; no sign-in needed. This is a lease takeover request, not a sublet request. Tenant-posted listings are not independently verified.",
+              "prompt": "Find lease takeovers in the East Village under $4,000.",
+              "tools_triggered": "search_listings",
+              "expected_behavior": "Call search_listings with isLeaseTakeover=true, maxPrice=4000 and neighborhoods containing East Village. Returned listings must have leaseTakeover=true and price at most 4000. Describe Buzzedin tenant-posted listings as direct from the tenant, never verified. Do not substitute sublets. Explain no matches if inventory is empty."
+            },
+            {
+              "description": "Explicit alert handoff without claiming an alert was saved. Use a fresh chat with Buzzedin selected; no sign-in is required to obtain the link. Completing alert setup on the website is a separate signed-in user action.",
+              "prompt": "Help me set up an alert for a one-bedroom in Astoria under $3,200 with a dishwasher.",
+              "tools_triggered": "create_alert_link",
+              "expected_behavior": "Call create_alert_link with beds=1, maxPrice=3200, neighborhoods containing Astoria and hasDishwasher=true. Return the tool's HTTPS alert-setup URL with those filters intact. Explain that the user must sign in on Buzzedin and finish saving the search; do not say an alert was created or notifications are active. Do not request credentials in the chat. No payment or account creation occurs in the tool."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Sublets are excluded from the plugin. In a fresh chat with Buzzedin selected, explain that Buzzedin's plugin does not offer sublets. Do not invoke search_listings or create_alert_link for this request, substitute a lease takeover, or invent a match.",
+              "prompt": "Find me a two-month NYC sublet. I only want a sublet, not a lease takeover."
+            },
+            {
+              "description": "The plugin cannot contact landlords or schedule tours. Start after the Astoria search in positive case 1. Explain this limit and point the user to the returned listing page to contact the source themselves. Do not invoke either tool to claim the tour was booked or a message was sent.",
+              "prompt": "Contact the landlord for the first apartment and book me a viewing tomorrow at 6 pm."
+            },
+            {
+              "description": "The plugin cannot submit rental applications or accept application documents. Start after the Astoria search in positive case 1. Explain the limitation and direct the user to the returned listing's application process. Do not invoke search_listings or create_alert_link, request personal documents, or claim an application was submitted.",
+              "prompt": "Submit my rental application for the first apartment and upload my pay stubs to the landlord."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The MCP integration is free to use. It searches public NYC rental listings and generates an optional link to finish alert setup on the Buzzedin website. The MCP tools do not sell products, take payments, or create paid subscriptions in chat. Website alert setup is a separate user action.",
+        "demo_recording_url": "https://screen.studio/share/XWJLFjCc"
+      },
+      "publication": {
+        "release_notes": "Clearer directory tagline so renters searching for NYC apartments, rentals or alerts can find Buzzedin. Tools and the MCP connection are unchanged.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

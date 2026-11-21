@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "stumana",
+  "version": "1.0.1",
+  "description": "Manage authorized school data in StuMana: students, courses, enrollments, attendance, lesson plans, learning-library content, reports, and payment slips.",
+  "author": {
+    "name": "TAYWIND COMPANY LIMITED",
+    "url": "https://stumana.com"
+  },
+  "homepage": "https://stumana.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "StuMana",
+        "shortDescription": "Student management",
+        "longDescription": "Manage authorized school data in StuMana: students, courses, enrollments, attendance, lesson plans, learning-library content, reports, and payment slips.",
+        "developerName": "TAYWIND COMPANY LIMITED",
+        "category": "Education & Research",
+        "capabilities": [],
+        "websiteURL": "https://stumana.com",
+        "supportURL": "https://stumana.com/contact",
+        "privacyPolicyURL": "https://stumana.com/privacy",
+        "termsOfServiceURL": "https://stumana.com/terms",
+        "defaultPrompt": [
+          "Show today's class roster and mark attendance.",
+          "Create a student and enroll them in a course.",
+          "Give me this month's KPI summary."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://youtu.be/OvDV2KHRe3k",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create and enroll a student in a fixed-term course. Setup: a normal owner or admin in a test organization with writes enabled, capacity for a new student, and exactly one active fixed-term course named Beginner English. No phone is required.",
+              "prompt": "Create a student named Minh and enroll them in the Beginner English course.",
+              "tools_triggered": "create_student, list_courses, create_enrollment",
+              "expected_behavior": "create_student(full_name=Minh) returns a new student ID. list_courses identifies Beginner English. create_enrollment uses those IDs and returns active=true. Report the created student and enrollment from returned data; a validation error is a failed positive case."
+            },
+            {
+              "description": "Record attendance for a named student in today's class. Setup: exactly one uncancelled Beginner English session today in the organization's timezone, with Minh on the roster.",
+              "prompt": "Show the roster for today's Beginner English session and mark Minh present.",
+              "tools_triggered": "list_course_sessions, get_session_roster, mark_attendance",
+              "expected_behavior": "list_course_sessions returns the matching course_name and scheduled_at. get_session_roster uses that session ID and returns Minh's student_id. mark_attendance uses those IDs and status=present. Report the saved status and session from the result."
+            },
+            {
+              "description": "Publish a new lesson plan from a named template. Setup: a template named Beginner English and one upcoming uncancelled Beginner English session with no lesson plan. Publishing can notify families; use test recipients.",
+              "prompt": "Apply the Beginner English template to the next Beginner English session and publish the plan.",
+              "tools_triggered": "list_course_sessions, list_lesson_plan_templates, upsert_lesson_plan",
+              "expected_behavior": "list_course_sessions identifies the next matching session and list_lesson_plan_templates identifies Beginner English. upsert_lesson_plan uses those IDs and publish=true. The result has published=true and a boolean families_notified. Report the saved plan and actual notification flag; do not promise delivery."
+            },
+            {
+              "description": "Create a vocabulary quiz and attach it as homework. Setup: exactly one uncancelled Beginner English session next week. The user can create library content and session assignments.",
+              "prompt": "Create a two-question multiple-choice vocabulary quiz and attach it as homework to next week's Beginner English session, due in 7 days.",
+              "tools_triggered": "create_library_item, list_course_sessions, attach_library_item",
+              "expected_behavior": "create_library_item uses item_type=assignment and two mcq questions with prompts, labelled options and valid correct keys. list_course_sessions identifies next week's matching session. attach_library_item uses the returned item and session IDs and due_in_days=7. Report the returned assignment_id and course_session_id."
+            },
+            {
+              "description": "Review monthly KPIs and outstanding tuition. Setup: a normal owner or admin with reports:read and payments:read, at least one unpaid invoice with positive balance and one fully paid invoice.",
+              "prompt": "Give me this month's KPI summary and list any unpaid tuition.",
+              "tools_triggered": "get_kpi_summary, list_payments",
+              "expected_behavior": "get_kpi_summary uses range=month and returns numeric KPI amounts in VND plus deltas. list_payments uses status=unpaid. Report only returned records with balance greater than zero and paid=false, with student, balance and due date. Exclude fully paid invoices and use returned values."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Publishing public blog articles is outside this MCP server's supported tools.",
+              "prompt": "Publish a new blog article about study tips on the StuMana public blog.",
+              "expected_behavior": "No tool invocation; explain that blog publishing is unsupported."
+            },
+            {
+              "description": "Broadcasting a message is outside this MCP server's supported tools.",
+              "prompt": "Send a Zalo broadcast to every parent about tomorrow's class.",
+              "expected_behavior": "No tool invocation; explain that broadcast messaging is unsupported."
+            },
+            {
+              "description": "Charging or editing payments is outside this server's read-only payment scope.",
+              "prompt": "Charge the student's saved card and mark their invoice paid.",
+              "expected_behavior": "No tool invocation; explain that payment collection and editing are unsupported."
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Corrected review cases for normal organization users; removed super-admin blog publishing from the listing; added reproducible setup and expected results for enrollment, attendance, lesson plans, homework and monthly tuition."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

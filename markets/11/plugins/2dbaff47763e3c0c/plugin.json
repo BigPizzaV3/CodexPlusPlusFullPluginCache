@@ -1,0 +1,106 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dataroomhq",
+  "version": "1.0.0",
+  "description": "Turn your company's documents into an investor-ready dataroom, then build, share and question it from ChatGPT.",
+  "author": {
+    "name": "dataroomHQ, Inc.",
+    "url": "https://www.dataroomhq.ai"
+  },
+  "keywords": [
+    "dataroom",
+    "data room",
+    "fundraising",
+    "investor-ready",
+    "pitch deck",
+    "data deck",
+    "investment memo",
+    "due diligence"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "dataroomHQ",
+        "shortDescription": "Investor-ready datarooms",
+        "longDescription": "dataroomHQ turns your company's documents into an investor-ready dataroom. This plugin puts it inside ChatGPT: build the room, generate your investor materials from it, share it with investors, and get cited answers about anything in it.\n\n- Build the room: create a dataroom, save files you attach in ChatGPT or upload whole folders at once, and organise documents into folders and categories.\n- Generate investor materials: pitch decks, data decks, business reports with ARR, cohort, retention and concentration sheets, investment memos and a company profile - built from the room's own documents and filed back into it.\n- Get cited answers: ask about any board deck, financial model, contract or call transcript in the room, and get an answer that names the page or sheet it came from.\n- Know your numbers: ARR, MRR, growth, churn, retention cohorts, customer concentration and pipeline, computed from the room's financial documents.\n- Share with control: share a single document or the whole room, set roles and per-document permissions, and see who has viewed what and what has changed.\n- See it in the chat: open a document or the whole room as an interactive view - spreadsheets as tables, PDFs page by page.\n\nInvestors you invite can use it too, reading and questioning the room within the access you gave them. Every action respects each person's role in the room.",
+        "developerName": "dataroomHQ",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://www.dataroomhq.ai",
+        "supportURL": "https://www.dataroomhq.ai",
+        "privacyPolicyURL": "https://www.dataroomhq.ai/privacy",
+        "termsOfServiceURL": "https://www.dataroomhq.ai/terms-of-service",
+        "defaultPrompt": [
+          "Set up a dataroom for our Series A",
+          "Make a pitch deck from my dataroom",
+          "Who has viewed my dataroom this week?"
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "demo_recording_url": "https://www.loom.com/share/d914ffdd1ca74b9bad71061b6d44c976",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Create a room without starting website-based onboarding. Setup: reviewer account has the data-room-creation plan feature. Use a clean fixture with no room named Acme Diligence; for a repeat run, use a unique room name. Other cases use a separately prepared Acme Diligence fixture and do not depend on this case running first.",
+              "prompt": "Create a dataroom called Acme Diligence. We don't have a website yet.",
+              "tools_triggered": "create_dataroom",
+              "expected_behavior": "Calls create_dataroom with name=\"Acme Diligence\" and website_url omitted or null. Confirms the returned room name and successful creation. Accurately reports that automated onboarding has not started; does not invent a website or claim reports have been generated."
+            },
+            {
+              "description": "Save an attached ARR schedule into an existing room. Setup: reviewer can upload to Acme Diligence. Download the public fixture below, name the attachment ARR Schedule.csv, and attach it to this prompt. Start with no document of that name to make verification unambiguous.",
+              "prompt": "Add this ARR schedule to Acme Diligence.",
+              "file_attachment_urls": [
+                "https://app.dataroomhq.ai/samples/arrSchedule.csv"
+              ],
+              "tools_triggered": "list_datarooms, attach_document, list_documents, list_categories, show_upload_widget",
+              "expected_behavior": "Resolves Acme Diligence and passes the attached file to attach_document using the returned room ID and filename ARR Schedule.csv. Confirms successful storage from the returned result and verifies the file appears in list_documents. attach_document finalizes the upload itself; do not call mark_document_uploaded again. If the host supplies no download URL, opens show_upload_widget and requires the reviewer to complete the upload before claiming success. Does not claim financial processing is complete merely because upload succeeded."
+            },
+            {
+              "description": "Open the stored ARR spreadsheet as an interactive preview. Setup: Acme Diligence contains the readable public ARR sample under the filename ARR Schedule.csv. Run in a fresh conversation so show_document_widget creates a fresh preview; an old conversation with expired preview credentials is not the test fixture.",
+              "prompt": "Show me ARR Schedule.csv in Acme Diligence.",
+              "tools_triggered": "list_datarooms, list_documents, show_document_widget",
+              "expected_behavior": "Resolves the room and exact document, then calls show_document_widget with that document_id. The freshly opened widget displays the CSV table with account and monthly ARR columns. A success message alone, an error placeholder, or a link without the interactive preview does not pass. The assistant gives a short, accurate confirmation without copying the entire spreadsheet into chat."
+            },
+            {
+              "description": "Compare quarter-end ARR using dataroomHQ computed financial metrics. Setup: Acme Diligence has a linked RAP metrics project with processed subscription metrics for the unchanged public fixture https://app.dataroomhq.ai/samples/arrSchedule.csv, stored as ARR Schedule.csv. The reviewer has business_report_view permission and access to the source documents. Verify before recording that the metrics contain December and September 2025 ARR matching the expected values below. This prepared fixture is independent of the upload case; a readable CSV alone is insufficient.",
+              "prompt": "Using dataroomHQ\u2019s financial metrics for Acme Diligence, what\u2019s our latest ARR and how has it changed from the previous quarter?",
+              "tools_triggered": "list_datarooms, get_financial_metrics",
+              "expected_behavior": "Resolves Acme Diligence and calls get_financial_metrics with dataset=\"subscription\" before any source-row calculation. Uses the returned ARR metrics and reporting periods. For the verified unchanged sample, reports December 2025 ARR of $13,958,340 versus September 2025 ARR of $10,621,909: an increase of $3,336,431, approximately 31.4%. Computing the comparison from those returned metric values is acceptable. Identifies dataroomHQ financial metrics as the source and makes clear these are the latest available periods, not current-calendar-period figures. Source-document reads may supplement verification but must not replace the metrics call. If metrics are unavailable or either period is missing, explains the limitation without inventing values or starting report generation; that run does not pass this prepared-data positive case."
+            },
+            {
+              "description": "Share only one document with an explicitly named test recipient. Setup: reviewer has share_link_manage permission; Acme Diligence contains ARR Schedule.csv and at least one other document to verify the access boundary. investor@example.com is a test recipient; notify must be false, so no email is sent.",
+              "prompt": "Create a view-only link for investor@example.com to ARR Schedule.csv in Acme Diligence. Only share that document, disable downloads, and don\u2019t send an email.",
+              "tools_triggered": "list_datarooms, list_documents, share_document",
+              "expected_behavior": "Calls share_document with the resolved dataroom_id and document_id, email=\"investor@example.com\", can_download=false, keep_watermark=true, and notify=false. Returns the exact URL issued by the server and accurately describes the document-only scope and permissions. Does not substitute create_share_link, which grants room-level access. Verify that the issued link exposes only the selected document, cannot list the other documents, and does not permit downloading. No invitation email is sent."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Self-contained ARR arithmetic: financial keywords alone must not trigger access to company data. Setup: no attachment or room data is needed; all inputs are in the prompt. In a fresh conversation, answer 25% quarter-over-quarter growth and a $300,000 increase, using (1.5 - 1.2) / 1.2. Do not invoke any dataroomHQ tools, look up rooms, or fetch financial metrics. Run without an explicit plugin tag for the normal routing test; repeat with dataroomHQ selected as a separate boundary stress test.",
+              "prompt": "Our ARR increased from $1.2 million to $1.5 million this quarter. What\u2019s the percentage growth?"
+            },
+            {
+              "description": "General SaaS fundraising guidance, not a request to inspect or create a dataroom. Setup: no attachment, company records, or room fixture is required. In a fresh conversation without an explicit plugin tag, provide a general Series A checklist covering corporate records, financials, SaaS metrics, customers, IP, team, and security as appropriate. Do not invoke dataroomHQ tools, retrieve private documents, create a room or folders, or claim to have assessed the user\u2019s actual readiness. Public web research is acceptable.",
+              "prompt": "What documents should a SaaS startup prepare for Series A due diligence?"
+            },
+            {
+              "description": "Unsupported e-signature capability adjacent to document sharing. Setup: no NDA file, investor email, or room fixture is needed. In a fresh conversation without an explicit plugin tag, do not invoke dataroomHQ tools, create share links, invite members, send signature requests, or infer signature status from document-view analytics. Explain that the connected MCP tools do not expose e-signature requests or signature-status tracking. A cautious answer that broader product support cannot be verified is acceptable if it does not claim the connected tools can perform the workflow. Public documentation research and suggesting a separate e-signature service are acceptable.",
+              "prompt": "Can dataroomHQ send an NDA for electronic signature and track whether the investor has signed?"
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "First release."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

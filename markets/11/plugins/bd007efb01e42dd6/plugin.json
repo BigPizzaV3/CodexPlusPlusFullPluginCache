@@ -1,0 +1,89 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "driversnote",
+  "version": "0.1.0",
+  "description": "Manage Driversnote trips, mileage reports, and team mileage through your connected account.",
+  "author": {
+    "name": "Driversnote"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Driversnote",
+        "shortDescription": "Manage mileage and reports",
+        "longDescription": "Connect your Driversnote account to review and classify trips, add mileage records, preview reimbursement totals, create mileage reports, and retrieve report downloads. Team members can submit reports for approval; managers can review team activity and summarize submitted mileage by driver and report status.\n\nRequires a Driversnote account. Available data and actions depend on your account permissions. Report submission notifies your team. Unlimited-trip reporting can be purchased on the Driversnote website. The integration does not track live GPS, approve team reports, or make reimbursement payments.",
+        "developerName": "Driversnote",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "How much business mileage did I drive last month?",
+          "Preview my mileage report for last month.",
+          "Summarize my team\u2019s approved mileage reports for last month."
+        ],
+        "websiteURL": "https://www.driversnote.com/",
+        "supportURL": "https://driversnote.helpscoutdocs.com/",
+        "privacyPolicyURL": "https://www.driversnote.com/privacy-policy",
+        "termsOfServiceURL": "https://www.driversnote.com/terms-of-service",
+        "logo": "assets/logo.png",
+        "composerIcon": "assets/logo.png"
+      },
+      "review": {
+        "commerce": true,
+        "commerce_description": "Users can purchase reporting for unlimited trips on the Driversnote website at https://www.driversnote.com. No purchase or payment tool is exposed by this MCP integration.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read mileage with correct units and pagination. Setup: dedicated test account with a vehicle and workplace and business trips in September 2026; record their IDs and expected totals before running. Resolve ambiguous vehicle/workplace choices with the reviewer.",
+              "prompt": "How much business mileage did I drive in September 2026?",
+              "tools_triggered": "get_account_context, list_trips",
+              "expected_behavior": "Resolve account units and relevant vehicle/workplace IDs. Call list_trips with startDate 2026-09-01, endDate 2026-09-30 and tripType business. Follow pagination.nextCursor until hasMore is false before reporting full totals. Convert meters to km for km vehicles; retain miles for mi vehicles. State currency for amounts and do not combine incompatible units or currencies. No writes."
+            },
+            {
+              "description": "Preview without creating a report. Setup: dedicated account with September 2026 trips and a known workplace reimbursement method; reviewer identifies the vehicle/workplace if ambiguous.",
+              "prompt": "What would my September 2026 mileage report total? Just preview it.",
+              "tools_triggered": "get_account_context, preview_report",
+              "expected_behavior": "Resolve vehicleId and organisationId; call preview_report with startDate 2026-09-01 and endDate 2026-09-30. Show totals.distance, distanceUnit, totals.amount, currency and actionable returned warnings. Do not invoke create_report or submit_report_to_team."
+            },
+            {
+              "description": "Bulk classification. Setup: two disposable sample trips on 2026-10-01, explicitly selected by reviewer after list_trips returns them; the reviewer identifies the workplace and confirms the displayed selection. Restore fixtures between repeat runs.",
+              "prompt": "Show my trips on October 1, 2026 so I can select the two sample trips to mark as business and reviewed.",
+              "tools_triggered": "get_account_context, list_trips, classify_trips",
+              "expected_behavior": "List trips with startDate and endDate 2026-10-01. Obtain the reviewer selection and workplace before writing. Call classify_trips once with precisely the two selected ids, tripType business, the selected organisationId and markAsReviewed true. Report success only from the returned result and verify selected trips with list_trips. No unrelated trip changes."
+            },
+            {
+              "description": "Create a report and retrieve downloads. Setup: a dedicated account with eligible sample trips for 2026-08-01 through 2026-08-31, enough subscription access, and no existing report covering those trips; identify vehicle/workplace before execution. Reset fixtures before repeating.",
+              "prompt": "Create my August 2026 mileage report and give me its PDF and spreadsheet links. Do not submit it to my team.",
+              "tools_triggered": "get_account_context, list_reports, preview_report, create_report, get_report_download_links",
+              "expected_behavior": "Resolve vehicleId and organisationId; check existing reports and preview with startDate 2026-08-01 and endDate 2026-08-31. Explain blocking warnings instead of claiming success. If eligible, invoke create_report once with the same scope. Use the returned report id for get_report_download_links. Handle pending PDF generation honestly; use only returned URLs and explain the spreadsheet requires a signed-in browser. Never invoke submit_report_to_team."
+            },
+            {
+              "description": "Team reimbursement summary. Setup: test account is a manager/admin of a sample team with approved September 2026 reports for multiple members; record fixture totals per currency/unit. Only sample team data is used.",
+              "prompt": "Summarize my team\u2019s approved mileage reports for September 2026, broken down by driver.",
+              "tools_triggered": "get_account_context, summarize_team_reports",
+              "expected_behavior": "Resolve a team where the user is manager/admin; call summarize_team_reports with that teamId, state approved, startDate 2026-09-01 and endDate 2026-09-30. Present byMember and totals with units/currency. Use byCurrency when units/currencies differ and disclose partial coverage when complete is false. Do not approve reports, submit reports, or claim to pay drivers."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Outside capability: this server does not initiate bank payments. Explain the limitation; invoke no Driversnote tools and do not claim a payment occurred.",
+              "prompt": "Transfer my mileage reimbursement to my bank account now."
+            },
+            {
+              "description": "Outside capability: there is no report approval mutation. Explain that approval must be completed in Driversnote; invoke no Driversnote tools and do not claim reports were approved.",
+              "prompt": "Approve every pending mileage report in my team."
+            },
+            {
+              "description": "Outside capability: the MCP server cannot activate phone GPS or start live tracking. Explain that tracking is controlled in the mobile app; invoke no Driversnote tools and do not create a fabricated trip.",
+              "prompt": "Turn on my phone\u2019s GPS and start tracking my drive right now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1M2jpxLErEgMfz07YKoomhwGjduHG6Bms/view"
+      },
+      "publication": {
+        "release_notes": "Initial public plugin package connecting to the Driversnote MCP server over OAuth, with trip management, mileage reporting, and team reporting tools.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

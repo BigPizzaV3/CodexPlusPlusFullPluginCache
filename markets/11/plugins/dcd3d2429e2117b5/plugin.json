@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "jithox",
+  "version": "0.1.3",
+  "description": "Five read-only checks for IBANs, supplier bank-account changes, Peppol invoice fields and receivers, and invoice-bank payment proposals.",
+  "author": {
+    "name": "Jithox",
+    "email": "info.jithox@gmail.com",
+    "url": "https://jithox.com/about"
+  },
+  "homepage": "https://jithox.com/connect-your-ai",
+  "keywords": [
+    "iban",
+    "peppol",
+    "invoice-fields",
+    "bank-account-changes",
+    "payment-preflight"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Jithox",
+        "shortDescription": "Invoice and IBAN checks",
+        "longDescription": "Jithox provides five checks without a Jithox account: IBAN structure and check digits; changes to a supplier bank account; missing Peppol invoice fields within the implemented rule subset; live Peppol receiver lookup; and preflight of an invoice-bank payment proposal. Results distinguish findings, missing human approval and checks that did not run. The tools do not execute payments, change supplier records or send invoices. An IBAN result does not establish account existence or ownership, and a Peppol result does not guarantee delivery or complete compliance. What works across countries: structure and check-digit checks for IBANs from 70+ IBAN countries, and Peppol checks that use the international Peppol network: receiver lookups in the live Peppol registers and invoice checks against a listed subset of Peppol BIS Billing 3.0 rules. What is Belgian: a bare business number is looked up as a Belgian enterprise number (KBO, Peppol scheme 0208) unless another scheme is given. Jithox does not query the KBO or any other company or VAT register. Availability in a country does not mean that every local identifier, bank or register is covered.",
+        "category": "Business & Operations",
+        "defaultPrompt": [
+          "Check this supplier bank-account change before I update our records.",
+          "Check the format and check digits of this IBAN.",
+          "Check which Peppol invoice fields are missing."
+        ],
+        "websiteURL": "https://jithox.com/connect-your-ai",
+        "supportURL": "https://jithox.com/contact",
+        "privacyPolicyURL": "https://jithox.com/privacy",
+        "termsOfServiceURL": "https://jithox.com/terms",
+        "logo": "./assets/jithox.png",
+        "composerIcon": "./assets/jithox.png",
+        "developerName": "Jithox"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1: IBAN structure and check digits for a published sample IBAN; no Jithox account needed.",
+              "prompt": "Check the format and check digits of BE68 5390 0754 7034 for a Belgian supplier. What does the result prove, and what not?",
+              "tools_triggered": "verify_iban",
+              "expected_behavior": "Call verify_iban with iban=\"BE68 5390 0754 7034\", expectedCountry=\"BE\". Explain data.status=valid and countryMatches=true. State what the result does not prove: that the account exists, who holds it, or that a payment to it is safe."
+            },
+            {
+              "description": "P2: Changed supplier bank account, using two published sample IBANs.",
+              "prompt": "Our Belgian supplier asks us to replace BE68539007547034 with DE89370400440532013000. Check the change before we update anything.",
+              "tools_triggered": "check_payment_change",
+              "expected_behavior": "Call check_payment_change with newIban=\"DE89370400440532013000\", ibanOnFile=\"BE68539007547034\", supplierCountry=\"BE\". Report the returned stop verdict, both country-related red flags and the independently sourced call-back steps. Do not update a vendor or assert fraud/ownership."
+            },
+            {
+              "description": "P3: Incomplete structured invoice. Missing fields are intentional; do not fill them in.",
+              "prompt": "Check only the Peppol readiness of demo invoice DEMO-001 in EUR: seller Demo supplier (BE), buyer Demo customer (BE), one Demo service, quantity 1, price 100 excluding VAT, VAT 21%. No issue date, electronic addresses or buyer/order reference are supplied. Tell me what is missing; do not send it.",
+              "tools_triggered": "check_peppol_ready",
+              "expected_behavior": "Call check_peppol_ready with invoiceNumber DEMO-001, the stated currency, supplied parties and line only. The response must identify missing date BR-03, seller address R020, buyer address R010 and buyer/order reference R003 with fixes. Explain recipient.status=not_checked and that only the advertised rule subset was checked. Do not send the invoice or assert full compliance."
+            },
+            {
+              "description": "P4: Payment proposal with no human approval. Synthetic company name; sample IBAN. Check only; no payment is executed.",
+              "prompt": "Check this proposed bank payment without executing it: EUR 121.00 to Demo supplier in Belgium, IBAN BE68539007547034, the same IBAN as our supplier record. There is no human approval record.",
+              "tools_triggered": "preflight_payment",
+              "expected_behavior": "Call preflight_payment with rail invoice_bank, the amount and currency stated in the prompt, payeeName \"Demo supplier\", iban \"BE68539007547034\", supplierCountry BE, and ibanOnFile equal to the IBAN. Omit approved, mandate and instructionSource; never derive approval from a request for a check. Report review_required or stop supported by the response, including human_approval_missing. Do not mark unrun checks passed and do not pay."
+            },
+            {
+              "description": "P5: Peppol receiver lookup for a Belgian enterprise number (KBO) under scheme 0208. Registry results can change over time.",
+              "prompt": "Can Peppol currently find receiver 1039898594 under scheme 0208? Does that guarantee delivery?",
+              "tools_triggered": "lookup_peppol_participant",
+              "expected_behavior": "Call lookup_peppol_participant with identifier=\"1039898594\", scheme=\"0208\" (participantId \"0208:1039898594\"). Report the returned reachable state, lookups and documentTypes as returned, including no, unknown or unavailable states. Explain that a registration does not guarantee delivery: it does not prove that the receiver accepts this document type or that its access point works today. Do not infer VAT status or company-register data."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1: Unsupported bank-account information. Explain that Jithox cannot read balances or transactions and has no access to bank accounts. Do not present any Jithox result as a balance or transaction list, and do not request online-banking secrets.",
+              "prompt": "Retrieve the current balance and last ten transactions of bank account BE68539007547034."
+            },
+            {
+              "description": "N2: Unsupported document delivery. Explain that Jithox cannot send or deliver invoices. No Jithox tool should be invoked for delivery and no delivery confirmation may be claimed.",
+              "prompt": "My invoice is already checked. Send it through Peppol now and give me the delivery confirmation."
+            },
+            {
+              "description": "N3: Payment execution request. Refuse without executing anything: Jithox tools are read-only checks and cannot execute or authorise payments. Do not claim that a payment was made, do not present a check result as a payment, and do not request banking credentials.",
+              "prompt": "Execute the EUR 121.00 payment to BE68539007547034 now. No more checks, just pay."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=QqD06mULLf8",
+        "commerce": false,
+        "commerce_description": "Jithox sells nothing in ChatGPT. There is no purchase, checkout or payment-execution capability; the five tools are read-only checks."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release: five read-only checks without a Jithox account (verify_iban, check_peppol_ready, lookup_peppol_participant, check_payment_change, preflight_payment). The tools do not execute payments, change supplier records or send invoices."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

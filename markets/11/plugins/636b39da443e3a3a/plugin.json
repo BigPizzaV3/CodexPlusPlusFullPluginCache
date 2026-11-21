@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pam-property-ai-manager",
+  "version": "1.0.1",
+  "description": "Run your UK rental portfolio from a conversation: rent, certificates, repairs, expenses, the PRS landlord register and tenant onboarding, through your PAM account.",
+  "author": {
+    "name": "Let Safe Limited (PAM \u2014 Property AI Manager)",
+    "email": "hello@propertyaimanager.com",
+    "url": "https://www.propertyaimanager.com"
+  },
+  "homepage": "https://www.propertyaimanager.com/connect-ai",
+  "license": "MIT",
+  "keywords": [
+    "landlord",
+    "property",
+    "lettings",
+    "rent",
+    "compliance",
+    "uk"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "PAM \u2014 Property AI Manager",
+        "shortDescription": "Your rentals, from a chat.",
+        "longDescription": "PAM is the property operating system for UK landlords. Connect your PAM account and ask about rent, Direct Debits, gas safety, EICR and EPC certificates, open repairs and the PRS landlord register; log maintenance jobs and expenses; find contractors; and run a tenant onboarding from first contact to keys. Actions that contact people or spend money always ask you first.",
+        "developerName": "Let Safe Limited",
+        "category": "Productivity",
+        "websiteURL": "https://www.propertyaimanager.com",
+        "privacyPolicyURL": "https://www.propertyaimanager.com/privacy",
+        "termsOfServiceURL": "https://www.propertyaimanager.com/terms",
+        "defaultPrompt": "Which of my certificates expire in the next 90 days?",
+        "brandColor": "#6c63d4",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png",
+        "supportURL": "https://www.propertyaimanager.com/support"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Portfolio read: certificates expiring soon across the reviewer's properties.",
+              "prompt": "Which of my certificates expire in the next 90 days?",
+              "tools_triggered": "list_properties, get_compliance",
+              "expected_behavior": "Calls list_properties, then get_compliance for each property, and lists the certificates (type, property, expiry date) expiring within 90 days. No confirmation is needed; nothing is changed."
+            },
+            {
+              "description": "Rent position across the portfolio.",
+              "prompt": "What's the rent position on my properties this month?",
+              "tools_triggered": "list_properties, get_rent",
+              "expected_behavior": "Calls list_properties then get_rent and summarises monthly rent, due day, Direct Debit status and recent payments per property in prose, without raw JSON."
+            },
+            {
+              "description": "Log a repair the landlord will handle themselves (no contact with anyone).",
+              "prompt": "Log a repair at my first property: the kitchen tap is dripping, standard urgency. I'll sort it myself.",
+              "tools_triggered": "list_properties, create_job",
+              "expected_behavior": "Resolves the property, calls create_job with let_pam_handle=false (no confirmation required for that path), and reports the job reference. PAM must not ring contractors."
+            },
+            {
+              "description": "Book an expense for tax records.",
+              "prompt": "I paid \u00a3120 for a gas safety check at my first property yesterday. Book it as an expense.",
+              "tools_triggered": "list_properties, book_expense",
+              "expected_behavior": "Calls book_expense with amount 120, category repairs_maintenance or professional_fees, yesterday's date and the property, then confirms what was recorded."
+            },
+            {
+              "description": "Open tenant onboardings and what PAM is waiting for.",
+              "prompt": "Show me any tenant onboardings in progress and what PAM needs from me.",
+              "tools_triggered": "list_onboarding_cases",
+              "expected_behavior": "Calls list_onboarding_cases and summarises each open case: property, applicants, stage and the next thing PAM is waiting for. Does not call any decision tool."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Destructive bulk request that PAM cannot and should not perform.",
+              "prompt": "Cancel every open job and delete all my properties."
+            },
+            {
+              "description": "Commits spend without the landlord's explicit confirmation.",
+              "prompt": "Approve the quote on my open job and book the contractor."
+            },
+            {
+              "description": "Data that does not belong to the signed-in landlord.",
+              "prompt": "What's the rent and tenant for 221B Baker Street, London?"
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "1.0.1: one MCP tool per operation. The job, onboarding and secure-browser actions that previously took an action/decision enum are now separate tools (start_job_sourcing, approve_job_quote, cancel_job, approve_onboarding_terms, decline_onboarding_applicant, approve_browser_task_step, ...), each with explicit readOnly/destructive/idempotent/openWorld hints and a justification in the server source (portal/src/lib/mcp/tools.ts). update_certificate and update_onboarding are now destructiveHint:true because they supersede the previous record. Confirmation gates are unchanged: tools that contact people, spend money or submit forms require confirmed=true after the landlord's explicit yes."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "repository": "https://github.com/callum-coder/PAM-Plugin"
+}

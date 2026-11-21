@@ -1,0 +1,86 @@
+{
+  "name": "nolt",
+  "version": "1.0.0",
+  "description": "Nolt helps teams review product feedback, manage posts and comments, moderate submissions, organize roadmaps and custom fields, publish changelogs, and manage board participants through ChatGPT.",
+  "extensions": {
+    "com.openai": {
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial release of the Nolt plugin for managing feedback, posts, comments, moderation, roadmaps, custom fields, changelogs, and board participants through ChatGPT."
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "The ChatGPT integration has no purchase flow.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Recent-board discovery. Run with an authenticated Nolt connection. Compare the response with the recent-board list returned for the connected user; no particular board count is assumed.",
+              "prompt": "Show me my recent Nolt boards.",
+              "tools_triggered": "list_boards",
+              "expected_behavior": "Call list_boards with type=\"RECENT\" (explicitly or using its default). Present only the returned boards, preserving their names and available identifiers or links. If the list is empty, state that no recent boards were returned. Do not select a target board or make changes."
+            },
+            {
+              "description": "Board-scoped feedback search. The connected user must have access to the board named or identified by pid testgpt at testgpt.nolt.io. Resolve that explicitly named board from authenticated results; do not substitute another board. Search results depend on the board\u2019s current indexed posts.",
+              "prompt": "On the Nolt board named testgpt, find posts about single sign-on.",
+              "tools_triggered": "list_boards (if the board ID is not already resolved), search_posts",
+              "expected_behavior": "Resolve the board ID for testgpt from list_boards or prior authenticated conversation context. Call search_posts with that boardId and query=\"single sign-on\", initially using offset=0 and a limit no greater than 100. Present only returned matching posts and their titles and available identifiers or links. Use returned nbHits/results for pagination and stop when no further results remain. If no matches are returned, say so without inventing posts. If the board cannot be resolved unambiguously, ask for clarification without searching a different board."
+            },
+            {
+              "description": "Create a public feedback post on testgpt. The creator confirms that the reviewer has permission to create public posts and that no new-post custom fields are mandatory. Run this case before the status-change case and retain the returned post ID in the same conversation. This case creates test content and may trigger configured board notifications.",
+              "prompt": "On the Nolt board named testgpt, create a public post titled \"Add SAML audit logs\" with the description \"Let administrators review SAML sign-in events.\"",
+              "tools_triggered": "list_boards (if the board ID is not already resolved), get_board, create_post",
+              "expected_behavior": "Resolve the explicitly named testgpt board, then call get_board with its boardId to discover required new-post fields and option IDs. Call create_post on that same board with title=\"Add SAML audit logs\", comment=\"Let administrators review SAML sign-in events.\", and visibility=\"PUBLIC\". Supply required properties only from discovered schema and provided values; ask for any missing required values before creation. Confirm the created post using the tool\u2019s returned ID/title and available link. Preserve the returned post ID for the next case. Do not claim success if the tool reports an error, and do not assign users, set a special roadmap placement, or create additional posts."
+            },
+            {
+              "description": "Move the post created in the preceding case to the existing status named \"in progress\" on testgpt. Run immediately after the creation case in the same conversation, with its returned post ID available. If run independently, resolve testgpt and the exact post title; ask for clarification if multiple posts match. The creator confirms the reviewer has the necessary access and the requested status is available. This action may trigger configured notifications or linked-issue synchronization.",
+              "prompt": "Change the status of post titled \"Add SAML audit logs\" to \"in progress\"",
+              "tools_triggered": "get_board_statuses, change_post_status, get_post; list_boards and search_posts if prior board/post context is unavailable",
+              "expected_behavior": "Use the post ID returned by the preceding creation case and its confirmed testgpt board ID. Call get_board_statuses for that board and resolve the existing status named \"in progress\" without inventing an ID. Call change_post_status with that postId and the discovered statusType, using statusType=\"CUSTOM\" and the discovered statusId for a custom status. Read the post back with get_post to verify the resulting status and report the confirmed change. If the status is absent or the post is ambiguous, ask for clarification and do not create a status or modify another post. Do not claim the change succeeded solely from the user\u2019s request."
+            },
+            {
+              "description": "Create an unpublished changelog draft on testgpt. The creator confirms that the reviewer has the necessary access and that no new-changelog custom fields are mandatory. Discover new-changelog fields first. This case creates a draft and must not publish it.",
+              "prompt": "On the Nolt board named testgpt, create a draft changelog titled \"September improvements\" with the HTML content \"<p>Faster feedback search and clearer filters.</p>\"",
+              "tools_triggered": "list_boards (if the board ID is not already resolved), get_changelog_fields, create_changelog",
+              "expected_behavior": "Resolve the explicitly named testgpt board and call get_changelog_fields with its boardId and location=\"NEW_CHANGELOG\". Call create_changelog on that same board with title=\"September improvements\", content=\"<p>Faster feedback search and clearer filters.</p>\", and status=\"DRAFT\". Use only discovered/provided custom properties and ask for missing required values before creating the draft. Confirm the returned changelog ID/title and status=\"DRAFT\". Do not use status=\"PUBLISHED\", invent a publication date, or describe the draft as published."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported board creation. Nolt\u2019s MCP exposes listing and updating existing boards but no tool to create a board. Explain that a new board cannot be created through this integration and offer guidance for creating it in Nolt\u2019s interface. Do not call list_boards, update_board, or any mutating tool as a substitute, and do not claim a board was created.",
+              "prompt": "Create a new Nolt board for enterprise SSO feedback."
+            },
+            {
+              "description": "Unsupported paid-plan upgrade. The creator confirms that this integration has no purchase flow. Explain that plan upgrades and payments cannot be performed through this integration. Do not invoke Nolt tools to alter board settings as a substitute, collect payment details, initiate payment, or claim an upgrade succeeded.",
+              "prompt": "Upgrade my Nolt board named testgpt to a paid plan."
+            },
+            {
+              "description": "Unsupported backup recovery. No Nolt MCP tool restores permanently deleted posts from backups. Explain that this integration cannot restore a permanently deleted post and suggest contacting Nolt support. Do not call unrelated retrieval or mutation tools, recreate a post while claiming it was restored, or claim recovery succeeded.",
+              "prompt": "Restore a permanently deleted Nolt post from your backups."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.loom.com/share/15f0a95e11d7482889bc5421a670a122"
+      },
+      "interface": {
+        "displayName": "Nolt",
+        "longDescription": "Nolt helps teams review product feedback, manage posts and comments, moderate submissions, organize roadmaps and custom fields, publish changelogs, and manage board participants through ChatGPT.",
+        "developerName": "Nolt",
+        "shortDescription": "Manage product feedback",
+        "websiteURL": "https://nolt.io",
+        "supportURL": "https://nolt.io/help",
+        "privacyPolicyURL": "https://nolt.io/help/privacy",
+        "termsOfServiceURL": "https://nolt.io/help/terms",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "category": "Productivity",
+        "capabilities": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Nolt"
+  },
+  "homepage": "https://nolt.io",
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+}

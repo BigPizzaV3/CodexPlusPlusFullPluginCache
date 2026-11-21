@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "weatheroptics",
+  "version": "1.0.0",
+  "description": "WeatherOptics helps logistics, fleet, and asset-operations teams inspect weather risk, weather forecasts, route impacts, severe events, map layers, and saved WeatherOptics locations or vehicles through ChatGPT.",
+  "author": {
+    "name": "WeatherOptics",
+    "url": "https://www.weatheroptics.co"
+  },
+  "homepage": "https://mcp.weatheroptics.co/setup",
+  "keywords": [
+    "weather",
+    "weather risk",
+    "forecast",
+    "logistics",
+    "fleet",
+    "routing",
+    "severe weather"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "WeatherOptics",
+        "shortDescription": "Weather risk intel",
+        "longDescription": "WeatherOptics helps logistics, fleet, and asset-operations teams inspect weather risk, weather forecasts, route impacts, severe events, map layers, and saved WeatherOptics locations or vehicles through ChatGPT. The app retrieves point-in-time WeatherOptics data so users can identify affected sites, understand timing and severity, visualize relevant risk layers, and confirm live conditions in the WeatherOptics portal.\n\nSign in with your WeatherOptics account; MCP access is a per-organization setting that your WeatherOptics contact can enable. The app is read-only: it does not create, change, or delete WeatherOptics records.",
+        "developerName": "WeatherOptics",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Impact risk forecasts for locations",
+          "Weather forecasts for locations",
+          "Hourly risk and weather series for charts",
+          "Forecast statistics across sites",
+          "Historical weather and impact data",
+          "Weather-adjusted route forecasts",
+          "Severe weather events and alerts",
+          "Active tropical cyclones",
+          "Risk map layers",
+          "Saved locations, routes, and vehicles"
+        ],
+        "websiteURL": "https://www.weatheroptics.co",
+        "supportURL": "https://mcp.weatheroptics.co/support",
+        "privacyPolicyURL": "https://www.weatheroptics.co/mcp-privacy-policy",
+        "termsOfServiceURL": "https://www.weatheroptics.co/terms",
+        "defaultPrompt": [
+          "What weather delays should I expect driving from Denver to Kansas City tomorrow morning?",
+          "Are there any tornado, hail, or NWS warnings within 100 miles of Tampa?",
+          "Give me an update on hurricane activity."
+        ],
+        "brandColor": "#2B2A66",
+        "brandColorDark": "#04A0FD",
+        "composerIcon": "./assets/composer-icon.png",
+        "composerIconDark": "./assets/composer-icon-dark.png",
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Assess peak risk for multiple asset locations.",
+              "prompt": "Here are three warehouses: Dallas DC at 32.7767,-96.7970, Richmond DC at 37.5407,-77.4360, and Chicago DC at 41.8781,-87.6298. Which have the highest WeatherOptics road and flood risk over the next 7 days?",
+              "tools_triggered": "get_impact_forecast",
+              "expected_behavior": "Calls get_impact_forecast for the three labeled sites and compares road and flood risk across them over the 7-day window. Correct in any weather: when risk is elevated it identifies the highest-risk sites with timing and severity bands; when conditions are benign it clearly states that all sites show low or minimal risk (a valid ranking of low values). Any site that fails to resolve is reported as unknown rather than silently dropped."
+            },
+            {
+              "description": "Analyze and map a weather-aware route.",
+              "prompt": "I'm driving from Denver to Kansas City tomorrow morning. What weather delays or hazards should I expect, and can you map the route hazard?",
+              "tools_triggered": "get_rightroute_forecast, get_tile_map",
+              "expected_behavior": "Calls get_rightroute_forecast for the Denver-to-Kansas City trip with include_route_polyline, then get_tile_map with the returned route_polyline, returning route timing plus an inline route-hazard map rendered by the WeatherOptics map component. Correct in any weather: when conditions are active it calls out slowdowns, hazards, and official guidance along the route; when conditions are benign it includes a clear low-impact summary (minimal expected delay, no significant hazards)."
+            },
+            {
+              "description": "Check nearby severe weather events.",
+              "prompt": "Are there any tornado, hail, hurricane, or NWS warning events near Tampa at 27.9506,-82.4572 within 100 miles?",
+              "tools_triggered": "get_severe_events_near",
+              "expected_behavior": "Calls get_severe_events_near with the Tampa coordinates and 100-mile radius, and either lists nearby severe events and alerts with source, event type, severity, headline, timing, and distance, OR clearly states that no severe events or warnings are currently active near Tampa. Both are correct results for this live-data check. Surfaces a warning if any upstream feed fails."
+            },
+            {
+              "description": "Compute a statistic over the forecast for a site.",
+              "prompt": "How much total rain is forecast at our Chicago yard (41.8781,-87.6298) over the next 48 hours, and what is the peak wind gust there in that window?",
+              "tools_triggered": "aggregate_weather_data",
+              "expected_behavior": "Calls aggregate_weather_data for the labeled site: a sum of total_precipitation over a 48-hour window and a max of wind_gust over the same window. Correct in any weather: it reports the precipitation total in inches (zero is a valid answer when the forecast is dry) and the peak gust in mph with the local hour it occurs, both attributed to the 48-hour window. Numbers come from the tool result, not from the model's own arithmetic over a series, and a site that fails to resolve is reported as unknown rather than as zero."
+            },
+            {
+              "description": "Past storm impact at a place.",
+              "prompt": "Using WeatherOptics, what were the peak wind gusts and power outage risk in Fort Myers, FL during Hurricane Ian (September 27-29, 2022)?",
+              "tools_triggered": "get_daily_historical",
+              "expected_behavior": "Calls get_daily_historical (or get_hourly_historical) for Fort Myers, 2022-09-27 to 2022-09-29, with the power index, and reports the peak gust and peak power outage risk with their dates."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not trigger for general transportation regulation questions.",
+              "prompt": "Summarize the federal hours-of-service rules for long-haul truck drivers.",
+              "expected_behavior": "The app should not be invoked because the request is about trucking regulations, not weather or WeatherOptics data."
+            },
+            {
+              "description": "Do not trigger for general trip booking.",
+              "prompt": "Book me the cheapest flight from New York to Miami next Friday.",
+              "expected_behavior": "The app should not be invoked because booking travel is outside its supported weather-risk workflows."
+            },
+            {
+              "description": "Do not trigger for unrelated public web publishing.",
+              "prompt": "Take the storm advisory we already wrote this morning and post it to our company website and social channels.",
+              "expected_behavior": "The app should not be invoked because it cannot publish, post, send, or mutate external systems, and the request needs no weather data lookup; the content is already written."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments.",
+        "demo_recording_url": "https://youtu.be/bEp60l9sTlg"
+      },
+      "publication": {
+        "release_notes": "Initial release. Read-only WeatherOptics tools for impact-risk and weather forecasts, hourly series for charts, forecast statistics, historical weather and impact, weather-adjusted route forecasts, severe events and alerts near a location, active tropical cyclones, inline risk maps, and search of saved locations, routes, and vehicles."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

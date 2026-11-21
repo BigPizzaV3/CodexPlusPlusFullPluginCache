@@ -1,0 +1,123 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mailx",
+  "version": "1.0.1",
+  "description": "Live email deliverability checks: SPF, DKIM, DMARC, BIMI, blacklists and DNS, plus SPF and DMARC record generation.",
+  "author": {
+    "name": "Mailwarm Inc.",
+    "email": "thami@themailx.com",
+    "url": "https://themailx.com"
+  },
+  "homepage": "https://themailx.com",
+  "keywords": [
+    "email deliverability",
+    "spam",
+    "junk",
+    "spf",
+    "dkim",
+    "dmarc",
+    "bimi",
+    "blacklist",
+    "dns",
+    "gmail",
+    "outlook",
+    "google workspace",
+    "microsoft 365"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "mailX",
+        "shortDescription": "Find why your emails hit spam",
+        "longDescription": "mailX finds out why your emails land in spam or junk, using live DNS checks, and tells you exactly what to fix.\n\nAsk in plain English, for example \"why are my emails going to spam?\", \"does my domain have the SPF, DKIM and DMARC that Gmail and Yahoo require for bulk senders?\" or \"check DMARC for acme.com\". mailX runs the checks in real time:\n\n- Full email deliverability audit in one step: SPF, DKIM, DMARC, blacklists and MX, with the fixes to apply in priority order\n- SPF, DKIM, DMARC and BIMI validation, with the exact record found and what it means\n- DKIM selector detection, so you don't need to know your selector\n- Blacklist lookup for a domain across major DNS blocklists such as Spamhaus, Barracuda and SpamCop\n- MX, TXT, CNAME, PTR and full DNS lookups\n- SPF and DMARC record generation for Google Workspace, Microsoft 365 and other providers, ready to paste into your DNS provider\n- SMTP and IMAP server settings for Gmail, Outlook, Microsoft 365, Zoho and other providers\n\nUseful when you set up a new domain, move to Google Workspace or Microsoft 365, launch a newsletter or an outreach campaign, or see emails going to spam in Gmail or Outlook.\n\nEvery result comes from a live DNS query, so you see the state of your domain right now. No account or setup needed.\n\nmailX only reads public DNS data. It never changes your DNS, never sends email and never asks for passwords.\n\nBuilt by Mailwarm Inc. (YC S20), an email deliverability company.",
+        "developerName": "Mailwarm Inc.",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Run a full email deliverability audit in one step",
+          "Check SPF, DKIM, DMARC and BIMI records",
+          "Detect the DKIM selector automatically",
+          "Check a domain against major email blacklists",
+          "Look up MX, TXT, CNAME, PTR and full DNS records",
+          "Generate SPF and DMARC records",
+          "Find SMTP and IMAP settings for email providers"
+        ],
+        "websiteURL": "https://themailx.com",
+        "supportURL": "https://themailx.com/support",
+        "privacyPolicyURL": "https://themailx.com/privacy-policy",
+        "termsOfServiceURL": "https://themailx.com/terms-of-use",
+        "defaultPrompt": [
+          "Why are my emails landing in spam? Check my domain",
+          "Check SPF, DKIM and DMARC for my domain",
+          "Is my domain on an email blacklist?"
+        ],
+        "brandColor": "#594BF6",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Full deliverability audit of a real domain",
+              "prompt": "Why could emails from mailwarm.com be landing in spam? Check the domain's SPF, DKIM, DMARC and blacklists.",
+              "tools_triggered": "audit_domain (ChatGPT may instead call spf_check, dkim_check, dmarc_check and blacklist_check one by one)",
+              "expected_behavior": "Returns an overall pass with 5 of 5 checks passed: SPF pass with the record v=spf1 include:_spf.google.com ~all, DKIM pass for the google selector found automatically, DMARC pass with a quarantine policy, no listing on the blocklists checked, and Google MX records found. No fixes needed. ChatGPT explains that DNS authentication is not the cause and lists other possible causes to investigate."
+            },
+            {
+              "description": "DKIM check without knowing the selector",
+              "prompt": "Is DKIM set up correctly for mailwarm.com? I don't know which selector we use.",
+              "tools_triggered": "dkim_check",
+              "expected_behavior": "Calls dkim_check without a selector. mailX tests common selectors, finds the google selector and returns status pass with the published RSA public key."
+            },
+            {
+              "description": "Blacklist check for a domain",
+              "prompt": "Is mailwarm.com listed on any email blacklist?",
+              "tools_triggered": "blacklist_check",
+              "expected_behavior": "Returns not listed for each blocklist checked: Spamhaus ZEN, Composite Blocking List, Barracuda, SURBL Multi and SpamCop."
+            },
+            {
+              "description": "SPF record generation for Google Workspace",
+              "prompt": "Generate the SPF record for example.com. We send with Google Workspace. Soft fail is fine.",
+              "tools_triggered": "spf_generate",
+              "expected_behavior": "Returns a TXT record for example.com with the value v=spf1 include:_spf.google.com ~all, and says the user must publish it at their DNS provider."
+            },
+            {
+              "description": "DMARC record generation",
+              "prompt": "Create a DMARC record for example.com with a quarantine policy and reports sent to dmarc@example.com.",
+              "tools_triggered": "dmarc_generate",
+              "expected_behavior": "Returns record name _dmarc.example.com, type TXT, and the value v=DMARC1; p=quarantine; rua=mailto:dmarc@example.com, ready to publish by the user."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Off-topic writing request. mailX only runs email deliverability and DNS checks, so it should not be called. ChatGPT answers on its own.",
+              "prompt": "Write a cold email to promote my SaaS product."
+            },
+            {
+              "description": "Credentials and sending request. mailX never accepts passwords and cannot send email. Expected: mailX is not called with the password; ChatGPT explains that mailX only runs DNS-based checks and may offer to look up SMTP settings for the provider.",
+              "prompt": "Here is my SMTP password, log into smtp.gmail.com and send a test email for me."
+            },
+            {
+              "description": "DNS change request. mailX is read-only and never changes DNS. Expected: no claim that the record was changed; mailX may generate the SPF record, and ChatGPT says the user must publish it at their DNS provider.",
+              "prompt": "Update the SPF record on my domain's DNS for me."
+            }
+          ]
+        },
+        "demo_recording_url": "https://www.youtube.com/watch?v=lnjE-xN_ZfM",
+        "commerce": false,
+        "commerce_description": "mailX does not sell products or process payments in ChatGPT."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial public release: one-step deliverability audit, live SPF, DKIM, DMARC, BIMI, blacklist and DNS checks, plus SPF and DMARC record generation.",
+        "translations": {
+          "fr-FR": {
+            "subtitle": "Diagnostic d\u00e9livrabilit\u00e9 email",
+            "description": "mailX trouve pourquoi vos emails arrivent en spam ou en courrier ind\u00e9sirable, gr\u00e2ce \u00e0 des v\u00e9rifications DNS en direct, et vous dit exactement quoi corriger.\n\nPosez votre question simplement, par exemple \u00ab pourquoi mes emails arrivent en spam ? \u00bb, \u00ab mon domaine a-t-il le SPF, le DKIM et le DMARC exig\u00e9s par Gmail et Yahoo pour les envois en masse ? \u00bb ou \u00ab v\u00e9rifie le DMARC de acme.com \u00bb. mailX lance les v\u00e9rifications en temps r\u00e9el :\n\n- Audit complet de d\u00e9livrabilit\u00e9 en une seule \u00e9tape : SPF, DKIM, DMARC, blacklists et MX, avec les corrections \u00e0 faire par ordre de priorit\u00e9\n- Validation SPF, DKIM, DMARC et BIMI, avec l'enregistrement exact trouv\u00e9 et ce qu'il signifie\n- D\u00e9tection du s\u00e9lecteur DKIM : inutile de conna\u00eetre le v\u00f4tre\n- V\u00e9rification d'un domaine sur les principales blacklists DNS, comme Spamhaus, Barracuda et SpamCop\n- Recherches MX, TXT, CNAME, PTR et DNS compl\u00e8tes\n- G\u00e9n\u00e9ration d'enregistrements SPF et DMARC pour Google Workspace, Microsoft 365 et d'autres fournisseurs, pr\u00eats \u00e0 coller chez votre h\u00e9bergeur DNS\n- Param\u00e8tres SMTP et IMAP pour Gmail, Outlook, Microsoft 365, Zoho et d'autres fournisseurs\n\nUtile quand vous configurez un nouveau domaine, passez \u00e0 Google Workspace ou Microsoft 365, lancez une newsletter ou une campagne de prospection, ou voyez vos emails partir en spam dans Gmail ou Outlook.\n\nChaque r\u00e9sultat vient d'une requ\u00eate DNS en direct : vous voyez l'\u00e9tat de votre domaine \u00e0 l'instant. Aucun compte ni configuration n\u00e9cessaire.\n\nmailX lit uniquement des donn\u00e9es DNS publiques. Il ne modifie jamais votre DNS, n'envoie jamais d'email et ne demande jamais de mot de passe.\n\nD\u00e9velopp\u00e9 par Mailwarm Inc. (YC S20), sp\u00e9cialiste de la d\u00e9livrabilit\u00e9 email."
+          }
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

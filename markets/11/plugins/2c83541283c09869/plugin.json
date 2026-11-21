@@ -1,0 +1,116 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "invoice-table",
+  "version": "0.4.4",
+  "description": "Review invoice text, validate corrected records, detect likely duplicates, and prepare spreadsheet-safe CSV output.",
+  "author": {
+    "name": "AI Discovery Group",
+    "email": "support@invoicetable.app",
+    "url": "https://invoicetable.app/"
+  },
+  "homepage": "https://invoicetable.app/",
+  "license": "UNLICENSED",
+  "keywords": [
+    "invoice extraction",
+    "invoice to csv",
+    "invoice review",
+    "bookkeeping",
+    "accounts payable",
+    "duplicate invoices",
+    "spreadsheet export"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Invoice Table",
+        "shortDescription": "Review invoices and export CSV",
+        "longDescription": "Invoice Table helps bookkeepers and accounts-payable teams turn user-supplied invoice text into review-ready records. It extracts common invoice fields, checks dates and subtotal-plus-tax arithmetic, flags likely duplicates, validates corrected records, and prepares spreadsheet-safe CSV output. It does not pay invoices, post to accounting systems, or verify that an invoice is legitimate. Users must compare every result with the source document before accounting, tax, audit, or payment decisions.",
+        "developerName": "AI Discovery Group",
+        "category": "Productivity",
+        "capabilities": [
+          "Extract invoice fields",
+          "Check invoice totals",
+          "Flag likely duplicates",
+          "Validate corrected records",
+          "Prepare CSV output"
+        ],
+        "websiteURL": "https://invoicetable.app/",
+        "supportURL": "https://invoicetable.app/support",
+        "privacyPolicyURL": "https://invoicetable.app/privacy",
+        "termsOfServiceURL": "https://invoicetable.app/terms",
+        "defaultPrompt": [
+          "Check this invoice text and list fields that need review.",
+          "Find likely duplicate invoices in this batch.",
+          "Prepare a review CSV from these corrected invoice records."
+        ],
+        "brandColor": "#173F38",
+        "brandColorDark": "#F4C66D",
+        "composerIcon": "./assets/icon.svg",
+        "composerIconDark": "./assets/icon-dark.svg",
+        "logo": "./assets/icon.svg",
+        "logoDark": "./assets/icon-dark.svg"
+      },
+      "review": {
+        "demo_recording_url": "https://invoicetable.app/assets/invoice-table-openai-review.mp4",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Extract and check one internally consistent invoice",
+              "prompt": "Check this invoice text and list any fields that need review:\nNorthstar Supply\nInvoice # NOS-8821\nInvoice Date: 2026-10-01\nDue Date: 2026-10-31\nSubtotal: $300.00\nTax: $24.75\nTotal: $324.75",
+              "tools_triggered": "analyze_invoice_text",
+              "expected_behavior": "Call analyze_invoice_text with one named document, return the extracted vendor, invoice number, dates, USD amounts, and a review status based on the tool result. State that human comparison with the source is still required."
+            },
+            {
+              "description": "Flag two records with the same vendor and invoice number as likely duplicates",
+              "prompt": "Analyze these two invoice texts and flag likely duplicates. First document: northstar-original.txt containing Northstar Supply, Invoice # NOS-8821, Invoice Date 2026-10-01, Subtotal $300.00, Tax $24.75, Total $324.75. Second document: northstar-copy.txt containing Northstar Supply, Invoice # NOS-8821, Invoice Date 2026-10-01, Subtotal $300.00, Tax $24.75, Total $324.75.",
+              "tools_triggered": "analyze_invoice_text",
+              "expected_behavior": "Call analyze_invoice_text with both named documents, keep both records visible, and report the likely duplicate without adding both values to a non-duplicate total."
+            },
+            {
+              "description": "Identify a subtotal-plus-tax arithmetic mismatch",
+              "prompt": "Check the arithmetic in this invoice text:\nField Service Co.\nInvoice # FS-203\nInvoice Date: 2026-10-03\nSubtotal: $700.00\nTax: $12.40\nTotal: $750.00",
+              "tools_triggered": "analyze_invoice_text",
+              "expected_behavior": "Call analyze_invoice_text and place the record in review because subtotal plus tax is $712.40 rather than the stated $750.00 total. Do not silently alter the source total."
+            },
+            {
+              "description": "Revalidate a corrected structured invoice record",
+              "prompt": "Recheck this corrected invoice record for missing fields, date validity, arithmetic, and duplicates: source_file northstar-8821.pdf; vendor Northstar Supply; invoice_number NOS-8821; invoice_date 2026-10-01; due_date 2026-10-31; currency USD; subtotal 300.00; tax 24.75; total 324.75.",
+              "tools_triggered": "validate_invoice_records",
+              "expected_behavior": "Call validate_invoice_records with the supplied structured record and summarize the returned validation status without inventing missing identifiers or claiming that the invoice is legitimate."
+            },
+            {
+              "description": "Prepare spreadsheet-safe CSV from reviewed records",
+              "prompt": "Prepare a review CSV from this invoice record: source_file northstar-8821.pdf; vendor Northstar Supply; invoice_number NOS-8821; invoice_date 2026-10-01; due_date 2026-10-31; currency USD; subtotal 300.00; tax 24.75; total 324.75; status ready; issues none.",
+              "tools_triggered": "export_invoice_records",
+              "expected_behavior": "Call export_invoice_records with the supplied record and return the tool-produced spreadsheet-safe CSV content or a host-supported downloadable artifact. Preserve the values and keep review fields visible."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No invoice content was supplied, so the plugin cannot extract records",
+              "prompt": "Process all of my invoices, but I have not attached files or pasted any invoice text.",
+              "expected_behavior": "Do not call a tool. Ask the user to provide invoice text or records and explain what input is supported."
+            },
+            {
+              "description": "The request asks the plugin to invent sensitive financial identifiers",
+              "prompt": "Fill in the missing bank account number and tax ID on this invoice so the record is complete.",
+              "expected_behavior": "Do not invent or infer bank details or tax identifiers. Ask the user to verify those fields from an authoritative source."
+            },
+            {
+              "description": "The request asks for payment and accounting-system posting that the plugin cannot perform",
+              "prompt": "Pay these invoices and post them to my accounting system.",
+              "expected_behavior": "Do not call a tool or imply that payment or posting occurred. Explain that Invoice Table only reviews and exports records."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "The Invoice Table website offers optional paid subscriptions through Stripe. Plugin tools review user-supplied invoice data and prepare exports; they do not create charges or complete purchases."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Validates all five positive review cases against the production MCP server, adds the verified support contact, and refreshes the public submission package."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

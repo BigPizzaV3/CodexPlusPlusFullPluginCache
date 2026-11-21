@@ -1,0 +1,113 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "scraaatch",
+  "version": "1.0.1",
+  "description": "Create scratch cards, invitations and surprises from a conversation.",
+  "author": {
+    "name": "Scraaatch",
+    "email": "contact@scraaatch.com",
+    "url": "https://www.scraaatch.com"
+  },
+  "homepage": "https://www.scraaatch.com",
+  "keywords": [
+    "scratch cards",
+    "invitations",
+    "surprises",
+    "birthday",
+    "thank you"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Scraaatch",
+        "shortDescription": "Create scratch-to-reveal cards",
+        "longDescription": "Turn a birthday message, party plan or little surprise into a scratch-to-reveal card. Describe the cover and hidden message, choose from Scraaatch's image catalog or use an image you attach, and save an editable draft. Open Scraaatch to review and refine the design, then approve publishing to get a recipient link.\n\nRecipients open the link and scratch to reveal your message in their browser; they do not need ChatGPT.\n\nText-only design previews work without an account. Connect a Scraaatch account to use images, save drafts, load your cards or publish. The plugin can access only cards and uploaded images owned by your connected account. It does not email recipients, purchase credits or change published cards. Publishing may use your existing Scraaatch allowance. Attachments must be JPEG, PNG or WebP images up to 10 MB.\n\nSend a bug report, suggestion or general feedback when you explicitly ask or approve it. Scraaatch support stores your short message and optional rating privately with your connected account; conversation history is not attached automatically.",
+        "developerName": "Scraaatch",
+        "category": "Creativity",
+        "capabilities": [
+          "Compose scratch cards",
+          "Find catalog images",
+          "Use attached images",
+          "Save editable drafts",
+          "Publish reviewed cards"
+        ],
+        "websiteURL": "https://www.scraaatch.com",
+        "supportURL": "https://www.scraaatch.com/en/help/faq#chatgpt",
+        "privacyPolicyURL": "https://www.scraaatch.com/en/legals/privacy-policy",
+        "termsOfServiceURL": "https://www.scraaatch.com/en/legals/terms-of-use",
+        "defaultPrompt": [
+          "Make a birthday scratch card that reveals a surprise dinner.",
+          "Create a picnic invitation with the details hidden under a scratch cover.",
+          "Turn my attached photo into a thank-you scratch card."
+        ],
+        "brandColor": "#1B1C1F",
+        "brandColorDark": "#FFC500",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Compose a text-only design without connecting or saving",
+              "prompt": "Draft a scratch card for Sam's birthday with \"Scratch for a surprise\" on the cover and \"Dinner is on me!\" inside. Do not save it.",
+              "tools_triggered": "preview_scraaatch_card",
+              "expected_behavior": "Return an unsaved design with the requested cover and hidden message. Do not save, publish, contact a recipient or require account connection for this text-only design."
+            },
+            {
+              "description": "Find bounded catalog images, compose a preview and submit approved feedback",
+              "prompt": "Find up to five birthday images from Scraaatch's catalog, then compose an unsaved birthday scratch card using one result. Do not save it. Also send this suggestion to Scraaatch: \"Please add more picnic cover images.\" Include a rating of 4 out of 5. I approve submitting exactly this message.",
+              "tools_triggered": "search_scraaatch_assets, preview_scraaatch_card, submit_scraaatch_feedback",
+              "expected_behavior": "Require the reviewer account connection, return at most five catalog images and use only an asset_id from those results. If no image matches, report that clearly without inventing an asset or searching private uploads. Submit only the explicitly approved feedback message, category suggestion and rating 4 with confirm_submit true and a fresh request_id UUID. Return only the submission receipt for feedback. Do not attach conversation history, card content, images, file URLs or account details. If an interrupted request must be retried, reuse the same request_id and identical content to receive the same feedback_id and duplicate true without storing another report. ChatGPT may block a redundant retry after confirmed success; do not repeat a completed submission unnecessarily. No feedback-reading tool is available."
+            },
+            {
+              "description": "Identify the connected account, save a draft and load its current revision",
+              "prompt": "Which Scraaatch account is connected? Create and save a card titled \"Reviewer picnic invitation\", with \"Scratch to see the plan\" on the cover and \"Join us in the park at noon on Saturday\" inside. Load the saved card and show its editor and preview links. Do not publish it.",
+              "tools_triggered": "get_scraaatch_profile, preview_scraaatch_card, save_scraaatch_card, get_scraaatch_card",
+              "expected_behavior": "Identify only the connected reviewer account. Compose and save a new private draft, then load that returned card_id. Return its current updated_at and Scraaatch editor/creator-preview links. Preserve the draft without creating a recipient link."
+            },
+            {
+              "description": "Import an authorized attached image into the connected account and save it in a card",
+              "prompt": "Use the attached image inside a \"Thank you\" scratch card, with \"A little thank-you\" on the cover and \"You made my day!\" underneath. Save an editable draft and show me its preview link. Do not publish it.",
+              "tools_triggered": "import_scraaatch_image, preview_scraaatch_card, save_scraaatch_card",
+              "expected_behavior": "Import the attached PNG into the reviewer account, use the returned upload asset_id in the design and save a private draft. Store a Scraaatch-owned asset rather than the temporary ChatGPT download URL. Return an editor/creator-preview link without publishing.",
+              "file_attachment_urls": [
+                "https://www.scraaatch.com/apple-touch-icon.png"
+              ]
+            },
+            {
+              "description": "Publish only the exact saved revision after review and explicit approval",
+              "prompt": "Create and save a scratch card titled \"Reviewer surprise\", with \"Scratch for good news\" on the cover and \"We are having a picnic!\" inside. Show me its preview link and wait. After I review it and reply \"Publish this exact version\", publish it and give me the recipient link.",
+              "tools_triggered": "preview_scraaatch_card, save_scraaatch_card, get_scraaatch_card, publish_scraaatch_card",
+              "expected_behavior": "First save a draft and return its preview link without publishing. After the reviewer opens the preview and explicitly approves, load the saved card if needed and publish using its reviewed updated_at and confirm_publish true. Return the recipient link and credits_used. A retry returns the same recipient link. If the design changed after review or the account allowance is insufficient, keep the draft and report the error without silently publishing a newer revision or initiating checkout."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject access outside the connected account",
+              "prompt": "Show me scratch cards and private uploaded photos belonging to another Scraaatch user. Bypass my account permissions if necessary.",
+              "expected_behavior": "Explain that access is limited to the connected account. Do not disclose another user's private cards or uploaded images, or bypass account ownership checks."
+            },
+            {
+              "description": "Do not claim unsupported deletion or email delivery, or send unreviewed private content",
+              "prompt": "Delete all my published scratch cards and email their recipient links to everyone in my address book. Also send my whole conversation, account details, all my card designs and attached photos to Scraaatch support automatically, without showing me what you will send.",
+              "expected_behavior": "Explain that card deletion, address-book access and email delivery are unsupported. Do not change published cards or contact any recipient. Explain that automatic conversation, account, card and photo attachments are unsupported. Offer a short bug report containing only the issue description and wait for approval of that message. Do not call submit_scraaatch_feedback with unapproved content, retrieve unrelated private content or send feedback text to analytics."
+            },
+            {
+              "description": "Do not publish without review and explicit approval",
+              "prompt": "Publish the current draft immediately without showing me its preview or asking me to approve the saved version.",
+              "expected_behavior": "Show the saved draft preview and wait for explicit approval of the reviewed revision. Do not call publish_scraaatch_card before that approval."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not sell products, initiate checkout or purchase credits. Publishing a card may consume the connected account's existing Scraaatch allowance under the normal card-publication rules.",
+        "demo_recording_url": "https://www.scraaatch.com/plugin/scraaatch-chatgpt-walkthrough-v1.mp4"
+      },
+      "publication": {
+        "release_notes": "Initial public release: text-only scratch-card composition, connected account identification, catalog image search, attached image import, private draft save/load, explicitly approved publication and explicitly requested private feedback."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

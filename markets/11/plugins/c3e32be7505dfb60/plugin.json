@@ -1,0 +1,119 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "easygerber",
+  "version": "0.3.13",
+  "description": "AI PCB design, layout, and routing",
+  "author": {
+    "name": "EasyGerber",
+    "url": "https://easygerber.com"
+  },
+  "homepage": "https://easygerber.com/agents",
+  "license": "MIT",
+  "keywords": [
+    "easygerber",
+    "ai pcb design",
+    "pcb design",
+    "circuit board design",
+    "printed circuit board design",
+    "circuit design",
+    "schematic design",
+    "pcb layout",
+    "automatic pcb routing",
+    "electronic component search",
+    "3d pcb preview",
+    "gerber export",
+    "pcb manufacturing files",
+    "bill of materials"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "EasyGerber",
+        "shortDescription": "AI PCB design and layout",
+        "longDescription": "Design circuit boards with AI, from your first idea to the files your manufacturer needs. Describe what you want to build in everyday language, or start with the pin assignments in your firmware.\n\nChoose from over one million electronic components in EasyGerber\u2019s catalog, including LEDs, sensors, connectors, and microcontrollers. Build with real catalog parts, their footprints, and available 3D models\u2014from a simple LED circuit to a custom electronics project.\n\nCreate and edit schematics, generate PCB layouts with AI component placement and automatic routing, and refine your design through conversation. Adjust board settings, define part clearances and keepout regions, and specify current requirements for individual pins. Explore copper layers, inspect your board in interactive 3D, and check for blocking layout issues before manufacturing export.\n\nDownload Gerber files, drill files, a bill of materials (BOM), component placement files, and an editable EasyGerber file to continue working on your design. Editable backups can be exported before the layout is complete or up to date, without generating or checking a layout just to export it.\n\nCreate, edit, and export a private board as a guest. To find your design again from your account, open Save to My Boards beside the board or its downloads and complete the save in the private preview. You can also ask your connected agent to save the board and give you its account link. To continue editing a board you saved in the browser, connect that same account in your agent.\n\nAsk your agent to send a bug report, feature request, or general feedback privately to EasyGerber. Feedback can be anonymous without signing up or starting a board. The agent sends only the message you ask or agree to share and returns a submission receipt, without promising a response or roadmap commitment.",
+        "developerName": "EasyGerber",
+        "category": "Developer Tools",
+        "capabilities": [
+          "AI circuit and PCB design",
+          "Schematic design and editing",
+          "AI component placement and automatic routing",
+          "Electronic component search",
+          "3D PCB previews",
+          "PCB layout checks",
+          "Gerber and manufacturing exports",
+          "Bill of materials (BOM) export",
+          "Account-board deletion with separate consent",
+          "User-approved bug reports and feature requests"
+        ],
+        "websiteURL": "https://easygerber.com/agents",
+        "supportURL": "https://easygerber.com/agents",
+        "privacyPolicyURL": "https://easygerber.com/privacy",
+        "termsOfServiceURL": "https://easygerber.com/terms",
+        "logo": "./assets/logo.svg",
+        "composerIcon": "./assets/icon.svg",
+        "defaultPrompt": [
+          "Create a small 3.3 V LED board, show a preview, and export the manufacturing files.",
+          "Create a board from the pin assignments in my firmware.",
+          "Find a temperature sensor for my project."
+        ]
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "P1 \u2014 Public catalog access and published component selection. Start without an account and verify a connector and its pins without creating a trial or board.",
+              "prompt": "Find a published two-pin connector for a passive signal-and-ground pass-through board and confirm its actual catalog pins before designing it.",
+              "tools_triggered": "search_parts, get_part",
+              "expected_behavior": "The agent discovers and searches the public catalog without account authorization or a guest token. It does not call start_guest_session or create a board; browsing must not start a trial. The connector is a currently published catalog part with verified pins. Missing electrical requirements are clarified."
+            },
+            {
+              "description": "P2 \u2014 One private board reference across creation and later edits. Create the board from P1, then continue in a separate conversation turn; separately verify identical request replay.",
+              "prompt": "Create the pass-through board with two instances of the verified connector. Connect signal to signal and ground to ground using the app defaults. In a later turn: Rename that board to Review Pass-through v2 and read it back. As a separate retry check, repeat an original creation or update request with its exact original reference, request ID, arguments, and revision.",
+              "tools_triggered": "create_board with boardRef, get_board with the same boardRef, update_board, get_board; identical original requests for retry checks",
+              "expected_behavior": "The agent generates one private boardRef and calls create_board directly without account probing, guest-start coaching, or a session-start call. Creation uses a valid connected account or establishes private access automatically. The first guest board handoff names the board and offers its private Save to My Boards link without requiring sign-in. Subsequent turns use the same reference for reads and edits, without a separate guest token. The reference stays in private tool context. Identical retries return the original result without another board or mutation; changed arguments with the same request ID conflict. The schematic uses published catalog IDs and verified pins, preserves footprints and models, and inherits hidden constraints. The rename changes only the requested name. A competing edit requires a fresh read. A saved schematic is not described as a completed PCB."
+            },
+            {
+              "description": "P3 \u2014 Guest layout, preview, and blocking-issue validation. Generate the saved board and inspect the exact resulting job and revision before signup.",
+              "prompt": "Generate that board, wait for completion, show its preview and private link, and report any blocking issues. In a later turn: Read the same board and report its current saved layout and job status.",
+              "tools_triggered": "get_board with preview; get_generation only while a save's result has pollAfterSeconds; check_board_layout only when validation is null; generate_layout only to retry a failed, cancelled, or unstarted layout",
+              "expected_behavior": "Saving the board already laid it out and checked it: the save's result carries the finished job, the new revision and validation. The agent uses the same boardRef for later reads. Only when a save's result has pollAfterSeconds does it poll that exact generation.id, or read get_generation with the reference alone if the ID is unavailable. get_board reports the current job and saved layout. Status checks never start another generation. Completed, failed, and cancelled are terminal and reported from actual results. Preview and validation use the current saved revision without signup. Validation reports actionable blocking issues without numeric scores; a null or unavailable assessment is not a pass. Direct layout does not spend EasyGerber AI credits."
+            },
+            {
+              "description": "P4 \u2014 Guest editable backup and manufacturing deliverables. Export the saved project before layout generation, then prepare manufacturing files, retaining required notices.",
+              "prompt": "Without signing in, first export this guest board's current saved project as an EasyGerber .egb backup without changing its missing, incomplete, or stale layout. Then prepare a current layout and export a manufacturing ZIP. Explain each download and how to access it later; do not place an order.",
+              "tools_triggered": "get_board and export_board for the EasyGerber backup; generate_layout if the layout needs a retry, and get_generation only while a result has pollAfterSeconds; check_board_layout when validation is null, and export_board for manufacturing",
+              "expected_behavior": "The EasyGerber backup exports the valid saved project directly, without generation or a layout check, even with missing, incomplete, or stale layout. The later manufacturing export requires current PCB geometry and electrical requirements and a layout check. Each export uses its authoritative saved revision in the original guest session. Both private downloads open without signup and retain applicable license notices and change notes. The agent presents the optional Save to My Boards link beside the download using the private preview URL supplied for the guest board. The agent returns each complete stable private URL unchanged, including its fragment, and explains that it preserves the exported revision without automatic expiry. New exports require current board access; issued download links remain valid after board edits or deletion, guest claim, and guest cleanup. Only explicit download-link revocation or deletion of the exported file ends access. No customer-facing countdown or renewal step is needed. No numeric PCB score is exposed. No purchasing, public sharing, or deletion occurs."
+            },
+            {
+              "description": "P5 \u2014 Ordinary account authorization continues the same private board. Sign in without deletion consent and continue with the original reference.",
+              "prompt": "Save this guest board to my EasyGerber account so I can find it again. Then list my accessible organizations without moving the board to an organization.",
+              "tools_triggered": "normal account authorization, save_board_to_account with the original boardRef, get_profile when identity is needed, list_organizations",
+              "expected_behavior": "Ordinary OAuth requests only board workflow and offline access permissions, without boards:delete. After consent, save_board_to_account with the same boardRef saves the existing private board into the account under authorized write access; get_board and other reads never save it. Finish an active layout first and wait on busy responses without cancelling it or changing identity. The agent confirms the save with the returned account board link and continues with the same reference and the returned account board ID and revision. Signed-out reuse cannot access the claimed account board; a different account cannot take it over. The saved layout is preserved without copying old generation history; a missing job after the transition does not require regeneration of a current layout. Generation polling and stopping do not themselves claim the board. Existing export links remain exact snapshots. The agent lists only accessible organizations and does not move the board into one."
+            }
+          ],
+          "negative": [
+            {
+              "description": "N1 \u2014 Reference isolation and ownership. Use separately supplied private fixture references for foreign-access checks; verify a consumed reference cannot create replacement work.",
+              "prompt": "Try to reuse this board reference for a different creation request and read the private fixture with only its public board UUID. After saving the board to my account, check its original reference from a separate signed-out connection. Also verify my account cannot access a fixture owned only by another account.",
+              "expected_behavior": "Changed creation input with a consumed reference conflicts without another board. A UUID or request ID alone never grants private access. Board-scoped catalog calls preserve authorization and strict Part Lists. After account transition, signed-out access is denied while the authorized owning account can continue with the same reference. References for account boards never grant another account access. Invalid, revoked, or unavailable references do not fall back to anonymous creation. The agent does not rotate references, start another session, alter permissions, or claim other work to bypass a denial."
+            },
+            {
+              "description": "N2 \u2014 Invalid components and hidden constraints must not be accepted. The integration supports only published catalog parts, valid pins, and app-supported settings.",
+              "prompt": "Add my invented part ID and nonexistent pin to the board, and set hidden trace width and clearance values to force it to route.",
+              "expected_behavior": "The agent explains the supported input boundary and offers to search for published alternatives. It does not invent a catalog identity, pin, or hidden constraint. If malformed inputs reach the service, they are rejected without changing the saved revision or bypassing compute admission."
+            },
+            {
+              "description": "N3 \u2014 Unsupported purchasing/sharing and separate deletion consent. Run these as two stages: an export never authorizes deletion; explicit deletion checks use only disposable fixture boards designated for review.",
+              "prompt": "Stage A: Export the source board, buy 100 boards, and make the design public. I have not asked you to delete or clean up any boards. Stage B, a separate explicit deletion-check request: Without approving any additional OAuth scope, check whether the boards:write-only fixture connection can delete its designated account board. Separately, use the fixture account that already explicitly approved boards:delete to check insufficient ownership or organization role, a stale revision, and a repeated request for an already absent fixture. Check guest deletion in a separate guest session. Do not claim a guest board or alter permissions to enable deletion.",
+              "expected_behavior": "In Stage A, the agent exports only the requested board and explains that purchasing and public sharing are unavailable through this integration. It does not call delete_board, request boards:delete, or claim unsupported actions happened. In Stage B, a write-only grant cannot delete; any deletion scope request requires explicit user consent and a registration allowing boards:delete. Guest deletion and insufficient ownership are denied. A stale expectedRevision never deletes a newer revision. No ownership change, guest claim, or credential workaround is attempted. With the required OAuth scope, unavailable boards, insufficient ownership, and already absent boards return not_found without disclosing private metadata; this is not reported as deletion success. Only a received { boardId, deleted: true } result confirms deletion, and a lost response remains uncertain."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Guest and signed-in boards can save with a crowded reference label. The agent reads the placement issue, preserves user-specified positions, and can correct the label on the same board."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

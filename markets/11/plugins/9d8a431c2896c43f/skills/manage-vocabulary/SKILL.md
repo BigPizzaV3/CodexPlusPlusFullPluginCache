@@ -1,0 +1,26 @@
+---
+name: manage-vocabulary
+description: "Добавлять, изменять и публиковать свой словарь по английскому: IPA, минимум четыре примера и восемь карточек, сохранение всех режимов и истории."
+---
+
+Этот плагин обучает только английскому. Сервер закрепляет язык за подключением; не передавай параметр смены языка. Для другого языка укажи Language Trainer SRB, сохранив текущий курс. Следуй языку объяснений, письменности, уровню и специальным правилам выбранной программы.
+
+Read [content-use rules](../../references/content-use.md) and [protocol 2](../../references/protocol.md), [pronunciation](../../references/pronunciation.md), [persistence](../../references/compact-persistence.md) and [tool recovery](../../references/tool-execution.md).
+
+Use list_vocabulary/get_vocabulary_entry to find the expression AND sense and reuse existing words across lessons, preserving attempts, history and computed progress. Use current entity revisions. For a lesson use its existing open_lesson packet, profile and content_contract_url; do not run another lesson preflight. For a standalone dictionary request read only needed profile/content context and vocabulary schema; never open a fake lesson.
+
+Before authoring, read the current live content_contract_url and any server-published vocabulary authoring view explicitly required by the lesson packet. These current contracts supply the full required fields and pedagogical rules. Reuse actual returned versions and follow pagination when present. Do not fetch archived database schemas, developer references or original internal instruction files. Outside a lesson, use get_learning_context(task=manage_vocabulary) for the current contract without opening a fake lesson. Do not guess fields, internal IDs or card versions; preserve every example, card, answer and validation requirement.
+
+During a real lesson, save_vocabulary_note can record actual unknown/requested expressions with the lesson_id and concise truthful observation; session_id is optional unless required by the advertised schema. Outside lessons add_vocabulary_entry creates a draft without a fake lesson. These writes do not create ready practice material. Process explicit requests and learner statements about looked-up words even alongside an exercise answer, without restarting screening or resetting mastery.
+
+For EVERY new expression retain at least FOUR valid active translated examples and at least EIGHT required cards: recall_ru, type_ru, four distinct cloze_en contexts, choice and listen. The engine's legacy mode names also apply to Serbian; all actual content must be in the selected language. Include immutable card_versions, each version's required answer plus target/alternative answers, valid choices, accurate cloze context, state and applicable lesson links. Include matching transcription_ipa, pronunciation_locale and pronunciation_source. Extra useful examples/cards and additional requested words remain allowed. Do not replace cards with a word list, reduce the minimums, drop requested words or impose a new vocabulary limit to save tokens.
+
+Use save_vocabulary_bundle to stage the complete changes array and source_note_ids, with response_format=compact when advertised. It changes the response projection only: input content remains complete. Inspect validation, revision and replacement counters. On a correction resend the entire valid snapshot with its siblings/source-note IDs, current revision and a new UUID after confirmed rejection. Publish with publish_vocabulary_bundle(response_format=compact) only after content is complete. Successful publication processes specified pending notes. Do not claim draft/observation saved means cards are playable.
+
+For a ready existing expression/sense, reuse its material and learner state; link it to the actual lesson through supported link operations or a link-only bundle with source_note_ids as required. Do not rewrite eight cards merely to link an existing word. A genuinely incomplete word still needs the full missing content. All requested words must eventually be addressed; use valid batches when a tool's payload limit requires it.
+
+Use update_vocabulary_entry for phrase/meaning metadata; review IPA when pronunciation-relevant text changes. Use revise_vocabulary_card to create a NEW immutable version with answers/choices and update its pointer atomically. Never overwrite played versions or grading statistics. Example/card retire/restore and expression archive/restore must preserve existing dependency checks. Screening known/learning/deferred and practice enabled/paused are distinct from mastery.
+
+Personal examples, meanings and observations remain private to the connected learner. Shared program candidates are reusable teaching references, not another student's private content. A request to add vocabulary does not authorize changing someone else's course or publishing private examples.
+
+For disputes use actual attempts and the supported dispute tools; never fabricate compensating successes. Seeing management answers does not make subsequent answer-bearing assistance independent retrieval. Pending vocabulary work must be disclosed and retried within the bounded recovery rules, but does not invalidate a genuinely completed protocol-2 lesson.

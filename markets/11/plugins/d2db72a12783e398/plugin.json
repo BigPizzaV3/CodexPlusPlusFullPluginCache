@@ -1,0 +1,118 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "smart-scale",
+  "version": "0.3.9",
+  "description": "A bilingual kitchen assistant that reads a connected smart scale, tares it, and guides ingredient weighing in real time.",
+  "keywords": [
+    "kitchen",
+    "cooking",
+    "baking",
+    "scale",
+    "weight",
+    "food"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Smart Scale",
+        "shortDescription": "Kitchen mission control",
+        "longDescription": "SMART SCALE // KITCHEN TELEMETRY\n\nMISSION\nCook by the gram. Hands-free. Zero guesswork.\n\nPut a bowl on your Smart Scale, tell ChatGPT what you are making, and it takes command: it zeroes the scale, calls out every quantity, and tracks the weight live as you pour. The moment you hit the mark, you hear about it.\n\nCAPABILITIES\n\u2022 Live telemetry: ask what is on the scale right now\n\u2022 Zero calibration: tare with your bowl in place\n\u2022 Target lock: pour to an exact weight, completely hands-free\n\u2022 Anomaly response: overshoot the target and the recipe re-plans instead of aborting\n\nLAUNCH SEQUENCE (SETUP, ABOUT 60 SECONDS)\nStep 1. Plug in the scale.\nStep 2. Scan the first QR code on the box to join its Wi-Fi.\nStep 3. Scan the second QR code to connect ChatGPT, then tap Connect.\nNo account. Nothing to type.\n\nPRIVACY PROTOCOL\nThe app can only read the weight on, and zero, the one scale you connected. It cannot see your conversations, recipes or anything else. Each connection is bound to a single scale.\n\nREQUIREMENTS\nA Smart Scale device.\n\nAll systems nominal. Happy cooking.",
+        "defaultPrompt": [
+          "Run a systems check: what is on my scale right now?",
+          "Help me weigh 200 g of flour.",
+          "Zero the scale and guide me through the next ingredient."
+        ],
+        "developerName": "Ilya Luk",
+        "category": "Other",
+        "websiteURL": "https://scale.asselabs.com",
+        "supportURL": "https://scale.asselabs.com/support.html",
+        "privacyPolicyURL": "https://scale.asselabs.com/privacy.html",
+        "termsOfServiceURL": "https://scale.asselabs.com/terms.html",
+        "logo": "./assets/icon-512.png",
+        "brandColor": "#1D1D1F"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connected to the demo scale (see reviewer access instructions). Ensure the virtual scale returns a stable current reading.",
+              "prompt": "How much is on the scale right now?",
+              "tools_triggered": "get_weight",
+              "expected_behavior": "Call get_weight once. Report the returned weight in grams and whether it is stable; do not invent a measurement."
+            },
+            {
+              "description": "Connected to the demo scale (see reviewer access instructions). The virtual scale is online and can acknowledge tare within about 8 seconds.",
+              "prompt": "Zero the scale.",
+              "tools_triggered": "tare",
+              "expected_behavior": "Call tare once and wait for its result. Confirm that the scale was zeroed only if the tool confirms success; otherwise give a short, friendly retry message."
+            },
+            {
+              "description": "Connected to the demo scale (see reviewer access instructions). The virtual scale is online and starts with an empty bowl on it.",
+              "prompt": "Help me measure 200 g of flour.",
+              "tools_triggered": "tare, wait_for_weight(target_g=200)",
+              "expected_behavior": "Call tare before measuring, then call wait_for_weight with target_g=200 (using defaults unless needed). Guide the user to add flour, and report completion only when result=reached; use the returned weight and stable value."
+            },
+            {
+              "description": "Demo scale: a target of exactly 123 g always simulates an overshoot (result=over, 140 g).",
+              "prompt": "Help me measure 123 g of flour.",
+              "tools_triggered": "tare, wait_for_weight(target_g=123)",
+              "expected_behavior": "Call tare, then wait_for_weight with target_g=123. The demo scale returns result=over with weight_g=140: report the overshoot as weight_g - 123 (17 g) and do not claim success."
+            },
+            {
+              "description": "Demo scale: a target of exactly 321 g always simulates a timeout (result=timeout, 180 g).",
+              "prompt": "Help me measure 321 g of sugar.",
+              "tools_triggered": "tare, wait_for_weight(target_g=321)",
+              "expected_behavior": "Call tare, then wait_for_weight with target_g=321. The demo scale returns result=timeout with weight_g=180: explain the progress in plain language and offer to keep waiting; do not present a timeout as success."
+            },
+            {
+              "description": "Connected to the demo scale (see reviewer access instructions). The scale has a small display that can show custom content; the guide tool explains how.",
+              "prompt": "Show a counter on my scale's display so I can count screws by weight.",
+              "tools_triggered": "scale_scene_guide, scale_scene_preview, scale_scene_set",
+              "expected_behavior": "Read scale_scene_guide, optionally check the design with scale_scene_preview, then call scale_scene_set with a valid scene. Report only what the tools return; if validation errors come back, fix the scene and retry."
+            },
+            {
+              "description": "Demo scale: ready-made game on the display. The demo scale accepts the screen but has no hardware to play on.",
+              "prompt": "Start the reaction game on my scale.",
+              "tools_triggered": "scale_app_start(app=reaction_test)",
+              "expected_behavior": "Call scale_app_start with app=reaction_test and tell the user to tap the scale to play. Do not claim a score unless scale_scene_events returned one."
+            },
+            {
+              "description": "Demo scale: return the display to normal.",
+              "prompt": "Put the scale display back to normal.",
+              "tools_triggered": "scale_scene_exit",
+              "expected_behavior": "Call scale_scene_exit once and confirm briefly that the normal weight screen returns."
+            }
+          ],
+          "negative": [
+            {
+              "description": "The scale tools do not configure network settings. Explain the limitation and offer general setup guidance without invoking tools.",
+              "prompt": "Connect my scale to a new Wi-Fi network.",
+              "expected_behavior": "Explain that Smart Scale cannot change Wi-Fi settings. Do not call get_weight, tare, or wait_for_weight."
+            },
+            {
+              "description": "The scale tools do not maintain a food diary or calculate daily nutrition totals. Clarify the limitation without invoking tools.",
+              "prompt": "Add up all the calories I ate today.",
+              "expected_behavior": "Explain that Smart Scale only reads and controls the connected scale and does not have a food log. Do not call any scale tool."
+            },
+            {
+              "description": "The scale tools do not run timers or alarms. Clarify the limitation without invoking tools.",
+              "prompt": "Set a 10-minute timer for my pasta.",
+              "expected_behavior": "Explain that Smart Scale only reads and zeroes the connected scale and cannot set timers. Do not call any scale tool."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/i2zw0og5n7M"
+      },
+      "publication": {
+        "release_notes": "Adds optional custom screens: ChatGPT can show helpful content on the scale's small display (for example a counter, a ratio helper or a progress bar) and play short games on it. The normal weight screen always comes back automatically."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Ilya Luk",
+    "email": "mr.ilyaluk@gmail.com",
+    "url": "https://scale.asselabs.com"
+  },
+  "homepage": "https://scale.asselabs.com"
+}

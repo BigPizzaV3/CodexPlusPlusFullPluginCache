@@ -1,0 +1,92 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "speak-to-your-database",
+  "version": "1.0.2",
+  "description": "Ask questions about your company's data (Odoo, PostgreSQL or MySQL) in plain language. Read-only.",
+  "author": {
+    "name": "Florian Assous",
+    "url": "https://speaktoyourdatabase.com"
+  },
+  "homepage": "https://speaktoyourdatabase.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Speak To Your Database",
+        "shortDescription": "Ask your Odoo data. Try a demo",
+        "longDescription": "Try it right now, no setup: ask about Northstar, a demo Odoo company with a full year of sales, purchases, invoices and stock. Then connect your own Odoo (15 or later, an API key, no module) or a PostgreSQL or MySQL database in a few minutes.\n\nSpeak To Your Database lets you ask questions about your company's own data in plain language, right in ChatGPT. Connect your Odoo ERP (invoices, sales, stock, customers, payments, supplier orders and vendor bills; Odoo 15 and later, with an API key, no module to install) or any PostgreSQL or MySQL database, whatever it holds, then ask things like \"Which invoices are overdue?\" or \"Who were our top customers last quarter?\". Speak To Your Database finds the right tables, runs a read-only query and returns the answer with the figures it used.\n\nHow it works: sign in and ask ChatGPT straight away. Until your own data is connected, answers come from the Northstar demo company, and each answer says so. When you are ready, connect your data once in your Speak To Your Database account (read-only, a few minutes) and ask about your own figures. Sign in with the same account you use on speaktoyourdatabase.com.\n\nRead-only by design: it never changes or deletes anything in your database or Odoo.\nSeveral companies? Every answer names its workspace, and data from different workspaces is never mixed.\nFollow-up questions keep the context of the conversation, and answers come in the language you ask in.",
+        "developerName": "Florian Assous",
+        "category": "Data & Analytics",
+        "websiteURL": "https://speaktoyourdatabase.com",
+        "supportURL": "https://speaktoyourdatabase.com/support",
+        "privacyPolicyURL": "https://speaktoyourdatabase.com/privacy",
+        "termsOfServiceURL": "https://speaktoyourdatabase.com/terms",
+        "defaultPrompt": [
+          "Try the demo: who are Northstar's top 5 customers this year?",
+          "Try the demo: which Northstar invoices are overdue?",
+          "Try the demo: which Northstar products are low in stock?"
+        ],
+        "brandColor": "#086AFA",
+        "brandColorDark": "#3B82F6",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Try it instantly on Northstar, a demo Odoo company: right after sign-in, ask a question and get a real answer, no setup needed. Clearer tool descriptions. Billing in one rule: every answer costs 1 prompt; a refusal, a question back, an error or a setup step costs nothing."
+      },
+      "review": {
+        "commerce": false,
+        "demo_recording_url": "https://drive.google.com/file/d/15TmmJbSNlPFEcLaztsxGPs--N4kG8z_H/view?usp=sharing",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "SQL question on the Chinook music store sample database (PostgreSQL).",
+              "prompt": "In the Chinook music store data, which 5 countries have the highest total sales?",
+              "tools_triggered": "list_connections, ask_question",
+              "expected_behavior": "ChatGPT finds the Chinook connection, then asks STYD. The answer names the workspace \"STYD Sample\" and gives a ranked list of exactly five countries, each with its total sales amount (USA is usually first). No data is changed. If STYD replies that the answer is still running, ChatGPT calls get_answer."
+            },
+            {
+              "description": "Follow-up that relies on the previous answer in the same chat (run right after the first case).",
+              "prompt": "For the first country in that list, who are the 3 customers who spent the most?",
+              "tools_triggered": "ask_question",
+              "expected_behavior": "ChatGPT passes the thread_id of the previous answer, so STYD knows which country is meant without it being repeated. The answer lists three customers from the country ranked first in the previous answer, each with the amount they spent, highest first."
+            },
+            {
+              "description": "Odoo question on the Northstar demo company (Odoo connection; one company, amounts in US dollars).",
+              "prompt": "In the Northstar Odoo, which customer invoices are overdue, and by how much?",
+              "tools_triggered": "list_connections, ask_question",
+              "expected_behavior": "ChatGPT asks STYD on the Northstar Odoo connection. The answer lists posted customer invoices whose due date has passed and that are not fully paid, with the customer, the amount still due in US dollars and how late each one is, plus a total. The exact invoices and amounts depend on the date the demo data runs to; if nothing is overdue, STYD says so and invents no figures. No data is changed."
+            },
+            {
+              "description": "Ranking over this year on the Northstar demo company, asked the way the listing's first conversation starter asks it.",
+              "prompt": "Try the demo: who are Northstar's top 5 customers this year?",
+              "tools_triggered": "list_connections, ask_question",
+              "expected_behavior": "ChatGPT asks STYD on the Northstar Odoo connection. The answer states the period it used (this calendar year, with its dates) and ranks customers by invoiced revenue in US dollars, highest first, each with its amount, for the one Northstar company only (no second company, no other currency). It may list \"Shop (walk-in sales)\" with a line saying it is not a customer (walk-in sales). Bluebird Technical Institute LLC is first today. It names the workspace and the Northstar Odoo connection. No data is changed."
+            },
+            {
+              "description": "Discovery of what can be asked (no question is run against the data).",
+              "prompt": "What data can you answer questions about?",
+              "tools_triggered": "list_connections, describe_available_data",
+              "expected_behavior": "ChatGPT lists the two data sources of the sample workspace (the Chinook PostgreSQL database and the Northstar Odoo) and, for each, the areas that can be asked about, such as customers, invoices, tracks, artists and sales for Chinook, and sales, invoicing, customers, products and stock for Northstar, with example questions. It gives no figures and uses no prompt."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Request to delete data. STYD is read-only: it must refuse and change nothing.",
+              "prompt": "Delete all the overdue invoices in the Northstar Odoo."
+            },
+            {
+              "description": "Question the data cannot answer. It must say what is missing and invent no numbers.",
+              "prompt": "How many people visited the Chinook store's website last week?"
+            },
+            {
+              "description": "Request unrelated to company data. The STYD tools must not be used.",
+              "prompt": "Write a short poem about autumn."
+            }
+          ]
+        }
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

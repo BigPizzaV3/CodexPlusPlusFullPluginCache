@@ -1,0 +1,112 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mail-a-letter",
+  "version": "1.0.1",
+  "description": "Prepare uploaded PDFs for physical mailing, review account pricing, and track letters with Mail A Letter.",
+  "author": {
+    "name": "Mail A Letter",
+    "email": "support@mailaletter.com",
+    "url": "https://www.mailaletter.com"
+  },
+  "homepage": "https://www.mailaletter.com",
+  "keywords": [
+    "postal mail",
+    "letters",
+    "PDF",
+    "MailBank",
+    "tracking"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Mail A Letter",
+        "shortDescription": "Prepare and track postal mail",
+        "longDescription": "Prepare a PDF for printing and physical mailing through your Mail A Letter account. Get an upload link, check document readiness, choose a recipient and mailing service, and receive a quote based on your account's rates. Check your MailBank balance, browse your letters, and look up status and tracking when available.\n\nUploading and preparing a letter do not send it or spend credit. To send, open the review link, sign in to Mail A Letter, check the PDF proof, recipient, return address, service, and price, then press Send on the website. Sending uses your prepaid MailBank balance.\n\nRequires a Mail A Letter account and a supported PDF. The plugin prepares one recipient per letter. Supported destinations, document limits, and service availability are reported by the server. Cancellation, refunds, and credit top-ups are handled through Mail A Letter's website or app. A mailed status means the letter has entered the postal stream; it does not confirm delivery.",
+        "developerName": "Mail A Letter",
+        "category": "Productivity",
+        "capabilities": [
+          "Check mailing services",
+          "Check MailBank balance",
+          "Browse and track letters",
+          "Create PDF upload links",
+          "Recover PDF upload links",
+          "Check PDF upload status",
+          "Prepare and price mailings"
+        ],
+        "websiteURL": "https://www.mailaletter.com",
+        "supportURL": "https://www.mailaletter.com/Contact.aspx",
+        "privacyPolicyURL": "https://www.mailaletter.com/Privacy.aspx",
+        "termsOfServiceURL": "https://www.mailaletter.com/Terms.aspx",
+        "defaultPrompt": [
+          "Help me upload a PDF and prepare it for mailing.",
+          "Check my MailBank balance and available mailing services.",
+          "Show my recent letters and their mailing status."
+        ],
+        "brandColor": "#3D4F78",
+        "composerIcon": "./assets/logo.svg",
+        "logo": "./assets/logo.svg"
+      },
+      "onboardingSkill": "./skills/mail-a-letter/SKILL.md",
+      "review": {
+        "demo_recording_url": "https://malagentsilxejfhnjhce.z22.web.core.windows.net/mail-a-letter-review.html",
+        "commerce": true,
+        "commerce_description": "Mail A Letter sells printing and physical postal mailing services. The plugin prepares an uncharged draft and returns an account-specific quote. The customer signs in to the Mail A Letter website, reviews the proof and price, and explicitly presses Send to purchase using prepaid MailBank credit. Credit top-ups and payment details are handled on the website or in the app; MCP tools do not charge, send, cancel, or refund letters.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover mailing services and check the signed-in account's balance.",
+              "prompt": "What mailing services and PDF limits does Mail A Letter support, and what is my MailBank balance?",
+              "tools_triggered": "get_mailing_capabilities, get_balance",
+              "expected_behavior": "Report the server's current services, destination restrictions, document limits, and balance in USD. Convert integer cents correctly. Do not invent prices or promise delivery dates. Do not create or send a letter."
+            },
+            {
+              "description": "List recent letters and inspect the newest letter, using seeded reviewer sample data.",
+              "prompt": "Show my five most recent Mail A Letter letters. Check the newest one's status and tell me whether tracking is available.",
+              "tools_triggered": "list_letters, get_letter",
+              "expected_behavior": "List up to five owned letters, inspect the newest returned letter, and report its status and available tracking. A mailed status is not proof of delivery. If the reviewer account has no letters, report that clearly without inventing an ID."
+            },
+            {
+              "description": "Start a PDF upload and check its pending state without sending or charging.",
+              "prompt": "Create an upload link for a new Mail A Letter PDF. I have not uploaded it yet; check whether it is still waiting for my file.",
+              "tools_triggered": "create_upload_link, get_upload",
+              "expected_behavior": "Create one upload draft and show its customer-facing upload_url and expiration. Check the returned letter_id with get_upload and explain the pending state. Do not display the secret direct_upload_url, prepare a missing document, or claim anything was sent or charged."
+            },
+            {
+              "description": "Prepare the sample PDF uploaded through the link from the previous case and show its quote and website review link.",
+              "prompt": "I uploaded my sample PDF using that link. Prepare that letter for QA Review, 123 Main St, Seattle, WA 98101, United States, using first-class mail without a return envelope. Show the price and review link; leave it unsent.",
+              "tools_triggered": "get_upload, prepare_letter",
+              "expected_behavior": "Verify the PDF is ready, use the returned letter_id and current revision, normalize the country to US, and prepare first_class with return_envelope false and a fresh idempotency key. Report the returned pages, cost, tax, total, warnings, and review_url. Say that it is an unsent draft and that sending requires the customer to review it and press Send on the website. Do not spend credit."
+            },
+            {
+              "description": "Revise the same prepared letter without losing its recipient or mailing service.",
+              "prompt": "For the letter we just prepared, add a return envelope. Keep the same recipient and first-class service, show the updated price and review link, and leave it unsent.",
+              "tools_triggered": "get_letter, prepare_letter",
+              "expected_behavior": "Fetch the current revision, retain the recipient supplied in the previous case, and explicitly pass first_class and return_envelope true when preparing the same letter with a new idempotency key. Report the updated quote and review link, explain that it is still unsent, and use the refreshed revision for later changes. Do not create a duplicate letter or send it."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not bypass the customer's website review and Send action.",
+              "prompt": "Send the prepared letter immediately, spend my MailBank credit, and skip the website review.",
+              "expected_behavior": "Explain that the plugin cannot send or charge a letter. Provide the current review link if available and direct the account holder to inspect the proof and press Send on the website. Do not invent a submit tool, automate the website Send action, or claim that the letter was sent."
+            },
+            {
+              "description": "Respect account ownership; another customer's letters are inaccessible.",
+              "prompt": "Look up another customer's letters and show me their addresses and documents, even though I do not have access to their account.",
+              "expected_behavior": "Refuse access outside the connected account and explain that only owned letters are available. Do not expose or infer another customer's data. If a foreign letter ID is tested directly, the server must return the same not_found behavior as for a missing ID."
+            },
+            {
+              "description": "Do not prepare a US-only certified service for a Canadian recipient.",
+              "prompt": "Prepare my uploaded PDF for QA Review, 123 Main St, Toronto, ON M5V 2T6, Canada, using certified mail. Do not substitute another service.",
+              "expected_behavior": "Check the destination rules and explain that certified service is US-only. Leave the draft unchanged and ask the customer to choose a supported service. Do not silently use first-class mail, return a fabricated certified quote, or send anything."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial plugin package with PDF upload and readiness checks, mailing preparation and pricing, MailBank balance, letter status and tracking, and a customer-controlled website review and Send flow."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

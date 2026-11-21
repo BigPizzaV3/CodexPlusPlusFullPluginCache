@@ -1,0 +1,14 @@
+# Owner-supplied v0.1.13 host-test review — 2026-10-02
+
+The owner pasted ChatGPT answers to the eight public review prompts, ten blind basic questions, and a compact tool-call summary. This is answer-level evidence; exact unedited per-call payloads were not attached. The public tool was independently read during this review for the all-time Total board and field stats. No support report or measurement submission occurred in the supplied trace.
+
+| Area | Finding |
+|---|---|
+| Board and methodology | Pass at answer level. The response named the 22-person claimed Total/All/all-time display, correct top two, returned I/O/W/R, operating ratio, metric relationships, current ten-rule derived archetype, and denominator sensitivity. |
+| Tool routing | The reported comparison used codenames H82 and `xoxo`. This is correct for the displayed top two: `xoxo` is Karthikeyan KK's public codename, not a different comparison target. The comparison returned `comparable=false`, and the answer withheld a numeric delta. |
+| Comparison quality | Needs improvement. The read centered on a side-by-side top-two contrast, with limited varied context for the first operator. The same-scope Active field median/quartiles and the separately sourced homepage four-degree teaching ladder were not used to explain who the focal operator is relative to different reference groups. |
+| Provenance wording | Needs improvement. The agent accurately noticed `total_eligible: 22` alongside legacy `ranking_eligible=false`, but later treated the whole published board as suspect. The service currently counts selected display rows in `total_eligible` while hard-coding row-level evidence eligibility false because stored provenance is incomplete. That is an ambiguous contract, not proof that the displayed ranks or counts are invalid. Do not remove the caveat or promote records to verified. |
+| Research and privacy | Pass at answer level. The response separated the historical *Volume Isn't Yield* seed analysis from today's Active board, identified public aggregates rather than private logs, and did not claim work quality or intelligence. |
+| Beta support | Consent boundary pass at answer level. The agent drafted a concise report and did not call `report_beta_bug`. The website failure was user-reported, whereas the MCP read succeeded; future wording should keep those observations distinct. |
+
+The v0.1.14 analyst guidance makes the first named operator the anchor, requires same-scope Active field context when available, adds a separately labeled homepage four-degree reference lens, and explains the legacy display/evidence field ambiguity without a server change. Retest these specific behaviors before public submission. The backend contract still deserves a separately scoped naming/semantics decision after the owner completes the current host pass.

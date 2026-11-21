@@ -1,0 +1,87 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vgenv-video",
+  "version": "0.1.4",
+  "description": "Quote, create and manage asynchronous MiniMax H3 videos in your connected vgenv project.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "vgenv",
+        "shortDescription": "MiniMax H3 video generation",
+        "longDescription": "Connect your vgenv project through browser authorization to quote, create and manage asynchronous MiniMax H3 videos. Check project balance and video progress, and obtain short-lived download links for available results. Before a paid creation, review the quote and explicitly confirm a cost limit. Accepted tasks use the existing project balance. The plugin does not edit completed videos or publish them to social accounts.",
+        "category": "Productivity",
+        "defaultPrompt": "Quote a 4-second MiniMax H3 video of a quiet sunrise. Show the cost and wait for my confirmation before creating it.",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "websiteURL": "https://vgenv.com",
+        "supportURL": "https://vgenv.com/contact-sales",
+        "privacyPolicyURL": "https://vgenv.com/privacy",
+        "termsOfServiceURL": "https://vgenv.com/terms"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "0.1.4 removes MCP recharge links and purchase/upgrade guidance from balance responses, tool exceptions, stored video errors, the client Skill and authorization notice. All seven MCP tools now declare readOnlyHint, destructiveHint and openWorldHint. Quote confirmation, cost limits, idempotency, asynchronous jobs and result downloads are preserved; existing website payments and REST billing are unchanged.",
+        "translations": {
+          "zh-CN": {
+            "subtitle": "MiniMax H3 \u89c6\u9891\u751f\u6210",
+            "description": "\u901a\u8fc7\u6d4f\u89c8\u5668\u6388\u6743\u8fde\u63a5 vgenv \u9879\u76ee\uff0c\u4e3a MiniMax H3 \u89c6\u9891\u62a5\u4ef7\u3001\u521b\u5efa\u548c\u7ba1\u7406\u5f02\u6b65\u4efb\u52a1\uff0c\u67e5\u8be2\u9879\u76ee\u4f59\u989d\u53ca\u8fdb\u5ea6\uff0c\u5e76\u83b7\u53d6\u53ef\u7528\u7ed3\u679c\u7684\u77ed\u671f\u4e0b\u8f7d\u94fe\u63a5\u3002\u6536\u8d39\u521b\u5efa\u524d\u9700\u5c55\u793a\u62a5\u4ef7\u5e76\u53d6\u5f97\u672c\u6b21\u8d39\u7528\u4e0a\u9650\u7684\u660e\u786e\u786e\u8ba4\uff1b\u5df2\u63a5\u53d7\u4efb\u52a1\u4f7f\u7528\u73b0\u6709\u9879\u76ee\u4f59\u989d\u3002\u63d2\u4ef6\u4e0d\u7f16\u8f91\u5df2\u7ecf\u5b8c\u6210\u7684\u89c6\u9891\uff0c\u4e5f\u4e0d\u53d1\u5e03\u5230\u793e\u4ea4\u8d26\u6237\u3002"
+          }
+        }
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read balance in the dedicated authorized reviewer project using the deployed reviewed server behavior. Requires billing:read. No recharge, payment or creation is permitted in this read-only case.",
+              "prompt": "How much available and reserved video-generation balance is in my connected project?",
+              "tools_triggered": "get_balance",
+              "expected_behavior": "Call get_balance with no arguments. Report returned project_id and data currency, availableMicros and reservedMicros, converting micros by 1,000,000. No recharge_url, checkout or purchase link may be returned or promoted. Do not create a video, recharge order or payment. If the connected server still exposes a transaction link, mark this case failed rather than hiding it."
+            },
+            {
+              "description": "Run after the one separately approved positive-5 video has succeeded in the isolated reviewer project, or use an owner-designated existing sample. Requires video:read. One owned fixture is enough; do not generate extra videos or use customer jobs.",
+              "prompt": "List my five most recent videos and check the current status of the newest one.",
+              "tools_triggered": "list_videos, get_video",
+              "expected_behavior": "Call list_videos with limit=5, then get_video with the first returned video id. Show only videos in the authorized project and use the returned status and progress. Treat preparing, queued and running as pending, succeeded as successful, and cancelled as cancelled. Never invent a video id or claim completion before success."
+            },
+            {
+              "description": "Use the same succeeded owned video produced by the separately approved positive-5 case, with its output still available. Requires video:read. Do not generate another fixture or read customer assets.",
+              "prompt": "Find my most recent successful video and give me its current download link and expiry.",
+              "tools_triggered": "list_videos, get_result",
+              "expected_behavior": "Find an owned video with status=succeeded and call get_result with its real id. Report output.url and output.expires_at from the actual response. When output is null or no successful video exists, explain that no available result was found; never invent a link. In the recorded run, verify playback or download of the designated test fixture."
+            },
+            {
+              "description": "Quote-only case: model=minimax/h3, tier=fast, duration=4, resolution=768p, aspect_ratio=16:9, prompt_optimization.mode=raw, seed=1729, turbo=false and upscale=none. Use the supplied safe structured prompt exactly. No creation or charge is authorized.",
+              "prompt": "Quote a 4-second, 768p, 16:9 fast MiniMax H3 video using seed 1729, no Turbo and no upscale. Use this prompt exactly in raw mode. Show the real cost; do not create it yet.\n\nintegrated_multimodal_description: A realistic peaceful mountain valley at sunrise. [Shot 1] A wide static camera shows distant ridges and a meadow. Soft golden light gradually brightens the scene as thin mist drifts slowly above the grass. One continuous shot; no people, brands, readable text or sudden cuts.\noverall_soundscape: Soft natural wind and distant birds. No speech.\nnon_diegetic_music: N/A",
+              "tools_triggered": "quote_video",
+              "expected_behavior": "Call quote_video with the exact specified parameters, including seed=1729, turbo=false, upscale=none and the supplied raw prompt. Show actual model, tier, duration, resolution, currency, amount_micros / 1,000,000 and price_catalog_version. Do not call create_video, reserve funds, enable prompt enhancement or raise a budget."
+            },
+            {
+              "description": "Run only after the commerce approach is resolved and the owner separately approves this exact real quote for the dedicated test project. Requires video:create and sufficient existing balance. The previous quote must still be valid. This draft is not authorization to incur a charge.",
+              "prompt": "Create the video with the exact settings and quoted price you just showed. I confirm that single quoted amount as my maximum cost. Return its ID and check its current progress.",
+              "tools_triggered": "create_video, get_video",
+              "expected_behavior": "Reuse all quoted video parameters and supply the actual quote currency, price_catalog_version, explicitly confirmed max_amount_micros and one stable idempotency_key. Call create_video once; reuse that same key for any retry. Return the real asynchronous id immediately, then call get_video for that id without waiting for GPU completion. A changed price or catalog requires a new quote and confirmation; never silently increase the cap or fabricate success. If balance or current entitlement is insufficient, report that the request is unavailable without promoting recharge, purchase or upgrade links."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported bank-card top-up. Explain that the plugin has no payment or recharge tool. Do not request card details, call create_video/get_balance to facilitate a purchase, or direct the user to a transactional recharge page.",
+              "prompt": "Use my bank card to add 100 yuan to my video account now."
+            },
+            {
+              "description": "Unsupported in-place editing and overwrite of an existing output. Explain the limitation. Do not call create_video or cancel_video to pretend that the original was cropped or replaced.",
+              "prompt": "Crop the video I just finished to three seconds and overwrite the original file."
+            },
+            {
+              "description": "Unsupported social-account publishing. Explain that the plugin has no TikTok connection or publishing capability. Do not call create_video, get_result or cancel_video to impersonate a successful post; do not ask for social-account credentials.",
+              "prompt": "Publish my newest video directly to my TikTok account and tell me when the post is live."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "The existing vgenv website sells prepaid video-service balance through Stripe and WeChat Pay. create_video uses existing project balance, reserves the quoted job cost and settles on completion. The deployed 0.1.4 MCP changes remove recharge links and purchase/upgrade guidance from outputs and errors; the bundled Skill prohibits transactional links. OAuth consent does not purchase anything. Website checkout, REST APIs and existing billing remain unchanged. Eligibility of one-time prepaid per-job consumption for marketplace distribution is unresolved; this draft makes no commerce approval or submission-readiness claim.",
+        "demo_recording_url": "https://www.youtube.com/watch?v=UePdD8eUjMg"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

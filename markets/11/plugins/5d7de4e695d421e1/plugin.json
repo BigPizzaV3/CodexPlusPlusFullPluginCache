@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tapify",
+  "version": "0.1.0",
+  "description": "Read-only access to a Tapify bar's draft-beer operations: stations, taps, kegs, dispensing sessions, settled sales, menus, cards, customers and operators, limited to the business and stations the owner approves.",
+  "author": {
+    "name": "Tapify SRL",
+    "url": "https://tapify.ro"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Tapify",
+        "shortDescription": "Your bar's draft-beer data",
+        "longDescription": "The Tapify connector lets bar owners and managers who run Tapify self-service draft-beer taps ask about their own business in plain language. It reads, never changes, the data your Tapify account already shows: settled sales by day, hour, month or custom period; keg levels and inventory; products and prices; dispensing sessions; stations and taps; digital menus; and, only if you approve them, cards, customers and operators.\n\nYou sign in with your Tapify account, choose which business and stations to share, and approve each capability. Access is limited to what your account may already see, can be revoked at any time from the Tapify dashboard, and needs to be renewed after eight hours.\n\nIntended users: owners and managers of venues using Tapify hardware. Limitations: sales are settled wallet charges in RON, not fiscal revenue or profit; stored keg levels are not live telemetry; queries are bounded (for example 31 days for daily sales, 366 days for trends) and long lists are paginated.",
+        "developerName": "Tapify SRL",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Read"
+        ],
+        "defaultPrompt": [
+          "How much did we sell each day last week at our main station?",
+          "What were our busiest hours yesterday, in Bucharest time?",
+          "Which kegs are in stock, including ones not attached to a tap?"
+        ],
+        "websiteURL": "https://help.tapify.ro/en/ai-assistants/",
+        "supportURL": "https://help.tapify.ro/en/support/",
+        "privacyPolicyURL": "https://tapify.ro/en/privacy/",
+        "termsOfServiceURL": "https://tapify.ro/en/terms/",
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Use the isolated Tapify Demo Venue reviewer account; approve analytics, inventory and menu capabilities and its demo station. Reviewer credentials belong only in the secure portal. Daily sales across a local date boundary.",
+              "prompt": "How much did we sell each day last week at Tapify Demo Venue?",
+              "tools_triggered": "get_my_access, get_sales_by_day",
+              "expected_behavior": "Resolve the approved demo station, query seven complete Europe/Bucharest days with matching UTC boundaries, report daily settled wallet charges in RON and volume with units, including zero days. State that these are wallet charges, not fiscal revenue or profit."
+            },
+            {
+              "description": "Use the isolated Tapify Demo Venue reviewer account; approve analytics, inventory and menu capabilities and its demo station. Reviewer credentials belong only in the secure portal. Hourly usage for one complete local day.",
+              "prompt": "What were our busiest hours yesterday at Tapify Demo Venue?",
+              "tools_triggered": "get_my_access, get_sales_by_hour",
+              "expected_behavior": "Resolve the approved demo station and the previous complete Europe/Bucharest day; rank returned hourly buckets by sessions or volume and state the ranking metric and timezone. Do not infer live telemetry."
+            },
+            {
+              "description": "Use the isolated Tapify Demo Venue reviewer account; approve analytics, inventory and menu capabilities and its demo station. Reviewer credentials belong only in the secure portal. Complete inventory rather than attached kegs only.",
+              "prompt": "Which kegs are in stock, including ones not attached to a tap?",
+              "tools_triggered": "get_my_access, list_keg_inventory",
+              "expected_behavior": "Use approved business inventory scope; include attached and detached kegs present in the fixture, preserve returned stored levels and units, and explain these are stored readings, not live telemetry."
+            },
+            {
+              "description": "Use the isolated Tapify Demo Venue reviewer account; approve analytics, inventory and menu capabilities and its demo station. Reviewer credentials belong only in the secure portal. Monthly trend with a bounded comparison.",
+              "prompt": "Compare the last three complete months of sales at Tapify Demo Venue with the three months before them.",
+              "tools_triggered": "get_my_access, get_sales_trend",
+              "expected_behavior": "Use the approved demo station and make two bounded get_sales_trend reads with comparePreviousPeriod false: one for the last three complete UTC calendar months and one for the three complete UTC calendar months before them. Compare the returned UTC monthly buckets and totals in RON and volume with units, distinguish no data from zero, and avoid division by zero for percentage changes. Do not use the built-in equal-duration comparison as a substitute when the adjacent three-month calendar windows have different elapsed durations."
+            },
+            {
+              "description": "Use the isolated Tapify Demo Venue reviewer account; approve analytics, inventory and menu capabilities and its demo station. Reviewer credentials belong only in the secure portal. Menu lookup with scoped price evidence.",
+              "prompt": "What is on the Tapify Demo Venue drinks menu and what does the IPA cost?",
+              "tools_triggered": "get_my_access, get_digital_menu, list_menu_items, get_menu_item",
+              "expected_behavior": "Resolve the approved station/menu; choose supported menu tools according to returned identifiers. Report categories and the IPA price/currency only from returned menu data. If IPA is absent, state that rather than inventing a price."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported mutation: explain that the connector cannot top up or charge; invoke no tool to attempt a mutation and do not claim success.",
+              "prompt": "Top up card 1234 with 50 RON."
+            },
+            {
+              "description": "Unauthorized business: explain access is limited to approved businesses/stations. Do not query an unapproved identifier or reveal another venue; get_my_access may be used only to clarify authorized access.",
+              "prompt": "Show me sales for a bar I do not own and have not been granted access to."
+            },
+            {
+              "description": "Unsupported profitability: explain that costs, expenses and taxes are unavailable, so profit cannot be calculated. A read-only sales total may be offered or returned as a clearly labelled alternative, but settled wallet charges must never be presented as profit or fiscal revenue.",
+              "prompt": "What was our profit last month?"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This release only reads authorized Tapify venue data. It does not support purchases, payments or changes to venue data.",
+        "demo_recording_url": "https://youtu.be/L7cIVq7Pa-U"
+      },
+      "publication": {
+        "release_notes": "Initial Tapify read-only connector release: scoped venue data, daily/hourly/monthly settled-sales reporting, complete keg inventory, menus and bundled Tapify guidance. OAuth consent limits access to approved capabilities, businesses and stations.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

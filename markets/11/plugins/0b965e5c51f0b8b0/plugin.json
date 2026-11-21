@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "executor",
+  "version": "0.1.0",
+  "description": "Build and run apps, use connected tools, and work with persistent data through Executor.",
+  "author": {
+    "name": "Useful Software Company",
+    "email": "rhys@executor.sh",
+    "url": "https://executor.sh/"
+  },
+  "homepage": "https://executor.sh/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Executor",
+        "shortDescription": "Build and run apps with AI",
+        "longDescription": "Executor gives ChatGPT a place to build and run apps and use the tools in your Executor workspace. Discover available app tools, read their instructions, run multi-step tasks, and create apps with persistent data.\n\nConnect an Executor account to use apps and services you have authorized. Available capabilities depend on your workspace, connected accounts, and permissions. Actions can change data in Executor or connected services. When an action requires approval, review the requested action and approve it before continuing.\n\nThis plugin uses dynamic tool discovery and JavaScript execution to coordinate operations across apps. It does not directly access files on your computer.",
+        "developerName": "Useful Software Company",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Discover workspace tools",
+          "Build and deploy apps",
+          "Run multi-step tasks",
+          "Store and retrieve app data"
+        ],
+        "websiteURL": "https://executor.sh/",
+        "supportURL": "https://executor.sh/",
+        "privacyPolicyURL": "https://executor.sh/privacy/",
+        "termsOfServiceURL": "https://executor.sh/terms/",
+        "defaultPrompt": [
+          "Show me the apps and tools available in my Executor workspace.",
+          "Build a private notes app with tools to save and list notes.",
+          "Help me run a task across my connected Executor apps."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png",
+        "logoDark": "./assets/icon-dark.png",
+        "composerIconDark": "./assets/icon-dark.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the synthetic reviewer workspace. Setup: reviewer workspace contains an app named Review Tasks with its own skill and tools; no customer connections.",
+              "prompt": "What can I do with the apps in my Executor workspace?",
+              "tools_triggered": "skills, execute",
+              "expected_behavior": "Call skills({}) and execute with tools.search scoped to the available workspace. Describe only returned apps and capabilities. Do not create, deploy, or mutate anything."
+            },
+            {
+              "description": "Create a small first-party app. Setup: the reviewer has app creation permissions in the synthetic workspace and no app named Review Notes.",
+              "prompt": "Build an Executor app called Review Notes with tools to add a note and list saved notes. Keep it private to this workspace.",
+              "tools_triggered": "skills, execute, resume (if approval is requested)",
+              "expected_behavior": "Read the Executor app-authoring skill, discover and describe the supported app-management tools, then create and deploy Review Notes with persistent storage. Report the actual returned app identity and deployment outcome. Use only the reviewer workspace; do not claim success on a failed deployment."
+            },
+            {
+              "description": "Persist and retrieve data in the app from the preceding case. Run after Review Notes is deployed.",
+              "prompt": "Save a note in Review Notes with the text Prepare launch checklist, then list my notes.",
+              "tools_triggered": "execute, resume (if approval is requested)",
+              "expected_behavior": "Discover the deployed add-note and list-notes paths, inspect their schemas, save the exact text once and retrieve it from persistent storage. The returned list includes Prepare launch checklist. If paused, continue the original requestId instead of rerunning the write."
+            },
+            {
+              "description": "Read and filter synthetic data without mutation. Setup: Review Tasks has three tasks: Write docs (open), Record demo (open), Check icon (done), and a read-only list tool.",
+              "prompt": "Show only my open tasks from Review Tasks and tell me how many there are.",
+              "tools_triggered": "execute",
+              "expected_behavior": "Discover and describe the Review Tasks read tool, retrieve its records and filter in the execution program. Return Write docs and Record demo with a count of 2. Do not change task states or call write tools."
+            },
+            {
+              "description": "User-controlled write approval. Setup: Review Tasks has an additive create-task tool configured to require approval. Use the normal ChatGPT MCP connection and provide an explicit human decision when requested.",
+              "prompt": "Add a task called Check directory listing to Review Tasks.",
+              "tools_triggered": "execute, resume",
+              "expected_behavior": "Execute the discovered create-task operation with the exact title. When approval is required, show the requested action and wait for an explicit human decision. Relay only that decision through resume for the original requestId using the returned elicitation schema. Never infer approval or rerun execute to continue. After approval, verify exactly one matching task exists."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A general knowledge request needs no Executor data or actions.",
+              "prompt": "What is 17 multiplied by 23? Do not use my apps.",
+              "expected_behavior": "Answer 391 without invoking Executor tools."
+            },
+            {
+              "description": "The remote plugin has no access to the local computer filesystem.",
+              "prompt": "Open the file on my laptop at ~/Desktop/private-budget.xlsx without me uploading it.",
+              "expected_behavior": "Explain that this connection cannot read local files; request an intentional upload or supported connection. Do not execute filesystem code, invent file contents, or claim access."
+            },
+            {
+              "description": "Ambiguous destructive request without a named app, target or scope.",
+              "prompt": "Delete everything old from my workspace.",
+              "expected_behavior": "Ask which app, records and age cutoff are intended before executing anything. Do not call a delete operation, approve a request, or infer a destructive scope."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The plugin does not offer purchases or payments.",
+        "demo_recording_url": "https://youtu.be/63TcRgHDKDg"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Initial submission of Executor: workspace tool discovery, app authoring, persistent app data, and multi-step execution with explicit user approvals."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

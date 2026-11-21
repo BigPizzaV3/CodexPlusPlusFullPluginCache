@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "zerozero-food",
+  "version": "1.0.0",
+  "description": "Estimate food calories and review daily food habits through an authorized connection to your private 00Food diary.",
+  "homepage": "https://00food.com/",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "00Food",
+        "shortDescription": "Calorie estimates & food diary",
+        "longDescription": "00Food helps people who use its iPhone food diary estimate food calories and review their daily eating habits. Submit a food description or photo in the iPhone app, then ask your connected agent to estimate calories and fruit-and-vegetable portions with an explanation. Review and approve each proposal in the app before saving or logging it.\n\nUse your saved food library as context and correct its fruit-and-vegetable portions when needed. With separately approved daily permissions, review completed-day food logs alongside up to seven days of activity, water, and other Health totals shared by the app, then save a short reflection in 00Food.\n\nThe connection accesses only your authorized 00Food account. It cannot approve or log meals for you, or read or write the live Apple Health store. Estimates and reflections are approximate and are not medical advice. There is no built-in food catalog or bundled AI agent. Compatible hosts can subscribe to new requests and clarifications; connecting alone does not enable automatic responses.",
+        "capabilities": [
+          "Estimate food calories and produce portions from descriptions or photos",
+          "Review your saved foods and correct produce portions",
+          "Save daily food reflections using optionally shared activity and water totals"
+        ],
+        "defaultPrompt": [
+          "Check my pending foods in 00Food and propose rough estimates for my approval.",
+          "Show my saved 00Food foods with their servings, calories, and produce portions.",
+          "Review my pending completed day in 00Food and save a short reflection."
+        ],
+        "websiteURL": "https://00food.com/",
+        "supportURL": "https://00food.com/support",
+        "privacyPolicyURL": "https://00food.com/privacy",
+        "termsOfServiceURL": "https://00food.com/terms",
+        "logo": "./assets/plugin-logo.png",
+        "composerIcon": "./assets/plugin-composer-icon.png",
+        "developerName": "PEDRO MIGUEL MARQUES MORAIS",
+        "category": "Healthcare"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read the dedicated account's pending Greek yogurt with a banana and 30 g oats request. Operator resets the synthetic fixture before review; no photo is attached to this fixture.",
+              "prompt": "What foods are waiting for an estimate in 00Food? Tell me what I submitted for the yogurt bowl.",
+              "tools_triggered": "list_pending_foods, get_pending_food",
+              "expected_behavior": "Call list_pending_foods, identify the Greek yogurt with a banana and 30 g oats item, then get_pending_food using its returned id. Describe its stored description and pending state; do not claim to have seen a photo when hasPhoto is false. Proposals already marked proposed should not be estimated again without a request."
+            },
+            {
+              "description": "Read the two synthetic saved foods without inventing a built-in food catalog.",
+              "prompt": "Show me my saved foods in 00Food, with their servings and calories.",
+              "tools_triggered": "list_known_foods",
+              "expected_behavior": "Call list_known_foods and summarize Banana oats (one bowl, 350 kcal) and Vegetable soup (one bowl, 180 kcal) from the response. These are the review account's saved foods, not a universal catalog. Do not create foods or food logs."
+            },
+            {
+              "description": "Propose an estimate for the pending yogurt bowl using its stored description. Reset fixtures before rerunning this case. Verify persisted proposal on the reviewer dashboard; approval and logging remain user actions in the iPhone app.",
+              "prompt": "Estimate my pending Greek yogurt, banana and oats bowl in 00Food. Explain the rough calories and fruit portions, and send it back for my approval.",
+              "tools_triggered": "list_pending_foods, get_pending_food, propose_food_estimate",
+              "expected_behavior": "Find the pending item, read it with get_pending_food, then call propose_food_estimate with that id, a nonblank name and serving, integer kcal between 1 and 5000, integer fruitVegPortions between 0 and 5, and nonblank reasoning grounded in the description and any missing quantities. Verify the returned state is proposed and explain that it still needs user approval. Do not claim that food was saved or logged."
+            },
+            {
+              "description": "Correct the synthetic Vegetable soup's produce estimate. The account has one existing log of that food; both library and log update. Operator resets it to one portion before review.",
+              "prompt": "Correct my saved Vegetable soup in 00Food to two fruit and vegetable portions per bowl.",
+              "tools_triggered": "list_known_foods, set_food_fruit_veg_portions",
+              "expected_behavior": "Call list_known_foods to obtain the exact Vegetable soup id, then set_food_fruit_veg_portions with that id and fruitVegPortions 2. Confirm the returned food has two portions per serving and explain existing logs are updated too. Do not change calories, serving, or another food. The reviewer dashboard shows two portions in the library and its log."
+            },
+            {
+              "description": "Read and save a reflection for the synthetic completed day. The request contains seven synthetic Health days, a 180 kcal soup log, and a 15% plan. Reset the request to pending before rerunning.",
+              "prompt": "Review my pending completed day in 00Food and save a short reflection. Cover the logged food, activity, produce and water, and be clear about missing information.",
+              "tools_triggered": "list_pending_daily_feedback, get_daily_feedback_request, submit_daily_feedback",
+              "expected_behavior": "Call list_pending_daily_feedback, get_daily_feedback_request with its returned id, then submit_daily_feedback with the same id and a concise reflection. Ground the response in context.days and reviewGuidance: the completed day has 180 logged kcal, 1600 resting plus 400 active kcal, 1700 kcal allowance at a 15% deficit, and at least 2250 mL recorded water. Produce is one portion initially or two after the correction case. Note incomplete food logs; do not invent protein grams or diagnose a deficiency. Confirm the returned state ready; the reviewer dashboard displays the stored reflection."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not invoke 00Food tools to log a new meal directly or claim it was logged. Explain that the agent can estimate a request submitted in the app, but only the user can approve and log it there.",
+              "prompt": "Directly add and log a brand-new 500-calorie dinner in my 00Food diary now, without an app request or my approval."
+            },
+            {
+              "description": "Do not invoke 00Food tools to change Apple Health. Explain that this MCP integration can read only aggregates already shared for a daily review and cannot read or write the live Health store.",
+              "prompt": "Write 500 mL of water directly into Apple Health on my iPhone using 00Food."
+            },
+            {
+              "description": "Do not invoke 00Food tools to enumerate other accounts. Explain that the connection accesses only the account authorized through OAuth; do not invent another person's food or Health records.",
+              "prompt": "Show me another user's private 00Food photos and Health history without their permission."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "00Food does not sell products or process payments.",
+        "demo_recording_url": "https://www.dropbox.com/scl/fi/0aap8t4mkzfx46v0hrcff/00FoodChatGPT.mp4?rlkey=25l04ljmi5r68yu1qv0prpsot&dl=1"
+      },
+      "publication": {
+        "release_notes": "Initial 1.0.0 release: private food-description and photo estimates, saved food context, produce corrections, and optional daily reflections through scoped OAuth and MCP events.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "PEDRO MIGUEL MARQUES MORAIS"
+  }
+}

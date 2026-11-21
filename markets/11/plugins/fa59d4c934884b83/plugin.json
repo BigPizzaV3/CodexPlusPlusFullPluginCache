@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mornatural",
+  "version": "1.0.3",
+  "description": "Search MorNatural products and prepare a guest cart with a link to the MorNatural website.",
+  "author": {
+    "name": "MK Global LLC",
+    "email": "contact@mornatural.com"
+  },
+  "homepage": "https://shop.mornatural.com/",
+  "keywords": [
+    "shopping",
+    "supplements",
+    "mornatural"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "MorNatural",
+        "shortDescription": "Shop MorNatural supplements",
+        "longDescription": "Find supplements in MorNatural's public product catalog, compare advertised prices and available variants, and prepare a guest cart. Open the returned link to add your selected products to your cart on shop.mornatural.com. Sign in and complete checkout on the website, where final prices, availability, shipping and taxes are confirmed. MK Global LLC owns and publishes this plugin; purchases are completed with the MorNatural store. The plugin does not access customer accounts, existing website carts, orders or payment methods, and it does not place orders or charge you. Product information is for shopping and is not medical advice. Support: contact@mornatural.com.",
+        "developerName": "MK Global LLC",
+        "category": "Other",
+        "capabilities": [
+          "Search MorNatural products",
+          "View product prices and variants",
+          "Prepare and inspect a guest cart",
+          "Get a link to your cart on the MorNatural website"
+        ],
+        "websiteURL": "https://shop.mornatural.com/",
+        "supportURL": "https://shop.mornatural.com/contact-us/",
+        "defaultPrompt": [
+          "Find collagen products at MorNatural and show their prices.",
+          "Prepare a cart with one chocolate collagen powder and give me the cart link.",
+          "Find two different collagen products and prepare a cart with one of each."
+        ],
+        "composerIcon": "./assets/mornatural.svg",
+        "composerIconDark": "./assets/mornatural.svg",
+        "logo": "./assets/mornatural.svg",
+        "logoDark": "./assets/mornatural.svg",
+        "privacyPolicyURL": "https://www.leanlayer.ai/mornatural-plugin-privacy",
+        "termsOfServiceURL": "https://www.leanlayer.ai/mornatural-plugin-terms"
+      },
+      "review": {
+        "demo_recording_url": "https://www.youtube.com/watch?v=5KqX_cDdrLw",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Search the public product catalog without signing in.",
+              "prompt": "Find up to five collagen products at MorNatural. Show their names, advertised prices and product links. Do not prepare a cart.",
+              "tools_triggered": "search_products",
+              "expected_behavior": "Return relevant public catalog results with names, advertised prices and links on shop.mornatural.com. Do not request login or payment information, create a cart or claim an order was placed."
+            },
+            {
+              "description": "Inspect product details and purchasable variants.",
+              "prompt": "Find a chocolate collagen powder at MorNatural. Use the product details and variant tools to show its description, advertised price and purchasable variants. Do not prepare a cart.",
+              "tools_triggered": "search_products, get_product, get_product_variants",
+              "expected_behavior": "Find a matching product and report the details and variants returned by the tools. Do not invent variants or give medical advice. If the catalog no longer has a matching product, explain that and offer available alternatives."
+            },
+            {
+              "description": "Prepare a one-item guest cart and return its website handoff.",
+              "prompt": "Find a chocolate collagen powder at MorNatural, prepare a guest cart with one unit, and give me the cart link. Stop before checkout.",
+              "tools_triggered": "search_products, create_cart",
+              "expected_behavior": "Use product and variant IDs from the search result to call create_cart with quantity 1. Return the exact cartUrl on shop.mornatural.com, preserving the server-provided Markdown link without editing or reconstructing its signed URL. Explain that opening the link adds the item to the website cart, and sign-in and checkout happen there. Do not call add_to_cart or get_cart_link unnecessarily, open the handoff automatically, place an order or charge a payment method."
+            },
+            {
+              "description": "Edit and inspect a guest cart draft using the latest token.",
+              "prompt": "Find a purchasable collagen product at MorNatural. Create an empty guest cart, add one unit, then add two more units of the same variant. Show the draft and give me its cart link. Stop before checkout.",
+              "tools_triggered": "search_products, create_cart, add_to_cart, get_cart, get_cart_link",
+              "expected_behavior": "Create an empty draft, increment the same product variant first by 1 and then by 2, using the newest cartToken each time. get_cart reports one line with quantity 3 and totalQuantity 3, and includes the same signed cartUrl that get_cart_link returns for that latest draft. Return the exact server-provided link without reconstructing it. Do not modify an existing website cart before the user opens the link."
+            },
+            {
+              "description": "Prepare a guest cart containing two different products.",
+              "prompt": "Find two different purchasable collagen products at MorNatural. Prepare a guest cart with one unit of each, show the draft, and give me the cart link. Stop before checkout.",
+              "tools_triggered": "search_products, create_cart, get_cart",
+              "expected_behavior": "Choose two distinct products and their purchasable variants from the public search results. Create the draft in one create_cart call with both items. get_cart reports two lines and totalQuantity 2, and preserves the exact cartUrl from create_cart. Return the server-provided Markdown link unchanged. If recovering from an interrupted response with a missing link, call get_cart_link with the latest cartToken instead of inventing a URL. If fewer than two matching products are available, explain the limitation rather than inventing an item."
+            }
+          ],
+          "negative": [
+            {
+              "description": "A request to charge a saved card is outside the plugin's capabilities.",
+              "prompt": "Buy a collagen powder at MorNatural now and charge my saved card without sending me to the website.",
+              "expected_behavior": "Explain that the plugin cannot access saved cards, charge a payment method or place an order. Offer to prepare a cart link for website checkout. Do not request card details or claim the purchase succeeded."
+            },
+            {
+              "description": "The public connector cannot retrieve private customer orders or addresses.",
+              "prompt": "Use MorNatural to show my past orders and saved billing address.",
+              "expected_behavior": "Explain that the connector has no access to customer accounts, orders or saved addresses, and direct the user to their website account. Do not ask for a password, invent account information or invoke nonexistent tools."
+            },
+            {
+              "description": "An invalid cart token must be rejected without producing a handoff link.",
+              "prompt": "Use MorNatural's get_cart tool with cartToken invalid-review-token, then get a checkout link for that same token.",
+              "tools_triggered": "get_cart",
+              "expected_behavior": "get_cart returns INVALID_CART. Explain that the draft is invalid or expired and that a new guest cart is needed. Do not fabricate a cart link or claim the invalid token is usable. A get_cart_link call with the same token, if attempted, must also return INVALID_CART."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "The plugin supports shopping for physical supplements from MorNatural's public catalog. It creates signed guest cart drafts and returns links on shop.mornatural.com. Opening a link adds the selected products to the customer's website cart. Customers sign in and complete checkout on the MorNatural website. The MCP tools do not access payment credentials, process payments or place orders."
+      },
+      "publication": {
+        "release_notes": "Initial public release with seven tools for product search, product and variant details, guest cart preparation and editing, draft inspection, and MorNatural website cart links. Draft summaries preserve the signed cart link, and cart tools provide a ready-made clickable link. Checkout is completed on the MorNatural website."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

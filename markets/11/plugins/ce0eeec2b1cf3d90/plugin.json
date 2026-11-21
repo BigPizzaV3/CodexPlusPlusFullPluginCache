@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "money4k-split-bill",
+  "version": "1.0.0",
+  "description": "Create and share itemized bills from receipt photos or plain-language descriptions. Split shared meals, purchases and tips with friends.",
+  "homepage": "https://money4k.com",
+  "keywords": [
+    "bill-splitting",
+    "shared-expenses",
+    "restaurant",
+    "receipt",
+    "tips"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Money4K",
+        "shortDescription": "Split bills with friends",
+        "longDescription": "Split a restaurant bill or shared purchase with friends, and give everyone a link to choose their own items and calculate their share. Create an itemized bill from a receipt photo, a typed list, or a description in your own words; no receipt is required. For example, describe a EUR 20 pizza and two EUR 5 beers to create a EUR 30 bill. View the bill in chat and share its public Money4K link or QR code. Edit items in chat, divide a shared dish into selectable portions, or add tips for a specified number of people: EUR 50 for 5 people becomes 5 shares at EUR 10. Receipt taxes stay in the eligible item prices and the printed total is checked before creation. Anyone with the link can view the bill; creation, editing and saving item selections require sign-in. Money4K records bill items and selections; it does not collect payments or transfer money.",
+        "category": "Finance",
+        "capabilities": [
+          "Create shared bills",
+          "Split items and tips",
+          "Select your items"
+        ],
+        "websiteURL": "https://money4k.com",
+        "privacyPolicyURL": "https://money4k.com/privacy.html",
+        "termsOfServiceURL": "https://money4k.com/terms-of-service.html",
+        "defaultPrompt": [
+          "Create a public split bill from this restaurant receipt.",
+          "Create a bill from these items and give me a shareable link.",
+          "Correct an item in the bill we just created."
+        ],
+        "logo": "./assets/logo.png",
+        "composerIcon": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "developerName": "Aleksandr Grushko",
+        "supportURL": "https://money4k.com/support.html"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Receipt photo. Attach a clear restaurant receipt image showing 2 soups at EUR 8.00 and a coffee at EUR 8.50, final total EUR 24.50. A reviewer-accessible fixture URL is still needed. After creation, the reviewer clicks Copy and then QR in the bill UI.",
+              "prompt": "Create a public split bill from this restaurant receipt photo.",
+              "tools_triggered": "create_bill",
+              "expected_behavior": "Read the attached photo, create once with the two receipt lines and EUR 24.50 total, and return the server's share_url with the bill UI. Do not request a user profile or publish card or customer details. Copy must put the exact share_url on the clipboard; QR must encode the same public bill URL. These two UI actions require no additional MCP tool calls."
+            },
+            {
+              "description": "Different tax groups on a synthetic dine-in receipt from mainland France, dated 2026-10-10. Verify the applicable local treatment with official sources before allocation.",
+              "prompt": "Create a public bill from this mainland France dine-in receipt dated 10 October 2026: a hot main dish EUR 20.00 net marked A, one glass of wine EUR 10.00 net marked B. Tax A 10% on EUR 20.00: EUR 2.00; tax B 20% on EUR 10.00: EUR 2.00. Printed final total EUR 34.00.",
+              "tools_triggered": "create_bill",
+              "expected_behavior": "Verify the local tax categories for the receipt location and date using official sources. Allocate tax A only to the dish and tax B only to the alcoholic wine. Create with dish quantity 1 and final price EUR 22.00, wine quantity 1 and final price EUR 12.00, receipt total unchanged at EUR 34.00. No tax items or pooling of tax across the two groups. If official treatment cannot be established or contradicts the receipt, clarify before writing."
+            },
+            {
+              "description": "Create directly from a natural-language description without a receipt or a supplied grand total. Use an authenticated demo account and a new conversation. After successful creation, the reviewer asks: The coffee cost EUR 7.50; correct it, final total EUR 23.50.",
+              "prompt": "We had 2 soups at EUR 8 each and one coffee at EUR 8.50. Make a shared bill and give me a link for my friends.",
+              "tools_triggered": "create_bill, update_bill",
+              "expected_behavior": "Create once with soup quantity 2, unit_price EUR 8.00, total_price EUR 16.00; coffee quantity 1, unit_price and total_price EUR 8.50; calculated bill total EUR 24.50. Do not ask for a receipt, a separately supplied total, tax jurisdiction or another confirmation. Return the actual share_url and bill UI, and briefly mention edits, tip shares and shared portions. Only after the explicit follow-up, update the same bill with the full item list and existing item IDs, coffee EUR 7.50 and bill total EUR 23.50, retaining soup data and share_url. Do not create a second bill."
+            },
+            {
+              "description": "Missing tip participant count. Independently create a fresh bill with 2 soups at EUR 8.00 and coffee at EUR 8.50, total EUR 24.50, retaining its complete result. After the clarification, the reviewer replies: 5 people.",
+              "prompt": "Add EUR 50 in tips to this bill.",
+              "tools_triggered": "update_bill",
+              "expected_behavior": "First ask how many people should share the tips and make no write call. Do not infer count from dishes or selections. After the reviewer replies 5 people, update once with the complete bill and Tips quantity 5, unit_price EUR 10.00, total_price EUR 50.00, bill total EUR 74.50. Preserve existing item IDs and share_url. Return updated bill data and the same link; update_bill does not itself return a new UI resource."
+            },
+            {
+              "description": "Split a whole repeated-item line into portions. First create a bill containing 2 pizzas at EUR 15.00 each and one coffee at EUR 5.00, total EUR 35.00. No item selections exist. After the update, the reviewer asks: Select one pizza portion for me. Also repeat the portion-selection step in an independent fresh bill by clicking + once next to the pizza and Save in the embedded bill UI.",
+              "prompt": "Split the whole pizza line between 5 people.",
+              "tools_triggered": "update_bill, set_bill_selections_batch",
+              "expected_behavior": "Update the same pizza item ID to quantity 5, unit_price EUR 6.00, total_price EUR 30.00, because the complete line costs EUR 30.00. Preserve the coffee and its ID, bill total EUR 35.00 and share_url. Record that a pizza unit now means one of five portions. Do not divide only the old EUR 15 unit price, duplicate pizzas, or assign portions to participants automatically. Only after the explicit follow-up, save quantity 1 for the connected user using set_bill_selections_batch with the actual bill_id and returned pizza item ID. Do not select for named friends; omitted existing selections stay unchanged. In the independent UI variant, Save calls the same selection tool for one pizza portion, updates the displayed personal share to EUR 6.00 and retains the selection after reopening the bill. Incrementing the UI counter before Save must not write a selection."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General personal finance advice needs no shared bill. Answer directly without invoking Money4K tools or proposing an unrelated bill.",
+              "prompt": "How can I save more money each month?"
+            },
+            {
+              "description": "Translate and explain the attached receipt directly. A receipt attachment alone is not permission to publish it: do not create a bill or invoke Money4K tools without a bill-splitting request.",
+              "prompt": "I attached a restaurant receipt. Can you translate it and explain what each item means?"
+            },
+            {
+              "description": "Bank-statement categorization is outside Money4K tools. Do not invoke bill tools, publish bank transactions, or claim Money4K provides expense categorization.",
+              "prompt": "Categorize these expenses from my bank statement into food, transport, and entertainment."
+            }
+          ]
+        },
+        "commerce": false,
+        "demo_recording_url": "https://drive.google.com/file/d/1ZMPjbGmQhT485VZiy7kQ6yqod13PPC6d/view?usp=sharing",
+        "commerce_description": "Money4K creates and shares itemized bills and records participants' item selections. It does not sell products, collect payments or transfer money."
+      },
+      "publication": {
+        "release_notes": "Initial Money4K plugin: create shared bills from receipt photos or plain-language descriptions, edit bills in chat, split shared items and tips into selectable portions, share public links or QR codes, and save your own item selections with live bill updates."
+      },
+      "apps": "./.app.json"
+    }
+  },
+  "author": {
+    "name": "Aleksandr Grushko",
+    "email": "money4k.com@gmail.com",
+    "url": "https://money4k.com"
+  }
+}

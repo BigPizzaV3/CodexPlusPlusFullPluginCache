@@ -1,0 +1,99 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "trippy-days",
+  "version": "1.0.0",
+  "description": "Plan and update trips with Trippy Days.",
+  "author": {
+    "name": "DoggoDays LLC",
+    "url": "https://www.trippy-days.com"
+  },
+  "homepage": "https://www.trippy-days.com",
+  "keywords": [
+    "travel",
+    "trip-planning",
+    "itinerary",
+    "stays",
+    "transit",
+    "research",
+    "costs"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Trippy Days",
+        "shortDescription": "Plan and update your trips",
+        "longDescription": "Trippy Days helps travelers view and manage the trips they are authorized to access, including itineraries, stays, transit, research, and costs. It supports creating, updating, reordering, and deleting private trip-planning records after the appropriate OAuth-authorized action.",
+        "developerName": "DoggoDays LLC",
+        "category": "Travel",
+        "capabilities": [],
+        "websiteURL": "https://www.trippy-days.com",
+        "supportURL": "https://www.trippy-days.com/support",
+        "privacyPolicyURL": "https://www.trippy-days.com/privacy",
+        "termsOfServiceURL": "https://www.trippy-days.com/terms",
+        "defaultPrompt": [
+          "Show me the itinerary for my upcoming trip.",
+          "Add our hotel booking to my Paris trip.",
+          "Create dinner ideas for each evening in Rome."
+        ],
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List authorized trips. Setup: the dedicated review account has one upcoming demo trip with sample data and a second sparse trip. An unrelated private trip belongs to another account and is not shared with the reviewer.",
+              "prompt": "Show my trips.",
+              "tools_triggered": "list_trips",
+              "expected_behavior": "Call list_trips with no trip ID. Show only trips returned for the connected review account, including the demo and sparse trips. Use their returned IDs for follow-up actions; do not show the unrelated private trip or invent trips."
+            },
+            {
+              "description": "Read a day-by-day itinerary. Setup: the upcoming demo trip has dated days, an itinerary item, a hotel stay, and a train booking. If more than one trip matches, ask the reviewer to choose.",
+              "prompt": "Show the day-by-day itinerary for my demo trip.",
+              "tools_triggered": "list_trips, get_trip_itinerary",
+              "expected_behavior": "Resolve the demo trip with list_trips and pass its returned tripId to get_trip_itinerary. Present the returned dates, days, and itinerary items, including any generated booking rows. Do not invent activities or convert local trip times into UTC. Reuse the trip ID if it is already in the conversation."
+            },
+            {
+              "description": "Record an already-booked hotel without purchasing it. Setup: the upcoming demo trip spans at least two days; the review account has edit rights. The sample hotel has no map location or cost. Approve the write if the host requests confirmation.",
+              "prompt": "Add an already-booked hotel called Review Demo Hotel to my demo trip. Check in at 15:00 on its first day and check out at 11:00 on its last day. Leave the location and cost blank.",
+              "tools_triggered": "list_trips, get_trip_itinerary, create_stay_item",
+              "expected_behavior": "Resolve the demo trip and its dates, then call create_stay_item with that tripId, propertyName=\"Review Demo Hotel\", stayType=\"HOTEL\", checkInDate equal to the trip start date, checkInTime=\"15:00\", checkOutDate equal to the trip end date, and checkOutTime=\"11:00\". Leave place and cost unset or null. Respect any host confirmation. Report the saved stay and generated check-in/check-out rows from travelPatch, without claiming a hotel reservation was purchased."
+            },
+            {
+              "description": "Update a train booking while preserving its route and schedule. Setup: the demo trip has exactly one editable TRAIN transit booking. If multiple trains exist, ask which one to update. Approve the write if the host requests confirmation.",
+              "prompt": "On my demo trip, change the train booking notes to \"Arrive 20 minutes before departure\". Keep all its other details unchanged.",
+              "tools_triggered": "list_trips, list_transit_items, update_transit_item",
+              "expected_behavior": "Find the TRAIN booking using list_transit_items and its returned transitItemId. Call update_transit_item with the demo tripId, that transitItemId, and notes=\"Arrive 20 minutes before departure\". Omit route, provider, times, and groundTransit so they remain unchanged. Respect any host confirmation. Show the updated notes from travelPatch; do not delete and recreate the booking."
+            },
+            {
+              "description": "Save an unscheduled dinner idea. Setup: the review account can edit the demo trip. This is a free-form idea without a restaurant location, web link, or booking. Approve the write if the host requests confirmation.",
+              "prompt": "Save \"Try a neighborhood bistro\" as a dinner research idea on my demo trip, with the note \"Look for vegetarian options\". Do not schedule it yet.",
+              "tools_triggered": "list_trips, create_research_idea",
+              "expected_behavior": "Resolve the demo tripId and call create_research_idea with title=\"Try a neighborhood bistro\", category=\"FOOD\", and notes=\"Look for vegetarian options\". Respect any host confirmation. Confirm the returned researchIdea was saved to research, without creating an itinerary item, reservation, or payment."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unsupported travel purchase. Explain that Trippy Days records plans and existing bookings but cannot purchase tickets or charge a card. Do not invoke a write tool or claim a booking or payment was made.",
+              "prompt": "Buy the cheapest flight to Paris for me and charge my credit card."
+            },
+            {
+              "description": "Unsupported sharing change. Explain that trip sharing and traveler permissions are managed in the Trippy Days app. Do not invoke create/update tools to simulate an invitation or claim that access was granted.",
+              "prompt": "Invite a friend to my demo trip as a planner and give them edit access."
+            },
+            {
+              "description": "Unsupported external cancellation. Explain that deleting a planning record does not cancel a hotel reservation or issue a refund, and direct the user to the booking provider. Do not invoke delete_stay_item or another mutation for this request.",
+              "prompt": "Cancel my hotel reservation with the hotel and refund it to my card. Keep my itinerary unchanged."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/p7M2SP0UKTs"
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "Plan and manage your trips in ChatGPT and Codex. View and update itineraries, organize existing stay and transit bookings, save research ideas, and track travel costs."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

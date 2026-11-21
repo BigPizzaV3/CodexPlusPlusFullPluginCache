@@ -1,0 +1,114 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "school-timetable-builder",
+  "version": "1.1.0",
+  "description": "Build a complete weekly timetable for a primary or lower-secondary school by describing the school in the chat.",
+  "author": {
+    "name": "Theis Wilbek",
+    "email": "timetablingengine.support@gmail.com",
+    "url": "https://wilbek-source.github.io/timetable-builder/"
+  },
+  "homepage": "https://wilbek-source.github.io/timetable-builder/",
+  "keywords": [
+    "school",
+    "timetable",
+    "schedule",
+    "education",
+    "teachers"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "School Timetable Builder",
+        "shortDescription": "Weekly timetables for schools",
+        "longDescription": "School Timetable Builder creates a complete weekly timetable for a primary or lower-secondary school: one timetable per class and one per teacher, including rooms.\n\nDrop in the files you already have (spreadsheets, Word documents, emails) or describe your school in the chat, in your own language: classes, subjects and lessons per week, teachers and what they teach, rooms and the school day. ChatGPT reads everything, asks only about what it can't work out, and checks the data with the service in a few seconds, for example whether there are enough qualified teachers and enough time in the week. Then the timetable engine calculates the full timetable, usually in 5-8 minutes. Every rule is a firm rule: the timetable meets all of them, or you get a plain explanation of what clashes, and you decide what to change.\n\nRules the engine handles:\n- Teacher availability: block any day or lesson, e.g. \"not after lesson 4 on Fridays\" or \"teaches at another school on Mondays\"\n- Blocked lessons for a class or a whole grade\n- Teacher workload: lessons per week, part-time\n- No gaps: planning time at school is placed in each teacher's timetable, and by default teachers' days have no empty gaps\n- Fixed teachers for a class and subject\n- Double lessons, and a daily limit per subject (e.g. English once a day)\n- Shared special rooms with limited capacity (sports hall, music room, workshops)\n- Classes taught at the same time, and groups inside a class with their own teacher (e.g. religion or language groups)\n- 5 or 6 school days a week, 1-12 lessons a day, any lesson length, grades 0-10\n\nYou get the finished timetable as files in the chat (for example a spreadsheet with one sheet per class and one per teacher), plus a \"School data\" file so you can change a detail and run it again later.\n\nNot supported: student-choice course timetables (high-school style), whole-day events, and soft \"if possible\" preferences that are weighed against each other.\n\nPrivacy: ChatGPT replaces teacher names with codes (T01, T02, ...) before anything is sent and puts the real names back when the result comes in. The service never receives the names of teachers, pupils or the school, and it deletes all data within 24 hours. No account is needed. Usage has shared hourly and daily limits.",
+        "developerName": "Theis Wilbek",
+        "category": "Education & Research",
+        "capabilities": [
+          "Read your files and ask only what it can't work out",
+          "Check teachers and time before planning",
+          "Calculate a weekly timetable with rooms and teacher availability",
+          "Deliver class and teacher timetables as files"
+        ],
+        "websiteURL": "https://wilbek-source.github.io/timetable-builder/",
+        "supportURL": "https://wilbek-source.github.io/timetable-builder/#support",
+        "privacyPolicyURL": "https://wilbek-source.github.io/timetable-builder/privacy.html",
+        "termsOfServiceURL": "https://wilbek-source.github.io/timetable-builder/terms.html",
+        "defaultPrompt": [
+          "Help me make next year's timetable for our school. We have grades 0-9 with two classes per grade.",
+          "Here is our subject plan and teacher list. Do we have enough teachers before you make the timetable?",
+          "Make a timetable for our school: grades 1-6, one class each. Mrs Hansen teaches elsewhere on Fridays."
+        ],
+        "brandColor": "#1F4E79",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Full timetable for a full-size school",
+              "prompt": "I'm the school secretary. Please make next year's timetable from the attached description of our school.",
+              "tools_triggered": "get_interview_guide, validate_input, create_schedule, get_schedule_result",
+              "expected_behavior": "ChatGPT replaces teacher names with codes (T01...) before sending, validation returns VALID, and ChatGPT asks for a go-ahead (reply 'Yes, go ahead'). After about 5-8 minutes it delivers one timetable per class and per teacher as files with the real (fictional) teacher names, plus a School data file. Gustav Jensen has no lessons on Fridays and grade 7 has no lesson 1 on Tuesdays.",
+              "file_attachment_urls": [
+                "https://wilbek-source.github.io/timetable-builder/sample-school-full.txt"
+              ]
+            },
+            {
+              "description": "Guided interview from scratch",
+              "prompt": "Help me make next year's timetable for our school. We have grades 0-9 with two classes per grade.",
+              "tools_triggered": "get_interview_guide",
+              "expected_behavior": "ChatGPT asks about one topic at a time (subjects and lessons per week, teachers, rooms, school day). It does not start a timetable before the data is complete and validated."
+            },
+            {
+              "description": "Feasibility check finds a teacher shortage",
+              "prompt": "Here is our school (attached). Actually, nobody teaches German. Check the data first, don't make the timetable yet.",
+              "tools_triggered": "get_interview_guide, validate_input",
+              "expected_behavior": "validate_input returns INVALID. ChatGPT explains in plain language that German in grades 5-6 has no qualified teacher and asks the user how to proceed. create_schedule is not called.",
+              "file_attachment_urls": [
+                "https://wilbek-source.github.io/timetable-builder/sample-school-small.txt"
+              ]
+            },
+            {
+              "description": "Fixed blocked time for a teacher",
+              "prompt": "Make our timetable from the attached file. Anne Mortensen teaches at another school every Friday, so she can't teach here on Fridays.",
+              "tools_triggered": "get_interview_guide, validate_input, create_schedule, get_schedule_result",
+              "expected_behavior": "After the user's go-ahead ('Yes, go ahead'), the blocked time is sent with a neutral reason and the finished timetable (about 2-5 minutes) has no lessons for Anne Mortensen on Fridays.",
+              "file_attachment_urls": [
+                "https://wilbek-source.github.io/timetable-builder/sample-school-small.txt"
+              ]
+            },
+            {
+              "description": "Feedback to the developer",
+              "prompt": "Please tell the developer it was easy to use, but I'd like to set teachers' wishes for free days.",
+              "tools_triggered": "send_feedback",
+              "expected_behavior": "The feedback is sent without any names; ChatGPT confirms briefly and gives the support email if the user wants a reply."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Personal study plan",
+              "prompt": "Make me a personal study plan for my exams next month."
+            },
+            {
+              "description": "Work shift rota",
+              "prompt": "Create a weekly shift rota for the 12 staff in my restaurant."
+            },
+            {
+              "description": "Student-choice university timetable",
+              "prompt": "Build a course timetable for our university where each student picks their own courses."
+            }
+          ]
+        },
+        "demo_recording_url": "https://youtu.be/rBlrkU3NZYE",
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Updated listing text: 5 or 6 school days a week, a daily limit per subject, groups inside a class with their own teacher, and teacher availability described as firm rules. The five tools are unchanged."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

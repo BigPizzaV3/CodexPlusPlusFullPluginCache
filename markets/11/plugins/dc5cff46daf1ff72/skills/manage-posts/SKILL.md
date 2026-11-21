@@ -1,0 +1,16 @@
+---
+name: manage-posts
+description: Review, revise, schedule, queue, publish or cancel ProductByte social posts and prepare standalone posts from existing creatives. Use for draft copy, approvals and publishing schedules; use create-campaign for a new multi-post campaign.
+---
+
+Use the ProductByte MCP tools from this plugin. Tool names below are the server names; use the corresponding names exposed by the host.
+
+- Resolve the selected project through `workspace-get` when needed. Find an existing campaign by name with `campaign-list`, then read `post-list` for the requested campaign or project. Follow pagination before acting on a request concerning all matching posts.
+- For a standalone post, read `playbook-list` for caption tone, `channel-list` for destinations and `creative-list` for a suitable asset. Write drafts with each platform's post tool, such as `post-instagram-create`; name every channel of that platform in one call, and pass the returned campaign ID to the next platform's tool for the same creative. Create a new creative when no existing one fits.
+- For copy changes, group posts by the returned `draft_id` and update each affected draft once with `post-draft-update`, using its campaign ID. Write the full replacement copy and preserve wording, headline and channels outside the requested change. Re-read affected posts to verify the persisted copy; an empty update result is not success.
+- Show draft reviews with `post-review` using the affected post IDs or campaign ID, and again after a creative or copy changes. Let the card present them. Record an explicit chat verdict with `post-draft-update`; copy approval alone does not authorize scheduling or publishing.
+- Read `needs` before distribution. Use `post-pinterest-update` with the customer's Pinterest board or `post-tiktok-update` with their TikTok choices, both offered by `channel-list`. Keep those choices with the customer.
+- For scheduling, translate the agreed date and time in the customer's timezone and use `post-publish` with `scheduled_at`. Omit `scheduled_at` only when the customer asked to publish now. Publishing-window setup is available in the ProductByte app.
+- Adding to `post-queue` authorizes automatic publishing at the queue's next slots. Call it without changes to read the current queue first; adding a dated post removes its date, while scheduling a queued post removes it from the queue. Explain expected times using the current queue result. Publishing frequency and windows are configured in the ProductByte app.
+- Remove queued posts through `post-unqueue`; they stay as drafts. Cancelling a dated post without deleting it is available in the ProductByte app; open `productbyte` when the customer requests that workflow. Use `post-delete` only for requested deletion; for a published post, check whether its channel supports taking it down. Cancellation and deletion are different outcomes.
+- Verify changed posts with `post-list` and re-read the queue when it changed. Report accepted, refused, failed or still pending states separately. Publishing that lost contact may already be live: use `confirmed_not_live` only after the customer checked the channel and confirmed absence, and do not blindly retry an uncertain publication.

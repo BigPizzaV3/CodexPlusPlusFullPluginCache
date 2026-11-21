@@ -1,0 +1,306 @@
+# Brand & Prompts
+
+Document saves use the shared [role and review contract](document-roles.md). A `DOCUMENT_REVIEW_REQUIRED` warning means nothing was saved. Show it to the user; after explicit acknowledgement, repeat the identical command with `--force --review-token <receipt>`. The receipt is bound to the current documents and expires after 15 minutes. Successful reviewed saves archive the originals.
+
+---
+
+Document names and ownership: [canonical document roles](document-roles.md).
+
+## /aeo agent context — Show current agent context
+
+```bash
+aeo agent context
+```
+
+Response: `text/markdown` — the default brand operating context used by the agent, including brand snapshot, Brand Notes, Content Strategy, Source Guide, publishing channels, measurement status, provenance, and warnings.
+
+If empty or JSON error, suggest running setup and checking the domain ID.
+
+---
+
+## /aeo domain brand update — Update brand context fields
+
+1. Fetch current Agent/Brand Context with `aeo agent context` first (show it to the user)
+2. Ask the user what they want to change
+3. Confirm before writing
+
+Accepted fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `name` | string | Brand display name |
+| `category` | string | e.g. `"B2B SaaS"` |
+| `industry` | string | e.g. `"Developer Tools"` |
+| `value_proposition` | string (max 2000) | Core positioning statement |
+| `key_features` | string[] (max 20) | Feature list for brand mentions |
+| `primary_language` | ISO 639-1 | e.g. `"en"`, `"ko"`, `"ja"` |
+| `target_region` | `--region` | Measured market: `KR`, `US`, `JP`, `TW`, `HK`, `CN`. Rejected if outside that list |
+| `brand_context` | string (max 50000) | Free-form brand positioning and durable notes (see template below) |
+| `description` | `--description` | Snapshot one-line description (Structured Snapshot → Description). `--value-proposition` also sets it when `--description` is absent |
+| voice | `--voice-json` | Brand Voice section: `{"tone":"...","voice":[...],"do":[...],"avoid":[...]}`, max 6 per list |
+| competitors | `--competitors-json` | Snapshot competitors: `[{"name":"...","domain":"example.com"}]` or bare names |
+| ceps | `--ceps-json` | Category entry points: `["...", {"label":"...","fitReason":"..."}]` |
+
+```bash
+aeo domain brand update --name="..." --category="..." --value-proposition="..."
+aeo domain brand update --region=KR
+```
+
+### --region: the market prompts are measured in
+
+`prompts add` refuses to insert anything while `target_region` is null
+("Set the domain target region before creating prompts"). `--region` is the
+only way to clear that block from the CLI/agent surface — `domain rescan` does
+**not** set it, and onboarding only fills it when the crawled site states a
+market it recognizes (KR/JP/US), so TW/HK/CN brands and market-silent sites are
+born blocked.
+
+The value is handed to the measurement exit, so a wrong code does not error —
+it measures the wrong market. Confirm the market with the user before writing,
+and read the current value from `aeo agent context` (Identity → Measured
+Market) first.
+
+`aeo diagnose visibility run --location <code>` overrides the region for a
+single run without changing the stored value.
+
+> Canonical form is `aeo domain brand update` (matches `aeo domain` help). Bare `aeo brand update` routes only on the **dashboard-chat / MCP agent surface** (the connector registry normalizes it to `domain brand update`); the raw `aeo` terminal binary does not accept it, so always use `aeo domain brand update` in shell examples.
+
+Partial update — unset fields are preserved.
+
+### Brand Understanding lists: voice, competitors, CEPs
+
+These are the parts of `aeo agent context` a scan infers and an operator most
+often has to correct. Each JSON flag **replaces its whole list**; `'[]'` clears
+it. Malformed JSON is refused, never dropped. Show the before/after and get an
+explicit yes first (canonical-memory write).
+
+```bash
+aeo domain brand update --voice-json '{"tone":"calm, expert","voice":["plain","specific"],"do":["Name the workflow being automated."],"avoid":["Hype and superlatives."]}'
+aeo domain brand update --competitors-json '[{"name":"Lindy","domain":"lindy.ai"},{"name":"Relevance AI","domain":"relevanceai.com"}]'
+aeo domain brand update --ceps-json '["Automate lead follow-up", {"label":"Build an internal ops agent","fitReason":"no-code builder"}]'
+aeo domain brand update --value-proposition "..." --description "..."
+```
+
+Where each lands:
+
+- `--voice-json`: the tone the agent context, writing job and research read
+  (`analysis_data...brandKnowledge.brandTone`) plus `brand_snapshot.identity.brandTone`
+  (market map). Needs an onboarding preview; a crawled channel style reference,
+  when mounted, still outranks it in writing.
+- `--competitors-json`: `brand_snapshot.competitors` (source `manual`), mirrored
+  into the legacy lists a `domain rescan` would otherwise restore from. This is
+  not the visibility tracking list (`tracked_competitors`).
+- `--ceps-json`: `brand_snapshot.marketing.ceps`.
+- `--description`: `brand_snapshot.identity.oneLineDescription`.
+
+The keys in `--voice-json` match what `agent context` prints (Tone / Voice / Do
+/ Avoid); the stored names (`primaryTone`, `voiceCharacteristics`, `dos`,
+`donts`) are accepted too.
+
+### brand_context template
+
+Use [writing-inputs.md](writing-inputs.md) for input ownership. Keep canonical identity in the brand profile, product/service details in the catalog and supporting documents, voice in voice settings, and priorities in strategy. `brand_context` holds durable supplemental facts and scoped corrections that those fields cannot represent.
+
+```markdown
+## Supplemental brand facts
+[Only facts not already represented in the profile; identify scope and source]
+
+## Current corrections
+[Product/service, SKU/location and market; corrected claim; source; confirmation state]
+
+## Boundaries
+[Applicable exclusions and limits that must survive reuse; supporting source]
+```
+
+Replace placeholders before saving. Do not paste tone/reference dumps, strategy, source-preference settings or dated operations logs here. Preserve customer corrections even when the original report is not yet verified; label that state explicitly. Move history to a linked record only after retaining the current applicable facts and restrictions.
+
+---
+
+## /aeo prompts list — List prompts grouped by stage
+
+```bash
+aeo prompts list
+aeo prompts list --status tracked
+```
+
+> Use the explicit `list` verb. Bare `aeo prompts` prints sub-help in the terminal binary (it only lists via the agent surface), so `aeo prompts list` is the form that works everywhere.
+
+Response: `text/markdown` — table grouped by stage (foundational → comparison → use-case → implementation), showing language, query form, prompt text, visibility score, and last checked date.
+
+Optional filter: `--status tracked|untracked`. Omit it to list both statuses.
+
+After displaying:
+- Note which stages are sparse or have low visibility scores
+- Suggest adding prompts where coverage is thin
+- If no prompts exist, prompt the user to add foundational ones first
+
+---
+
+## /aeo prompts generate — Generate and save a prompt set
+
+```bash
+aeo prompts generate
+aeo prompts generate --count 12 --languages en,ko --instruction "Prioritize comparison prompts."
+```
+
+Generates a stage-balanced CEP prompt set from the active domain's saved brand context and immediately persists the result as tracked Prompts. This is free, but it is still a write action: show the requested languages/count/instruction and get explicit confirmation before running it.
+
+Accepted flags:
+
+| Flag | Type | Notes |
+|------|------|-------|
+| `--count` | positive integer | Generation hint, not a hard cap; the server keeps the set stage-balanced |
+| `--languages` | comma-separated language codes | Omit to use the domain's primary language |
+| `--instruction` | string | Extra generation guidance |
+
+The terminal binary calls the dashboard's authenticated `POST /score/prompts` REST endpoint directly. The agent command uses the connector surface; both reach the same server-side generation and persistence implementation.
+
+If the command reports `Run brand analysis first`, complete Brand Understanding before retrying. After success, review the generated set with `aeo prompts list` before starting a visibility check.
+
+---
+
+## /aeo prompts health — Audit the tracked prompt set
+
+```bash
+aeo prompts health
+```
+
+Free, read-only. The topic engine optimises **within** the tracked set, so a wrong set makes it optimise faithfully toward the wrong target — and nothing downstream reports that, because every measurement is taken against the same set. This audits the set itself.
+
+Returns:
+
+| Section | What it answers |
+|---------|-----------------|
+| What is working | Theme-level verdicts (several prompts sharing a word), not per-prompt noise. Stays silent when too little content exists to judge. |
+| Biggest openings | Queries where engines DO recommend a brand and it is not us — with how crowded the answer is and where we rank on Google |
+| Wasted effort | Prompts with several articles and still no citation; brand-name prompts holding tracked slots |
+| Demand you are not tracking | Real search demand with no prompt behind it, phrasings folded together and summed |
+| Every tracked prompt | Status + recommended action |
+
+Statuses:
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `STUCK_HARD` | Tried repeatedly, never cited — but competitors ARE recommended here | **Change the approach**, do not retire. The seat exists; the format or angle failed |
+| `STUCK_DEAD` | Tried, never cited, and the engines recommend nobody | Retire — there is no list to be on |
+| `UNTRIED` | No article targets it yet | Prioritise. A zero here is untouched, not failed |
+| `RISING` / `WINNING` | Citation climbing or already held | Keep |
+| `HOLDING` / `UNMEASURED` | Not enough evidence yet | Keep, revisit |
+
+The distinction that matters: a prompt at 0% with five articles behind it and one at 0% with none look identical in the numbers and need opposite treatment.
+
+---
+
+## /aeo prompts add — Add manual prompts
+
+Ask the user for the prompt details, then run:
+
+```bash
+aeo prompts add --prompt="best project management tools" --stage=comparison --language=en --segment foo,bar
+```
+
+### Adding several at once
+
+**Whenever you have more than one prompt, send them in a single call** — pass a JSON array instead of calling `add` repeatedly (max 30 per call):
+
+```bash
+aeo prompts add --prompts-json='[
+  {"prompt":"best project management tools","stage":"comparison"},
+  {"prompt":"what is a kanban board","stage":"foundational"},
+  {"prompt":"how do I migrate off jira","stage":"implementation"}
+]'
+```
+
+Entries may be objects or plain strings. Per-item keys win; the top-level `--stage`/`--language`/`--query-form`/`--segment` flags fill in whatever an item omits:
+
+```bash
+aeo prompts add --language=ko --stage=comparison --prompts-json='["노션 vs 에어테이블","먼데이 vs 아사나"]'
+```
+
+Accepted flags (binary `aeo prompts add`):
+
+| Flag | Type | Required | Default | Example |
+|------|------|----------|---------|---------|
+| `--prompt` | string | ✅ unless `--prompts-json` | — | `"best project management tools"` |
+| `--prompts-json` | JSON array of objects or strings, max 30 | ✅ unless `--prompt` | — | `'[{"prompt":"...","stage":"comparison"}]'` |
+| `--stage` | `foundational` \| `comparison` \| `use-case` \| `implementation` | — | `foundational` | `comparison` |
+| `--language` | `en` \| `ko` \| `ja` \| `zh` \| `ar` | — | `en` | `zh` |
+| `--query-form` | `short-tail` \| `long-tail` \| `conversational` | — | `conversational` | `long-tail` |
+| `--segment` | comma-separated tags | — | — | `foo,bar` |
+
+> Use `--prompts-json`, never a comma-separated list of prompts — prompt text routinely contains commas ("best CRM for startups, 2026") and would be shredded.
+
+Batch adds are best-effort: valid prompts are inserted, and the response reports anything skipped with a reason (duplicate, too short/long, invalid stage). Duplicates are matched both against prompts already tracked on the domain and within the batch itself, so re-running a batch will not stack copies. Fix only the reported items and re-send those.
+
+Confirm the details with the user before submitting. After success, suggest running `/aeo visibility check run` to measure visibility for the new prompts.
+
+---
+
+## /aeo prompts update — Edit an existing prompt
+
+```bash
+aeo prompts update <promptId> --prompt="updated text" --stage=use-case
+```
+
+Accepted flags (all optional, at least one required):
+
+| Flag | Type | Notes |
+|------|------|-------|
+| `--prompt` | string | Single Prompt text used immediately for display, dedupe, writing, and visibility measurement |
+| `--stage` | `foundational` \| `comparison` \| `use-case` \| `implementation` | Move to different stage |
+| `--query-form` | `short-tail` \| `long-tail` \| `conversational` | Update query form (kebab-case) |
+| `--segment` | comma-separated tags | Replaces the prompt's tags |
+| `--status` | `tracked` \| `untracked` | Toggle measurement tracking |
+| `--regions` | comma-separated market codes (`US,GB`) | Standing target markets: the prompt is asked once **per market** on every check (one slot, credits = measurements). Replaces the whole list; the single-market spelling `--region US` also works |
+
+Use `/aeo prompts list` first to get the prompt ID. Confirm with user before updating.
+
+After a text update, the response returns the stored Prompt text and its new revision. There is no separate canonical/localized text to update.
+
+---
+
+## /aeo prompts delete — Delete a prompt (soft delete)
+
+1. Run `/aeo prompts list` to show current prompts with IDs
+2. Ask the user to confirm which prompt(s) to delete
+3. Show the list and ask "Proceed?" before calling DELETE
+
+```bash
+aeo prompts delete <promptId>
+```
+
+Response: `{ success: true, deleted: { id, canonical } }`
+
+- Soft delete — sets `deleted_at`, data is preserved
+- `404` if prompt not found or already deleted
+- For bulk deletion (multiple prompts), confirm the full list once then loop calls sequentially
+
+---
+
+## Domain selection & audit
+
+### /aeo domain list
+
+```bash
+aeo domain list
+```
+
+Shows all domains the user has access to (owner + member). Useful for multi-domain setups.
+
+### /aeo domain switch
+
+```bash
+aeo domain switch [id]
+```
+
+Requires a domain ID. Run `aeo domain list` first to find the ID. The selected
+domain is persisted in `~/.config/aeo/config.json`.
+
+### /aeo domain audit
+
+```bash
+aeo domain audit
+```
+
+Response: `text/markdown` — audit scores and recommendations. See
+[geo-strategy.md](geo-strategy.md) for how to interpret audit data.

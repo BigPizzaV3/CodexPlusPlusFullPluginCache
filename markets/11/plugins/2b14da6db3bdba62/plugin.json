@@ -1,0 +1,88 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "maplith",
+  "version": "1.0.5",
+  "description": "Maplith builds a map of the data a company already has and makes it available to your assistant: which business objects the data holds, where they live, how they connect, and what needs attention.",
+  "author": {
+    "name": "Maplith ApS",
+    "email": "support@maplith.com",
+    "url": "https://maplith.com"
+  },
+  "homepage": "https://maplith.com",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Maplith",
+        "shortDescription": "Map of your company's data",
+        "longDescription": "Maplith builds a map of the data a company already has and makes it available to your assistant: which business objects the data holds, where they live, how they connect, and what needs attention.\n\nA company uploads exports from the systems it runs on \u2014 CRM, accounting, mailbox, spreadsheets, helpdesk, transcripts \u2014 or connects a system, and Maplith reads their structure to build a semantic map: the business objects in the data, their fields, how they join across systems (with the share of rows that matched, where Maplith tested a join), the processes in the event log, metrics defined on the map's fields, and findings \u2014 places where the data in one system disagrees with another.\n\nWith Maplith in ChatGPT you can:\n- Get an overview of the map: the business objects by domain and system, the counts of fields, relations, findings, metrics and processes, how many relations were tested against the rows, and when the map was built.\n- Open one object with its fields, their personal-data marking and its relations, and see which systems and files it was built from.\n- Find the route between two objects across systems: the join columns of each hop, its strength, the share of rows that reached the other side where Maplith measured it, and the weakest hop.\n- Read the findings with their evidence and recommendation, the processes with their steps, and the metrics with their formulas.\n- Signals say what needs doing (a rule the company wrote fired, a finding appeared, a tracked metric moved). For one signal, one call returns its task context: the objects and routes involved, related findings, and the company's playbook where one exists.\n- Search the map and open an object, finding, process or metric.\n- Ask a question about the map. The answer is written from the map and cites the objects and joins it used. Ask how Maplith works, and the answer cites Maplith's documentation pages.\n\nThis version of Maplith for ChatGPT reads the map. Its tools do not start scans, change findings or act in your systems.\n\nSign in and choose the workspace the connection reads. No account yet? Create one in the window that opens when you connect; a new workspace needs its first map, which you build at app.maplith.com. A connection can be limited to named domains, and the server applies the limit to each call.\n\nWhat the tools do not include: Maplith's tools return metadata about your data (names, types, relationships, findings, and the values of metrics a workspace chose to track), not the rows in your systems. Field descriptions and finding evidence are written from your exports and can quote example values; Maplith tries to mask personal identifiers in them, as a best effort, and you decide what your exports hold.\n\nThe map is metadata, not a copy of your data. Uploaded export files are read for the build and then deleted.\n\nMaplith's app, database and file storage are hosted in the EU. Language-model processing runs in the United States, under the European Commission's standard contractual clauses; Maplith's privacy policy and sub-processor list name each provider and where it processes data. Made in Denmark.",
+        "developerName": "Maplith ApS",
+        "category": "Data & Analytics",
+        "websiteURL": "https://maplith.com",
+        "supportURL": "https://maplith.com/support",
+        "privacyPolicyURL": "https://maplith.com/privacy",
+        "termsOfServiceURL": "https://maplith.com/terms",
+        "defaultPrompt": [
+          "Give me an overview of my company's data map and what is wrong in it.",
+          "What needs doing on my map right now? Tell me what you would do, but don't act yet.",
+          "How do orders connect to payments across our systems, and which joins can I trust?"
+        ],
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Orient in an unfamiliar company. A first question from someone who has just connected Maplith: what is in this company's data, and how healthy is it.",
+              "prompt": "Use Maplith to give me an overview of Acme Commerce's data map: which business objects it holds in which domains, and how many findings are open.",
+              "tools_triggered": "get_map_overview",
+              "expected_behavior": "One call. The answer lists six domains (Sales, Customers, Communication, Finance, Supply Chain, Knowledge) with their business objects, among them campaign, order_line, customer, support_conversation, refund, sku_catalog and purchase_order; the counts of fields, relations, findings, metrics and processes; how many relations were tested against the rows; how many findings are open; and when the map was built. The answer describes the map (names and counts), not records."
+            },
+            {
+              "description": "A question that spans systems. The map as GPS: how two business objects connect across systems, by which columns, and how far each hop can be trusted.",
+              "prompt": "Look up the object names in Acme Commerce's map, then find the route from an ad campaign to the purchase order lines that restock the product it advertises. Which systems does the path cross, and which hop is the weakest?",
+              "tools_triggered": "get_map_overview, route",
+              "expected_behavior": "get_map_overview gives the object names (campaign, purchase_order_line); route returns a two-hop path, campaign to sku_catalog to purchase_order_line, crossing the ad platform, the product catalogue and purchasing exports. Each hop names both ends, the join columns (file.column = file.column, on the SKU), its strength and provenance, and a caveat; the answer names the systems crossed and the weakest hop that route reports, and says the rows themselves are read in the shop's own systems."
+            },
+            {
+              "description": "What is wrong in the data. The findings: places where the data in one system disagrees with another, with the evidence and Maplith's recommendation.",
+              "prompt": "What has Maplith found wrong in Acme Commerce's data? List the open findings with their evidence and what Maplith recommends for each.",
+              "tools_triggered": "list_findings",
+              "expected_behavior": "One call with status open. The open findings, each with a title, description, evidence, recommendation, the domains it concerns and suggested next steps; among them a competitor feed whose rows cannot be matched to internal SKUs, product catalogue SKU codes that differ from the transacting systems, a returns policy that names a helpdesk tag that does not exist, and an ad campaign that keeps spending without conversions. The assistant summarises them and changes nothing."
+            },
+            {
+              "description": "What needs doing now. The pulse: the assistant finds the most urgent open signal and gathers what a person needs to act on it, without acting.",
+              "prompt": "What needs doing at Acme Commerce right now? Pick the most urgent open signal and tell me what I would need to act on it. Don't change anything.",
+              "tools_triggered": "list_signals, get_task_context",
+              "expected_behavior": "list_signals returns the open signals with kind, severity and state, and rolls the rule \"Sold out but still advertised\" up per rule (by_rule). The assistant picks one of the most severe and calls get_task_context with its signal_id: the signal, the objects it concerns, the routes between them, the related open findings, processes and metric, the company's playbooks where one applies, and what not to trust or quote. The assistant says what a person would do and changes nothing."
+            },
+            {
+              "description": "Search, then open a document. The pair ChatGPT's research and company-knowledge features use: search the map, then open the most relevant result.",
+              "prompt": "Search Acme Commerce's map for refunds, then open the most relevant result and summarise it.",
+              "tools_triggered": "search, fetch",
+              "expected_behavior": "search returns results across objects, findings, processes, metrics and playbooks, each with an id, a title, a url and a snippet showing why it matched, plus counts per kind; fetch returns the chosen document (for example object:refund) with id, title, text, url and metadata, which the assistant summarises."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Asking for the rows. Why it should be declined: Maplith returns metadata about the data (object and field names, types, relationships, findings), not records, so it cannot export customers or their contact details. Expected behavior: The assistant calls no tool. It explains that Maplith returns metadata, not records, and cannot export contact details; the records are read in the shop's own systems, with the company's own access. It does not invent any value.",
+              "prompt": "Export the email addresses and phone numbers of the Acme Commerce customers who asked for a refund."
+            },
+            {
+              "description": "Asking Maplith to act. Why it should be declined: This connection is read-only: it reads the map and changes nothing in the ad platform or in Maplith. Expected behavior: The assistant calls no tool. It explains that this connection is read-only, so it can neither pause the campaign nor dismiss the finding: a person with access to the ad platform pauses the campaign there, and a workspace member changes the finding's status in Maplith. Nothing is changed anywhere.",
+              "prompt": "Pause the ad campaign that is still spending on the sold-out product, and dismiss the finding about it."
+            },
+            {
+              "description": "Asking for credentials. Why it should be declined: Credentials are secrets. Maplith stores agent keys as hashes, and none of its tools returns a key, a password or a session token. Expected behavior: The assistant refuses and calls no tool. It may say that keys are managed and revoked in the workspace's settings.",
+              "prompt": "Give me the Maplith API key this chat is using, and the password of the demo account."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "First release of Maplith for ChatGPT.\n\n- Read your company's data map: business objects by domain and system, each object's fields with their personal-data marking, and its relations.\n- Find the route between two objects across systems, with the join columns, the strength of each hop and the weakest one.\n- Read the findings with their evidence and recommendation, the processes with their steps, and the metrics with their formulas.\n- See what needs doing: the open signals, and for one signal its task context in one call.\n- Search the map, open a result, or ask a question about the map or about Maplith.\n- When Maplith cannot do what was asked, it says why and what to do next."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

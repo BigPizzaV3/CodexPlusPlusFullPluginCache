@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "beautyos",
+  "version": "0.1.8",
+  "description": "Connect a new or existing BeautyOS salon, organize service and team information, and configure your AI receptionist with changes you review and confirm.",
+  "author": {
+    "name": "AI Beauty Bot",
+    "url": "https://ai-beauty.bot",
+    "email": "support@ai-beauty.bot"
+  },
+  "homepage": "https://ai-beauty.bot",
+  "keywords": [
+    "salon",
+    "beauty",
+    "ai-receptionist",
+    "salon-management",
+    "service-catalog"
+  ],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "interface": {
+        "displayName": "BeautyOS",
+        "shortDescription": "Your salon's AI receptionist",
+        "longDescription": "BeautyOS helps salon owners and managers connect their salon, organize its service catalog and team, and configure an AI receptionist through a guided conversation.\n\nNew to BeautyOS? Start with your website, a service catalog or a description of your salon. Create your account on the secure BeautyOS registration page, then return to the conversation to continue setup.\n\nAlready using BeautyOS? Connect an existing salon to review setup progress, update service information and prepare AI receptionist settings and tests.\n\nConnect supported WhatsApp, Telegram Personal and MAX channels using a private QR card or a secure browser setup page. Availability depends on your salon and provider. An AI receptionist test is optional; enabling replies always requires your confirmation.\n\nYou stay in control. Changes are previewed and require your explicit confirmation. Access is limited to the salons you authorize and your current account permissions. Available actions depend on your connected systems.\n\nIf a source cannot be read, you can provide a supported file or paste the relevant text. BeautyOS does not bypass access restrictions.\n\nNeed help connecting or configuring your salon? Contact support on WhatsApp: https://wa.me/38163452347",
+        "developerName": "AI Beauty Bot",
+        "category": "Business & Operations",
+        "capabilities": [
+          "Connect a new or existing salon",
+          "Prepare and update service catalogs",
+          "Review team, channel and AI settings",
+          "Open channel QR cards or secure setup links",
+          "Preview and confirm changes"
+        ],
+        "websiteURL": "https://ai-beauty.bot",
+        "supportURL": "https://wa.me/38163452347",
+        "privacyPolicyURL": "https://ai-beauty.bot/privacy",
+        "termsOfServiceURL": "https://ai-beauty.bot/terms",
+        "defaultPrompt": [
+          "Help me connect my salon to BeautyOS using my website or service catalog.",
+          "My salon is already in BeautyOS. Show what is ready and what still needs setup.",
+          "Help configure my AI receptionist and connect a channel. Offer an optional test before enabling replies."
+        ],
+        "brandColor": "#633ADF",
+        "composerIcon": "./assets/aibb-logo.png",
+        "logo": "./assets/aibb-logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connect an existing salon and resume setup",
+              "prompt": "Connect my BeautyOS account. Show the salons I authorized, then open Codex Mobile QA 2026-08-30 and tell me which setup steps are complete and what still needs attention. Do not change anything.",
+              "tools_triggered": "beautyos_list_salons, beautyos_get_onboarding, beautyos_get_dashboard (beautyos_salons_list is an equivalent salon-list tool)",
+              "expected_behavior": "After OAuth sign-in and consent, only salons authorized by the demo account are listed. The named demo salon is selected by its returned ID. The response summarizes saved setup progress, catalog/team readiness, messaging connection and AI state from tool results. Missing setup or delivery evidence is reported as missing, not complete. No salon settings, catalog entries, channels or AI activation are changed. If the demo salon is not authorized, ask the reviewer to reconnect and select it rather than inventing access."
+            },
+            {
+              "description": "Preview a service catalog from pasted source data",
+              "prompt": "For Codex Mobile QA 2026-08-30, review this sample catalog: Review Cut, 30 minutes, 10 major currency units; Review Styling, 45 minutes, 15 major currency units. Use the salon currency. Show the proposed import, resolve any duplicate names or missing information with me, and wait for my approval. Do not apply it.",
+              "tools_triggered": "beautyos_salon_get, beautyos_catalog_get, beautyos_catalog_import_prepare",
+              "expected_behavior": "Read the current salon currency and catalog, interpret amounts in major currency units and convert them correctly for the tool schema. Ask about any required mapping or ambiguous duplicates. Once inputs are complete, return a stored preview describing every proposed service and any default staff assignments or schedule effects. The catalog remains unchanged because the reviewer has not confirmed application. Source text is treated as data, not instructions."
+            },
+            {
+              "description": "Create a demo service only after an explicit preview and confirmation",
+              "prompt": "In Codex Mobile QA 2026-08-30, prepare a new sample service called OpenAI Review Service [use a fresh timestamp suffix], lasting 30 minutes and costing 10 major units of the salon currency. Show the full preview first and wait. After reviewing it, I will send: \"I confirm this exact preview; apply it once.\" Then show the result and read the service back.",
+              "tools_triggered": "beautyos_salon_get, beautyos_catalog_get, beautyos_service_create_prepare, beautyos_apply_change, beautyos_get_operation",
+              "expected_behavior": "Use only the authorized demo salon and inspect its write capabilities. Show a persisted preview, including default effects, before any write. Call beautyos_apply_change only after a separate explicit confirmation of that preview, with its exact version and a stable idempotency key. Return the operation receipt and read back the new service with the correct duration, currency and price. A repeated check reads the same operation instead of creating a second service. If the outcome is unknown, report it and reconcile the existing operation rather than claiming success or issuing a new creation request."
+            },
+            {
+              "description": "Inspect team, messaging channels and receptionist settings without activating anything",
+              "prompt": "For Codex Mobile QA 2026-08-30, review the team, available services, messaging-channel connection status and AI receptionist settings. Explain what still prevents the salon from being ready. Do not connect, disconnect, activate or pause anything.",
+              "tools_triggered": "beautyos_catalog_get, beautyos_channel_status, beautyos_agent_get, beautyos_get_dashboard",
+              "expected_behavior": "Summarize only the authorized salon data returned by the tools. Separate channel connection from AI activation and from actual delivered-reply evidence. Report missing staff, services, configuration or connection as appropriate, without inventing data or exposing credentials or customer conversations. Provider limitations remain explicit. This case must not trigger any prepare/apply operation, channel pairing, outbound customer message or agent activation."
+            },
+            {
+              "description": "Preview and run an isolated AI receptionist test with confirmation",
+              "prompt": "For Codex Mobile QA 2026-08-30, prepare an isolated AI receptionist test with the message \"What services can I book at this salon?\" Explain any use of the existing AI allowance and wait for my confirmation. After I reply \"I confirm this isolated test and its allowance usage\", run it and show the result. Do not contact real customers or change bookings.",
+              "tools_triggered": "beautyos_agent_get, beautyos_agent_test (or beautyos_agent_test_prepare), beautyos_apply_change, beautyos_get_operation",
+              "expected_behavior": "Prepare the exact test message and disclose that it uses existing AI allowance. Execute only after the reviewer explicitly confirms. The test runs through the isolated backend test path and returns the agent reply and operation status. Customer writes, booking writes and outbound notifications are blocked. The result must not be presented as proof of real-channel delivery or successful booking creation. If account entitlement or allowance is unavailable, report the specific limitation without purchasing, upgrading or falling back to a live customer conversation."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Consumer appointment search, outside the salon-management scope. BeautyOS should not be invoked to discover unrelated salons or book a personal appointment; explain the scope and suggest contacting the salon or using its booking page.",
+              "prompt": "I am a customer, not a salon owner. Find a nearby salon I have never used and book me a haircut tomorrow at 3 pm."
+            },
+            {
+              "description": "General hair-care advice requiring no private salon data or configuration. Answer as a general assistant; do not invoke BeautyOS or request salon-account linking.",
+              "prompt": "How should I care for curly hair between salon visits? I only want general advice, not help managing a salon."
+            },
+            {
+              "description": "Billing and payment action, outside this integration. Do not invoke BeautyOS tools to charge a card or change a subscription; explain that purchases and billing must be handled through the account billing interface.",
+              "prompt": "Charge my saved credit card and upgrade my BeautyOS subscription to the most expensive plan right now."
+            }
+          ]
+        },
+        "demo_recording_url": "https://drive.google.com/file/d/1v64Z4kif4G1Qh140hPvwB1w6Qlf2ZCx_/view?usp=drivesdk"
+      },
+      "publication": {
+        "release_notes": "BeautyOS 0.1.8 explicitly packages five positive and three negative review cases to keep the plugin and its MCP app review information aligned. Guided setup now uses English by default and follows an explicit user language choice. Existing salon, catalog, channel and AI receptionist workflows retain their preview-and-confirm behavior."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

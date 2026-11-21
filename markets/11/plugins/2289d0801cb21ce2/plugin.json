@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "artifact-core",
+  "version": "0.1.0",
+  "description": "Versioned-deliverable registry MCP: register immutable SHA-256-hashed versions, resolve the current / latest-good usable version, attest locations, and keep a tamper-evident audit log.",
+  "author": {
+    "name": "mmcco",
+    "email": "infodev@mmcco.co",
+    "url": "https://connecteur-artifact-core.vercel.app"
+  },
+  "homepage": "https://connecteur-artifact-core.vercel.app",
+  "license": "MIT",
+  "keywords": [
+    "artifact",
+    "version registry",
+    "immutable",
+    "sha-256",
+    "current version",
+    "audit",
+    "provenance"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Artifact Core",
+        "shortDescription": "Immutable version registry",
+        "longDescription": "Artifact Core is a registry of versioned deliverables and a resolver for the latest good one. It answers a single hard question reliably: which version is current, and is it actually usable? Register a version and its content becomes immutable \u2014 a later write with the same label but different content returns a CONFLICT instead of silently overwriting. The SHA-256 hash is computed on the content you provide and compared to any declared hash; a match is marked as a match, never asserted as 'verified' without proof. CURRENT is always explicit: you designate it with mark_current, it is never guessed, and it can never point at a withdrawn version. resolve_current returns the current version only if it is usable \u2014 if it targets a withdrawn version, an inconsistent hash, or locations that are all missing, it refuses to return it as current, explains why, and recommends the latest usable version instead; resolve_latest_good runs the same scan and is honest when there is none. Withdrawing a version (withdraw_version) is a terminal, audited lifecycle transition \u2014 there is no un-withdraw \u2014 while re-pointing CURRENT with mark_current stays reversible; in both cases the immutable content and the audit trail are never touched. verify_location records an existence attestation (VERIFIED or MISSING, with who and when): the cloud connector does not read your remote files itself \u2014 it logs your attestation and feeds it into the resolver's existence check. compare_versions is a deterministic diff over type, content hash, quality, lifecycle, provenance and size, and leaves content identity undetermined when a hash is absent rather than guessing. history is a self-hashed, write-once audit log with a reproducible journal hash that is tamper-evident (it detects naive editing of an entry); it is not described as tamper-proof, since that would require a server-keyed HMAC. Nothing is invented: missing data stays null or UNKNOWN. Artifact Core makes no external calls and needs no account; it is an information and bookkeeping tool, not an executor \u2014 it never deploys, sends or changes anything in your systems.",
+        "developerName": "mmcco",
+        "category": "Productivity",
+        "capabilities": [
+          "Registers immutable SHA-256-hashed versions; a divergent rewrite of a label returns CONFLICT, never a silent overwrite.",
+          "Resolves the CURRENT or latest usable version, refusing withdrawn, hash-mismatched or missing ones, explaining why.",
+          "Deterministic diff, existence attestations and a tamper-evident audit log. No external calls and no account."
+        ],
+        "websiteURL": "https://connecteur-artifact-core.vercel.app",
+        "supportURL": "https://connecteur-artifact-core.vercel.app",
+        "privacyPolicyURL": "https://connecteur-artifact-core.vercel.app/privacy",
+        "termsOfServiceURL": "https://connecteur-artifact-core.vercel.app/terms",
+        "defaultPrompt": [
+          "What does Artifact Core do? Call artifactcore_apercu and summarize its principles and tool flow.",
+          "Register a new immutable version of a report with Artifact Core and give me the artifact_id and the computed SHA-256 hash.",
+          "Resolve the current usable version of an artifact with Artifact Core and explain whether it is usable and why."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://connecteur-artifact-core.vercel.app/demo.gif",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Capability overview",
+              "prompt": "Call the artifactcore_apercu tool of Artifact Core and summarize what it does \u2014 do not answer from memory. Give me the principles (immutability, explicit CURRENT, SHA-256 hash, self-hashed audit) and the tool flow.",
+              "tools_triggered": "artifactcore_apercu",
+              "expected_behavior": "A single artifactcore_apercu call returns schema 'artifactcore.apercu/1', product 'Artifact Core', the principles list (IMMUTABLE versions, explicit CURRENT, existence check, SHA-256 computed vs declared, lifecycle, tamper-evident audit, invents nothing) and the flow register_version -> verify_location -> mark_current -> resolve_current / resolve_latest_good -> compare_versions / history."
+            },
+            {
+              "description": "Register a new immutable version with computed hash",
+              "prompt": "With Artifact Core, register a NEW version of a deliverable via register_version: type='report', version='v1', created_by='qa-bot', content='Quarterly report Q3 \u2014 test version.', make_current=true. Call the tool, do not answer from memory, and give me the generated artifact_id and the computed SHA-256 hash.",
+              "tools_triggered": "register_version",
+              "expected_behavior": "register_version returns ok, a newly created artifact_id, a version record labelled v1 (lifecycle ACTIVE/REGISTERED), a computed SHA-256 hash of the provided content, and CURRENT set to v1."
+            },
+            {
+              "description": "Record a VERIFIED existence attestation for a location",
+              "prompt": "In Artifact Core, first register a version (register_version: type='doc', version='v1', content='Test content', locations=[{\"kind\":\"dropbox\",\"uri\":\"/folder/test-deliverable.md\"}], make_current=true), then call verify_location on that artifact_id/version to attest status='VERIFIED', by='qa-bot'. Use the real tools, not memory.",
+              "tools_triggered": "verify_location",
+              "expected_behavior": "verify_location logs an existence attestation (status VERIFIED, by qa-bot, with a timestamp) for the given uri and records it as an audited attestation \u2014 explicitly without the connector reading the remote file itself."
+            },
+            {
+              "description": "Resolve the usable CURRENT version with rationale",
+              "prompt": "With Artifact Core, register a v1 version (register_version, make_current=true), then call resolve_current on that artifact_id and explain whether the CURRENT version is usable and why. Do not answer from memory.",
+              "tools_triggered": "resolve_current",
+              "expected_behavior": "resolve_current returns resolu:true with v1 as the current version and a selection rationale; if CURRENT were withdrawn / hash-inconsistent / all-locations-missing it would instead return resolu:false, explain the reason, and recommend the latest usable version rather than returning the bad one."
+            },
+            {
+              "description": "Read the tamper-evident audit log",
+              "prompt": "In Artifact Core, register a version then call history on that artifact_id to show me the self-hashed audit log: write-once entries, a reproducible journal_hash and the entries_intactes flag. Call the tool, do not answer from memory.",
+              "tools_triggered": "history",
+              "expected_behavior": "history returns the append-only audit entries (e.g. a 'register' entry and any lifecycle events), a reproducible journal_hash, and an entries_intactes/integrity flag indicating the log has not been naively edited."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Missing required arguments (no fabrication)",
+              "prompt": "With Artifact Core, mark a version as CURRENT via mark_current \u2014 but I give you neither the artifact_id nor the version number.",
+              "expected_behavior": "The model does not invent an artifact_id or version. mark_current returns a graceful input-validation error (MCP -32602, isError) naming the missing required fields artifact_id and version, and the model asks the user to supply them; no state changes."
+            },
+            {
+              "description": "Out-of-scope: read the remote file itself",
+              "prompt": "With Artifact Core, open the file /folder/report.pdf on my Dropbox, read its real content and tell me what it contains.",
+              "expected_behavior": "Artifact Core declines: the cloud connector does not read remote files; it only records verifiable existence attestations (verify_location) of who verified a location and when. It returns no fabricated file content and points the user to the attestation workflow instead."
+            },
+            {
+              "description": "Unknown artifact_id \u2192 honest UNKNOWN, not a guess",
+              "prompt": "With Artifact Core, call resolve_current for artifact_id='art-nonexistent-zzz999' and tell me what the current version is. Do not answer from memory.",
+              "expected_behavior": "resolve_current returns ok:true with resolu:false and current:null (reason: no artifact / no explicit CURRENT), and the model honestly reports there is no such current version instead of inventing a version, hash, or location. No crash."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial version \u2014 a registry of versioned deliverables, a resolver for the current / latest-good usable version, and a tamper-evident audit (declared vs computed SHA-256). Read-only except register_version (immutable write), mark_current (reversible CURRENT designation) and withdraw_version (TERMINAL, non-reversible withdrawal \u2014 the immutable content and the audit trail are always preserved). The connector makes no external calls, needs no account, and never reads your remote files: it records verifiable existence attestations instead."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

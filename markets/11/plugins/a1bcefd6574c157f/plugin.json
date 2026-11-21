@@ -1,0 +1,97 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "windshield-weather",
+  "version": "1.0.1",
+  "description": "Arrival-time weather forecasts along a drive, published highway forecasts, and links to continue planning in Windshield Weather.",
+  "author": {
+    "name": "Chirp Software, Inc."
+  },
+  "homepage": "https://windshieldweather.com/mcp",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Windshield Weather",
+        "shortDescription": "Weather along your drive",
+        "longDescription": "Check what the weather will be doing where you will be, when you get there. Windshield Weather forecasts each stretch of a drive at its arrival time, shows the worst conditions and daylight, and lets you compare departure options. You can also check published highway forecasts for now and the next 24 hours, with links to official road-condition services.\n\nNo sign-in is required. Name the starting place, destination and departure time; use cities, airports, parks or landmarks rather than street addresses or precise coordinates. Results include a weather card where supported, a complete text answer, data credits and a link to open the same drive in Windshield Weather.\n\nOfficial weather alerts and Mapbox traffic are attributed separately from forecast severity. Forecasts help you plan before departure; they do not certify road safety or closures or replace official warnings. This version cannot read, save or delete account data, make purchases, or retrieve historical weather observations.",
+        "developerName": "Chirp Software, Inc.",
+        "category": "Travel",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Check the weather from Denver, Colorado to Moab, Utah, leaving now.",
+          "Check Montr\u00e9al to Qu\u00e9bec City, Canada, leaving now in metric units.",
+          "How is the weather along I-80 in Wyoming over the next 24 hours?"
+        ],
+        "websiteURL": "https://windshieldweather.com/mcp",
+        "supportURL": "https://windshieldweather.com/support",
+        "privacyPolicyURL": "https://windshieldweather.com/privacy",
+        "termsOfServiceURL": "https://windshieldweather.com/terms",
+        "logo": "./assets/icon-512.png",
+        "composerIcon": "./assets/icon-512.png",
+        "logoDark": "./assets/icon-512.png",
+        "composerIconDark": "./assets/icon-512.png",
+        "brandColor": "#121619",
+        "brandColorDark": "#E9ECEF"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Core arrival-time forecast. No sign-in or fixtures are required; run with the current clock and a live forecast store.",
+              "prompt": "Check the weather for my drive from Denver, Colorado, US to Moab, Utah, US, leaving now. Use imperial units and show a weather card, the worst stretch and daylight.",
+              "tools_triggered": "get_drive_weather_interactive",
+              "expected_behavior": "Call get_drive_weather_interactive with origin Denver, Colorado, US; destination Moab, Utah, US; departure omitted or now; units imperial. Return conditions at each stretch's arrival time, the returned worst stretch, daylight and local arrival/departure zones. Temperatures and wind must use the returned imperial units. Include the returned first-party Open in Windshield Weather link and data credits. Keep official alerts and Mapbox traffic attributed separately. The card and complete text answer must agree with structuredContent; never invent a successful forecast if the service reports unavailable."
+            },
+            {
+              "description": "Compare two supported departure options for the same drive. Resolve the second departure using the current clock in America/Denver; no earlier conversation is needed.",
+              "prompt": "Compare the weather from Denver, Colorado, US to Moab, Utah, US if I leave now versus two hours from now. Use imperial units.",
+              "tools_triggered": "get_drive_weather",
+              "expected_behavior": "Call get_drive_weather for both departure options with the same qualified endpoints and units imperial. The later call must carry an explicit local date-time two hours after the current time at the origin, in America/Denver. Compare only values returned for those options, including conditions, worst stretches and arrival/daylight. Equal forecasts are a valid result. Do not imply that a departure change was saved to an account. This comparison uses the text tool; do not require an interactive card."
+            },
+            {
+              "description": "Canadian named places with accents and explicitly requested metric units. Run against the current forecast store without an account.",
+              "prompt": "Check the drive from Montr\u00e9al, Qu\u00e9bec, Canada to Qu\u00e9bec City, Canada, leaving now. Use metric units, tell me how much of the drive is in daylight, and give me a text answer without a card.",
+              "tools_triggered": "get_drive_weather",
+              "expected_behavior": "Call get_drive_weather with the Canadian endpoints, units metric and departure omitted or now. Return metric measurements, daylight duration, arrival-time stretch conditions, the returned trip link and credits. Resolve the places in Canada; preserve the returned local time zones. If genuine place ambiguity remains, request the missing qualification rather than selecting an unrelated city. Use the text-only variant and provide the complete forecast without requiring a card."
+            },
+            {
+              "description": "A European drive crossing from Spain into Portugal verifies local clocks across time zones. Madrid is explicitly qualified by its region because the geocoder also returns a Madrid in Almer\u00eda. Use the current clock and live store; no fixed weather is asserted.",
+              "prompt": "Check the weather from Madrid in the Madrid region of Spain to Lisbon, Portugal, leaving now, in metric units. Show departure and arrival in each city\u2019s local time as text, without a card.",
+              "tools_triggered": "get_drive_weather",
+              "expected_behavior": "Call get_drive_weather with origin Madrid, Madrid, Spain; destination Lisbon, Portugal; units metric; departure omitted or now. Display the returned departure and arrival local clocks and their zones without treating them as one time zone. Report the returned stretch weather, daylight and worst stretch with the first-party trip link and data credits. A successful live result must contain nonempty stretches and both local clock zones; if coverage is unavailable, explain that outcome without fabricated weather. Use the text-only variant."
+            },
+            {
+              "description": "Published highway snapshot and official road-service links. Requires a fresh I-80 US snapshot covering Wyoming; stale or missing snapshots must be reported rather than replaced with invented readings.",
+              "prompt": "How is the weather along I-80 across Wyoming now and over the next 24 hours? Show a weather card and include links to official road-condition services.",
+              "tools_triggered": "get_highway_weather_interactive",
+              "expected_behavior": "Call get_highway_weather_interactive with highway I-80 US (or the equivalent supported I-80 selector) and region Wyoming. Show only the returned stretches in that region and their readings at offsets 0, 3, 6, 12 and 24 hours. Preserve missing readings as unavailable. Include the returned highway link, road-condition service links and credits. Explain that forecasts do not establish road closures or road safety. The card and complete text answer must agree with the returned data."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Account mutation is unsupported. Explain that this public plugin cannot access or modify saved drives or account settings. Do not invoke get_drive_weather, get_drive_weather_interactive, get_highway_weather or get_highway_weather_interactive, and do not claim any deletion occurred.",
+              "prompt": "Delete all of my saved drives from my Windshield Weather account."
+            },
+            {
+              "description": "Commerce and reservations are unsupported. Explain that the plugin cannot book or pay for a hotel. Do not invoke get_drive_weather, get_drive_weather_interactive, get_highway_weather or get_highway_weather_interactive, collect payment details, or claim that a booking was made.",
+              "prompt": "Book a hotel room in Moab for tonight and pay for it through Windshield Weather."
+            },
+            {
+              "description": "Historical observations are unsupported. Explain that the plugin provides current/future planning forecasts and cannot retrieve observed historical rainfall. Do not call get_drive_weather, get_drive_weather_interactive, get_highway_weather or get_highway_weather_interactive with the old date or present a forecast as an observation.",
+              "prompt": "Give me the observed rainfall totals along the Denver-to-Moab drive on January 1, 2020."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "The public ChatGPT plugin is free. It does not offer purchases, payments, bookings or account upgrades.",
+        "demo_recording_url": "https://drive.google.com/file/d/1AQE1MloPAel35FHMbfawS4W0w3gL2DWG/view"
+      },
+      "publication": {
+        "release_notes": "Initial release: public drive forecasts at arrival times, departure comparisons, published highway forecasts, an interactive weather card and links to continue planning in Windshield Weather.",
+        "countries": []
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

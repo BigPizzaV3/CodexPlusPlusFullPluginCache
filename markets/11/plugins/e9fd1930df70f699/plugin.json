@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "app-6ace71819158819185b0250c7acf4bc5",
+  "version": "0.7.0",
+  "description": "TchekMyPay is a stateless, employee-side payroll auditor: it reconstructs the pay due from your own documents and flags every gap in hours, premiums, overtime, retro, salary steps and deductions, with a TchekMyYear layer that projects year-end income and tax and estimates family benefits as clearly marked estimates.",
+  "author": {
+    "name": "mmcco",
+    "email": "infodev@mmcco.co",
+    "url": "https://tchekmypay.mmcco.co"
+  },
+  "homepage": "https://tchekmypay.mmcco.co",
+  "license": "MIT",
+  "keywords": [
+    "payroll",
+    "pay-stub",
+    "audit",
+    "hours",
+    "overtime",
+    "deductions",
+    "benefits",
+    "quebec",
+    "canada"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "TchekMyPay",
+        "shortDescription": "Audit your pay for errors",
+        "longDescription": "TchekMyPay is a stateless, employee-side payroll auditor. It answers one question: check every dollar you should have received, every dollar paid out and every deduction withheld. You (or the model) paste the numbers from your own documents - pay stubs, timesheets, the collective agreement or contract, deposits - and TchekMyPay does the deterministic MATH: it reconstructs the pay DUE (planned schedule + hours worked + rate/step/premiums + tax rules + benefits), compares it with the pay ACTUALLY PAID, and returns GAPS, PROOFS and CALCULATIONS with every dollar traced to its line item, its evidence state and, when provided, its source and the agreement clause. It checks gross = sum of earnings, regular pay = rate x hours, each premium or overtime line against a rule YOU provide, retroactive raises, salary steps, duplicate or excessive deductions, and statutory contributions (RRQ, EI, QPIP). It never invents a multiplier or a tax amount: the rule must come from your documents, income tax is flagged as an estimate, and RRQ/EI/QPIP are recomputed exactly when the context is given. A detector flags systematic patterns, such as recurring hours shaving, across several pays. A TchekMyYear layer projects year-end income and tax and estimates family benefits - the Canada Groceries and Essentials Benefit (CGEB), the Canada Child Benefit, the Quebec family allowance, childcare and solidarity credits - all clearly marked as rough or provisional estimates, never an eligibility decision; the CRA, Revenu Quebec and Retraite Quebec remain authoritative. In ChatGPT, two tools render a visual dashboard and an annual-portrait widget; every tool also works as text plus structured data. Limits: tax and benefit rules are verified for Canada + Quebec 2026 only (other jurisdictions return UNSUPPORTED_RULE). The connector is stateless and keeps nothing between calls; no Social Insurance Number or bank login is ever requested or stored; processing is ephemeral.",
+        "developerName": "mmcco",
+        "category": "Finance",
+        "capabilities": [
+          "Deterministically rechecks a pay stub (gross, rate x hours, premiums, net, deductions) and flags each gap with proof.",
+          "Compares planned, worked and paid hours, overtime, retro pay, salary steps and deductions against what you were paid.",
+          "Projects year-end income and tax and estimates family benefits (CGEB, child benefit, Quebec allowance) as estimates.",
+          "Stateless and employee-side: no SIN or bank login is requested or stored; every rule comes from your own documents."
+        ],
+        "websiteURL": "https://tchekmypay.mmcco.co",
+        "supportURL": "https://tchekmypay.mmcco.co",
+        "privacyPolicyURL": "https://tchekmypay.mmcco.co/privacy",
+        "termsOfServiceURL": "https://tchekmypay.mmcco.co/terms",
+        "defaultPrompt": [
+          "Here's my stub: $25/h, 40 regular hours, gross shows $975 - does the math add up?",
+          "I worked 8h but my pay only shows 7.5h at $25/h - how much is missing?",
+          "Project my year-end income and tax and estimate my family benefits."
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "demo_recording_url": "https://tchekmypay.mmcco.co/demo.gif",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Arithmetic recheck of a pay stub",
+              "prompt": "Here's my stub: $25/h, I worked 40 regular hours, gross shows $975. Does the math add up?",
+              "tools_triggered": "analyser_talon",
+              "expected_behavior": "Calls analyser_talon and recomputes the stub deterministically. It confirms gross = sum of earnings (975,00 $, no gap) but flags a CONFIRMED_ARITHMETIC_ERROR RATE_MISMATCH on regular pay: expected 1 000,00 $ (25,00 $/h x 40 h), actual 975,00 $, gap 25,00 $ short."
+            },
+            {
+              "description": "Planned vs worked vs paid hours",
+              "prompt": "I worked 8h on March 2 and 8h on March 3, but my pay shows only 7.5h for March 2. How much is missing at $25/h?",
+              "tools_triggered": "comparer_heures",
+              "expected_behavior": "Calls comparer_heures. Totals plan 16 / worked 16 / paid 15.5 and flags a LIKELY_DISCREPANCY MISSING_HOURS of 0.5 h on 2026-03-02: 0.5 h x 25,00 $/h = 12,50 $ owed at the base rate."
+            },
+            {
+              "description": "Overtime premium per the agreement's rule",
+              "prompt": "My collective agreement says overtime is time-and-a-half. I did 6 OT hours at a $25 base rate and got $200. Correct?",
+              "tools_triggered": "verifier_prime",
+              "expected_behavior": "Calls verifier_prime with the rule the user provided (multiplier 1.5). Flags PREMIUM_RATE_MISMATCH: expected 225,00 $ (25,00 $/h x 6 h x 1.5), paid 200,00 $, gap 25,00 $. It notes the rule comes from the user's documents and is not invented."
+            },
+            {
+              "description": "Retroactive raise",
+              "prompt": "Our new contract raised me from $24 to $25. Since the effective date I worked 80h then 75h and got $100 retro. Right amount?",
+              "tools_triggered": "calculer_retro",
+              "expected_behavior": "Calls calculer_retro. With a rate delta of 1,00 $/h over 80 h and 75 h it computes total expected retro 155,00 $ and flags RETRO_PAY_MISSING: paid 100,00 $, short of the 155,00 $ due."
+            },
+            {
+              "description": "Systematic hours shaving across pays",
+              "prompt": "Across my last 4 pays I keep getting paid half an hour less than I worked. Is this a pattern?",
+              "tools_triggered": "detecter_grappillage",
+              "expected_behavior": "Calls detecter_grappillage over the 4 pays and returns PATTERN_DETECTED: systematic shaving of about 0.5 h (median gap 0.5 h over 4 pays), identified as a recurring pattern to verify rather than an isolated case."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Delete stored payroll data (out of scope, stateless)",
+              "prompt": "Delete all my saved payroll data from your servers.",
+              "expected_behavior": "No connector tool deletes data: TchekMyPay is stateless and exposes no delete or erase tool (tools/list has none), so there is nothing stored to delete. A direct call to a non-existent tool returns MCP error -32602 (tool not found); the connector keeps no payroll data between calls and says so."
+            },
+            {
+              "description": "Audit benefits without the required inputs",
+              "prompt": "Audit my benefits.",
+              "expected_behavior": "auditer_avantages requires the list of expected benefits (prevus). With none provided the connector returns an input-validation error (-32602, expected array at prevus) instead of inventing benefits, and asks for the expected amounts from the user's documents."
+            },
+            {
+              "description": "Refuses to invent a premium rule",
+              "prompt": "I was paid a $200 premium \u2014 was it the right amount?",
+              "expected_behavior": "Without a base rate, eligible hours or multiplier, verifier_prime returns ok:false with an 'Incomplete rule' message and declines to fabricate a multiplier. The rule (multiplier, eligibility) must come from the user's own agreement or contract."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "TchekMyPay 0.7.0 - a stateless, employee-side payroll auditor. It reconstructs the pay due from your own documents (stubs, timesheets, collective agreement, deposits) and flags every gap in hours, premiums, overtime, retro, salary steps, deductions and statutory contributions, with every dollar traced to its proof. A TchekMyYear layer projects year-end income and tax and estimates family benefits (CGEB, Canada Child Benefit, Quebec family allowance, childcare and solidarity credits) as clearly marked estimates, never an eligibility decision. Tax rules verified for Canada + Quebec 2026; the connector is stateless and never requests or stores a SIN or bank login."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

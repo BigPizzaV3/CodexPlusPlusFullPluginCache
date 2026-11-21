@@ -1,0 +1,32 @@
+---
+name: stock-investigation
+description: Investigate negative stock, unusual movements and warehouse discrepancies using native physical stocktakes, late documents and ledger facts. Use for stock diagnosis, not record corrections.
+---
+
+## State capability limits precisely
+
+The plugin cannot edit, post, settle or mark Finance/Catering invoices paid, rewrite P&L, correct stock or recipes, send customer messages, make purchases or book travel. This remains true even when the user has evidence and native permissions. Offer analysis or the authorized native HoreX workflow, never promise that this plugin can perform those changes. Unsupported mutation requests require no business-data call. Supported Team tasks and advertising settings use only their dedicated proposal and native approval flows; they do not grant general editing or payment capabilities.
+
+## Execute HoreX calls sequentially
+
+For one connected HoreX account, wait for each call to finish before starting the next. Keep the result, source and billing status of each call separately. A busy/concurrency error applies only to the rejected call; it does not invalidate another successful result. Reuse successful results. Retry only the failed read once after the active call finishes, within the user's remaining successful-read budget. If no budget remains, report the partial result and ask before another charged read. Never broaden access or repeat a proposal/provider write to recover a read error.
+
+For physical inventory discrepancies, shortages/surpluses, “last inventory” or comparison between counts, call get_inventory_investigation. Submitted unposted tasks are real physical counts; a missing stock movement never proves that a count does not exist. With no session select from permitted physical-task candidates. Preserve the selected session_id, warehouse_id, branch_id and previous_session_id when the user says “now salmon/cheese”; only the product changes. Never silently substitute another branch, all warehouses or arbitrary dates. If the selected product is absent from that task, state this and ask/select another physical task explicitly.
+
+With session_id and no item, review the full shortage/surplus totals and bounded queue sorted by absolute AED; do not compare kilograms against pieces. Then investigate the material product/count rows. Explain direct physical quantity, reviewer correction, analytics-only Prep raw equivalent, native expected and variance separately. An uncounted row, Not found and counted zero differ. Posted variance is immutable; subsequent backdated influence is a separate historical reconciliation.
+
+The server certifies record arithmetic, not physical causation. Preserve reconciliation residual, exact opening effect, native-versus-ledger gap, evidence truncation and coverage. Explain a late document with its business time, posting time and exact quantity; ask whether the physical receipt/event happened before or after the observation. Do not label a technical inventory-boundary compensation as spoilage. A nearby transfer, matching quantity, employee or supplier correlation is a hypothesis. Missing historical units, recipe attribution, legacy identity or permitted documents stay explicitly unverified. User testimony is an operational claim to corroborate; never describe it as a ledger correction. Use the exact source_links for the task/count/invoice.
+
+For current stock or generic movement questions, confirm the branch, warehouse and item. Use find_restaurant_entities for product or warehouse names and preserve compatible units. get_stock_balances is a current physical snapshot; a negative-only filter isolates immediate exceptions. Do not label physical balances as purchasing quantities, accounting COGS or theoretical recipe consumption.
+
+For causes, use query_restaurant_data on stock_movements with explicit Dubai dates and a product filter. Group by movement type, warehouse, branch, uom or day using catalog codes. Stock-history access is required separately from balances. Review receipts, sales, write-offs, transfers, adjustments and opening movements. A missing history permission is not proof that no movements exist.
+
+State whether a movement total is net signed quantity, a count of movements or a snapshot quantity. Explain transfer-in and transfer-out together when both sides are visible, and disclose branch restrictions. Do not sum unrelated item quantities or incompatible units. A bounded or truncated movement breakdown is not a full reconciliation.
+
+Correlate a suspicious movement with purchases or operational item demand only when needed. A missing receipt, unit mismatch, late posting or recipe issue is a hypothesis until source evidence confirms it. Current balances alone cannot reconstruct a historical closing balance; verify a known opening balance and the complete intervening movement scope first.
+
+Return the observed discrepancy, the evidence supporting each likely cause, remaining gaps and a specific next check in HoreX. This plugin reads data. Do not imply that stock counts, invoice postings, recipe quantities or warehouse corrections were changed.
+
+Native output: widget view is paused. Combine returned facts into one normal answer using text and tables; keep requested comparison periods, coverage and exact source_links. Reading already returned facts is free. Reading another document, page or fresh analysis costs 1 AI Credit; reuse existing results when explaining them. The free open_restaurant_workspace tool returns workspace facts without opening a panel. For daily subscription setup load daily-review guidance.
+
+For supplementary food cost and changes from measured Batch Breakdowns or physical counts, use `get_food_cost_variants` with explicit Dubai dates and a narrow recipe/branch scope. The primary cost remains unchanged. Compare posted-cost cutoffs on current recipe composition and selling price; include ingredient formulas and exact returned document/report links. Batch unit cost is allocated output value divided by measured compatible output quantity. Inventory is an **allocation estimate** of saved shortage/surplus value over net recorded sales usage between compatible physical boundaries, not measured actual cost of this dish or proof of its physical cause. Preserve excluded observations, coverage and unknown values; do not add batch and inventory deltas or settle staff KPIs from estimates. Narrow the request when the source or payload budget is exceeded.

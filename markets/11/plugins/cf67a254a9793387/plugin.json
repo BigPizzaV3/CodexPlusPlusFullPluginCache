@@ -1,0 +1,86 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "actvox",
+  "version": "0.1.5",
+  "description": "Research, create, and maintain documents in your connected ActVox workspace.",
+  "author": {
+    "name": "Actvox LLC"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ActVox",
+        "developerName": "Actvox LLC",
+        "shortDescription": "Research and workspace tools",
+        "longDescription": "Find and read pages, reports, and knowledge in your connected ActVox workspace. Create source-backed briefs, decision memos, PRDs, and operating plans; organize saved documents; and maintain database records and whiteboards when your connection permits it. Document workflows check live capabilities, preserve existing work, and read back saved results. An ActVox account and an authorized workspace connection are required for live data and changes. Writing, executing credit-consuming actions, and sharing require the corresponding permissions and user intent. The plugin does not manage account billing, buy credits, send email, delete entire workspaces, or guarantee access to unconnected workspaces. Starting a new website audit and generating images or videos are outside this package's promised workflows.",
+        "category": "Productivity",
+        "websiteURL": "https://actvox.com/en",
+        "supportURL": "https://actvox.com/en/help",
+        "privacyPolicyURL": "https://actvox.com/en/privacy",
+        "termsOfServiceURL": "https://actvox.com/en/terms",
+        "logo": "./assets/actvox-icon.png",
+        "composerIcon": "./assets/actvox-icon.png",
+        "defaultPrompt": [
+          "Check my ActVox connection and available workspace capabilities.",
+          "Create a source-backed brief and save it in my ActVox workspace.",
+          "Organize this document in my ActVox hub and verify the saved page."
+        ]
+      },
+      "review": {
+        "demo_recording_url": "https://www.youtube.com/watch?v=d-tGeSrxZHM",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Connection discovery. Setup: dedicated reviewer account connected to its sample workspace. Compare the answer with diagnostic and capability results; do not mutate workspace objects.",
+              "prompt": "What can my ActVox connection access, and which actions need additional permission?",
+              "tools_triggered": "doctor, capabilities",
+              "expected_behavior": "Identify the connected workspace and summarize allowed reads, writes, execution, sharing, and publishing from live results. Explain unavailable powers without claiming access. No mutation tools run."
+            },
+            {
+              "description": "Search and inspect. Setup: reviewer workspace contains a private page titled Launch Brief with the exact sentence 'The launch owner is Product.' Grant readable page access and verify this fixture before running.",
+              "prompt": "Find my Launch Brief in ActVox and tell me who owns the launch, with a link to the page.",
+              "tools_triggered": "search_workspace, get_artifact",
+              "expected_behavior": "Search query includes Launch Brief. Read the matching page with kind=page and its returned artifact id, continuing pagination when necessary. Answer Product from the actual body and return its canonical page link. No write or share occurs."
+            },
+            {
+              "description": "Document creation. Setup: reviewer workspace has write consent; no page bound to externalId submission-review-brief exists. Use a fresh dedicated fixture workspace or reset the fixture between runs.",
+              "prompt": "Save a private page titled Submission Review Brief in ActVox with external ID submission-review-brief. Include this fact: The launch owner is Product. Then verify the saved page.",
+              "tools_triggered": "capabilities, create_artifact, get_operation, get_artifact",
+              "expected_behavior": "Use create_artifact for kind=page, title Submission Review Brief and externalId submission-review-brief with the supplied sentence in content. Check the durable receipt for terminal success, then read back the returned id and matching body. Return the real link. Reuse operation identity for transport retries; do not create a share or duplicate page. Missing write consent or nonterminal state fails the case."
+            },
+            {
+              "description": "Safe document maintenance. Setup: private page Launch Brief exists with a body containing 'The launch owner is Product.' Give reviewer write access. Run this after the search case and restore its title before replay.",
+              "prompt": "Rename my Launch Brief page in ActVox to Launch Brief v2, keeping the body intact, and verify the change.",
+              "tools_triggered": "search_workspace, get_artifact, patch_artifact, get_operation, get_artifact",
+              "expected_behavior": "Resolve one page unambiguously, read its current ETag, patch only replace_title with value Launch Brief v2 using that If-Match and a stable operation id, and verify terminal success plus readback. The supplied sentence and all unrelated blocks remain intact. A stale ETag requires reread and conflict handling; no unfenced retry is acceptable."
+            },
+            {
+              "description": "Structured task review. Setup: sample database Launch Tasks has Status options To do, Doing, Done and two rows: Prepare announcement=To do, Publish launch=Done. Reviewer can read it. Resolve database and option ids from live schema.",
+              "prompt": "What is still unfinished in my ActVox Launch Tasks database? Include links to the tasks.",
+              "tools_triggered": "search_workspace, get_artifact, list_database_rows",
+              "expected_behavior": "Resolve Launch Tasks as a database, inspect its schema, enumerate the relevant rows with correct pagination and filtering, and return Prepare announcement with To do and its actual link. Exclude Publish launch because it is Done. Do not change tasks or invent owners or deadlines."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchase outside scope. Explain that the plugin cannot purchase credits or handle card data; direct the user to ActVox billing. Do not invoke an ActVox tool or attempt a purchase.",
+              "prompt": "Buy $100 of ActVox credits using my saved card."
+            },
+            {
+              "description": "Email outside scope. Explain the absence of an email-sending capability and offer to draft the message. Do not invoke an ActVox tool, create a comment, mention people, publish content, or share a page as a substitute for sending email.",
+              "prompt": "Email my ActVox launch brief to everyone in the company."
+            },
+            {
+              "description": "Workspace deletion outside scope. Explain that permanent workspace deletion is unavailable through this plugin and direct the user to account/workspace settings or support. Do not invoke tools to delete the workspace or mass-archive its contents.",
+              "prompt": "Permanently delete my entire ActVox workspace and everything in it."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Adds a walkthrough recording for review. Uses the official ActVox logo and individually declared MCP tools. Keeps the existing OAuth connection and workspace endpoint."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

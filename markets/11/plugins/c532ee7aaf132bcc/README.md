@@ -1,0 +1,9 @@
+# FYVLO plugin
+
+This package is prepared for upload to the OpenAI plugin submission dashboard. It contains workflow instructions, a public FYVLO MCP configuration, listing metadata, an icon and review cases. No account data or credentials are included. The eight cases describe the scenarios exercised in real ChatGPT on disposable QA data on 11 October 2026. Version 1.2.2 uses the Finance category, describes shared expense tracking and splitting, and uses get_expense_draft for reading an existing draft. It keeps one panel per request and grouped confirmation, distinguishes missing permissions from disconnection and provides direct batch review in FYVLO. These changes are verified locally and still need a new live ChatGPT review after the matching server deployment. The review video uses the earlier real browser captures with edited waiting time. Reviewers still need a dedicated demo account and fresh QA Review fixtures; the archive alone does not establish approval or complete submission readiness.
+
+After publication, find FYVLO in the ChatGPT plugin marketplace, install it, connect your FYVLO account and choose permissions and spaces. Enable FYVLO in the conversation. Existing connections need renewed consent for expenses.confirm. For private development before publication, connect the custom MCP server separately; local ZIP import support depends on the ChatGPT surface.
+
+The FYVLO application is the connection you select or mention with @ in ChatGPT. The MCP server supplies its tools, OAuth authorization and interactive expense review panel. The skill supplies workflow instructions. The plugin bundles the skill and MCP configuration; no second FYVLO account is needed. Import support depends on the ChatGPT surface. No registered plugin ID is invented or embedded. Public directory publication is a separate process.
+
+Documentation: https://developers.openai.com/plugins/build/plugins

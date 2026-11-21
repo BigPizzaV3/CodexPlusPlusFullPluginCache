@@ -1,0 +1,92 @@
+{
+  "author": {
+    "name": "KYLE JOSEPH BOCHANSKI"
+  },
+  "description": "RelayQ helps users inspect and manage tasks in their private workspaces. Users can preview structured plans, status updates, assignments, hierarchy changes, dependencies, and permanent deletions, then apply only the exact changes they explicitly approve.",
+  "interface": {
+    "capabilities": [],
+    "category": "Productivity",
+    "defaultPrompt": [
+      "Help me plan our customer onboarding refresh, then add the approved plan to RelayQ.",
+      "Show my RelayQ workspaces and help me choose where to put a launch checklist.",
+      "Review the current tasks in my product workspace and propose a dependency-aware plan for beta launch."
+    ],
+    "developerName": "KYLE JOSEPH BOCHANSKI",
+    "displayName": "RelayQ",
+    "longDescription": "RelayQ helps users inspect and manage tasks in their private workspaces. Users can preview structured plans, status updates, assignments, hierarchy changes, dependencies, and permanent deletions, then apply only the exact changes they explicitly approve.",
+    "privacyPolicyURL": "https://relayq.app/privacy",
+    "shortDescription": "Plan and manage RelayQ tasks",
+    "supportURL": "https://relayq.app/support",
+    "termsOfServiceURL": "https://relayq.app/terms",
+    "websiteURL": "https://relayq.app",
+    "logo": "./assets/relayq.png",
+    "composerIcon": "./assets/relayq.png",
+    "brandColor": "#287AFF",
+    "brandColorDark": "#6DA5FF"
+  },
+  "name": "relayq-chatgpt",
+  "version": "1.0.0",
+  "mcpServers": "./.mcp.json",
+  "homepage": "https://relayq.app",
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Discover the workspaces available to the signed-in reviewer. Fixture: the demo account owns exactly one non-sensitive workspace named RelayQ Review.",
+              "prompt": "Use RelayQ to list the workspaces I can access. Do not make any changes.",
+              "tools_triggered": "list_workspaces",
+              "expected_behavior": "Calls list_workspaces once and returns structuredContent.workspaces as an array of objects with id, name, and role. The array contains RelayQ Review. No prepare or commit tool is called."
+            },
+            {
+              "description": "Read a known task without changing it. Fixture: RelayQ Review contains an open task titled Review fixture - status, and the demo account can read it.",
+              "prompt": "In the RelayQ Review workspace, find the task named 'Review fixture - status' and show its current status. Do not change it.",
+              "tools_triggered": "list_workspaces, list_tasks",
+              "expected_behavior": "Resolves RelayQ Review with list_workspaces, then calls list_tasks with that workspace ID and a title query. The result has workspace_id, tasks, total_count, and next_offset; tasks includes Review fixture - status with its id, task_number, status, and updated_at. No prepare or commit tool is called."
+            },
+            {
+              "description": "Build an assignment- and dependency-aware plan preview without creating tasks. Fixture: RelayQ Review contains a member whose display name is Alex Reviewer.",
+              "prompt": "In RelayQ Review, prepare a preview only for an onboarding plan with parent task 'Reviewer onboarding' and two subtasks: 'Write reviewer guide', assigned to Alex Reviewer and due 2027-06-15, and 'Run reviewer walkthrough', due 2027-06-16 and dependent on 'Write reviewer guide'. Do not create or commit anything.",
+              "tools_triggered": "list_workspaces, get_workspace_context, prepare_plan",
+              "expected_behavior": "Resolves the workspace, loads its members, and calls prepare_plan with the returned member ID. The result has workspace, task_count 3, assignment_count 1, dependency_count 1, warnings, items, confirmation_id, and expires_at. The items preserve the parent/subtask hierarchy, both due dates, the assignment, and the dependency. commit_plan is not called and no task is created."
+            },
+            {
+              "description": "Preview a known task status change without applying it. Fixture: RelayQ Review contains an editable open task titled Review fixture - status.",
+              "prompt": "In RelayQ Review, prepare a preview to mark 'Review fixture - status' completed. Show the exact before and after values, but do not apply the change.",
+              "tools_triggered": "list_workspaces, list_tasks, prepare_task_changes",
+              "expected_behavior": "Resolves the workspace, reads the exact task id and updated_at with list_tasks, then calls prepare_task_changes. The result has workspace, operation_count 1, warnings, items, confirmation_id, and expires_at; the item includes the original task under before and status completed under changes. commit_task_changes is not called and the task remains open."
+            },
+            {
+              "description": "Preview permanent deletion of a known eligible task without deleting it. Fixture: the demo account owns RelayQ Review, which contains a task titled Review fixture - delete with no children and no dependent tasks.",
+              "prompt": "In RelayQ Review, prepare the permanent-deletion preview for 'Review fixture - delete'. Show the warning and exact task, but do not delete it.",
+              "tools_triggered": "list_workspaces, list_tasks, prepare_task_deletion",
+              "expected_behavior": "Resolves the workspace, reads the exact task id and updated_at, then calls prepare_task_deletion. The result has workspace, deletion_count 1, a permanent-deletion warning in warnings, the exact task in items, confirmation_id, and expires_at. commit_task_deletion is not called and the task still exists."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not invoke RelayQ for unsupported workspace membership administration.",
+              "prompt": "Use RelayQ to remove Sam from my workspace and revoke their access."
+            },
+            {
+              "description": "Do not invoke RelayQ for an unrelated calendar request.",
+              "prompt": "Move my project kickoff meeting to tomorrow at 10 AM."
+            },
+            {
+              "description": "Do not invoke RelayQ to send external email or messages.",
+              "prompt": "Email the launch plan to everyone on the project and tell them it is approved."
+            }
+          ]
+        },
+        "demo_recording_url": "https://relayq.app/demo/relayq-chatgpt-demo.mp4",
+        "commerce": false,
+        "commerce_description": "RelayQ task tools do not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial submission with a complete remote MCP connection, OAuth dynamic client registration, listing assets, and repeatable review tests. Task writes require a separate preview and explicit approval."
+      }
+    }
+  },
+  "apps": "./.app.json"
+}

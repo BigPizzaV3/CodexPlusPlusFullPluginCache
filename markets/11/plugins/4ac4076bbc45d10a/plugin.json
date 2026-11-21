@@ -1,0 +1,104 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rezto",
+  "version": "1.0.3",
+  "description": "Find restaurants, bars and cafes on Rezto, check which times are free and send a table reservation request. The restaurant confirms by SMS or email.",
+  "author": {
+    "name": "Rezto",
+    "email": "info@rezto.app",
+    "url": "https://rezto.app"
+  },
+  "homepage": "https://rezto.app",
+  "keywords": [
+    "restaurant",
+    "reservation",
+    "booking",
+    "table",
+    "dining"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Rezto",
+        "shortDescription": "Book tables at restaurants",
+        "longDescription": "Rezto connects diners with restaurants, bars and cafes, mostly in Georgia and Italy.\n\nAsk ChatGPT to find a place by name or city, see which times are free for your party size, and send a reservation request without leaving the chat. You tell ChatGPT who the booking is for and a phone number (plus an email if your number is outside Georgia), and it checks the details with you before anything is sent.\n\nA reservation made here is a request: the restaurant has to accept it, usually within 15 minutes, and you are told by SMS or email. ChatGPT will not call a table reserved until the restaurant has confirmed. You can ask ChatGPT at any time whether your booking has been confirmed, and cancel it.\n\nSome restaurants let you pre-order dishes from their menu. Choosing dishes and paying by card happens on the Rezto website, not in the chat, and ChatGPT gives you the link to finish there.\n\nRezto only receives what a booking needs: your name, phone number, optional email, party size, date and time, and any request you ask ChatGPT to pass on to the restaurant.",
+        "developerName": "Rezto",
+        "category": "Travel",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://rezto.app",
+        "supportURL": "https://rezto.app/support",
+        "privacyPolicyURL": "https://rezto.app/user-privacy-policy",
+        "termsOfServiceURL": "https://rezto.app/user-terms-and-conditions",
+        "defaultPrompt": [
+          "Find a restaurant in Tbilisi and book a table for 2 tomorrow at 19:00",
+          "What times are free for 4 people in Batumi on Saturday evening?",
+          "Has my restaurant reservation been confirmed yet?"
+        ],
+        "brandColor": "#2DBB73",
+        "brandColorDark": "#2DBB73",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find a restaurant and read its details. No booking is made.",
+              "prompt": "Find the restaurant XQWERTY in Tbilisi and tell me its address, its opening hours, the largest group it takes and its seating areas.",
+              "tools_triggered": "search_restaurants, get_restaurant",
+              "expected_behavior": "Shows XQWERTY at 117 David Agmashenebeli Avenue, Tbilisi, open every day 10:00 to 01:00, taking 1 to 100 guests, with its seating areas (thirdFloor, firstHall, secondHall). States that dishes can be pre-ordered on the Rezto website. Does not create a reservation."
+            },
+            {
+              "description": "Check which times are free for a party size.",
+              "prompt": "What times does XQWERTY have free for 2 people next Friday evening?",
+              "tools_triggered": "search_restaurants, check_availability",
+              "expected_behavior": "States the calendar date it resolved \"next Friday\" to, then lists only times returned by check_availability (evening times such as 18:00 to 23:30). Does not offer a time that is not in the list and does not create a reservation."
+            },
+            {
+              "description": "Send a reservation request without a menu pre-order.",
+              "prompt": "Book a table at XQWERTY next Friday at 19:00 for 2 people. The name is Test Reviewer and the phone number is +995 591 13 15 16. I do not want to pre-order. Yes, those details are correct, please send the request.",
+              "tools_triggered": "search_restaurants, check_availability, create_reservation",
+              "expected_behavior": "Sends the request and reports that it is NOT confirmed yet: the restaurant has to accept it and the guest is told by SMS or email. Shows the reservation id and a Rezto status link, with status awaiting_restaurant_confirmation. Never says the table is reserved or confirmed."
+            },
+            {
+              "description": "Start a booking with a menu pre-order. Payment cannot happen in the chat, so it hands over to the Rezto website.",
+              "prompt": "I want to book XQWERTY next Saturday at 20:00 for 4 people and pre-order from the menu. The name is Test Reviewer and the phone number is +995 591 13 15 16. Yes, those details are correct, please continue.",
+              "tools_triggered": "search_restaurants, get_restaurant, check_availability, create_reservation (menuPreorder true)",
+              "expected_behavior": "Saves a draft with status awaiting_menu_order and says it has NOT been sent to the restaurant yet. Gives a rezto.ge link ending in /restaurantMenu?reservationId=... where the guest chooses dishes and pays by card. Does not ask for or take any card details in the chat."
+            },
+            {
+              "description": "Request a table, check whether it was confirmed, then cancel it.",
+              "prompt": "Book XQWERTY next Sunday at 19:00 for 2 people as Test Reviewer, phone +995 591 13 15 16, no pre-order, and send it. Then check whether the restaurant has confirmed it yet. Then cancel that reservation.",
+              "tools_triggered": "search_restaurants, check_availability, create_reservation, get_reservation, cancel_reservation",
+              "expected_behavior": "Sends the request, then reports its real status (awaiting_restaurant_confirmation unless the restaurant has already accepted it, in which case confirmed with a confirmation code). Then cancels it and reports status canceled. Does not claim the table was confirmed unless get_reservation says so."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Food delivery. Rezto only books restaurant tables and has no ordering or delivery, so it should not act. Expected: no Rezto tool is called; ChatGPT says it cannot order or deliver food and may offer to find a restaurant to book a table instead.",
+              "prompt": "Order a large margherita pizza for delivery to my apartment in Tbilisi tonight."
+            },
+            {
+              "description": "Hotels and other travel. Rezto only books restaurant tables, so it should not act. Expected: no Rezto tool is called; ChatGPT says it cannot book hotels and may offer to book a restaurant table in Batumi instead.",
+              "prompt": "Find me a hotel in Batumi for this weekend and book the cheapest room."
+            },
+            {
+              "description": "Bill splitting and tipping. This is not a reservation and Rezto has no bill or payment features, so it should not act. Expected: no Rezto tool is called; ChatGPT just does the arithmetic (60 GEL each before tip) without using Rezto.",
+              "prompt": "I'm at a restaurant right now. Help me split a 240 GEL bill between 4 friends and tell me how much tip to leave."
+            }
+          ]
+        },
+        "commerce": true,
+        "commerce_description": "Table reservations are free and nothing is charged by this plugin. For restaurants that offer it, a guest can pre-order dishes (food, a physical good) by following a link to the Rezto website, where checkout and card payment happen on Rezto's own domain. No payment details are collected or processed in ChatGPT.",
+        "demo_recording_url": "https://drive.google.com/file/d/1NVEfiaCj3qw-V2ZG-tjhGfl6nH2DE8Vy/view"
+      },
+      "publication": {
+        "release_notes": "Rezto 1.0 - first release\n\n- Find restaurants, bars and cafes by name or city, mostly in Georgia and Italy.\n- See a venue's opening hours and which times are free for your party size.\n- Send a table reservation request without leaving the chat. The restaurant has to accept it, and you are told by SMS or email. ChatGPT only calls a table confirmed once the restaurant has confirmed it.\n- Ask whether your booking has been confirmed, and cancel it.\n- Where a restaurant offers menu pre-ordering, ChatGPT gives you a link to choose dishes and pay on the Rezto website. Payment never happens in the chat."
+      },
+      "apps": "./.app.json"
+    }
+  }
+}
